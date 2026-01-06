@@ -1,0 +1,7 @@
+{
+  "name": "TemnyLessCodec.Editor",
+  "references": ["TemnyLessCodec.Runtime"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

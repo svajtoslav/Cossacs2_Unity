@@ -1,0 +1,9 @@
+{
+  "name": "com.temnyless.codec",
+  "version": "0.1.0",
+  "displayName": "TemnyLess Cossacks2 Codec",
+  "unity": "2021.3",
+  "description": "G16/G2D import + open-command wrapper over Melinoja.dll",
+  "keywords": ["cossacks2", "g16", "g2d", "importer"],
+  "author": { "name": "TemnyLess" }
+}
