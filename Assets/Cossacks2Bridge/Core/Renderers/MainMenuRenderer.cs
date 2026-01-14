@@ -15,7 +15,9 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
 
             var root = CreateCanvas("C2_MainMenuCanvas", opt);
 
-            // Рендерим фоны
+            if (desk?.Children == null) return;
+
+            // Фоны / картинки
             foreach (var node in desk.Children)
             {
                 if (!node.Visible) continue;
@@ -23,7 +25,15 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                     CreateBitPicture(root, pic, fs, opt);
             }
 
-            // Рендерим кнопки
+            // ListDesk (фон + область списка) — ДО кнопок, чтобы не перекрывать клики
+            foreach (var node in desk.Children)
+            {
+                if (!node.Visible) continue;
+                if (node is UiListDesk ld)
+                    CreateListDesk(ld, root, opt);
+            }
+
+            // Кнопки
             foreach (var node in desk.Children)
             {
                 if (!node.Visible) continue;

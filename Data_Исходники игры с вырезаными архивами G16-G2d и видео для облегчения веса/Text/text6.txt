@@ -1,0 +1,16 @@
+ENCICL Энциклопедия
+LOADING Загрузка ...
+MHISTORY Последнее сообщение
+@MSYES Да
+@MSNO Нет
+@MSOK OK
+@MSNEXT Следующий
+@MSPREV Предыдущий
+@MSCANCEL Закрыть
+@RMID_EASY Легко
+@RMID_NORMAL Легко
+@RMID_HARD Норма 
+@RMID_VERYHARD Тяжело
+GI_UNITS Юниты
+GI_BLD Здания
+PLALONE Вы были отключены от игры!

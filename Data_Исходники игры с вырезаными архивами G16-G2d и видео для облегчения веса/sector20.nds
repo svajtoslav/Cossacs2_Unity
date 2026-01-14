@@ -1,0 +1,384 @@
+[MEMBERS]
+UnitPop(RU)    RusPop
+UnitPar(RU)    RusPar
+TempMent(RU)   TempMent
+ArtPus1(RU)    ArtPus1
+ArtPus2(RU)    ArtPus2
+ArtPus3(RU)    ArtPus3
+ArtPus4(RU)    ArtPus4R
+ArtPus4L(RU)   ArtPus4LR
+ArtPus4G(RU)   ArtPus4GR
+ArtGau(RU)     EngKri
+ArtPus(RU)     EngKri
+UnitPus(RU)    PusRus
+UnitKri(RU)    RusKri
+UnitBar(RU)    RusBar 
+UnitEgr(RU)    RusEgr
+UnitFlg(RU)    RusFlg
+UnitFuz(RU)    RusMus
+UnitGre(RU)    RusGre
+UnitKDrg(RU)   RusKDrg
+UnitKEgr(RU)   RusKEgr
+UnitOf(RU)     RusOf
+UnitSap(RU)    RusPio
+UnitVol(RU)    FrnVol
+Field(RU)      Field
+BldArs(RU)     BldArs
+BldKaz(RU)     RusKaz
+BldKir(RU)     BldKir
+BldLes(RU)     BldLes
+BldMan(RU)     BldMan
+BldMel(RU)     RusMel
+BldAka(RU)     RusAka
+BldCen(RU)     RusCen
+BldDo1(RU)     RusDo1
+BldDo2(RU)     RusDo2
+BldDvo(RU)     RusDvo
+BldTer(RU)     RusTer
+BldHra(RU)     RusHra
+BldKuz(RU)     RusKuz
+BldSkl(RU)     RusSkl
+BldMay(RU)     FrnMay
+BldKre(RU)     BldKre
+BldTow(RU)     BldTow
+BldKro(RU)     BldKro
+BldKon(RU)     BldKon
+BldRudGold(RU) BldRudGln
+BldRudIron(RU) BldRudRud 
+BldRudCoal(RU) BldRudSel
+BldRudSton(RU) BldRudKam
+BldRudUgl(RU)  BldRudUgl
+BldFor(RU)     BldFor
+BldBlg(RU)     BldBlg
+BldArt(RU)     BldArt
+BldRin(RU)     BldRin
+UnitKKir(RU)   RusKKir
+UnitKFlg(RU)   RusKFlg
+UnitKUln(RU)   RusKUln
+UnitKGus(RU)   RusKGus
+UnitKMam(RU)   RusKChKoz
+UnitKDKoz(RU)  RusKDKoz
+UnitKGen(RU)   RusKGen
+Bochka(RU)     Bochka
+
+[FIXED_PRODUCE]
+BldCen(RU)     9
+BldTer(RU)     3 0 A
+BldRin(RU)     5 0 A
+BldAka(RU)     6 0 A
+BldKuz(RU)     8 0 A
+BldDvo(RU)     0 1 A
+BldHra(RU)     1 1 A
+BldKon(RU)     2 1 A
+BldArt(RU)     3 1 A
+BldBlg(RU)     4 1 A
+
+BldKaz(RU)      8
+UnitPar(RU)     0 1 A
+UnitFuz(RU)     1 1 A
+UnitGre(RU)     3 1 A
+UnitOf(RU)      5 1 A
+UnitBar(RU)     6 1 A
+UnitFlg(RU)     7 1 A
+UnitEgr(RU)     0 0 A
+UnitSap(RU)     1 0 A
+
+BldKon(RU)     8
+UnitKMam(RU)     0 1 A
+UnitKDKoz(RU)    1 1 A
+UnitKDrg(RU)     3 1 A
+UnitKEgr(RU)     2 1 A
+UnitKFlg(RU)     4 1 A
+UnitKGus(RU)     6 1 A
+UnitKKir(RU)     7 1 A
+UnitKUln(RU)     8 1 A
+
+BldArt(RU)     1
+ArtPus4(RU)    0  0 A
+
+UnitSap(RU)    5
+BldBlg(RU)     0  0 A
+BldTow(RU)     1  0 A
+BldKro(RU)     2  0 A
+BldFor(RU)     3  0 A
+BldKre(RU)     4  0 A
+
+UnitKri(RU)    15
+BldCen(RU)     0 0 A
+BldKaz(RU)     1 0 A
+BldDo1(RU)     2 0 A
+BldTer(RU)     3 0 A
+BldSkl(RU)     4 0 A
+BldRin(RU)     5 0 A
+BldAka(RU)     6 0 A
+BldDo2(RU)     7 0 A
+BldKuz(RU)     8 0 A
+BldDvo(RU)     0 1 A
+BldHra(RU)     1 1 A
+BldKon(RU)     2 1 A
+BldArt(RU)     3 1 A
+BldBlg(RU)     4 1 A
+BldMel(RU)     5 1 A
+
+BldMel(RU) 1
+Field(RU)  1 0 A
+
+BldFor(RU) 1
+UnitPar(RU)    1 0 A
+
+BldKre(RU) 1
+UnitGre(RU)  1 0 A
+
+BldKro(RU) 1
+UnitFuz(RU)  1 0 A
+
+[ENABLED]
+UnitKMam(RU)
+UnitKDrg(RU)
+UnitKKir(RU)
+UnitKFlg(RU)
+UnitKEgr(RU)
+UnitKUln(RU)
+UnitKGus(RU)
+UnitKDKoz(RU)
+ArtPus1(RU)   
+ArtPus2(RU)   
+ArtPus3(RU)   
+ArtPus4(RU)   
+
+ArtGau(RU)
+ArtPus(RU)
+UnitSap(RU)
+UnitBar(RU)
+UnitFlg(RU)
+UnitOf(RU)
+BldRin(RU)
+BldSkl(RU)
+BldKuz(RU)
+BldLes(RU)
+BldAka(RU)
+BldKaz(RU)
+BldDvo(RU)
+BldDo2(RU)
+BldHra(RU)
+BldArt(RU)
+BldBlg(RU)
+BldKon(RU)
+BldTow(RU)
+BldKro(RU)
+BldFor(RU)
+BldKre(RU)
+BldRudGold(RU)
+BldRudIron(RU)
+BldRudCoal(RU)
+BldRudSton(RU)
+BldMel(RU)
+BldCen(RU)
+BldDo1(RU)
+BldTer(RU)
+UnitKri(RU)
+UnitPar(RU)  
+UnitFuz(RU)
+UnitGre(RU)  
+UnitEgr(RU)  
+
+[UPGRADE]
+UPG01(RU) A18 #POSITION 0 0 #LEVEL 1 UPG01(RU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldBlg(RU) +15000
+UPG02(RU) A18 #POSITION 0 1 #LEVEL 1 UPG02(RU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldTow(RU) +15000
+UPG03(RU) A11 #POSITION 0 2 #LEVEL 1 UPG03(RU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldTow(RU) +80
+UPG04(RU) A18 #POSITION 1 0 #LEVEL 1 UPG04(RU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldFor(RU) +20000
+UPG05(RU) A18 #POSITION 1 1 #LEVEL 1 UPG05(RU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldFor(RU) +15000
+UPG06(RU) A18 #POSITION 1 2 #LEVEL 1 UPG06(RU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldKro(RU) +35000
+Bashnia(RU)PAUSE U6 #POSITION 0 0 #LEVEL 2 Bashnia(AU)PAUSE #COST 1 COAL 250 #TIME 1000
+        SINGLE_ATTPAUSE ATTINDEX 0 BldTow(RU) 80
+Bashnia(RU)PAUSE3 U6 #POSITION 0 0 #LEVEL 3 Bashnia(AU)PAUSE3 #COST 1 IRON 350 #TIME 1000
+        SINGLE_ATTPAUSE ATTINDEX 0 BldTow(RU) 60
+Bashnia(RU)PAUSE4 U6 #POSITION 0 0 #LEVEL 4 Bashnia(AU)PAUSE4 #COST 1 COAL 600 #TIME 1000
+        SINGLE_ATTPAUSE ATTINDEX 0 BldTow(RU) 50
+UPG07(RU) A16 #POSITION 2 0 #LEVEL 1 UPG07(RU) #COST 2 GOLD 2000 IRON 18150 #TIME 500
+        ATTRANGE ATTINDEX 0 GRP 1 BldFor(RU) +10%
+UPG08(RU) A11 #POSITION 2 1 #LEVEL 1 UPG08(RU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldFor(RU) +80
+UPG09(RU) A11 #POSITION 2 2 #LEVEL 1 UPG09(RU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldKre(RU) +80
+UPG10(RU) A11 #POSITION 3 0 #LEVEL 1 UPG10(RU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldKre(RU) +80
+UPG11(RU) A11 #POSITION 3 1 #LEVEL 1 UPG11(RU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldKro(RU) +80
+UPG12(RU) A10 #POSITION 3 2 #LEVEL 1 UPG12(RU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 BldBlg(RU) BldTow(RU) -50%
+UPG13(RU) A10 #POSITION 4 0 #LEVEL 1 UPG13(RU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 18 BldRin(RU) BldSkl(RU) BldKuz(RU) BldLes(RU) BldAka(RU) BldKaz(RU) BldDvo(RU) BldDo2(RU) BldHra(RU) BldArt(RU) BldKon(RU) BldRudGold(RU) BldRudIron(RU) BldRudCoal(RU) BldRudSton(RU) BldMel(RU) BldCen(RU) BldDo1(RU) -75%
+UPG14(RU) A18 #POSITION 4 1 #LEVEL 1 UPG14(RU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 18 BldRin(RU) BldSkl(RU) BldKuz(RU) BldLes(RU) BldAka(RU) BldKaz(RU) BldDvo(RU) BldDo2(RU) BldHra(RU) BldArt(RU) BldKon(RU) BldRudGold(RU) BldRudIron(RU) BldRudCoal(RU) BldRudSton(RU) BldMel(RU) BldCen(RU) BldDo1(RU) 200%
+UPG15(RU) A10 #POSITION 4 2 #LEVEL 1 UPG15(RU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 1 UnitSap(RU) -80%
+UPG16(RU) A19 #POSITION 5 0 #LEVEL 1 UPG16(RU) #COST 1 GOLD 900 #TIME 500
+        ENABLE UNITS UnitKFlg(RU)
+UPG17(RU) A20 #POSITION 5 1 #LEVEL 1 UPG17(RU) #COST 1 COAL 6000 #TIME 500
+        RAZBROS GRP 2 ArtPus(RU) ArtGau(RU) -35%
+UPG18(RU) A20 #POSITION 5 2 #LEVEL 1 UPG18(RU) #COST 1 COAL 6000 #TIME 500
+        RAZBROS GRP 2 ArtPus(RU) ArtGau(RU) -35%
+UPG19(RU) A16 #POSITION 6 0 #LEVEL 1 UPG19(RU) #COST 2 GOLD 2000 IRON 18150 #TIME 500
+        ATTRANGE ATTINDEX 0 GRP 6 BldKre(RU) BldTow(RU) BldKro(RU) BldFor(RU) ArtPus(RU) ArtGau(RU) +15%
+UPG20(RU) A10 #POSITION 6 1 #LEVEL 1 UPG20(RU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 UnitKEgr(RU) UnitKUln(RU) -50%
+UPG21(RU) A10 #POSITION 6 2 #LEVEL 1 UPG21(RU) #COST 2 GOLD 315 WOOD 190 #TIME 500
+        EFFECT_FOOD 150
+UPG22(RU) A10 #POSITION 7 0 #LEVEL 1 UPG22(RU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 ArtPus(RU) ArtGau(RU) -35%
+UPG23(RU) A10 #POSITION 7 1 #LEVEL 1 UPG23(RU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 ArtPus(RU) ArtGau(RU) -35%
+UPG24(RU) A10 #POSITION 7 2 #LEVEL 1 UPG24(RU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 ArtPus(RU) ArtGau(RU) -35%
+KUZ02(RU) U4 #POSITION 1 0 #LEVEL 1 KUZ02(AU) #COST 2 IRON 1000 GOLD 500 #TIME 2500
+        ENABLE UNITS GRP 1 UnitGre(RU)
+
+[UPGRADEPLACE]
+BldAka(RU) 24
+UPG01(RU)
+UPG02(RU)
+UPG03(RU)
+UPG04(RU)
+UPG05(RU)
+UPG06(RU)
+UPG07(RU)
+UPG08(RU)
+UPG09(RU)
+UPG10(RU)
+UPG11(RU)
+UPG12(RU)
+UPG13(RU)
+UPG14(RU)
+UPG15(RU)
+UPG16(RU)
+UPG17(RU)
+UPG18(RU)
+UPG19(RU)
+UPG20(RU)
+UPG21(RU)
+UPG22(RU)
+UPG23(RU)
+UPG24(RU)
+
+BldKuz(RU) 1 KUZ02(RU)
+
+BldTow(RU) 3 Bashnia(RU)PAUSE
+Bashnia(RU)PAUSE3
+Bashnia(RU)PAUSE4
+
+[UPGRADEENABLE]
+KUZ02(RU)
+Bashnia(RU)PAUSE
+Bashnia(RU)PAUSE3
+Bashnia(RU)PAUSE4
+
+[UPGRADELINKS]
+
+[DISABLED_UPGRADES]
+
+[AUTOUPGRADE]
+
+[ACCESSCONTROL]
+BldAka(RU)      1 BldTer(RU)
+BldArt(RU)      1 BldAka(RU)
+BldKon(RU)      1 BldAka(RU)
+BldDvo(RU)      2 BldAka(RU)
+                  BldHra(RU)
+BldHra(RU)      1 BldTer(RU)
+BldKro(RU)      2 BldArt(RU)
+                  BldAka(RU)
+BldFor(RU)      2 BldArt(RU)
+                  BldAka(RU)
+BldKre(RU)      2 BldDvo(RU)
+                  BldArt(RU)
+UnitSap(RU)     1 BldAka(RU)
+UnitBar(RU)     1 BldTer(RU) 
+UnitFlg(RU)     2 BldAka(RU)
+                  BldTer(RU)
+BldKuz(RU)      1 BldKaz(RU)
+UnitGre(RU)     1 BldKuz(RU)
+UnitFuz(RU)     1 BldKuz(RU)
+UnitEgr(RU)     1 BldAka(RU)
+
+[UNITLOCK]                             
+                                      
+[CANSETDEST]
+BldKaz(RU)
+BldLes(RU)
+BldMel(RU)
+BldAka(RU)
+BldCen(RU)
+BldDo1(RU)
+BldDo2(RU)
+BldDvo(RU)
+BldHra(RU)
+BldKuz(RU)
+BldSkl(RU)
+BldMay(RU)
+BldKre(RU)
+BldTow(RU)
+BldKro(RU)
+BldKon(RU)
+BldRudGold(RU)
+BldRudIron(RU) 
+BldRudCoal(RU)
+BldRudSton(RU)
+BldRudUgl(RU)
+BldFor(RU)
+BldBlg(RU)
+BldArt(RU)
+BldTer(RU)
+
+[PRIVATE]
+Bashnia(RU)PAUSE
+Bashnia(RU)PAUSE3
+Bashnia(RU)PAUSE4
+
+[SPECIAL_UPGRADE]
+
+[SPECIAL_UNIT]
+
+[COUNTRY]
+RUSSIA 0
+
+[OFFICERS]
+UnitOf(RU) UnitBar(RU) UnitFlg(RU)   3
+SQUARE 1 #SQUARE120   4 UnitPar(RU) UnitFuz(RU) UnitGre(RU) UnitPop(RU)
+LINE   1 #LINE120COS  4 UnitPar(RU) UnitFuz(RU) UnitGre(RU) UnitPop(RU)
+KARE   1 #KARE120COS  4 UnitPar(RU) UnitFuz(RU) UnitGre(RU) UnitPop(RU)
+UnitKFlg(RU) NONE   3
+SHER   1 #MOVR2COS45     7 UnitKDrg(RU) UnitKKir(RU) UnitKEgr(RU) UnitKGus(RU) UnitKUln(RU) UnitKMam(RU) UnitKDKoz(RU)
+PRUS   1 #PRUS45COS      7 UnitKDrg(RU) UnitKKir(RU) UnitKEgr(RU) UnitKGus(RU) UnitKUln(RU) UnitKMam(RU) UnitKDKoz(RU)
+TRI    1 #TRI1COS45      7 UnitKDrg(RU) UnitKKir(RU) UnitKEgr(RU) UnitKGus(RU) UnitKUln(RU) UnitKMam(RU) UnitKDKoz(RU)
+TempMent(RU) NONE 1
+LINE   1 #LINE60MENTCOS  1 TempMent(RU)
+UnitEgr(RU) NONE 1
+LINE   1 #LINE15COSEGR 1 UnitEgr(RU)
+UnitSap(RU) NONE 1
+LINE   1 #LINE15COSEGR 1 UnitSap(RU)
+
+[STAGEDEPENDENT]
+
+[UPGRADESTAGE]
+
+[SETTLFARMS]
+BldCen(RU) 400 120
+
+[CHANGECOST]
+//%NameID %0,1(0-shitat' vse zdania postavlenie|1-shitaetsa tolko dostroenie zdania) %Costpercent %PRICE 6 resources
+BldAka(RU) 1 100 500 0 400 200 0 0
+BldDvo(RU) 1 100 1000 0 800 200 0 0 
+BldHra(RU) 1 100 600 0 550 100 0 0 
+BldKuz(RU) 1 100 300 0 200 0 0 0 
+BldArt(RU) 1 100 650 0 300 300 0 0
+BldKon(RU) 1 100 800 0 400 0 0 0
+BldRin(RU) 1 100 300 0 400 0 0 0
+
+[END]

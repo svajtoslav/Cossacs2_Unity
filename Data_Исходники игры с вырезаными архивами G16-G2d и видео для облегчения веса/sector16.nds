@@ -1,0 +1,354 @@
+[MEMBERS]
+ArtPus1(AU)    ArtPus1
+ArtPus2(AU)    ArtPus2
+ArtPus3(AU)    ArtPus3
+ArtPus4(AU)    ArtPus4AUS
+ArtPus4L(AU)   ArtPus4LAUS
+ArtPus4G(AU)   ArtPus4GAUS
+UnitPus(AU)    PusAus
+ArtPus(AU)    EngKri
+ArtGau(AU)    EngKri
+UnitKri(AU)   EngKri
+UnitPop(AU)   FrnPop
+UnitBar(AU)   AusBar
+UnitEgrNG(AU) AusEgr
+UnitFlg(AU)   AusFlg
+UnitFuz(AU)   AusMus
+UnitFuzNG(AU) AusLan
+UnitGre(AU)   AusGre
+UnitKEgr(AU)  AusKDrg
+UnitKDrg(AU)  AusKDrgT
+UnitKGus(AU)  AusKGus
+UnitKFlg(AU)  AusKFlg
+UnitKUln(AU)  AusKUln
+UnitKKir(AU)  AusKKir
+UnitOf(AU)    AusOf
+UnitSap(AU)   FrnSap
+UnitVol(AU)   AusGrn
+BldMel(AU)    FrnMel
+BldArs(AU)    BldArs
+BldKaz(AU)    AusKaz
+BldKir(AU)    BldKir
+BldLes(AU)    BldLes
+BldMan(AU)    BldMan
+BldAka(AU)    AusAka
+BldCen(AU)    AusCen
+BldDo1(AU)    AusDo1
+BldDo2(AU)    AusDo2
+BldDvo(AU)    AusDvo
+BldHra(AU)    AusHra
+BldKuz(AU)    AusKuz
+BldSkl(AU)    AusSkl
+BldMay(AU)    AusMay
+BldKre(AU)    BldKre
+BldTow(AU)    BldTow
+BldKro(AU)    BldKro
+BldKon(AU)    BldKon
+BldRudGold(AU) BldRudGln
+BldRudIron(AU) BldRudRud
+BldRudCoal(AU) BldRudSel
+BldRudSton(AU) BldRudKam
+BldRudUgl(AU)  BldRudUgl
+BldFor(AU)    BldFor
+BldBlg(AU)    BldBlg
+BldArt(AU)    BldArt
+BldRin(AU)    BldRin
+Field(AU)     Field
+Bochka(AU)    Bochka
+
+[FIXED_PRODUCE]
+BldCen(AU)     10
+BldKaz(AU)     1 0 A
+BldRin(AU)     5 0 A
+BldAka(AU)     6 0 A
+BldKuz(AU)     8 0 A
+BldDvo(AU)     0 1 A
+BldHra(AU)     1 1 A
+BldKon(AU)     2 1 A
+BldArt(AU)     3 1 A
+BldBlg(AU)     4 1 A
+BldTow(AU)     5 1 A
+
+BldKaz(AU)     9
+UnitFuzNG(AU)  0  1 A
+UnitFuz(AU)    1  1 A
+UnitVol(AU)    2  1 A
+UnitGre(AU)    3  1 A
+UnitOf(AU)     5  1 A
+UnitBar(AU)    6  1 A
+UnitFlg(AU)    7  1 A
+UnitEgrNG(AU)  0  0 A
+UnitSap(AU)    1  0 A
+
+BldKon(AU)     6
+UnitKDrg(AU)   0  1 A
+UnitKKir(AU)   1  1 A
+UnitKFlg(AU)   6  1 A
+UnitKEgr(AU)   0  0 A
+UnitKUln(AU)   1  0 A
+UnitKGus(AU)   2  0 A
+
+BldArt(AU)     1
+ArtPus4(AU)    0  0 A
+
+UnitSap(AU)    5
+BldBlg(AU)     0  0 A
+BldTow(AU)     1  0 A
+BldKro(AU)     2  0 A
+BldFor(AU)     3  0 A
+BldKre(AU)     4  0 A
+
+BldMel(AU) 1
+Field(AU)  1 0 A
+/BldKir(AU)    2 0 A
+/BldMan(AU)    4 0 A
+/BldKre(AU)    1 2 A
+/BldTow(AU)    2 2 A
+/BldKro(AU)    3 2 A
+/BldKon(AU)    4 2 A
+/BldFor(AU)    5 2 A
+/BldBlg(AU)    6 2 A
+BldFor(AU) 1
+UnitVol(AU)    1 0 A
+
+BldKre(AU) 1
+UnitGre(AU)    1 0 A
+
+BldKro(AU) 1
+UnitFuz(AU)    1 0 A
+
+[ENABLED]
+ArtPus1(AU)  
+ArtPus2(AU)  
+ArtPus3(AU)  
+ArtPus4(AU)  
+
+UnitKDrg(AU)
+UnitKKir(AU)
+UnitKFlg(AU)
+UnitKEgr(AU)
+UnitKUln(AU)
+UnitKGus(AU)
+
+ArtGau(AU)
+ArtPus(AU)
+UnitSap(AU)
+UnitBar(AU)
+UnitFlg(AU)
+UnitOf(AU)
+BldRin(AU)
+BldSkl(AU)
+BldKuz(AU)
+BldLes(AU)
+BldArs(AU)
+BldAka(AU)
+BldKaz(AU)
+BldDvo(AU)
+BldDo2(AU)
+BldHra(AU)
+BldArt(AU)
+BldBlg(AU)
+BldKon(AU)
+BldMan(AU)
+BldKir(AU)
+BldTow(AU)
+BldKro(AU)
+BldFor(AU)
+BldKre(AU)
+BldRudGold(AU)
+BldRudIron(AU)
+BldRudCoal(AU)
+BldRudSton(AU)
+BldMel(AU)
+BldCen(AU)
+BldDo1(AU)
+UnitKri(AU)
+UnitFuz(AU)    
+UnitFuzNG(AU)  
+UnitVol(AU)    
+UnitGre(AU)    
+UnitEgrNG(AU)  
+
+[UPGRADE]
+UPG01(AU) A18 #POSITION 0 0 #LEVEL 1 UPG01(AU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldBlg(AU) +15000
+UPG02(AU) A18 #POSITION 0 1 #LEVEL 1 UPG02(AU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldTow(AU) +15000
+UPG03(AU) A11 #POSITION 0 2 #LEVEL 1 UPG03(AU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldTow(AU) +80
+UPG04(AU) A18 #POSITION 1 0 #LEVEL 1 UPG04(AU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldFor(AU) +20000
+UPG05(AU) A18 #POSITION 1 1 #LEVEL 1 UPG05(AU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldFor(AU) +15000
+UPG06(AU) A18 #POSITION 1 2 #LEVEL 1 UPG06(AU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 1 BldKro(AU) +35000
+Bashnia(AU)PAUSE U6 #POSITION 0 0 #LEVEL 2 Bashnia(AU)PAUSE #COST 1 COAL 250 #TIME 1000
+        SINGLE_ATTPAUSE ATTINDEX 0 BldTow(AU) 80
+Bashnia(AU)PAUSE3 U6 #POSITION 0 0 #LEVEL 3 Bashnia(AU)PAUSE3 #COST 1 IRON 350 #TIME 1000
+        SINGLE_ATTPAUSE ATTINDEX 0 BldTow(AU) 60
+Bashnia(AU)PAUSE4 U6 #POSITION 0 0 #LEVEL 4 Bashnia(AU)PAUSE4 #COST 1 COAL 600 #TIME 1000
+        SINGLE_ATTPAUSE ATTINDEX 0 BldTow(AU) 50
+UPG07(AU) A16 #POSITION 2 0 #LEVEL 1 UPG07(AU) #COST 2 GOLD 2000 IRON 18150 #TIME 500
+        ATTRANGE ATTINDEX 0 GRP 1 BldFor(AU) +10%
+UPG08(AU) A11 #POSITION 2 1 #LEVEL 1 UPG08(AU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldFor(AU) +80
+UPG09(AU) A11 #POSITION 2 2 #LEVEL 1 UPG09(AU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldKre(AU) +80
+UPG10(AU) A11 #POSITION 3 0 #LEVEL 1 UPG10(AU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldKre(AU) +80
+UPG11(AU) A11 #POSITION 3 1 #LEVEL 1 UPG11(AU) #COST 1  STONE 12500 #TIME 500
+        SHIELD GRP 1 BldKro(AU) +80
+UPG12(AU) A10 #POSITION 3 2 #LEVEL 1 UPG12(AU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 BldBlg(AU) BldTow(AU) -50%
+UPG13(AU) A10 #POSITION 4 0 #LEVEL 1 UPG13(AU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 18 BldRin(AU) BldSkl(AU) BldKuz(AU) BldLes(AU) BldAka(AU) BldKaz(AU) BldDvo(AU) BldDo2(AU) BldHra(AU) BldArt(AU) BldKon(AU) BldRudGold(AU) BldRudIron(AU) BldRudCoal(AU) BldRudSton(AU) BldMel(AU) BldCen(AU) BldDo1(AU) -75%
+UPG14(AU) A18 #POSITION 4 1 #LEVEL 1 UPG14(AU) #COST 2 GOLD 999 IRON 9999 #TIME 500
+        LIFE GRP 18 BldRin(AU) BldSkl(AU) BldKuz(AU) BldLes(AU) BldAka(AU) BldKaz(AU) BldDvo(AU) BldDo2(AU) BldHra(AU) BldArt(AU) BldKon(AU) BldRudGold(AU) BldRudIron(AU) BldRudCoal(AU) BldRudSton(AU) BldMel(AU) BldCen(AU) BldDo1(AU) 200%
+UPG15(AU) A10 #POSITION 4 2 #LEVEL 1 UPG15(AU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 1 UnitSap(AU) -80%
+UPG16(AU) A19 #POSITION 5 0 #LEVEL 1 UPG16(AU) #COST 1 GOLD 900 #TIME 500
+        ENABLE UNITS UnitKFlg(AU)
+UPG17(AU) A20 #POSITION 5 1 #LEVEL 1 UPG17(AU) #COST 1 COAL 6000 #TIME 500
+        RAZBROS GRP 2 ArtPus(AU) ArtGau(AU) -35%
+UPG18(AU) A20 #POSITION 5 2 #LEVEL 1 UPG18(AU) #COST 1 COAL 6000 #TIME 500
+        RAZBROS GRP 2 ArtPus(AU) ArtGau(AU) -35%
+UPG19(AU) A16 #POSITION 6 0 #LEVEL 1 UPG19(AU) #COST 2 GOLD 2000 IRON 18150 #TIME 500
+        ATTRANGE ATTINDEX 0 GRP 6 BldKre(AU) BldTow(AU) BldKro(AU) BldFor(AU) ArtPus(AU) ArtGau(AU) +15%
+UPG20(AU) A10 #POSITION 6 1 #LEVEL 1 UPG20(AU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 UnitKEgr(AU) UnitKUln(AU) -50%
+UPG21(AU) A10 #POSITION 6 2 #LEVEL 1 UPG21(AU) #COST 2 GOLD 315 WOOD 190 #TIME 500
+        EFFECT_FOOD 150
+UPG22(AU) A10 #POSITION 7 0 #LEVEL 1 UPG22(AU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 ArtPus(AU) ArtGau(AU) -35%
+UPG23(AU) A10 #POSITION 7 1 #LEVEL 1 UPG23(AU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 ArtPus(AU) ArtGau(AU) -35%
+UPG24(AU) A10 #POSITION 7 2 #LEVEL 1 UPG24(AU) #COST 1 WOOD 9000 #TIME 500
+        BUILD GRP 2 ArtPus(AU) ArtGau(AU) -35%
+KUZ02(AU) U4 #POSITION 1 0 #LEVEL 1 KUZ02(AU) #COST 2 IRON 1000 GOLD 500 #TIME 2500
+        ENABLE UNITS GRP 1 UnitGre(AU)
+
+[UPGRADEPLACE]
+BldAka(AU) 24
+UPG01(AU)
+UPG02(AU)
+UPG03(AU)
+UPG04(AU)
+UPG05(AU)
+UPG06(AU)
+UPG07(AU)
+UPG08(AU)
+UPG09(AU)
+UPG10(AU)
+UPG11(AU)
+UPG12(AU)
+UPG13(AU)
+UPG14(AU)
+UPG15(AU)
+UPG16(AU)
+UPG17(AU)
+UPG18(AU)
+UPG19(AU)
+UPG20(AU)
+UPG21(AU)
+UPG22(AU)
+UPG23(AU)
+UPG24(AU)
+
+BldTow(AU) 3 Bashnia(AU)PAUSE
+Bashnia(AU)PAUSE3
+Bashnia(AU)PAUSE4
+
+BldKuz(AU) 1 KUZ02(AU)
+
+[UPGRADEENABLE]
+KUZ02(AU)
+Bashnia(AU)PAUSE
+Bashnia(AU)PAUSE3
+Bashnia(AU)PAUSE4
+
+[UPGRADELINKS]
+
+[DISABLED_UPGRADES]
+
+[AUTOUPGRADE]
+
+[ACCESSCONTROL]
+BldArt(AU)      1 BldAka(AU)
+BldDvo(AU)      2 BldAka(AU)
+                  BldHra(AU)
+UnitEgrNG(AU)  1 BldKuz(AU)
+UnitSap(AU)    2 BldAka(AU)
+                 BldKuz(AU)
+UnitBar(AU)    1 BldAka(AU)              
+UnitOf(AU)     1 BldAka(AU)                
+UnitFlg(AU)    1 BldAka(AU)            
+
+[UNITLOCK]
+
+[CANSETDEST]
+BldArs(AU)
+BldKaz(AU)
+BldKir(AU)
+BldLes(AU)
+BldMan(AU)
+BldMel(AU)
+BldAka(AU)
+BldCen(AU)
+BldDo1(AU)
+BldDo2(AU)
+BldDvo(AU)
+BldHra(AU)
+BldKuz(AU)
+BldSkl(AU)
+BldMay(AU)
+BldKre(AU)
+BldTow(AU)
+BldKro(AU)
+BldKon(AU)
+BldRudGold(AU)
+BldRudIron(AU)
+BldRudCoal(AU)
+BldRudSton(AU)
+BldRudUgl(AU) 
+BldFor(AU)
+BldBlg(AU)
+BldArt(AU)
+
+[PRIVATE]
+
+[SPECIAL_UPGRADE]
+
+[SPECIAL_UNIT]
+
+[COUNTRY]
+AUSTRIA 0
+
+[OFFICERS]
+UnitOf(AU) UnitBar(AU) UnitFlg(AU)   3
+SQUARE 1 #SQUARE120   4 UnitFuzNG(AU) UnitFuz(AU) UnitGre(AU) UnitVol(AU)
+LINE   1 #LINE120COS  4 UnitFuzNG(AU) UnitFuz(AU) UnitGre(AU) UnitVol(AU)
+KARE   1 #KARE120COS  4 UnitFuzNG(AU) UnitFuz(AU) UnitGre(AU) UnitVol(AU)
+UnitKFlg(AU) NONE    3
+SHER   1 #MOVR2COS45      5 UnitKDrg(AU) UnitKKir(AU) UnitKEgr(AU) UnitKGus(AU) UnitKUln(AU)
+PRUS   1 #PRUS45COS       5 UnitKDrg(AU) UnitKKir(AU) UnitKEgr(AU) UnitKGus(AU) UnitKUln(AU)
+TRI    1 #TRI1COS45       5 UnitKDrg(AU) UnitKKir(AU) UnitKEgr(AU) UnitKGus(AU) UnitKUln(AU)
+UnitEgrNG(AU) NONE 1
+LINE   1 #LINE15COSEGR 1 UnitEgrNG(AU)
+UnitSap(AU) NONE 1
+LINE   1 #LINE15COSEGR 1 UnitSap(AU)
+
+[STAGEDEPENDENT]
+
+[UPGRADESTAGE]
+
+[CHANGECOST]
+//%NameID %0,1(0-shitat' vse zdania postavlenie|1-shitaetsa tolko dostroenie zdania) %Costpercent %PRICE 6 resources
+BldAka(AU) 1 100 500 0 400 200 0 0
+BldDvo(AU) 1 100 1000 0 800 200 0 0 
+BldHra(AU) 1 100 600 0 550 100 0 0 
+BldKuz(AU) 1 100 300 0 200 0 0 0 
+BldArt(AU) 1 100 650 0 300 300 0 0
+BldKon(AU) 1 100 800 0 400 0 0 0
+BldRin(AU) 1 100 300 0 400 0 0 0
+
+[END]

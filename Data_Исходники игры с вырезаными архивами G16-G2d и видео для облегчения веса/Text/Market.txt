@@ -1,0 +1,6 @@
+#SellAmountText 
+#BuyAmountText Спрос
+#Buy_Resource Купить
+#Reset_Resource Сбросить
+#MarketSellText Предложение
+#MarketBuyText Спрос

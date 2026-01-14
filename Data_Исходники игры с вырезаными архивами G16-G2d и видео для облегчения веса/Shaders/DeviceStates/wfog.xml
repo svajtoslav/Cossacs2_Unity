@@ -1,0 +1,35 @@
+<wfog>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>0x00000004</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<FillMode>Wireframe</FillMode>
+				<CullMode>None</CullMode>
+				<TextureFactor>0x00604610</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<ColorArg2>Tfactor</ColorArg2>
+				<AlphaOp>Modulate2x</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<MipFilter>None</MipFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</wfog>

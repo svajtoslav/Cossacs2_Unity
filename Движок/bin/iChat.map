@@ -1,0 +1,2126 @@
+ iChat
+
+ Timestamp is 40adf96a (Fri May 21 15:43:22 2004)
+
+ Preferred load address is 10000000
+
+ Start         Length     Name                   Class
+ 0001:00000000 0003504cH .text                   CODE
+ 0001:00035050 000001caH .text$x                 CODE
+ 0001:00035220 00000099H .text$yc                CODE
+ 0001:000352c0 0000007cH .text$yd                CODE
+ 0002:00000000 000002ecH .idata$5                DATA
+ 0002:000002f0 00003720H .rdata                  DATA
+ 0002:00003a10 0000004aH .rdata$debug            DATA
+ 0002:00003a5c 00000004H .rtc$IAA                DATA
+ 0002:00003a60 00000034H .rtc$IMZ                DATA
+ 0002:00003a94 00000004H .rtc$IZZ                DATA
+ 0002:00003a98 00000004H .rtc$TAA                DATA
+ 0002:00003a9c 00000034H .rtc$TMZ                DATA
+ 0002:00003ad0 00000004H .rtc$TZZ                DATA
+ 0002:00003ad4 000001c0H .xdata$x                DATA
+ 0002:00003c94 00000050H .idata$2                DATA
+ 0002:00003ce4 00000014H .idata$3                DATA
+ 0002:00003cf8 000002ecH .idata$4                DATA
+ 0002:00003fe4 00001152H .idata$6                DATA
+ 0002:00005140 000019daH .edata                  DATA
+ 0003:00000000 00000004H .CRT$XCA                DATA
+ 0003:00000004 00000004H .CRT$XCAA               DATA
+ 0003:00000008 00000008H .CRT$XCU                DATA
+ 0003:00000010 00000004H .CRT$XCZ                DATA
+ 0003:00000014 00000004H .CRT$XIA                DATA
+ 0003:00000018 00000010H .CRT$XIC                DATA
+ 0003:00000028 00000004H .CRT$XIY                DATA
+ 0003:0000002c 00000004H .CRT$XIZ                DATA
+ 0003:00000030 00000004H .CRT$XPA                DATA
+ 0003:00000034 00000004H .CRT$XPX                DATA
+ 0003:00000038 00000004H .CRT$XPZ                DATA
+ 0003:0000003c 00000004H .CRT$XTA                DATA
+ 0003:00000040 00000004H .CRT$XTB                DATA
+ 0003:00000044 00000004H .CRT$XTZ                DATA
+ 0003:00000050 00000cf8H .data                   DATA
+ 0003:00000d60 00002d8cH .bss                    DATA
+
+  Address         Publics by Value              Rva+Base     Lib:Object
+
+ 0000:00000000       ___safe_se_handler_table   00000000     <absolute>
+ 0000:00000000       __except_list              00000000     <absolute>
+ 0000:00000000       ___safe_se_handler_count   00000000     <absolute>
+ 0001:00000000       ?AddPlayer@ChatSystem@@QAEXPADH@Z 10001000 f   cs_chat.obj
+ 0001:00000260       ?DelPlayer@ChatSystem@@QAEXPADH@Z 10001260 f   cs_chat.obj
+ 0001:000003a0       ?AddAbsentPlayer@ChatSystem@@QAEXPAD@Z 100013a0 f   cs_chat.obj
+ 0001:00000570       ?DelAbsentPlayer@ChatSystem@@QAEXPAD@Z 10001570 f   cs_chat.obj
+ 0001:00000670       ?Disconnect@ChatSystem@@QAEXXZ 10001670 f   cs_chat.obj
+ 0001:00000740       ?Raw@@YAXPAXPBD0@Z         10001740 f   cs_chat.obj
+ 0001:000007a0       ?Disconnected@@YAXPAXPBD0@Z 100017a0 f   cs_chat.obj
+ 0001:000007e0       ?ChangedNickCallback@@YAXPAXW4CHATBool@@PBD20@Z 100017e0 f   cs_chat.obj
+ 0001:00000840       ?PrivateMessage@@YAXPAXPBD1H0@Z 10001840 f   cs_chat.obj
+ 0001:00000a90       ?Invited@@YAXPAXPBD10@Z    10001a90 f   cs_chat.obj
+ 0001:00000af0       ?ChannelMessage@@YAXPAXPBD11H0@Z 10001af0 f   cs_chat.obj
+ 0001:00000cf0       ??2@YAPAXI@Z               10001cf0 f i cs_chat.obj
+ 0001:00000d40       ??3@YAXPAX@Z               10001d40 f i cs_chat.obj
+ 0001:00000d90       ?Kicked@@YAXPAXPBD110@Z    10001d90 f   cs_chat.obj
+ 0001:00000df0       ?UserJoined@@YAXPAXPBD1H0@Z 10001df0 f   cs_chat.obj
+ 0001:00000ea0       ?UserParted@@YAXPAXPBD1H110@Z 10001ea0 f   cs_chat.obj
+ 0001:00000f50       ?UserChangedNick@@YAXPAXPBD110@Z 10001f50 f   cs_chat.obj
+ 0001:00000fb0       ?UserModeChanged@@YAXPAXPBD1H0@Z 10001fb0 f   cs_chat.obj
+ 0001:00001010       ?TopicChanged@@YAXPAXPBD10@Z 10002010 f   cs_chat.obj
+ 0001:00001070       ?ChannelModeChanged@@YAXPAXPBDPAUCHATChannelMode@@0@Z 10002070 f   cs_chat.obj
+ 0001:000010d0       ?UserListUpdated@@YAXPAXPBD0@Z 100020d0 f   cs_chat.obj
+ 0001:00001130       ?ConnectCallback@@YAXPAXW4CHATBool@@0@Z 10002130 f   cs_chat.obj
+ 0001:000011a0       ?NickErrorCallback@@YAXPAXHPBD0@Z 100021a0 f   cs_chat.obj
+ 0001:00001390       ?EnterChannelCallback@@YAXPAXW4CHATBool@@W4CHATEnterResult@@PBD0@Z 10002390 f   cs_chat.obj
+ 0001:00001460       ?GetUserInfoCallback@@YAXPAXW4CHATBool@@PBD222HPAPBD0@Z 10002460 f   cs_chat.obj
+ 0001:00001640       ?EnumUsersCallback@@YAXPAXW4CHATBool@@PBDHPAPBDPAH0@Z 10002640 f   cs_chat.obj
+ 0001:00001700       ?CheckMessage@ChatSystem@@QAEXPAD@Z 10002700 f   cs_chat.obj
+ 0001:000018e0       ?ChatBroadcastKeyChanged@@YAXPAXPBD1110@Z 100028e0 f   cs_chat.obj
+ 0001:00001910       ?Setup@ChatSystem@@QAEXXZ  10002910 f   cs_chat.obj
+ 0001:00001a60       ?Process@ChatSystem@@QAEXXZ 10002a60 f   cs_chat.obj
+ 0001:00001cb0       ?ChatProcess@@YAXXZ        10002cb0 f   cs_chat.obj
+ 0001:00001d00       ?ConnectToChat@ChatSystem@@QAE_NPAD00000@Z 10002d00 f   cs_chat.obj
+ 0001:00001fd0       ??0ChatSystem@@QAE@XZ      10002fd0 f   cs_chat.obj
+ 0001:00002080       ??1ChatSystem@@QAE@XZ      10003080 f   cs_chat.obj
+ 0001:000021a0       ??0ChatMsg@@QAE@XZ         100031a0 f   cs_chat.obj
+ 0001:000021f0       ??1ChatMsg@@QAE@XZ         100031f0 f   cs_chat.obj
+ 0001:000022e0       ?Add@ChatMsg@@QAEXPAD0@Z   100032e0 f   cs_chat.obj
+ 0001:00002430       ?RemoveOne@ChatMsg@@QAE_NPAD0H@Z 10003430 f   cs_chat.obj
+ 0001:00002550       ?SortPlayers@ChatSystem@@QAEXPAUOneChatPlayer@@H@Z 10003550 f   cs_chat.obj
+ 0001:000026a0       ?NPlayers@ChatSystem@@QAEHXZ 100036a0 f   cs_chat.obj
+ 0001:000026e0       ?Players@ChatSystem@@QAEPAUOneChatPlayer@@XZ 100036e0 f   cs_chat.obj
+ 0001:00002720       ??0?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QAE@XZ 10003720 f i cs_chat.obj
+ 0001:00002770       ??1?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QAE@XZ 10003770 f i cs_chat.obj
+ 0001:000027b0       ?Add@?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QAEHPAVOneClassMemberStorage@@@Z 100037b0 f i cs_chat.obj
+ 0001:00002830       ??A?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QAEAAPAVOneClassMemberStorage@@H@Z 10003830 f i cs_chat.obj
+ 0001:000028c0       ?GetAmount@?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QBEHXZ 100038c0 f i cs_chat.obj
+ 0001:000028f0       ?Clear@?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QAEXXZ 100038f0 f i cs_chat.obj
+ 0001:00002970       ??0?$DynArray@PAD$0CA@@@QAE@XZ 10003970 f i cs_chat.obj
+ 0001:000029c0       ??1?$DynArray@PAD$0CA@@@QAE@XZ 100039c0 f i cs_chat.obj
+ 0001:00002a00       ??0?$DynArray@K$0CA@@@QAE@XZ 10003a00 f i cs_chat.obj
+ 0001:00002a50       ??1?$DynArray@K$0CA@@@QAE@XZ 10003a50 f i cs_chat.obj
+ 0001:00002a90       ?Add@?$DynArray@K$0CA@@@QAEHK@Z 10003a90 f i cs_chat.obj
+ 0001:00002b10       ?find@?$DynArray@K$0CA@@@QAEHK@Z 10003b10 f i cs_chat.obj
+ 0001:00002b80       ??A?$DynArray@K$0CA@@@QAEAAKH@Z 10003b80 f i cs_chat.obj
+ 0001:00002c10       ?GetAmount@?$DynArray@K$0CA@@@QBEHXZ 10003c10 f i cs_chat.obj
+ 0001:00002c40       ?Clear@?$DynArray@K$0CA@@@QAEXXZ 10003c40 f i cs_chat.obj
+ 0001:00002cc0       ?Add@?$DynArray@PAVEnumerator@@$0CA@@@QAEHPAVEnumerator@@@Z 10003cc0 f i cs_chat.obj
+ 0001:00002d40       ??A?$DynArray@PAVEnumerator@@$0CA@@@QAEAAPAVEnumerator@@H@Z 10003d40 f i cs_chat.obj
+ 0001:00002dd0       ?Clear@?$DynArray@PAVEnumerator@@$0CA@@@QAEXXZ 10003dd0 f i cs_chat.obj
+ 0001:00002e50       ?Add@?$DynArray@PAVOneClassStorage@@$0CA@@@QAEHPAVOneClassStorage@@@Z 10003e50 f i cs_chat.obj
+ 0001:00002ed0       ??A?$DynArray@PAVOneClassStorage@@$0CA@@@QAEAAPAVOneClassStorage@@H@Z 10003ed0 f i cs_chat.obj
+ 0001:00002f60       ??0?$DynArray@H$0CA@@@QAE@XZ 10003f60 f i cs_chat.obj
+ 0001:00002fb0       ??1?$DynArray@H$0CA@@@QAE@XZ 10003fb0 f i cs_chat.obj
+ 0001:00002ff0       ?Add@?$DynArray@H$0CA@@@QAEHH@Z 10003ff0 f i cs_chat.obj
+ 0001:00003070       ??A?$DynArray@H$0CA@@@QAEAAHH@Z 10004070 f i cs_chat.obj
+ 0001:00003100       ?GetAmount@?$DynArray@H$0CA@@@QBEHXZ 10004100 f i cs_chat.obj
+ 0001:00003130       ?GetValues@?$DynArray@PAVvui_Action@@$0CA@@@QBEPAPAVvui_Action@@XZ 10004130 f i cs_chat.obj
+ 0001:00003160       ?GetAmount@?$DynArray@PAVvui_Action@@$0CA@@@QBEHXZ 10004160 f i cs_chat.obj
+ 0001:00003190       ??0?$DynArray@PAVSimpleDialog@@$0CA@@@QAE@XZ 10004190 f i cs_chat.obj
+ 0001:000031e0       ??1?$DynArray@PAVSimpleDialog@@$0CA@@@QAE@XZ 100041e0 f i cs_chat.obj
+ 0001:00003220       ??0?$DynArray@PAVStdBorder@@$0CA@@@QAE@XZ 10004220 f i cs_chat.obj
+ 0001:00003270       ??1?$DynArray@PAVStdBorder@@$0CA@@@QAE@XZ 10004270 f i cs_chat.obj
+ 0001:000032b0       ??A?$DynArray@PAVStdBorder@@$0CA@@@QAEAAPAVStdBorder@@H@Z 100042b0 f i cs_chat.obj
+ 0001:00003340       ?GetAmount@?$DynArray@PAVStdBorder@@$0CA@@@QBEHXZ 10004340 f i cs_chat.obj
+ 0001:00003370       ??0?$DynArray@PAVOneTextIcon@@$0CA@@@QAE@XZ 10004370 f i cs_chat.obj
+ 0001:000033c0       ??1?$DynArray@PAVOneTextIcon@@$0CA@@@QAE@XZ 100043c0 f i cs_chat.obj
+ 0001:00003400       ??A?$DynArray@PAVOneTextIcon@@$0CA@@@QAEAAPAVOneTextIcon@@H@Z 10004400 f i cs_chat.obj
+ 0001:00003490       ?GetAmount@?$DynArray@PAVOneTextIcon@@$0CA@@@QBEHXZ 10004490 f i cs_chat.obj
+ 0001:000034c0       ??0?$DynArray@PAVOneFontParam@@$0CA@@@QAE@XZ 100044c0 f i cs_chat.obj
+ 0001:00003510       ??1?$DynArray@PAVOneFontParam@@$0CA@@@QAE@XZ 10004510 f i cs_chat.obj
+ 0001:00003550       ??A?$DynArray@PAVOneFontParam@@$0CA@@@QAEAAPAVOneFontParam@@H@Z 10004550 f i cs_chat.obj
+ 0001:000035e0       ?GetAmount@?$DynArray@PAVOneFontParam@@$0CA@@@QBEHXZ 100045e0 f i cs_chat.obj
+ 0001:00003610       ??_EEntry@?$Hash@VStr_for_hash@@$0EAD@$0EAA@@@QAEPAXI@Z 10004610 f i cs_chat.obj
+ 0001:000036b0       ??_V@YAXPAX@Z              100046b0 f i cs_chat.obj
+ 0001:00003700       ??1Entry@?$Hash@VStr_for_hash@@$0EAD@$0EAA@@@QAE@XZ 10004700 f i cs_chat.obj
+ 0001:00003740       ?Check@?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QAEXH@Z 10004740 f i cs_chat.obj
+ 0001:00003800       ?Clear@?$DynArray@PAD$0CA@@@QAEXXZ 10004800 f i cs_chat.obj
+ 0001:00003880       ?Check@?$DynArray@K$0CA@@@QAEXH@Z 10004880 f i cs_chat.obj
+ 0001:00003940       ?Check@?$DynArray@PAVEnumerator@@$0CA@@@QAEXH@Z 10004940 f i cs_chat.obj
+ 0001:00003a00       ?Check@?$DynArray@PAVOneClassStorage@@$0CA@@@QAEXH@Z 10004a00 f i cs_chat.obj
+ 0001:00003ac0       ?Check@?$DynArray@H$0CA@@@QAEXH@Z 10004ac0 f i cs_chat.obj
+ 0001:00003b80       ?Clear@?$DynArray@H$0CA@@@QAEXXZ 10004b80 f i cs_chat.obj
+ 0001:00003c00       ??0?$DynArray@PAVvui_Action@@$0CA@@@QAE@XZ 10004c00 f i cs_chat.obj
+ 0001:00003c50       ??1?$DynArray@PAVvui_Action@@$0CA@@@QAE@XZ 10004c50 f i cs_chat.obj
+ 0001:00003c90       ?Add@?$DynArray@PAVvui_Action@@$0CA@@@QAEHPAVvui_Action@@@Z 10004c90 f i cs_chat.obj
+ 0001:00003d10       ?Del@?$DynArray@PAVvui_Action@@$0CA@@@QAEXHH@Z 10004d10 f i cs_chat.obj
+ 0001:00003de0       ?Move@?$DynArray@PAVvui_Action@@$0CA@@@QAE_NHH@Z 10004de0 f i cs_chat.obj
+ 0001:00003ef0       ??A?$DynArray@PAVvui_Action@@$0CA@@@QAEAAPAVvui_Action@@H@Z 10004ef0 f i cs_chat.obj
+ 0001:00003f80       ?Del@?$DynArray@PAVSimpleDialog@@$0CA@@@QAEXHH@Z 10004f80 f i cs_chat.obj
+ 0001:00004050       ?Move@?$DynArray@PAVSimpleDialog@@$0CA@@@QAE_NHH@Z 10005050 f i cs_chat.obj
+ 0001:00004160       ??A?$DynArray@PAVSimpleDialog@@$0CA@@@QAEAAPAVSimpleDialog@@H@Z 10005160 f i cs_chat.obj
+ 0001:000041f0       ?GetValues@?$DynArray@PAVSimpleDialog@@$0CA@@@QBEPAPAVSimpleDialog@@XZ 100051f0 f i cs_chat.obj
+ 0001:00004220       ?GetAmount@?$DynArray@PAVSimpleDialog@@$0CA@@@QBEHXZ 10005220 f i cs_chat.obj
+ 0001:00004250       ?Clear@?$DynArray@PAVSimpleDialog@@$0CA@@@QAEXXZ 10005250 f i cs_chat.obj
+ 0001:000042d0       ?Del@?$DynArray@PAVStdBorder@@$0CA@@@QAEXHH@Z 100052d0 f i cs_chat.obj
+ 0001:000043a0       ?Move@?$DynArray@PAVStdBorder@@$0CA@@@QAE_NHH@Z 100053a0 f i cs_chat.obj
+ 0001:000044b0       ?GetValues@?$DynArray@PAVStdBorder@@$0CA@@@QBEPAPAVStdBorder@@XZ 100054b0 f i cs_chat.obj
+ 0001:000044e0       ?Clear@?$DynArray@PAVStdBorder@@$0CA@@@QAEXXZ 100054e0 f i cs_chat.obj
+ 0001:00004560       ?Del@?$DynArray@PAVOneTextIcon@@$0CA@@@QAEXHH@Z 10005560 f i cs_chat.obj
+ 0001:00004630       ?Move@?$DynArray@PAVOneTextIcon@@$0CA@@@QAE_NHH@Z 10005630 f i cs_chat.obj
+ 0001:00004740       ?GetValues@?$DynArray@PAVOneTextIcon@@$0CA@@@QBEPAPAVOneTextIcon@@XZ 10005740 f i cs_chat.obj
+ 0001:00004770       ?Clear@?$DynArray@PAVOneTextIcon@@$0CA@@@QAEXXZ 10005770 f i cs_chat.obj
+ 0001:000047f0       ?Add@?$DynArray@PAVOneFontParam@@$0CA@@@QAEHPAVOneFontParam@@@Z 100057f0 f i cs_chat.obj
+ 0001:00004870       ?Del@?$DynArray@PAVOneFontParam@@$0CA@@@QAEXHH@Z 10005870 f i cs_chat.obj
+ 0001:00004940       ?Move@?$DynArray@PAVOneFontParam@@$0CA@@@QAE_NHH@Z 10005940 f i cs_chat.obj
+ 0001:00004a50       ?GetValues@?$DynArray@PAVOneFontParam@@$0CA@@@QBEPAPAVOneFontParam@@XZ 10005a50 f i cs_chat.obj
+ 0001:00004a80       ?Clear@?$DynArray@PAVOneFontParam@@$0CA@@@QAEXXZ 10005a80 f i cs_chat.obj
+ 0001:00004b00       ??4?$DynArray@PAVxmlQuote@@$0CA@@@QAEAAV0@ABV0@@Z 10005b00 f i cs_chat.obj
+ 0001:00004b50       ?Check@?$DynArray@PAVvui_Action@@$0CA@@@QAEXH@Z 10005b50 f i cs_chat.obj
+ 0001:00004c10       ??1Str_for_hash@@QAE@XZ    10005c10 f i cs_chat.obj
+ 0001:00004c40       ?Clear@?$DynArray@PAVvui_Action@@$0CA@@@QAEXXZ 10005c40 f i cs_chat.obj
+ 0001:00004cc0       ?Add@?$DynArray@PAVSimpleDialog@@$0CA@@@QAEHPAVSimpleDialog@@@Z 10005cc0 f i cs_chat.obj
+ 0001:00004d40       ?Add@?$DynArray@PAVStdBorder@@$0CA@@@QAEHPAVStdBorder@@@Z 10005d40 f i cs_chat.obj
+ 0001:00004dc0       ?Add@?$DynArray@PAVOneTextIcon@@$0CA@@@QAEHPAVOneTextIcon@@@Z 10005dc0 f i cs_chat.obj
+ 0001:00004e40       ?Check@?$DynArray@PAVOneFontParam@@$0CA@@@QAEXH@Z 10005e40 f i cs_chat.obj
+ 0001:00004f00       ??4?$DynArray@PAVOneClassMemberStorage@@$0CA@@@QAEAAV0@ABV0@@Z 10005f00 f i cs_chat.obj
+ 0001:00004f50       ??4?$DynArray@PAD$0CA@@@QAEAAV0@ABV0@@Z 10005f50 f i cs_chat.obj
+ 0001:00004fa0       ?Check@?$DynArray@PAVSimpleDialog@@$0CA@@@QAEXH@Z 10005fa0 f i cs_chat.obj
+ 0001:00005060       ?Check@?$DynArray@PAVStdBorder@@$0CA@@@QAEXH@Z 10006060 f i cs_chat.obj
+ 0001:00005120       ?Check@?$DynArray@PAVOneTextIcon@@$0CA@@@QAEXH@Z 10006120 f i cs_chat.obj
+ 0001:000051e0       ??4?$DynArray@K$0CA@@@QAEAAV0@ABV0@@Z 100061e0 f i cs_chat.obj
+ 0001:00005230       ??4?$DynArray@PAVEnumerator@@$0CA@@@QAEAAV0@ABV0@@Z 10006230 f i cs_chat.obj
+ 0001:00005280       ??4?$DynArray@PAVOneClassStorage@@$0CA@@@QAEAAV0@ABV0@@Z 10006280 f i cs_chat.obj
+ 0001:000052d0       ??4?$DynArray@H$0CA@@@QAEAAV0@ABV0@@Z 100062d0 f i cs_chat.obj
+ 0001:00005320       ??4?$DynArray@PAUOneClassPointer@@$0CA@@@QAEAAV0@ABV0@@Z 10006320 f i cs_chat.obj
+ 0001:00005370       ?Add@?$DynArray@PAD$0CA@@@QAEHPAD@Z 10006370 f i cs_chat.obj
+ 0001:000053f0       ??A?$DynArray@PAD$0CA@@@QAEAAPADH@Z 100063f0 f i cs_chat.obj
+ 0001:00005480       ?GetAmount@?$DynArray@PAD$0CA@@@QBEHXZ 10006480 f i cs_chat.obj
+ 0001:000054b0       ?Check@?$DynArray@PAD$0CA@@@QAEXH@Z 100064b0 f i cs_chat.obj
+ 0001:00005570       ??4?$DynArray@PAVvui_Action@@$0CA@@@QAEAAV0@ABV0@@Z 10006570 f i cs_chat.obj
+ 0001:000055c0       ??4?$DynArray@PAVSimpleDialog@@$0CA@@@QAEAAV0@ABV0@@Z 100065c0 f i cs_chat.obj
+ 0001:00005610       ??4?$DynArray@W4PropType@@$0CA@@@QAEAAV0@ABV0@@Z 10006610 f i cs_chat.obj
+ 0001:00005660       ??4?$DynArray@PAX$0CA@@@QAEAAV0@ABV0@@Z 10006660 f i cs_chat.obj
+ 0001:000056b0       ??4?$DynArray@PAVStdBorder@@$0CA@@@QAEAAV0@ABV0@@Z 100066b0 f i cs_chat.obj
+ 0001:00005700       ??4?$DynArray@UFunctionsList@@$0CA@@@QAEAAV0@ABV0@@Z 10006700 f i cs_chat.obj
+ 0001:00005750       ??4?$DynArray@PAVOneTextIcon@@$0CA@@@QAEAAV0@ABV0@@Z 10006750 f i cs_chat.obj
+ 0001:000057a0       ??4?$DynArray@PAVOneFontParam@@$0CA@@@QAEAAV0@ABV0@@Z 100067a0 f i cs_chat.obj
+ 0001:000057f0       ?ReportIt@@YAXPADZZ        100067f0 f   GSC_ChatWindow.obj
+ 0001:00005860       ?PlayStart@@YAXXZ          10006860 f   GSC_ChatWindow.obj
+ 0001:000058c0       ?ReadWinString@@YA_NPAVGFILE@@PADH@Z 100068c0 f   GSC_ChatWindow.obj
+ 0001:000059a0       ?AddPrimitiveChat@@YAXPAD0AAPAPAD1AAH2@Z 100069a0 f   GSC_ChatWindow.obj
+ 0001:00005b70       ?AddChatString@@YAXPAD0HPAVRLCFont@@AAPAPAD2AAH3@Z 10006b70 f   GSC_ChatWindow.obj
+ 0001:00005dd0       ?PushWindow@@YAXPAUTempWindow@@@Z 10006dd0 f   GSC_ChatWindow.obj
+ 0001:00005e60       ?PopWindow@@YAXPAUTempWindow@@@Z 10006e60 f   GSC_ChatWindow.obj
+ 0001:00005ed0       ?IntersectWindows@@YAXHHHH@Z 10006ed0 f   GSC_ChatWindow.obj
+ 0001:00006030       ?Draw_PLIST@@YAXHHHHHEH@Z  10007030 f   GSC_ChatWindow.obj
+ 0001:00006500       ?DRAWBOX@@YAXHHHHHEH@Z     10007500 f   GSC_ChatWindow.obj
+ 0001:00006560       ?CheckForPersonalChat@@YA_NPAD@Z 10007560 f   GSC_ChatWindow.obj
+ 0001:000066d0       ?CheckPersonality@@YA_NPAD@Z 100076d0 f   GSC_ChatWindow.obj
+ 0001:00006800       ?MemScreenPart@@YAXHHHHPAE@Z 10007800 f   GSC_ChatWindow.obj
+ 0001:00006890       ?EnterPersonalMessage@@YAXPAD_N@Z 10007890 f   GSC_ChatWindow.obj
+ 0001:00006fb0       ?SendPrivateMessage@@YAXPAD0@Z 10007fb0 f   GSC_ChatWindow.obj
+ 0001:00007080       ?ShowCentralMessage2C@@YAXPADH@Z 10008080 f   GSC_ChatWindow.obj
+ 0001:00007250       ?SetGameID@@YAXPAD@Z       10008250 f   GSC_ChatWindow.obj
+ 0001:000072c0       ?GetGameID@@YAXPAD@Z       100082c0 f   GSC_ChatWindow.obj
+ 0001:00007330       ?SetChatWState@@YAXHH@Z    10008330 f   GSC_ChatWindow.obj
+ 0001:000073b0       ?RunHTTPC@@YAXXZ           100083b0 f   GSC_ChatWindow.obj
+ 0001:00007480       ?GoHomeAnyway@@YAXXZ       10008480 f   GSC_ChatWindow.obj
+ 0001:000074b0       ?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z 100084b0 f   GSC_ChatWindow.obj
+ 0001:0000bae0       ?Load@IniFile@@QAE_NPAD@Z  1000cae0 f i GSC_ChatWindow.obj
+ 0001:0000bd40       ?GetStr@IniFile@@QAEPADPAD@Z 1000cd40 f i GSC_ChatWindow.obj
+ 0001:0000bdd0       ?GetInt@IniFile@@QAEHPAD@Z 1000cdd0 f i GSC_ChatWindow.obj
+ 0001:0000be30       ??0IniFile@@QAE@XZ         1000ce30 f i GSC_ChatWindow.obj
+ 0001:0000be80       ??1IniFile@@QAE@XZ         1000ce80 f i GSC_ChatWindow.obj
+ 0001:0000bec0       ?Clear@IniFile@@QAEXXZ     1000cec0 f i GSC_ChatWindow.obj
+ 0001:0000bfb0       ?LeaveGSCRoom@@YAXXZ       1000cfb0 f   GSC_ChatWindow.obj
+ 0001:0000c010       ?StartGSCGame@@YAXPAD0HPAHPAPAD11@Z 1000d010 f   GSC_ChatWindow.obj
+ 0001:0000c420       ?ReportGSCGame@@YAXHHPAUOnePlayerReport@@@Z 1000d420 f   GSC_ChatWindow.obj
+ 0001:0000c610       ?ReportAliveState@@YAXHPAH@Z 1000d610 f   GSC_ChatWindow.obj
+ 0001:0000c770       ?SendVictoryState@@YAXHE@Z 1000d770 f   GSC_ChatWindow.obj
+ 0001:0000c980       ?DisableRatedGame@@YAXXZ   1000d980 f   GSC_ChatWindow.obj
+ 0001:0000ca40       ?CheckIfGameRated@@YA_NXZ  1000da40 f   GSC_ChatWindow.obj
+ 0001:0000caa0       ?AddCUserInfo@@YAXPAD0@Z   1000daa0 f   GSC_ChatWindow.obj
+ 0001:0000caf0       ?Add@CNamesCash@@QAEXPAD0_N@Z 1000daf0 f i GSC_ChatWindow.obj
+ 0001:0000cc70       ?Save@CNamesCash@@QAEXXZ   1000dc70 f i GSC_ChatWindow.obj
+ 0001:0000cd20       ?GetLocalInfo@CNamesCash@@QAEPADPAD@Z 1000dd20 f i GSC_ChatWindow.obj
+ 0001:0000cdc0       ?Load@CNamesCash@@QAEXXZ   1000ddc0 f i GSC_ChatWindow.obj
+ 0001:0000cf20       ?GetCUserInfo@@YAPADPAD@Z  1000df20 f   GSC_ChatWindow.obj
+ 0001:0000cf60       ??0CNamesCash@@QAE@XZ      1000df60 f i GSC_ChatWindow.obj
+ 0001:0000cfb0       ??1CNamesCash@@QAE@XZ      1000dfb0 f i GSC_ChatWindow.obj
+ 0001:0000d000       ?Clear@CNamesCash@@QAEXXZ  1000e000 f i GSC_ChatWindow.obj
+ 0001:0000d110       _DllMain@12                1000e110 f   IChat.obj
+ 0001:0000d140       ?SetupChat@@YAXXZ          1000e140 f   IChat.obj
+ 0001:0000d170       ??0ParsedRQ@@QAE@XZ        1000e170 f   ParseRQ.obj
+ 0001:0000d1c0       ??1ParsedRQ@@QAE@XZ        1000e1c0 f   ParseRQ.obj
+ 0001:0000d200       ?AddComm@ParsedRQ@@QAEXPAD@Z 1000e200 f   ParseRQ.obj
+ 0001:0000d320       ?AddParam@ParsedRQ@@QAEXPADH@Z 1000e320 f   ParseRQ.obj
+ 0001:0000d460       ?Clear@ParsedRQ@@QAEXXZ    1000e460 f   ParseRQ.obj
+ 0001:0000d5b0       ?GetHVal@@YAHD@Z           1000e5b0 f   ParseRQ.obj
+ 0001:0000d610       ?Parse@ParsedRQ@@QAEXPAD@Z 1000e610 f   ParseRQ.obj
+ 0001:0000d930       ?Compact@ParsedRQ@@QAEHPADH@Z 1000e930 f   ParseRQ.obj
+ 0001:0000db70       ?Extract@ParsedRQ@@QAEXPADH@Z 1000eb70 f   ParseRQ.obj
+ 0001:0000dd30       ?UnParse@ParsedRQ@@QAEHPADH@Z 1000ed30 f   ParseRQ.obj
+ 0001:0000e190       ?DelComm@ParsedRQ@@QAEXH@Z 1000f190 f   ParseRQ.obj
+ 0001:0000e2f0       ?AddParamToCom@ParsedRQ@@QAEXHPADH@Z 1000f2f0 f   ParseRQ.obj
+ 0001:0000e420       ?AddIntParam@ParsedRQ@@QAEXH@Z 1000f420 f   ParseRQ.obj
+ 0001:0000e4b0       _ciInitCallbacks           1000f4b0 f   chatCallbacks.obj
+ 0001:0000e590       _ciCleanupCallbacks        1000f590 f   chatCallbacks.obj
+ 0001:0000f280       _ciAddCallback_            10010280 f   chatCallbacks.obj
+ 0001:00011f30       _ciCallCallback            10012f30 f   chatCallbacks.obj
+ 0001:00012c20       _ciCallCallbacks           10013c20 f   chatCallbacks.obj
+ 0001:00012ea0       _ciCheckCallbacksForID     10013ea0 f   chatCallbacks.obj
+ 0001:00013090       _ciInitChannels            10014090 f   chatChannel.obj
+ 0001:000134a0       _ciCleanupChannels         100144a0 f   chatChannel.obj
+ 0001:00013540       _ciChannelEntering         10014540 f   chatChannel.obj
+ 0001:00013620       _ciEnteringChannelComparator 10014620 f   chatChannel.obj
+ 0001:00013670       _ciIsEnteringChannel       10014670 f   chatChannel.obj
+ 0001:00013760       _ciChannelEntered          10014760 f   chatChannel.obj
+ 0001:00013bd0       _ciChannelLeft             10014bd0 f   chatChannel.obj
+ 0001:00013d60       _ciGetChannelCallbacks     10014d60 f   chatChannel.obj
+ 0001:00013f00       _ciChannelListUsers        10014f00 f   chatChannel.obj
+ 0001:000143a0       _ciInChannel               100153a0 f   chatChannel.obj
+ 0001:00014420       _ciGetChannelMode          10015420 f   chatChannel.obj
+ 0001:00014540       _ciSetChannelMode          10015540 f   chatChannel.obj
+ 0001:00014650       _ciSetChannelPassword      10015650 f   chatChannel.obj
+ 0001:000147b0       _ciGetChannelPassword      100157b0 f   chatChannel.obj
+ 0001:000148b0       _ciJoinCallbackCalled      100158b0 f   chatChannel.obj
+ 0001:000149b0       _ciWasJoinCallbackCalled   100159b0 f   chatChannel.obj
+ 0001:00014ab0       _ciSetChannelTopic         10015ab0 f   chatChannel.obj
+ 0001:00014bc0       _ciGetChannelTopic         10015bc0 f   chatChannel.obj
+ 0001:00014cc0       _ciGetChannelNumUsers      10015cc0 f   chatChannel.obj
+ 0001:00014dc0       _ciUserEnteredChannel      10015dc0 f   chatChannel.obj
+ 0001:00015030       _ciUserLeftChannel         10016030 f   chatChannel.obj
+ 0001:000151d0       _ciUserEnumChannels        100161d0 f   chatChannel.obj
+ 0001:000154d0       _ciUserChangedNick         100164d0 f   chatChannel.obj
+ 0001:000159c0       _ciUserChangedMode         100169c0 f   chatChannel.obj
+ 0001:00015c90       _ciUserInChannel           10016c90 f   chatChannel.obj
+ 0001:00015d80       _ciGetUserMode             10016d80 f   chatChannel.obj
+ 0001:00015e80       _ciEnumJoinedChannels      10016e80 f   chatChannel.obj
+ 0001:00016040       _ciSetUserBasicInfo        10017040 f   chatChannel.obj
+ 0001:000162d0       _ciGetUserBasicInfo        100172d0 f   chatChannel.obj
+ 0001:00016580       _ciClearAllUsers           10017580 f   chatChannel.obj
+ 0001:000167f0       _ciFilterThink             100177f0 f   chatHandlers.obj
+ 0001:00017810       _ciGetNextID               10018810 f   chatHandlers.obj
+ 0001:000178b0       _ciCheckFiltersForID       100188b0 f   chatHandlers.obj
+ 0001:00017960       _ciCleanupFilters          10018960 f   chatHandlers.obj
+ 0001:000179e0       _ciAddLISTFilter           100189e0 f   chatHandlers.obj
+ 0001:00017bc0       _ciAddJOINFilter           10018bc0 f   chatHandlers.obj
+ 0001:00017cd0       _ciAddTOPICFilter          10018cd0 f   chatHandlers.obj
+ 0001:00017d30       _ciAddNAMESFilter          10018d30 f   chatHandlers.obj
+ 0001:00017db0       _ciAddWHOISFilter          10018db0 f   chatHandlers.obj
+ 0001:00017e50       _ciAddWHOFilter            10018e50 f   chatHandlers.obj
+ 0001:00017eb0       _ciAddCWHOFilter           10018eb0 f   chatHandlers.obj
+ 0001:00017f10       _ciAddCMODEFilter          10018f10 f   chatHandlers.obj
+ 0001:00017f70       _ciAddUMODEFilter          10018f70 f   chatHandlers.obj
+ 0001:00017fd0       _ciAddBANFilter            10018fd0 f   chatHandlers.obj
+ 0001:00018070       _ciAddGETBANFilter         10019070 f   chatHandlers.obj
+ 0001:000180f0       _ciAddNICKFilter           100190f0 f   chatHandlers.obj
+ 0001:00018150       _ciAddGETKEYFilter         10019150 f   chatHandlers.obj
+ 0001:000182b0       _ciAddGETCKEYFilter        100192b0 f   chatHandlers.obj
+ 0001:00018470       _ciAddGETCHANKEYFilter     10019470 f   chatHandlers.obj
+ 0001:00018630       _ciAddUNQUIETFilter        10019630 f   chatHandlers.obj
+ 0001:000186e0       _ciParseMode               100196e0 f   chatHandlers.obj
+ 0001:00018ae0       _ciApplyChangesToMode      10019ae0 f   chatHandlers.obj
+ 0001:00018c60       _ciNickError               10019c60 f   chatHandlers.obj
+ 0001:00018d70       _ciPrivmsgHandler          10019d70 f   chatHandlers.obj
+ 0001:00019030       _ciNoticeHandler           1001a030 f   chatHandlers.obj
+ 0001:00019210       _ciUTMHandler              1001a210 f   chatHandlers.obj
+ 0001:000193f0       _ciATMHandler              1001a3f0 f   chatHandlers.obj
+ 0001:000195d0       _ciPingHandler             1001a5d0 f   chatHandlers.obj
+ 0001:00019650       _ciNickHandler             1001a650 f   chatHandlers.obj
+ 0001:00019a00       _ciJoinHandler             1001aa00 f   chatHandlers.obj
+ 0001:00019d70       _ciPartHandler             1001ad70 f   chatHandlers.obj
+ 0001:00019f20       _ciKickHandler             1001af20 f   chatHandlers.obj
+ 0001:0001a190       _ciQuitEnumChannelsCallback 1001b190 f   chatHandlers.obj
+ 0001:0001a390       _ciQuitHandler             1001b390 f   chatHandlers.obj
+ 0001:0001a440       _ciKillEnumChannelsCallback 1001b440 f   chatHandlers.obj
+ 0001:0001a640       _ciKillHandler             1001b640 f   chatHandlers.obj
+ 0001:0001a6e0       _ciTopicHandler            1001b6e0 f   chatHandlers.obj
+ 0001:0001a820       _ciModeHandler             1001b820 f   chatHandlers.obj
+ 0001:0001aad0       _ciErrorHandler            1001bad0 f   chatHandlers.obj
+ 0001:0001abb0       _ciInviteHandler           1001bbb0 f   chatHandlers.obj
+ 0001:0001acc0       _ciNameReplyHandler        1001bcc0 f   chatHandlers.obj
+ 0001:0001b1f0       _ciEndOfNamesHandler       1001c1f0 f   chatHandlers.obj
+ 0001:0001b480       _ciRplTopicHandler         1001c480 f   chatHandlers.obj
+ 0001:0001b620       _ciRplNoTopicHandler       1001c620 f   chatHandlers.obj
+ 0001:0001b7a0       _ciErrNickInUseHandler     1001c7a0 f   chatHandlers.obj
+ 0001:0001b930       _ciRplWhoReplyHandler      1001c930 f   chatHandlers.obj
+ 0001:0001bbf0       _ciRplEndOfWhoHandler      1001cbf0 f   chatHandlers.obj
+ 0001:0001bd80       _ciRplGetKeyHandler        1001cd80 f   chatHandlers.obj
+ 0001:0001c0f0       _ciRplEndGetKeyHandler     1001d0f0 f   chatHandlers.obj
+ 0001:0001c220       _ciRplGetCKeyHandler       1001d220 f   chatHandlers.obj
+ 0001:0001c7b0       _ciRplEndGetCKeyHandler    1001d7b0 f   chatHandlers.obj
+ 0001:0001c8f0       _ciRplGetChanKeyHandler    1001d8f0 f   chatHandlers.obj
+ 0001:0001d060       _ciRplUserIPHandler        1001e060 f   chatHandlers.obj
+ 0001:0001d1a0       _ciRplListStartHandler     1001e1a0 f   chatHandlers.obj
+ 0001:0001d270       _ciRplListHandler          1001e270 f   chatHandlers.obj
+ 0001:0001d600       _ciRplListEndHandler       1001e600 f   chatHandlers.obj
+ 0001:0001d6f0       _ciRplChannelModeIsHandler 1001e6f0 f   chatHandlers.obj
+ 0001:0001d960       _ciRplWhoisUserHandler     1001e960 f   chatHandlers.obj
+ 0001:0001dc40       _ciRplWhoisChannelsHandler 1001ec40 f   chatHandlers.obj
+ 0001:0001de30       _ciRplEndOfWhoisHandler    1001ee30 f   chatHandlers.obj
+ 0001:0001df80       _ciRplBanListHandler       1001ef80 f   chatHandlers.obj
+ 0001:0001e140       _ciRplEndOfBanListHandler  1001f140 f   chatHandlers.obj
+ 0001:0001e260       _ciRplWelcomeHandler       1001f260 f   chatHandlers.obj
+ 0001:0001e360       _ciErrNoSuchChannelHandler 1001f360 f   chatHandlers.obj
+ 0001:0001e4d0       _ciErrTooManyChannelsHandler 1001f4d0 f   chatHandlers.obj
+ 0001:0001e5e0       _ciErrChannelIsFullHandler 1001f5e0 f   chatHandlers.obj
+ 0001:0001e6f0       _ciErrInviteOnlyChanHandler 1001f6f0 f   chatHandlers.obj
+ 0001:0001e800       _ciErrBannedFromChanHandler 1001f800 f   chatHandlers.obj
+ 0001:0001e910       _ciErrBadChannelKeyHandler 1001f910 f   chatHandlers.obj
+ 0001:0001ea20       _ciErrBadChanMaskHandler   1001fa20 f   chatHandlers.obj
+ 0001:0001eb30       _ciErrNoSuchNickHandler    1001fb30 f   chatHandlers.obj
+ 0001:0001eb60       _ciErrErroneusNicknameHandler 1001fb60 f   chatHandlers.obj
+ 0001:0001ebd0       _ciHandleDisconnect        1001fbd0 f   chatMain.obj
+ 0001:0001ecc0       _ciSendNickAndUser         1001fcc0 f   chatMain.obj
+ 0001:0001edf0       _chatConnectDoit           1001fdf0 f   chatMain.obj
+ 0001:0001f3a0       _chatConnect               100203a0 f   chatMain.obj
+ 0001:0001f410       _chatConnectSpecial        10020410 f   chatMain.obj
+ 0001:0001f480       _chatRetryWithNick         10020480 f   chatMain.obj
+ 0001:0001f560       _chatDisconnect            10020560 f   chatMain.obj
+ 0001:0001f670       _chatThink                 10020670 f   chatMain.obj
+ 0001:0001f6b0       _chatSendRaw               100206b0 f   chatMain.obj
+ 0001:0001f730       _chatChangeNick            10020730 f   chatMain.obj
+ 0001:0001fa60       _chatGetNick               10020a60 f   chatMain.obj
+ 0001:0001fad0       _chatFixNick               10020ad0 f   chatMain.obj
+ 0001:0001fc00       _chatSetQuietMode          10020c00 f   chatMain.obj
+ 0001:0001fd40       _chatEnumChannels          10020d40 f   chatMain.obj
+ 0001:0001fe50       _chatEnterChannel          10020e50 f   chatMain.obj
+ 0001:0001ffb0       _chatLeaveChannel          10020fb0 f   chatMain.obj
+ 0001:000200a0       _chatSendChannelMessage    100210a0 f   chatMain.obj
+ 0001:000202e0       _chatSetChannelTopic       100212e0 f   chatMain.obj
+ 0001:000203c0       _chatGetChannelTopic       100213c0 f   chatMain.obj
+ 0001:00020590       _chatSetChannelMode        10021590 f   chatMain.obj
+ 0001:00020770       _chatGetChannelMode        10021770 f   chatMain.obj
+ 0001:00020990       _chatSetChannelPassword    10021990 f   chatMain.obj
+ 0001:00020ad0       _chatGetChannelPassword    10021ad0 f   chatMain.obj
+ 0001:00020ca0       _chatEnumChannelBans       10021ca0 f   chatMain.obj
+ 0001:00020de0       _chatAddChannelBan         10021de0 f   chatMain.obj
+ 0001:00020ef0       _chatRemoveChannelBan      10021ef0 f   chatMain.obj
+ 0001:00021000       _chatSetChannelGroup       10022000 f   chatMain.obj
+ 0001:000210e0       _chatGetChannelNumUsers    100220e0 f   chatMain.obj
+ 0001:000211d0       _ciEnumUsersCallback       100221d0 f   chatMain.obj
+ 0001:00021450       _chatEnumUsers             10022450 f   chatMain.obj
+ 0001:000215d0       _chatEnumJoinedChannels    100225d0 f   chatMain.obj
+ 0001:00021620       _chatSendUserMessage       10022620 f   chatMain.obj
+ 0001:00021800       _chatGetUserInfo           10022800 f   chatMain.obj
+ 0001:00021970       _chatGetBasicUserInfo      10022970 f   chatMain.obj
+ 0001:00021b90       _chatGetBasicUserInfoNoWait 10022b90 f   chatMain.obj
+ 0001:00021c90       _chatGetChannelBasicUserInfo 10022c90 f   chatMain.obj
+ 0001:00021dd0       _chatInviteUser            10022dd0 f   chatMain.obj
+ 0001:00021f10       _chatKickUser              10022f10 f   chatMain.obj
+ 0001:00022060       _chatBanUser               10023060 f   chatMain.obj
+ 0001:000221b0       _chatSetUserMode           100231b0 f   chatMain.obj
+ 0001:00022370       _chatGetUserMode           10023370 f   chatMain.obj
+ 0001:000225f0       _chatGetUserModeNoWait     100235f0 f   chatMain.obj
+ 0001:00022760       _chatSetGlobalKeys         10023760 f   chatMain.obj
+ 0001:000228f0       _chatGetGlobalKeys         100238f0 f   chatMain.obj
+ 0001:00022d80       _chatSetChannelKeys        10023d80 f   chatMain.obj
+ 0001:00022f00       _chatGetChannelKeys        10023f00 f   chatMain.obj
+ 0001:000233c0       _ciGetTime                 100243c0 f   chatSocket.obj
+ 0001:000234a0       _ciSocketInit              100244a0 f   chatSocket.obj
+ 0001:00023640       _ciSocketConnect           10024640 f   chatSocket.obj
+ 0001:00023a50       _ciSocketDisconnect        10024a50 f   chatSocket.obj
+ 0001:00023dc0       _ciSocketThink             10024dc0 f   chatSocket.obj
+ 0001:00024cf0       _ciSocketSend              10025cf0 f   chatSocket.obj
+ 0001:00025060       _ciSocketSendf             10026060 f   chatSocket.obj
+ 0001:00025350       _ciParseParam              10026350 f   chatSocket.obj
+ 0001:00025590       _ciSocketRecv              10026590 f   chatSocket.obj
+ 0001:000263b0       _ArrayNew                  100273b0 f   darray.obj
+ 0001:000264b0       _ArrayFree                 100274b0 f   darray.obj
+ 0001:000265b0       _ArrayLength               100275b0 f   darray.obj
+ 0001:000265e0       _ArrayNth                  100275e0 f   darray.obj
+ 0001:00026650       _ArrayAppend               10027650 f   darray.obj
+ 0001:000266a0       _ArrayInsertAt             100276a0 f   darray.obj
+ 0001:00026880       _ArrayInsertSorted         10027880 f   darray.obj
+ 0001:00026960       _ArrayRemoveAt             10027960 f   darray.obj
+ 0001:00026a20       _ArrayDeleteAt             10027a20 f   darray.obj
+ 0001:00026aa0       _ArrayReplaceAt            10027aa0 f   darray.obj
+ 0001:00026b30       _ArraySort                 10027b30 f   darray.obj
+ 0001:00026b90       _ArraySearch               10027b90 f   darray.obj
+ 0001:00026cb0       _ArrayMap                  10027cb0 f   darray.obj
+ 0001:00026d50       _ArrayMapBackwards         10027d50 f   darray.obj
+ 0001:00026df0       _ArrayMap2                 10027df0 f   darray.obj
+ 0001:00026ea0       _ArrayClear                10027ea0 f   darray.obj
+ 0001:00027050       _TableNew                  10028050 f   hashtable.obj
+ 0001:000270a0       _TableNew2                 100280a0 f   hashtable.obj
+ 0001:00027220       _TableFree                 10028220 f   hashtable.obj
+ 0001:000272c0       _TableCount                100282c0 f   hashtable.obj
+ 0001:00027340       _TableEnter                10028340 f   hashtable.obj
+ 0001:00027400       _TableRemove               10028400 f   hashtable.obj
+ 0001:000274a0       _TableLookup               100284a0 f   hashtable.obj
+ 0001:00027540       _TableMap                  10028540 f   hashtable.obj
+ 0001:000275d0       _TableMapSafe              100285d0 f   hashtable.obj
+ 0001:00027660       _TableMap2                 10028660 f   hashtable.obj
+ 0001:00027700       _TableClear                10028700 f   hashtable.obj
+ 0001:00027770       _MD5Init                   10028770 f   md5c.obj
+ 0001:000277d0       _MD5Update                 100287d0 f   md5c.obj
+ 0001:00027900       _MD5Final                  10028900 f   md5c.obj
+ 0001:00028a90       _MD5Print                  10029a90 f   md5c.obj
+ 0001:00028b00       _MD5Digest                 10029b00 f   md5c.obj
+ 0001:00028bb0       _current_time              10029bb0 f   nonport.obj
+ 0001:00028c00       _msleep                    10029c00 f   nonport.obj
+ 0001:00028c50       _SocketStartUp             10029c50 f   nonport.obj
+ 0001:00028cc0       _SocketShutDown            10029cc0 f   nonport.obj
+ 0001:00028d00       _goastrdup                 10029d00 f   nonport.obj
+ 0001:00028d70       _SetSockBlocking           10029d70 f   nonport.obj
+ 0001:00028e10       _DisableNagle              10029e10 f   nonport.obj
+ 0001:00028ea0       _SetReceiveBufferSize      10029ea0 f   nonport.obj
+ 0001:00028f00       _GOAGetUniqueID            10029f00 f   nonport.obj
+ 0001:000293c0       ?_ExRealloc@@YAPAXPAXH@Z   1002a3c0 f   cossacks2:cossacks2.exe
+ 0001:000293c6       ?AddToGChat@@YAXPAD0@Z     1002a3c6 f   cossacks2:cossacks2.exe
+ 0001:000293cc       ?GetTextByID@@YAPADPAD@Z   1002a3cc f   cossacks2:cossacks2.exe
+ 0001:000293d2       ?_ExMalloc@@YAPAXH@Z       1002a3d2 f   cossacks2:cossacks2.exe
+ 0001:000293d8       ?_ExFree@@YAXPAX@Z         1002a3d8 f   cossacks2:cossacks2.exe
+ 0001:000293de       ?ProcessMessages@@YA_NXZ   1002a3de f   cossacks2:cossacks2.exe
+ 0001:000293e4       ?PlayEffect@@YAXHHH@Z      1002a3e4 f   cossacks2:cossacks2.exe
+ 0001:000293ea       ?GetSound@@YAHPAD@Z        1002a3ea f   cossacks2:cossacks2.exe
+ 0001:000293f0       ?Ggetch@@YAHPAVGFILE@@@Z   1002a3f0 f   cossacks2:cossacks2.exe
+ 0001:000293f6       ?GetRLCStrWidth@@YAHPADPAVRLCFont@@@Z 1002a3f6 f   cossacks2:cossacks2.exe
+ 0001:000293fc       ?g_GetWindParam@@YAXAAH000@Z 1002a3fc f   cossacks2:cossacks2.exe
+ 0001:00029402       ?g_SetWindParam@@YAXHHHH@Z 1002a402 f   cossacks2:cossacks2.exe
+ 0001:00029408       ?xLine@@YAXHHHHE@Z         1002a408 f   cossacks2:cossacks2.exe
+ 0001:0002940e       ?ShowString@@YAXHHPBDPAVRLCFont@@@Z 1002a40e f   cossacks2:cossacks2.exe
+ 0001:00029414       ?ShowClanString@@YAXHHPADEPAVRLCFont@@1H@Z 1002a414 f   cossacks2:cossacks2.exe
+ 0001:0002941a       ?GetPaletteColor@@YAEHHH@Z 1002a41a f   cossacks2:cossacks2.exe
+ 0001:00029420       ?DrawStdBar2@@YAXHHHHH@Z   1002a420 f   cossacks2:cossacks2.exe
+ 0001:00029426       ??1LocalGP@@QAE@XZ         1002a426 f   cossacks2:cossacks2.exe
+ 0001:0002942c       ??1DialogsSystem@@UAE@XZ   1002a42c f   cossacks2:cossacks2.exe
+ 0001:00029432       ?SendPings@@YAXXZ          1002a432 f   cossacks2:cossacks2.exe
+ 0001:00029438       ?EnumPlr@@YA_NXZ           1002a438 f   cossacks2:cossacks2.exe
+ 0001:0002943e       ?RefreshView@DialogsSystem@@QAEXXZ 1002a43e f   cossacks2:cossacks2.exe
+ 0001:00029444       ?ProcessDialogs@DialogsSystem@@QAEXXZ 1002a444 f   cossacks2:cossacks2.exe
+ 0001:0002944a       ?MarkToDraw@DialogsSystem@@QAEXXZ 1002a44a f   cossacks2:cossacks2.exe
+ 0001:00029450       ?StdKeys@@YAXXZ            1002a450 f   cossacks2:cossacks2.exe
+ 0001:00029456       ?addColoredBar@ParentFrame@@QAEPAVColoredBar@@HHHHE@Z 1002a456 f   cossacks2:cossacks2.exe
+ 0001:0002945c       ?addTextButton@ParentFrame@@QAEPAVTextButton@@PAVSimpleDialog@@HHPADPAVRLCFont@@22E@Z 1002a45c f   cossacks2:cossacks2.exe
+ 0001:00029462       ?addInputBox@ParentFrame@@QAEPAVInputBox@@PAVSimpleDialog@@HHPADHHHPAVRLCFont@@2@Z 1002a462 f   cossacks2:cossacks2.exe
+ 0001:00029468       ?MMItemChoose@@YA_NPAVSimpleDialog@@@Z 1002a468 f   cossacks2:cossacks2.exe
+ 0001:0002946e       ?addGP_TextButton@ParentFrame@@QAEPAVGP_TextButton@@PAVSimpleDialog@@HHPADHHPAVRLCFont@@2@Z 1002a46e f   cossacks2:cossacks2.exe
+ 0001:00029474       ?addGPPicture@ParentFrame@@QAEPAVGPPicture@@PAVSimpleDialog@@HHHH@Z 1002a474 f   cossacks2:cossacks2.exe
+ 0001:0002947a       ?addCustomBorder@ParentFrame@@QAEPAVCustomBorder@@HHHHHPAH0HH@Z 1002a47a f   cossacks2:cossacks2.exe
+ 0001:00029480       ??0DialogsSystem@@QAE@HH@Z 1002a480 f   cossacks2:cossacks2.exe
+ 0001:00029486       ?DarkScreen@@YAXXZ         1002a486 f   cossacks2:cossacks2.exe
+ 0001:0002948c       ??0LocalGP@@QAE@PAD@Z      1002a48c f   cossacks2:cossacks2.exe
+ 0001:00029492       ?GetRLCHeight@@YAHPAUxRLCTable@@E@Z 1002a492 f   cossacks2:cossacks2.exe
+ 0001:00029498       ?ShowGP@GP_System@@QAEXHHHHE@Z 1002a498 f   cossacks2:cossacks2.exe
+ 0001:0002949e       ?GetGPWidth@GP_System@@QAEHHH@Z 1002a49e f   cossacks2:cossacks2.exe
+ 0001:000294a4       ?LoadGP@GP_System@@QAE_NH@Z 1002a4a4 f   cossacks2:cossacks2.exe
+ 0001:000294aa       ?PreLoadGPImage@GP_System@@QAEHPAD@Z 1002a4aa f   cossacks2:cossacks2.exe
+ 0001:000294b0       ?SetRoomOptions@@YAXPAD@Z  1002a4b0 f   cossacks2:cossacks2.exe
+ 0001:000294b6       ?ExplorerResize@@YAXHHHHH@Z 1002a4b6 f   cossacks2:cossacks2.exe
+ 0001:000294bc       ?LoadPicture@SQPicture@@QAEXPAD@Z 1002a4bc f   cossacks2:cossacks2.exe
+ 0001:000294c2       ?ExplorerRefresh@@YAXH@Z   1002a4c2 f   cossacks2:cossacks2.exe
+ 0001:000294c8       ?ExplorerBack@@YAXH@Z      1002a4c8 f   cossacks2:cossacks2.exe
+ 0001:000294ce       ?ExplorerSetVar@@YAXHPAD0@Z 1002a4ce f   cossacks2:cossacks2.exe
+ 0001:000294d4       ?LoadPalette@@YAXPBD@Z     1002a4d4 f   cossacks2:cossacks2.exe
+ 0001:000294da       ?ProcessExplorerDSS@@YAXHPAVDialogsSystem@@@Z 1002a4da f   cossacks2:cossacks2.exe
+ 0001:000294e0       ?SetCurPtr@@YAXH@Z         1002a4e0 f   cossacks2:cossacks2.exe
+ 0001:000294e6       ?RClose@@YAXPAX@Z          1002a4e6 f   cossacks2:cossacks2.exe
+ 0001:000294ec       ?ExplorerOpenRef@@YAXHPAD@Z 1002a4ec f   cossacks2:cossacks2.exe
+ 0001:000294f2       ?RunExplorer@@YAXHPADHHHH@Z 1002a4f2 f   cossacks2:cossacks2.exe
+ 0001:000294f8       ?RBlockRead@@YAKPAX0K@Z    1002a4f8 f   cossacks2:cossacks2.exe
+ 0001:000294fe       ?RFileSize@@YAKPAX@Z       1002a4fe f   cossacks2:cossacks2.exe
+ 0001:00029504       ?RReset@@YAPAXPBD@Z        1002a504 f   cossacks2:cossacks2.exe
+ 0001:0002950a       ?addGP_Button@ParentFrame@@QAEPAVGP_Button@@PAVSimpleDialog@@HHHHH@Z 1002a50a f   cossacks2:cossacks2.exe
+ 0001:00029510       ?addComplexBox@ParentFrame@@QAEPAVComplexBox@@HHHHP6AXHHHHHEH@ZHH@Z 1002a510 f   cossacks2:cossacks2.exe
+ 0001:00029516       ?addNewGP_VScrollBar@ParentFrame@@QAEPAVVScrollBar@@PAVSimpleDialog@@HHHHHHH@Z 1002a516 f   cossacks2:cossacks2.exe
+ 0001:0002951c       ?addChatViewer@ParentFrame@@QAEPAVChatViewer@@PAVSimpleDialog@@HHHHHPAPAPAD1PAH@Z 1002a51c f   cossacks2:cossacks2.exe
+ 0001:00029522       ?addPicture@ParentFrame@@QAEPAVPicture@@PAVSimpleDialog@@HHPAVSQPicture@@11@Z 1002a522 f   cossacks2:cossacks2.exe
+ 0001:00029528       ??0DialogsSystem@@QAE@XZ   1002a528 f   cossacks2:cossacks2.exe
+ 0001:0002952e       ??1SQPicture@@QAE@XZ       1002a52e f   cossacks2:cossacks2.exe
+ 0001:00029534       ?FlipPages@@YAXXZ          1002a534 f   cossacks2:cossacks2.exe
+ 0001:0002953a       ?Draw@SQPicture@@QAEXHH@Z  1002a53a f   cossacks2:cossacks2.exe
+ 0001:00029540       ?ExplorerGetVar@@YAPADHPAD@Z 1002a540 f   cossacks2:cossacks2.exe
+ 0001:00029546       ??0SQPicture@@QAE@PAD@Z    1002a546 f   cossacks2:cossacks2.exe
+ 0001:0002954c       ?SlowLoadPalette@@YAXPBD@Z 1002a54c f   cossacks2:cossacks2.exe
+ 0001:00029552       ?LoadFog@@YAXH@Z           1002a552 f   cossacks2:cossacks2.exe
+ 0001:00029558       ?ClearGChat@@YAXXZ         1002a558 f   cossacks2:cossacks2.exe
+ 0001:0002955e       ?Gclose@@YAXPAVGFILE@@@Z   1002a55e f   cossacks2:cossacks2.exe
+ 0001:00029564       ?Gopen@@YAPAVGFILE@@PAD0@Z 1002a564 f   cossacks2:cossacks2.exe
+ 0001:0002956a       ?CheckUsingAI@@YA_NXZ      1002a56a f   cossacks2:cossacks2.exe
+ 0001:00029570       ?RSeek@@YAKPAXH@Z          1002a570 f   cossacks2:cossacks2.exe
+ 0001:00029576       ?CheckGSC_Login@@YA_NXZ    1002a576 f   cossacks2:cossacks2.exe
+ 0001:0002957c       _GetTickCount@0            1002a57c f   kernel32:KERNEL32.dll
+ 0001:00029582       _CreateProcessA@40         1002a582 f   kernel32:KERNEL32.dll
+ 0001:00029588       _Sleep@4                   1002a588 f   kernel32:KERNEL32.dll
+ 0001:0002958e       _QueryPerformanceCounter@4 1002a58e f   kernel32:KERNEL32.dll
+ 0001:00029594       _RegCloseKey@4             1002a594 f   advapi32:ADVAPI32.dll
+ 0001:0002959a       _RegSetValueExA@24         1002a59a f   advapi32:ADVAPI32.dll
+ 0001:000295a0       _RegCreateKeyExA@36        1002a5a0 f   advapi32:ADVAPI32.dll
+ 0001:000295a6       _RegQueryValueExA@24       1002a5a6 f   advapi32:ADVAPI32.dll
+ 0001:000295ac       _RegOpenKeyExA@20          1002a5ac f   advapi32:ADVAPI32.dll
+ 0001:000295c0       ??_U@YAPAXI@Z              1002a5c0 f   libcpd:newaop.obj
+ 0001:000295e0       _strcpy                    1002a5e0 f   LIBC:strcat.obj
+ 0001:000295f0       _strcat                    1002a5f0 f   LIBC:strcat.obj
+ 0001:000296e0       _memset                    1002a6e0 f   LIBC:memset.obj
+ 0001:00029740       _strcmp                    1002a740 f   LIBC:strcmp.obj
+ 0001:000297c8       __RTC_CheckEsp             1002a7c8 f   LIBC:stack.obj
+ 0001:000297eb       @_RTC_CheckStackVars@8     1002a7eb f   LIBC:stack.obj
+ 0001:00029845       __RTC_InitBase             1002a845 f   LIBC:init.obj
+ 0001:0002986b       __RTC_Shutdown             1002a86b f   LIBC:init.obj
+ 0001:00029880       _memcpy                    1002a880 f   LIBC:memcpy.obj
+ 0001:00029bbd       _sprintf                   1002abbd f   LIBC:sprintf.obj
+ 0001:00029c15       __scprintf                 1002ac15 f   LIBC:sprintf.obj
+ 0001:00029c50       _strstr                    1002ac50 f   LIBC:strstr.obj
+ 0001:00029cf0       _strchr                    1002acf0 f   LIBC:strchr.obj
+ 0001:00029cf6       ___from_strstr_to_strchr   1002acf6     LIBC:strchr.obj
+ 0001:00029dae       _srand                     1002adae f   LIBC:rand.obj
+ 0001:00029db8       _rand                      1002adb8 f   LIBC:rand.obj
+ 0001:00029ddb       ??_L@YGXPAXIHP6EX0@Z1@Z    1002addb f   LIBC:ehvecctr.obj
+ 0001:00029e3d       ?_JumpToContinuation@@YGXPAXPAUEHRegistrationNode@@@Z 1002ae3d f   LIBC:trnsctrl.obj
+ 0001:00029e6d       ?_CallMemberFunction0@@YGXPAX0@Z 1002ae6d f   LIBC:trnsctrl.obj
+ 0001:00029e74       ?_CallMemberFunction1@@YGXPAX00@Z 1002ae74 f   LIBC:trnsctrl.obj
+ 0001:00029e7b       ?_CallMemberFunction2@@YGXPAX00H@Z 1002ae7b f   LIBC:trnsctrl.obj
+ 0001:00029e82       ?_UnwindNestedFrames@@YGXPAUEHRegistrationNode@@PAUEHExceptionRecord@@@Z 1002ae82 f   LIBC:trnsctrl.obj
+ 0001:00029ed4       ___CxxFrameHandler         1002aed4 f   LIBC:trnsctrl.obj
+ 0001:00029f0a       ___CxxLongjmpUnwind@4      1002af0a f   LIBC:trnsctrl.obj
+ 0001:00029f5f       ?_CallSETranslator@@YAHPAUEHExceptionRecord@@PAUEHRegistrationNode@@PAX2PBU_s_FuncInfo@@H1@Z 1002af5f f   LIBC:trnsctrl.obj
+ 0001:0002a0d6       ?_GetRangeOfTrysToCheck@@YAPBU_s_TryBlockMapEntry@@PBU_s_FuncInfo@@HHPAI1@Z 1002b0d6 f   LIBC:trnsctrl.obj
+ 0001:0002a150       ?_CreateFrameInfo@@YAPAUFrameInfo@@PAU1@PAX@Z 1002b150 f   LIBC:trnsctrl.obj
+ 0001:0002a169       ?IsExceptionObjectToBeDestroyed@@YAHPAX@Z 1002b169 f   LIBC:trnsctrl.obj
+ 0001:0002a184       ?_FindAndUnlinkFrame@@YAXPAUFrameInfo@@@Z 1002b184 f   LIBC:trnsctrl.obj
+ 0001:0002a1bd       ?_CallCatchBlock2@@YAPAXPAUEHRegistrationNode@@PBU_s_FuncInfo@@PAXHK@Z 1002b1bd f   LIBC:trnsctrl.obj
+ 0001:0002a218       __global_unwind2           1002b218 f   LIBC:exsup.obj
+ 0001:0002a25a       __local_unwind2            1002b25a f   LIBC:exsup.obj
+ 0001:0002a2b2       __NLG_Return2              1002b2b2     LIBC:exsup.obj
+ 0001:0002a2c2       __abnormal_termination     1002b2c2 f   LIBC:exsup.obj
+ 0001:0002a2e5       __NLG_Notify1              1002b2e5 f   LIBC:exsup.obj
+ 0001:0002a2ee       __NLG_Notify               1002b2ee f   LIBC:exsup.obj
+ 0001:0002a301       __NLG_Dispatch             1002b301     LIBC:exsup.obj
+ 0001:0002a318       ?__ArrayUnwind@@YGXPAXIHP6EX0@Z@Z 1002b318 f   LIBC:ehvecdtr.obj
+ 0001:0002a376       ??_M@YGXPAXIHP6EX0@Z@Z     1002b376 f   LIBC:ehvecdtr.obj
+ 0001:0002a3e0       _strlen                    1002b3e0 f   LIBC:strlen.obj
+ 0001:0002a470       _memmove                   1002b470 f   LIBC:memmove.obj
+ 0001:0002a7b0       _strncpy                   1002b7b0 f   LIBC:strncpy.obj
+ 0001:0002a8d4       __assert                   1002b8d4 f   LIBC:assert.obj
+ 0001:0002aca9       _atol                      1002bca9 f   LIBC:atox.obj
+ 0001:0002ad01       _atoi                      1002bd01 f   LIBC:atox.obj
+ 0001:0002ad06       __atoi64                   1002bd06 f   LIBC:atox.obj
+ 0001:0002ad7f       _sscanf                    1002bd7f f   LIBC:sscanf.obj
+ 0001:0002adc0       __chkstk                   1002bdc0 f   LIBC:chkstk.obj
+ 0001:0002adc0       __alloca_probe             1002bdc0     LIBC:chkstk.obj
+ 0001:0002adfd       _fclose                    1002bdfd f   LIBC:fclose.obj
+ 0001:0002ae53       _fprintf                   1002be53 f   LIBC:fprintf.obj
+ 0001:0002ae85       __fsopen                   1002be85 f   LIBC:fopen.obj
+ 0001:0002aeaf       _fopen                     1002beaf f   LIBC:fopen.obj
+ 0001:0002aec2       __onexit                   1002bec2 f   LIBC:onexit.obj
+ 0001:0002af44       _atexit                    1002bf44 f   LIBC:onexit.obj
+ 0001:0002af56       ___onexitinit              1002bf56 f   LIBC:onexit.obj
+ 0001:0002af7e       _free                      1002bf7e f   LIBC:free.obj
+ 0001:0002afb6       __heap_alloc               1002bfb6 f   LIBC:malloc.obj
+ 0001:0002affc       __nh_malloc                1002bffc f   LIBC:malloc.obj
+ 0001:0002b028       _malloc                    1002c028 f   LIBC:malloc.obj
+ 0001:0002b03a       __tolower                  1002c03a f   LIBC:tolower.obj
+ 0001:0002b042       _tolower                   1002c042 f   LIBC:tolower.obj
+ 0001:0002b117       _stricmp                   1002c117 f   LIBC:stricmp.obj
+ 0001:0002b117       __stricmp                  1002c117 f   LIBC:stricmp.obj
+ 0001:0002b15a       _realloc                   1002c15a f   LIBC:realloc.obj
+ 0001:0002b569       ?_RTC_Failure@@YAXPAXH@Z   1002c569 f   LIBC:error.obj
+ 0001:0002b5a7       ?_RTC_MemFailure@@YAXPAXHPBX@Z 1002c5a7 f   LIBC:error.obj
+ 0001:0002b73b       ?_RTC_StackFailure@@YAXPAXPBD@Z 1002c73b f   LIBC:error.obj
+ 0001:0002b7c7       __RTC_UninitUse            1002c7c7 f   LIBC:error.obj
+ 0001:0002b86d       _strtok                    1002c86d f   LIBC:strtok.obj
+ 0001:0002b91a       __chvalidator              1002c91a f   LIBC:isctype.obj
+ 0001:0002b92d       __isctype                  1002c92d f   LIBC:isctype.obj
+ 0001:0002b9ab       _localtime                 1002c9ab f   LIBC:localtim.obj
+ 0001:0002bb2b       _time                      1002cb2b f   LIBC:time.obj
+ 0001:0002bb64       _vsprintf                  1002cb64 f   LIBC:vsprintf.obj
+ 0001:0002bbbb       __vscprintf                1002cbbb f   LIBC:vsprintf.obj
+ 0001:0002bc80       _qsort                     1002cc80 f   LIBC:qsort.obj
+ 0001:0002bf03       _clock                     1002cf03 f   LIBC:clock.obj
+ 0001:0002bf46       ___inittime                1002cf46 f   LIBC:clock.obj
+ 0001:0002bf7d       __CRT_INIT@12              1002cf7d f   LIBC:dllcrt0.obj
+ 0001:0002c088       __DllMainCRTStartup@12     1002d088 f   LIBC:dllcrt0.obj
+ 0001:0002c16c       __amsg_exit                1002d16c f   LIBC:dllcrt0.obj
+ 0001:0002c19f       __RTC_NumErrors            1002d19f f   LIBC:userapi.obj
+ 0001:0002c1a3       __RTC_GetErrDesc           1002d1a3 f   LIBC:userapi.obj
+ 0001:0002c1bb       __RTC_SetErrorType         1002d1bb f   LIBC:userapi.obj
+ 0001:0002c1dc       __RTC_SetErrorFunc         1002d1dc f   LIBC:userapi.obj
+ 0001:0002c1ec       ?_RTC_GetErrorFunc@@YAP6AHHPBDH00ZZPBX@Z 1002d1ec f   LIBC:userapi.obj
+ 0001:0002c1f2       __chkesp                   1002d1f2 f   LIBC:chkesp.obj
+ 0001:0002c20a       __CRT_RTC_INIT             1002d20a f   LIBC:chkesp.obj
+ 0001:0002c20d       __flsbuf                   1002d20d f   LIBC:_flsbuf.obj
+ 0001:0002c3d0       __output                   1002d3d0 f   LIBC:output.obj
+ 0001:0002cbcc       __SEH_prolog               1002dbcc f   LIBC:sehprolg.obj
+ 0001:0002cc07       __SEH_epilog               1002dc07 f   LIBC:sehprolg.obj
+ 0001:0002cc20       __except_handler3          1002dc20 f   LIBC:exsup3.obj
+ 0001:0002cd06       __seh_longjmp_unwind@4     1002dd06 f   LIBC:exsup3.obj
+ 0001:0002cd89       ___FrameUnwindToState      1002dd89 f   LIBC:frame.obj
+ 0001:0002ce76       ___DestructExceptionObject 1002de76 f   LIBC:frame.obj
+ 0001:0002ceda       ?__uncaught_exception@@YA_NXZ 1002deda f   LIBC:frame.obj
+ 0001:0002cee6       ___CxxRegisterExceptionObject 1002dee6 f   LIBC:frame.obj
+ 0001:0002cf65       ___CxxDetectRethrow        1002df65 f   LIBC:frame.obj
+ 0001:0002cf9d       ___CxxUnregisterExceptionObject 1002df9d f   LIBC:frame.obj
+ 0001:0002d00a       ___CxxQueryExceptionSize   1002e00a f   LIBC:frame.obj
+ 0001:0002d00e       ___CxxCallUnwindDtor       1002e00e f   LIBC:frame.obj
+ 0001:0002d03c       ___CxxCallUnwindVecDtor    1002e03c f   LIBC:frame.obj
+ 0001:0002d399       ___CxxExceptionFilter      1002e399 f   LIBC:frame.obj
+ 0001:0002d7b6       ___InternalCxxFrameHandler 1002e7b6 f   LIBC:frame.obj
+ 0001:0002d858       ?terminate@@YAXXZ          1002e858 f   LIBC:hooks.obj
+ 0001:0002d885       ?unexpected@@YAXXZ         1002e885 f   LIBC:hooks.obj
+ 0001:0002d895       ?_inconsistency@@YAXXZ     1002e895 f   LIBC:hooks.obj
+ 0001:0002d8d0       __CallSettingFrame@12      1002e8d0 f   LIBC:lowhelpr.obj
+ 0001:0002d8f7       __NLG_Return               1002e8f7     LIBC:lowhelpr.obj
+ 0001:0002d91c       _abort                     1002e91c f   LIBC:abort.obj
+ 0001:0002d934       __flush                    1002e934 f   LIBC:fflush.obj
+ 0001:0002d991       _fflush                    1002e991 f   LIBC:fflush.obj
+ 0001:0002da39       __flushall                 1002ea39 f   LIBC:fflush.obj
+ 0001:0002da42       _setvbuf                   1002ea42 f   LIBC:setvbuf.obj
+ 0001:0002dae3       ___iob_func                1002eae3 f   LIBC:_file.obj
+ 0001:0002dae9       ___initstdio               1002eae9 f   LIBC:_file.obj
+ 0001:0002db8f       ___endstdio                1002eb8f f   LIBC:_file.obj
+ 0001:0002dba3       ___crtExitProcess          1002eba3 f   LIBC:crt0dat.obj
+ 0001:0002dc09       __cinit                    1002ec09 f   LIBC:crt0dat.obj
+ 0001:0002dd34       _exit                      1002ed34 f   LIBC:crt0dat.obj
+ 0001:0002dd45       __exit                     1002ed45 f   LIBC:crt0dat.obj
+ 0001:0002dd56       __cexit                    1002ed56 f   LIBC:crt0dat.obj
+ 0001:0002dd65       __c_exit                   1002ed65 f   LIBC:crt0dat.obj
+ 0001:0002dde5       _signal                    1002ede5 f   LIBC:winsig.obj
+ 0001:0002deed       _raise                     1002eeed f   LIBC:winsig.obj
+ 0001:0002e016       ___crtMessageBoxA          1002f016 f   LIBC:crtmbox.obj
+ 0001:0002e14d       __itoa                     1002f14d f   LIBC:xtoa.obj
+ 0001:0002e14d       _itoa                      1002f14d f   LIBC:xtoa.obj
+ 0001:0002e177       __ltoa                     1002f177 f   LIBC:xtoa.obj
+ 0001:0002e19e       __ultoa                    1002f19e f   LIBC:xtoa.obj
+ 0001:0002e225       __i64toa                   1002f225 f   LIBC:xtoa.obj
+ 0001:0002e256       __ui64toa                  1002f256 f   LIBC:xtoa.obj
+ 0001:0002e280       _strncat                   1002f280 f   LIBC:strncat.obj
+ 0001:0002e3e6       @__security_check_cookie@4 1002f3e6 f   LIBC:secchk.obj
+ 0001:0002e3f4       __ismbcspace               1002f3f4 f   LIBC:ismbspc.obj
+ 0001:0002e490       __allmul                   1002f490 f   LIBC:llmul.obj
+ 0001:0002e536       __input                    1002f536 f   LIBC:input.obj
+ 0001:0002f39d       __close                    1003039d f   LIBC:close.obj
+ 0001:0002f450       __freebuf                  10030450 f   LIBC:_freebuf.obj
+ 0001:0002f47b       __stbuf                    1003047b f   LIBC:_sftbuf.obj
+ 0001:0002f503       __ftbuf                    10030503 f   LIBC:_sftbuf.obj
+ 0001:0002f53f       __openfile                 1003053f f   LIBC:_open.obj
+ 0001:0002f6a7       __getstream                100306a7 f   LIBC:stream.obj
+ 0001:0002f719       __msize                    10030719 f   LIBC:msize.obj
+ 0001:0002f751       ___heap_select             10030751 f   LIBC:heapinit.obj
+ 0001:0002f76b       __heap_init                1003076b f   LIBC:heapinit.obj
+ 0001:0002f7bc       __heap_term                100307bc f   LIBC:heapinit.obj
+ 0001:0002f83b       __get_heap_handle          1003083b f   LIBC:heapinit.obj
+ 0001:0002f841       __get_sbh_threshold        10030841 f   LIBC:sbheap.obj
+ 0001:0002f856       ___sbh_heap_init           10030856 f   LIBC:sbheap.obj
+ 0001:0002f89e       ___sbh_find_block          1003089e f   LIBC:sbheap.obj
+ 0001:0002f8c9       ___sbh_free_block          100308c9 f   LIBC:sbheap.obj
+ 0001:0002fbe1       ___sbh_alloc_new_region    10030be1 f   LIBC:sbheap.obj
+ 0001:0002fc98       ___sbh_alloc_new_group     10030c98 f   LIBC:sbheap.obj
+ 0001:0002fd9e       ___sbh_resize_block        10030d9e f   LIBC:sbheap.obj
+ 0001:0003007d       ___sbh_heapmin             1003107d f   LIBC:sbheap.obj
+ 0001:0003014e       ___sbh_heap_check          1003114e f   LIBC:sbheap.obj
+ 0001:00030467       __set_sbh_threshold        10031467 f   LIBC:sbheap.obj
+ 0001:000304c2       ___sbh_alloc_block         100314c2 f   LIBC:sbheap.obj
+ 0001:000307be       ?_set_new_handler@@YAP6AHI@ZP6AHI@Z@Z 100317be f   LIBC:handler.obj
+ 0001:000307ce       ?_query_new_handler@@YAP6AHI@ZXZ 100317ce f   LIBC:handler.obj
+ 0001:000307d4       __callnewh                 100317d4 f   LIBC:handler.obj
+ 0001:0003080b       ___crtLCMapStringA         1003180b f   LIBC:a_map.obj
+ 0001:00030bc7       ___pwctype_func            10031bc7 f   LIBC:ctype.obj
+ 0001:00030bcd       ___pctype_func             10031bcd f   LIBC:ctype.obj
+ 0001:00030be0       ___ascii_stricmp           10031be0 f   LIBC:_stricmp.obj
+ 0001:000310b7       ?_RTC_GetSrcLine@@YAHKPADHPAHPAPAD@Z 100320b7 f   LIBC:pdblkup.obj
+ 0001:00031406       ___crtGetStringTypeA       10032406 f   LIBC:a_str.obj
+ 0001:000315c0       __tzset                    100325c0 f   LIBC:tzset.obj
+ 0001:000319cb       __isindst                  100329cb f   LIBC:tzset.obj
+ 0001:00031b58       ___tzset                   10032b58 f   LIBC:tzset.obj
+ 0001:00031b6d       _gmtime                    10032b6d f   LIBC:gmtime.obj
+ 0001:00031c70       __aulldiv                  10032c70 f   LIBC:ulldiv.obj
+ 0001:00031cd8       __ioinit                   10032cd8 f   LIBC:ioinit.obj
+ 0001:00031e83       __ioterm                   10032e83 f   LIBC:ioinit.obj
+ 0001:00031ea6       __setenvp                  10032ea6 f   LIBC:stdenvp.obj
+ 0001:000320d9       __setargv                  100330d9 f   LIBC:stdargv.obj
+ 0001:0003217b       ___crtGetEnvironmentStringsA 1003317b f   LIBC:a_env.obj
+ 0001:0003229d       __RTC_Initialize           1003329d f   LIBC:initsect.obj
+ 0001:000322e1       __RTC_Terminate            100332e1 f   LIBC:initsect.obj
+ 0001:0003235c       __XcptFilter               1003335c f   LIBC:winxfltr.obj
+ 0001:000324cd       ___CppXcptFilter           100334cd f   LIBC:winxfltr.obj
+ 0001:000324e8       __NMSG_WRITE               100334e8 f   LIBC:crt0msg.obj
+ 0001:0003265f       __GET_RTERRMSG             1003365f f   LIBC:crt0msg.obj
+ 0001:00032689       __FF_MSGBANNER             10033689 f   LIBC:crt0msg.obj
+ 0001:000326c2       __lseek                    100336c2 f   LIBC:lseek.obj
+ 0001:0003274e       __write                    1003374e f   LIBC:write.obj
+ 0001:0003293e       __getbuf                   1003393e f   LIBC:_getbuf.obj
+ 0001:00032982       __isatty                   10033982 f   LIBC:isatty.obj
+ 0001:000329a9       _wctomb                    100339a9 f   LIBC:wctomb.obj
+ 0001:00032a10       __aulldvrm                 10033a10 f   LIBC:ulldvrm.obj
+ 0001:00032aa5       __ValidateEH3RN            10033aa5 f   LIBC:eh3valid.obj
+ 0001:00032cce       ?__CxxUnhandledExceptionFilter@@YGJPAU_EXCEPTION_POINTERS@@@Z 10033cce f   LIBC:unhandld.obj
+ 0001:00032d1c       ?__CxxSetUnhandledExceptionFilter@@YAHXZ 10033d1c f   LIBC:unhandld.obj
+ 0001:00032d2f       ?__CxxRestoreUnhandledExceptionFilter@@YAXXZ 10033d2f f   LIBC:unhandld.obj
+ 0001:00032d3c       ?_ValidateRead@@YAHPBXI@Z  10033d3c f   LIBC:validate.obj
+ 0001:00032d58       ?_ValidateWrite@@YAHPAXI@Z 10033d58 f   LIBC:validate.obj
+ 0001:00032d74       ?_ValidateExecute@@YAHP6GHXZ@Z 10033d74 f   LIBC:validate.obj
+ 0001:00032d8c       __commit                   10033d8c f   LIBC:commit.obj
+ 0001:00032de3       _calloc                    10033de3 f   LIBC:calloc.obj
+ 0001:00032e5e       __fcloseall                10033e5e f   LIBC:closeall.obj
+ 0001:00032eb6       ___security_init_cookie    10033eb6 f   LIBC:seccinit.obj
+ 0001:00032f1c       ___security_error_handler  10033f1c f   LIBC:secfail.obj
+ 0001:00033064       __set_security_error_handler 10034064 f   LIBC:secfail.obj
+ 0001:00033074       ___buffer_overrun          10034074 f   LIBC:secfail.obj
+ 0001:00033080       ___set_buffer_overrun_handler 10034080 f   LIBC:secfail.obj
+ 0001:000332ba       __setmbcp                  100342ba f   LIBC:mbctype.obj
+ 0001:000334a0       __getmbcp                  100344a0 f   LIBC:mbctype.obj
+ 0001:000334b0       ___initmbctable            100344b0 f   LIBC:mbctype.obj
+ 0001:000334ce       __filbuf                   100344ce f   LIBC:_filbuf.obj
+ 0001:000335ac       _ungetc                    100345ac f   LIBC:ungetc.obj
+ 0001:00033618       _isalpha                   10034618 f   LIBC:_ctype.obj
+ 0001:00033646       _isupper                   10034646 f   LIBC:_ctype.obj
+ 0001:0003366f       _islower                   1003466f f   LIBC:_ctype.obj
+ 0001:00033698       _isdigit                   10034698 f   LIBC:_ctype.obj
+ 0001:000336c1       _isxdigit                  100346c1 f   LIBC:_ctype.obj
+ 0001:000336ef       _isspace                   100346ef f   LIBC:_ctype.obj
+ 0001:00033718       _ispunct                   10034718 f   LIBC:_ctype.obj
+ 0001:00033741       _isalnum                   10034741 f   LIBC:_ctype.obj
+ 0001:0003376f       _isprint                   1003476f f   LIBC:_ctype.obj
+ 0001:0003379d       _isgraph                   1003479d f   LIBC:_ctype.obj
+ 0001:000337cb       _iscntrl                   100347cb f   LIBC:_ctype.obj
+ 0001:000337f4       ___isascii                 100347f4 f   LIBC:_ctype.obj
+ 0001:00033801       ___toascii                 10034801 f   LIBC:_ctype.obj
+ 0001:00033809       ___iscsymf                 10034809 f   LIBC:_ctype.obj
+ 0001:00033846       ___iscsym                  10034846 f   LIBC:_ctype.obj
+ 0001:00033883       _mbtowc                    10034883 f   LIBC:mbtowc.obj
+ 0001:0003394b       __resetstkoflw             1003494b f   LIBC:resetstk.obj
+ 0001:00033a2e       __dosmaperr                10034a2e f   LIBC:dosmap.obj
+ 0001:00033a8d       __alloc_osfhnd             10034a8d f   LIBC:osfinfo.obj
+ 0001:00033b2a       __set_osfhnd               10034b2a f   LIBC:osfinfo.obj
+ 0001:00033ba1       __free_osfhnd              10034ba1 f   LIBC:osfinfo.obj
+ 0001:00033c1b       __get_osfhandle            10034c1b f   LIBC:osfinfo.obj
+ 0001:00033c57       __open_osfhandle           10034c57 f   LIBC:osfinfo.obj
+ 0001:00033cf4       __sopen                    10034cf4 f   LIBC:open.obj
+ 0001:00033fc4       __open                     10034fc4 f   LIBC:open.obj
+ 0001:00033fdb       ___ansicp                  10034fdb f   LIBC:convrtcp.obj
+ 0001:0003401e       ___convertcp               1003501e f   LIBC:convrtcp.obj
+ 0001:000341e7       _getenv                    100351e7 f   LIBC:getenv.obj
+ 0001:00034268       __lseeki64                 10035268 f   LIBC:lseeki64.obj
+ 0001:00034307       __fptrap                   10035307 f   LIBC:crt0fp.obj
+ 0001:00034310       __read                     10035310 f   LIBC:read.obj
+ 0001:000344fe       __chsize                   100354fe f   LIBC:chsize.obj
+ 0001:0003465a       __mbsnbicoll               1003565a f   LIBC:mbsnbico.obj
+ 0001:00034699       ___wtomb_environ           10035699 f   LIBC:wtombenv.obj
+ 0001:00034729       __setmode                  10035729 f   LIBC:setmode.obj
+ 0001:000347c7       ___crtCompareStringA       100357c7 f   LIBC:a_cmp.obj
+ 0001:00034bf9       ___crtsetenv               10035bf9 f   LIBC:setenv.obj
+ 0001:00034dce       __strdup                   10035dce f   LIBC:strdup.obj
+ 0001:00034df9       __mbschr                   10035df9 f   LIBC:mbschr.obj
+ 0001:00034e60       _inet_addr@4               10035e60 f   wsock32:WSOCK32.dll
+ 0001:00034e66       _closesocket@4             10035e66 f   wsock32:WSOCK32.dll
+ 0001:00034e6c       _connect@12                10035e6c f   wsock32:WSOCK32.dll
+ 0001:00034e72       _setsockopt@20             10035e72 f   wsock32:WSOCK32.dll
+ 0001:00034e78       _socket@12                 10035e78 f   wsock32:WSOCK32.dll
+ 0001:00034e7e       _htons@4                   10035e7e f   wsock32:WSOCK32.dll
+ 0001:00034e84       _gethostbyname@4           10035e84 f   wsock32:WSOCK32.dll
+ 0001:00034e8a       _shutdown@8                10035e8a f   wsock32:WSOCK32.dll
+ 0001:00034e90       _send@16                   10035e90 f   wsock32:WSOCK32.dll
+ 0001:00034e96       ___WSAFDIsSet@8            10035e96 f   wsock32:WSOCK32.dll
+ 0001:00034e9c       _select@20                 10035e9c f   wsock32:WSOCK32.dll
+ 0001:00034ea2       _WSAGetLastError@0         10035ea2 f   wsock32:WSOCK32.dll
+ 0001:00034ea8       _recv@16                   10035ea8 f   wsock32:WSOCK32.dll
+ 0001:00034eae       _WSAStartup@8              10035eae f   wsock32:WSOCK32.dll
+ 0001:00034eb4       _WSACleanup@0              10035eb4 f   wsock32:WSOCK32.dll
+ 0001:00034eba       _ioctlsocket@12            10035eba f   wsock32:WSOCK32.dll
+ 0001:00034ec0       _RtlUnwind@16              10035ec0 f   kernel32:KERNEL32.dll
+ 0001:00034ec6       _GetModuleFileNameA@12     10035ec6 f   kernel32:KERNEL32.dll
+ 0001:00034ecc       _HeapFree@12               10035ecc f   kernel32:KERNEL32.dll
+ 0001:00034ed2       _HeapAlloc@12              10035ed2 f   kernel32:KERNEL32.dll
+ 0001:00034ed8       _HeapReAlloc@16            10035ed8 f   kernel32:KERNEL32.dll
+ 0001:00034ede       _RaiseException@16         10035ede f   kernel32:KERNEL32.dll
+ 0001:00034ee4       _GetVersionExA@4           10035ee4 f   kernel32:KERNEL32.dll
+ 0001:00034eea       _GetProcAddress@8          10035eea f   kernel32:KERNEL32.dll
+ 0001:00034ef0       _LoadLibraryA@4            10035ef0 f   kernel32:KERNEL32.dll
+ 0001:00034ef6       _DebugBreak@0              10035ef6 f   kernel32:KERNEL32.dll
+ 0001:00034efc       _GetSystemTimeAsFileTime@4 10035efc f   kernel32:KERNEL32.dll
+ 0001:00034f02       _GetCommandLineA@0         10035f02 f   kernel32:KERNEL32.dll
+ 0001:00034f08       _ExitProcess@4             10035f08 f   kernel32:KERNEL32.dll
+ 0001:00034f0e       _GetModuleHandleA@4        10035f0e f   kernel32:KERNEL32.dll
+ 0001:00034f14       _TerminateProcess@8        10035f14 f   kernel32:KERNEL32.dll
+ 0001:00034f1a       _GetCurrentProcess@0       10035f1a f   kernel32:KERNEL32.dll
+ 0001:00034f20       _GetLastError@0            10035f20 f   kernel32:KERNEL32.dll
+ 0001:00034f26       _SetConsoleCtrlHandler@8   10035f26 f   kernel32:KERNEL32.dll
+ 0001:00034f2c       _CloseHandle@4             10035f2c f   kernel32:KERNEL32.dll
+ 0001:00034f32       _HeapSize@12               10035f32 f   kernel32:KERNEL32.dll
+ 0001:00034f38       _HeapDestroy@4             10035f38 f   kernel32:KERNEL32.dll
+ 0001:00034f3e       _HeapCreate@12             10035f3e f   kernel32:KERNEL32.dll
+ 0001:00034f44       _VirtualFree@12            10035f44 f   kernel32:KERNEL32.dll
+ 0001:00034f4a       _VirtualAlloc@16           10035f4a f   kernel32:KERNEL32.dll
+ 0001:00034f50       _IsBadWritePtr@8           10035f50 f   kernel32:KERNEL32.dll
+ 0001:00034f56       _LCMapStringA@24           10035f56 f   kernel32:KERNEL32.dll
+ 0001:00034f5c       _WideCharToMultiByte@32    10035f5c f   kernel32:KERNEL32.dll
+ 0001:00034f62       _MultiByteToWideChar@24    10035f62 f   kernel32:KERNEL32.dll
+ 0001:00034f68       _LCMapStringW@24           10035f68 f   kernel32:KERNEL32.dll
+ 0001:00034f6e       _GetProcessHeap@0          10035f6e f   kernel32:KERNEL32.dll
+ 0001:00034f74       _FreeLibrary@4             10035f74 f   kernel32:KERNEL32.dll
+ 0001:00034f7a       _GetStringTypeA@20         10035f7a f   kernel32:KERNEL32.dll
+ 0001:00034f80       _GetStringTypeW@16         10035f80 f   kernel32:KERNEL32.dll
+ 0001:00034f86       _GetTimeZoneInformation@4  10035f86 f   kernel32:KERNEL32.dll
+ 0001:00034f8c       _SetHandleCount@4          10035f8c f   kernel32:KERNEL32.dll
+ 0001:00034f92       _GetStdHandle@4            10035f92 f   kernel32:KERNEL32.dll
+ 0001:00034f98       _GetFileType@4             10035f98 f   kernel32:KERNEL32.dll
+ 0001:00034f9e       _GetStartupInfoA@4         10035f9e f   kernel32:KERNEL32.dll
+ 0001:00034fa4       _FreeEnvironmentStringsA@4 10035fa4 f   kernel32:KERNEL32.dll
+ 0001:00034faa       _GetEnvironmentStrings@0   10035faa f   kernel32:KERNEL32.dll
+ 0001:00034fb0       _FreeEnvironmentStringsW@4 10035fb0 f   kernel32:KERNEL32.dll
+ 0001:00034fb6       _GetEnvironmentStringsW@0  10035fb6 f   kernel32:KERNEL32.dll
+ 0001:00034fbc       _UnhandledExceptionFilter@4 10035fbc f   kernel32:KERNEL32.dll
+ 0001:00034fc2       _WriteFile@20              10035fc2 f   kernel32:KERNEL32.dll
+ 0001:00034fc8       _SetFilePointer@16         10035fc8 f   kernel32:KERNEL32.dll
+ 0001:00034fce       _InterlockedExchange@8     10035fce f   kernel32:KERNEL32.dll
+ 0001:00034fd4       _VirtualQuery@12           10035fd4 f   kernel32:KERNEL32.dll
+ 0001:00034fda       _SetUnhandledExceptionFilter@4 10035fda f   kernel32:KERNEL32.dll
+ 0001:00034fe0       _IsBadReadPtr@8            10035fe0 f   kernel32:KERNEL32.dll
+ 0001:00034fe6       _IsBadCodePtr@4            10035fe6 f   kernel32:KERNEL32.dll
+ 0001:00034fec       _FlushFileBuffers@4        10035fec f   kernel32:KERNEL32.dll
+ 0001:00034ff2       _GetCurrentThreadId@0      10035ff2 f   kernel32:KERNEL32.dll
+ 0001:00034ff8       _GetCurrentProcessId@0     10035ff8 f   kernel32:KERNEL32.dll
+ 0001:00034ffe       _GetACP@0                  10035ffe f   kernel32:KERNEL32.dll
+ 0001:00035004       _GetOEMCP@0                10036004 f   kernel32:KERNEL32.dll
+ 0001:0003500a       _GetCPInfo@8               1003600a f   kernel32:KERNEL32.dll
+ 0001:00035010       _VirtualProtect@16         10036010 f   kernel32:KERNEL32.dll
+ 0001:00035016       _GetSystemInfo@4           10036016 f   kernel32:KERNEL32.dll
+ 0001:0003501c       _SetStdHandle@8            1003601c f   kernel32:KERNEL32.dll
+ 0001:00035022       _CreateFileA@28            10036022 f   kernel32:KERNEL32.dll
+ 0001:00035028       _GetLocaleInfoA@16         10036028 f   kernel32:KERNEL32.dll
+ 0001:0003502e       _ReadFile@20               1003602e f   kernel32:KERNEL32.dll
+ 0001:00035034       _SetEndOfFile@4            10036034 f   kernel32:KERNEL32.dll
+ 0001:0003503a       _CompareStringA@24         1003603a f   kernel32:KERNEL32.dll
+ 0001:00035040       _CompareStringW@24         10036040 f   kernel32:KERNEL32.dll
+ 0001:00035046       _SetEnvironmentVariableA@8 10036046 f   kernel32:KERNEL32.dll
+ 0002:00000000       __imp__RegCloseKey@4       10037000     advapi32:ADVAPI32.dll
+ 0002:00000004       __imp__RegCreateKeyExA@36  10037004     advapi32:ADVAPI32.dll
+ 0002:00000008       __imp__RegQueryValueExA@24 10037008     advapi32:ADVAPI32.dll
+ 0002:0000000c       __imp__RegOpenKeyExA@20    1003700c     advapi32:ADVAPI32.dll
+ 0002:00000010       __imp__RegSetValueExA@24   10037010     advapi32:ADVAPI32.dll
+ 0002:00000014       \177ADVAPI32_NULL_THUNK_DATA 10037014     advapi32:ADVAPI32.dll
+ 0002:00000018       __imp__CreateFileA@28      10037018     kernel32:KERNEL32.dll
+ 0002:0000001c       __imp__SetStdHandle@8      1003701c     kernel32:KERNEL32.dll
+ 0002:00000020       __imp__GetSystemInfo@4     10037020     kernel32:KERNEL32.dll
+ 0002:00000024       __imp__VirtualProtect@16   10037024     kernel32:KERNEL32.dll
+ 0002:00000028       __imp__GetCPInfo@8         10037028     kernel32:KERNEL32.dll
+ 0002:0000002c       __imp__GetOEMCP@0          1003702c     kernel32:KERNEL32.dll
+ 0002:00000030       __imp__GetACP@0            10037030     kernel32:KERNEL32.dll
+ 0002:00000034       __imp__GetCurrentProcessId@0 10037034     kernel32:KERNEL32.dll
+ 0002:00000038       __imp__GetCurrentThreadId@0 10037038     kernel32:KERNEL32.dll
+ 0002:0000003c       __imp__FlushFileBuffers@4  1003703c     kernel32:KERNEL32.dll
+ 0002:00000040       __imp__IsBadCodePtr@4      10037040     kernel32:KERNEL32.dll
+ 0002:00000044       __imp__IsBadReadPtr@8      10037044     kernel32:KERNEL32.dll
+ 0002:00000048       __imp__SetUnhandledExceptionFilter@4 10037048     kernel32:KERNEL32.dll
+ 0002:0000004c       __imp__VirtualQuery@12     1003704c     kernel32:KERNEL32.dll
+ 0002:00000050       __imp__InterlockedExchange@8 10037050     kernel32:KERNEL32.dll
+ 0002:00000054       __imp__SetFilePointer@16   10037054     kernel32:KERNEL32.dll
+ 0002:00000058       __imp__WriteFile@20        10037058     kernel32:KERNEL32.dll
+ 0002:0000005c       __imp__UnhandledExceptionFilter@4 1003705c     kernel32:KERNEL32.dll
+ 0002:00000060       __imp__GetEnvironmentStringsW@0 10037060     kernel32:KERNEL32.dll
+ 0002:00000064       __imp__FreeEnvironmentStringsW@4 10037064     kernel32:KERNEL32.dll
+ 0002:00000068       __imp__GetEnvironmentStrings@0 10037068     kernel32:KERNEL32.dll
+ 0002:0000006c       __imp__FreeEnvironmentStringsA@4 1003706c     kernel32:KERNEL32.dll
+ 0002:00000070       __imp__GetStartupInfoA@4   10037070     kernel32:KERNEL32.dll
+ 0002:00000074       __imp__GetFileType@4       10037074     kernel32:KERNEL32.dll
+ 0002:00000078       __imp__GetStdHandle@4      10037078     kernel32:KERNEL32.dll
+ 0002:0000007c       __imp__SetHandleCount@4    1003707c     kernel32:KERNEL32.dll
+ 0002:00000080       __imp__GetTimeZoneInformation@4 10037080     kernel32:KERNEL32.dll
+ 0002:00000084       __imp__GetStringTypeW@16   10037084     kernel32:KERNEL32.dll
+ 0002:00000088       __imp__GetStringTypeA@20   10037088     kernel32:KERNEL32.dll
+ 0002:0000008c       __imp__GetLocaleInfoA@16   1003708c     kernel32:KERNEL32.dll
+ 0002:00000090       __imp__GetProcessHeap@0    10037090     kernel32:KERNEL32.dll
+ 0002:00000094       __imp__LCMapStringW@24     10037094     kernel32:KERNEL32.dll
+ 0002:00000098       __imp__MultiByteToWideChar@24 10037098     kernel32:KERNEL32.dll
+ 0002:0000009c       __imp__WideCharToMultiByte@32 1003709c     kernel32:KERNEL32.dll
+ 0002:000000a0       __imp__LCMapStringA@24     100370a0     kernel32:KERNEL32.dll
+ 0002:000000a4       __imp__IsBadWritePtr@8     100370a4     kernel32:KERNEL32.dll
+ 0002:000000a8       __imp__VirtualAlloc@16     100370a8     kernel32:KERNEL32.dll
+ 0002:000000ac       __imp__VirtualFree@12      100370ac     kernel32:KERNEL32.dll
+ 0002:000000b0       __imp__HeapCreate@12       100370b0     kernel32:KERNEL32.dll
+ 0002:000000b4       __imp__HeapDestroy@4       100370b4     kernel32:KERNEL32.dll
+ 0002:000000b8       __imp__HeapSize@12         100370b8     kernel32:KERNEL32.dll
+ 0002:000000bc       __imp__CloseHandle@4       100370bc     kernel32:KERNEL32.dll
+ 0002:000000c0       __imp__SetConsoleCtrlHandler@8 100370c0     kernel32:KERNEL32.dll
+ 0002:000000c4       __imp__GetLastError@0      100370c4     kernel32:KERNEL32.dll
+ 0002:000000c8       __imp__GetCurrentProcess@0 100370c8     kernel32:KERNEL32.dll
+ 0002:000000cc       __imp__TerminateProcess@8  100370cc     kernel32:KERNEL32.dll
+ 0002:000000d0       __imp__GetModuleHandleA@4  100370d0     kernel32:KERNEL32.dll
+ 0002:000000d4       __imp__ExitProcess@4       100370d4     kernel32:KERNEL32.dll
+ 0002:000000d8       __imp__GetCommandLineA@0   100370d8     kernel32:KERNEL32.dll
+ 0002:000000dc       __imp__GetSystemTimeAsFileTime@4 100370dc     kernel32:KERNEL32.dll
+ 0002:000000e0       __imp__DebugBreak@0        100370e0     kernel32:KERNEL32.dll
+ 0002:000000e4       __imp__LoadLibraryA@4      100370e4     kernel32:KERNEL32.dll
+ 0002:000000e8       __imp__GetProcAddress@8    100370e8     kernel32:KERNEL32.dll
+ 0002:000000ec       __imp__GetVersionExA@4     100370ec     kernel32:KERNEL32.dll
+ 0002:000000f0       __imp__RaiseException@16   100370f0     kernel32:KERNEL32.dll
+ 0002:000000f4       __imp__HeapReAlloc@16      100370f4     kernel32:KERNEL32.dll
+ 0002:000000f8       __imp__HeapAlloc@12        100370f8     kernel32:KERNEL32.dll
+ 0002:000000fc       __imp__HeapFree@12         100370fc     kernel32:KERNEL32.dll
+ 0002:00000100       __imp__GetModuleFileNameA@12 10037100     kernel32:KERNEL32.dll
+ 0002:00000104       __imp__RtlUnwind@16        10037104     kernel32:KERNEL32.dll
+ 0002:00000108       __imp__ReadFile@20         10037108     kernel32:KERNEL32.dll
+ 0002:0000010c       __imp__SetEndOfFile@4      1003710c     kernel32:KERNEL32.dll
+ 0002:00000110       __imp__CompareStringA@24   10037110     kernel32:KERNEL32.dll
+ 0002:00000114       __imp__CompareStringW@24   10037114     kernel32:KERNEL32.dll
+ 0002:00000118       __imp__FreeLibrary@4       10037118     kernel32:KERNEL32.dll
+ 0002:0000011c       __imp__GetTickCount@0      1003711c     kernel32:KERNEL32.dll
+ 0002:00000120       __imp__QueryPerformanceCounter@4 10037120     kernel32:KERNEL32.dll
+ 0002:00000124       __imp__Sleep@4             10037124     kernel32:KERNEL32.dll
+ 0002:00000128       __imp__CreateProcessA@40   10037128     kernel32:KERNEL32.dll
+ 0002:0000012c       __imp__SetEnvironmentVariableA@8 1003712c     kernel32:KERNEL32.dll
+ 0002:00000130       \177KERNEL32_NULL_THUNK_DATA 10037130     kernel32:KERNEL32.dll
+ 0002:00000134       __imp__WSACleanup@0        10037134     wsock32:WSOCK32.dll
+ 0002:00000138       __imp__WSAStartup@8        10037138     wsock32:WSOCK32.dll
+ 0002:0000013c       __imp__recv@16             1003713c     wsock32:WSOCK32.dll
+ 0002:00000140       __imp__WSAGetLastError@0   10037140     wsock32:WSOCK32.dll
+ 0002:00000144       __imp__select@20           10037144     wsock32:WSOCK32.dll
+ 0002:00000148       __imp____WSAFDIsSet@8      10037148     wsock32:WSOCK32.dll
+ 0002:0000014c       __imp__send@16             1003714c     wsock32:WSOCK32.dll
+ 0002:00000150       __imp__shutdown@8          10037150     wsock32:WSOCK32.dll
+ 0002:00000154       __imp__gethostbyname@4     10037154     wsock32:WSOCK32.dll
+ 0002:00000158       __imp__htons@4             10037158     wsock32:WSOCK32.dll
+ 0002:0000015c       __imp__socket@12           1003715c     wsock32:WSOCK32.dll
+ 0002:00000160       __imp__setsockopt@20       10037160     wsock32:WSOCK32.dll
+ 0002:00000164       __imp__connect@12          10037164     wsock32:WSOCK32.dll
+ 0002:00000168       __imp__closesocket@4       10037168     wsock32:WSOCK32.dll
+ 0002:0000016c       __imp__inet_addr@4         1003716c     wsock32:WSOCK32.dll
+ 0002:00000170       __imp__ioctlsocket@12      10037170     wsock32:WSOCK32.dll
+ 0002:00000174       \177WSOCK32_NULL_THUNK_DATA 10037174     wsock32:WSOCK32.dll
+ 0002:00000178       __imp_?addChatViewer@ParentFrame@@QAEPAVChatViewer@@PAVSimpleDialog@@HHHHHPAPAPAD1PAH@Z 10037178     cossacks2:cossacks2.exe
+ 0002:0000017c       __imp_?addNewGP_VScrollBar@ParentFrame@@QAEPAVVScrollBar@@PAVSimpleDialog@@HHHHHHH@Z 1003717c     cossacks2:cossacks2.exe
+ 0002:00000180       __imp_?addComplexBox@ParentFrame@@QAEPAVComplexBox@@HHHHP6AXHHHHHEH@ZHH@Z 10037180     cossacks2:cossacks2.exe
+ 0002:00000184       __imp_?addGP_Button@ParentFrame@@QAEPAVGP_Button@@PAVSimpleDialog@@HHHHH@Z 10037184     cossacks2:cossacks2.exe
+ 0002:00000188       __imp_?SmallWhiteFont@@3VRLCFont@@A 10037188     cossacks2:cossacks2.exe
+ 0002:0000018c       __imp_?RFileSize@@YAKPAX@Z 1003718c     cossacks2:cossacks2.exe
+ 0002:00000190       __imp_?RBlockRead@@YAKPAX0K@Z 10037190     cossacks2:cossacks2.exe
+ 0002:00000194       __imp_?RunExplorer@@YAXHPADHHHH@Z 10037194     cossacks2:cossacks2.exe
+ 0002:00000198       __imp_?ExplorerOpenRef@@YAXHPAD@Z 10037198     cossacks2:cossacks2.exe
+ 0002:0000019c       __imp_?RClose@@YAXPAX@Z    1003719c     cossacks2:cossacks2.exe
+ 0002:000001a0       __imp_?CheckGSC_Login@@YA_NXZ 100371a0     cossacks2:cossacks2.exe
+ 0002:000001a4       __imp_?RSeek@@YAKPAXH@Z    100371a4     cossacks2:cossacks2.exe
+ 0002:000001a8       __imp_?CheckUsingAI@@YA_NXZ 100371a8     cossacks2:cossacks2.exe
+ 0002:000001ac       __imp_?Gopen@@YAPAVGFILE@@PAD0@Z 100371ac     cossacks2:cossacks2.exe
+ 0002:000001b0       __imp_?Gclose@@YAXPAVGFILE@@@Z 100371b0     cossacks2:cossacks2.exe
+ 0002:000001b4       __imp_?ClearGChat@@YAXXZ   100371b4     cossacks2:cossacks2.exe
+ 0002:000001b8       __imp_?LoadFog@@YAXH@Z     100371b8     cossacks2:cossacks2.exe
+ 0002:000001bc       __imp_?SlowLoadPalette@@YAXPBD@Z 100371bc     cossacks2:cossacks2.exe
+ 0002:000001c0       __imp_??0SQPicture@@QAE@PAD@Z 100371c0     cossacks2:cossacks2.exe
+ 0002:000001c4       __imp_?ExplorerGetVar@@YAPADHPAD@Z 100371c4     cossacks2:cossacks2.exe
+ 0002:000001c8       __imp_?Draw@SQPicture@@QAEXHH@Z 100371c8     cossacks2:cossacks2.exe
+ 0002:000001cc       __imp_?FlipPages@@YAXXZ    100371cc     cossacks2:cossacks2.exe
+ 0002:000001d0       __imp_??1SQPicture@@QAE@XZ 100371d0     cossacks2:cossacks2.exe
+ 0002:000001d4       __imp_??0DialogsSystem@@QAE@XZ 100371d4     cossacks2:cossacks2.exe
+ 0002:000001d8       __imp_?RReset@@YAPAXPBD@Z  100371d8     cossacks2:cossacks2.exe
+ 0002:000001dc       __imp_?addPicture@ParentFrame@@QAEPAVPicture@@PAVSimpleDialog@@HHPAVSQPicture@@11@Z 100371dc     cossacks2:cossacks2.exe
+ 0002:000001e0       __imp_?SetCurPtr@@YAXH@Z   100371e0     cossacks2:cossacks2.exe
+ 0002:000001e4       __imp_?CurPalette@@3HA     100371e4     cossacks2:cossacks2.exe
+ 0002:000001e8       __imp_?ProcessExplorerDSS@@YAXHPAVDialogsSystem@@@Z 100371e8     cossacks2:cossacks2.exe
+ 0002:000001ec       __imp_?LoadPalette@@YAXPBD@Z 100371ec     cossacks2:cossacks2.exe
+ 0002:000001f0       __imp_?ExplorerSetVar@@YAXHPAD0@Z 100371f0     cossacks2:cossacks2.exe
+ 0002:000001f4       __imp_?LobbyVersion@@3PADA 100371f4     cossacks2:cossacks2.exe
+ 0002:000001f8       __imp_?dwVersion@@3GA      100371f8     cossacks2:cossacks2.exe
+ 0002:000001fc       __imp_?ExplorerBack@@YAXH@Z 100371fc     cossacks2:cossacks2.exe
+ 0002:00000200       __imp_?ExplorerRefresh@@YAXH@Z 10037200     cossacks2:cossacks2.exe
+ 0002:00000204       __imp_?LoadPicture@SQPicture@@QAEXPAD@Z 10037204     cossacks2:cossacks2.exe
+ 0002:00000208       __imp_?ExplorerResize@@YAXHHHHH@Z 10037208     cossacks2:cossacks2.exe
+ 0002:0000020c       __imp_?SetRoomOptions@@YAXPAD@Z 1003720c     cossacks2:cossacks2.exe
+ 0002:00000210       __imp_?GPS@@3VGP_System@@A 10037210     cossacks2:cossacks2.exe
+ 0002:00000214       __imp_?PreLoadGPImage@GP_System@@QAEHPAD@Z 10037214     cossacks2:cossacks2.exe
+ 0002:00000218       __imp_?LoadGP@GP_System@@QAE_NH@Z 10037218     cossacks2:cossacks2.exe
+ 0002:0000021c       __imp_?GetGPWidth@GP_System@@QAEHHH@Z 1003721c     cossacks2:cossacks2.exe
+ 0002:00000220       __imp_?ShowGP@GP_System@@QAEXHHHHE@Z 10037220     cossacks2:cossacks2.exe
+ 0002:00000224       __imp_?GetRLCHeight@@YAHPAUxRLCTable@@E@Z 10037224     cossacks2:cossacks2.exe
+ 0002:00000228       __imp_??0LocalGP@@QAE@PAD@Z 10037228     cossacks2:cossacks2.exe
+ 0002:0000022c       __imp_?DarkScreen@@YAXXZ   1003722c     cossacks2:cossacks2.exe
+ 0002:00000230       __imp_??0DialogsSystem@@QAE@HH@Z 10037230     cossacks2:cossacks2.exe
+ 0002:00000234       __imp_?RealLy@@3HA         10037234     cossacks2:cossacks2.exe
+ 0002:00000238       __imp_?RealLx@@3HA         10037238     cossacks2:cossacks2.exe
+ 0002:0000023c       __imp_?addCustomBorder@ParentFrame@@QAEPAVCustomBorder@@HHHHHPAH0HH@Z 1003723c     cossacks2:cossacks2.exe
+ 0002:00000240       __imp_?addGPPicture@ParentFrame@@QAEPAVGPPicture@@PAVSimpleDialog@@HHHH@Z 10037240     cossacks2:cossacks2.exe
+ 0002:00000244       __imp_?BlackFont@@3VRLCFont@@A 10037244     cossacks2:cossacks2.exe
+ 0002:00000248       __imp_?addGP_TextButton@ParentFrame@@QAEPAVGP_TextButton@@PAVSimpleDialog@@HHPADHHPAVRLCFont@@2@Z 10037248     cossacks2:cossacks2.exe
+ 0002:0000024c       __imp_?MMItemChoose@@YA_NPAVSimpleDialog@@@Z 1003724c     cossacks2:cossacks2.exe
+ 0002:00000250       __imp_?addInputBox@ParentFrame@@QAEPAVInputBox@@PAVSimpleDialog@@HHPADHHHPAVRLCFont@@2@Z 10037250     cossacks2:cossacks2.exe
+ 0002:00000254       __imp_?addTextButton@ParentFrame@@QAEPAVTextButton@@PAVSimpleDialog@@HHPADPAVRLCFont@@22E@Z 10037254     cossacks2:cossacks2.exe
+ 0002:00000258       __imp_?addColoredBar@ParentFrame@@QAEPAVColoredBar@@HHHHE@Z 10037258     cossacks2:cossacks2.exe
+ 0002:0000025c       __imp_?ItemChoose@@3HA     1003725c     cossacks2:cossacks2.exe
+ 0002:00000260       __imp_?LastKey@@3HA        10037260     cossacks2:cossacks2.exe
+ 0002:00000264       __imp_?KeyPressed@@3_NA    10037264     cossacks2:cossacks2.exe
+ 0002:00000268       __imp_?StdKeys@@YAXXZ      10037268     cossacks2:cossacks2.exe
+ 0002:0000026c       __imp_?MarkToDraw@DialogsSystem@@QAEXXZ 1003726c     cossacks2:cossacks2.exe
+ 0002:00000270       __imp_?ProcessDialogs@DialogsSystem@@QAEXXZ 10037270     cossacks2:cossacks2.exe
+ 0002:00000274       __imp_?RefreshView@DialogsSystem@@QAEXXZ 10037274     cossacks2:cossacks2.exe
+ 0002:00000278       __imp_?EnumPlr@@YA_NXZ     10037278     cossacks2:cossacks2.exe
+ 0002:0000027c       __imp_?SendPings@@YAXXZ    1003727c     cossacks2:cossacks2.exe
+ 0002:00000280       __imp_?GameInProgress@@3_NA 10037280     cossacks2:cossacks2.exe
+ 0002:00000284       __imp_??1DialogsSystem@@UAE@XZ 10037284     cossacks2:cossacks2.exe
+ 0002:00000288       __imp_??1LocalGP@@QAE@XZ   10037288     cossacks2:cossacks2.exe
+ 0002:0000028c       __imp_?ScreenPtr@@3PAXA    1003728c     cossacks2:cossacks2.exe
+ 0002:00000290       __imp_?LASTCLICKCHATNAME@@3PADA 10037290     cossacks2:cossacks2.exe
+ 0002:00000294       __imp_?DrawStdBar2@@YAXHHHHH@Z 10037294     cossacks2:cossacks2.exe
+ 0002:00000298       __imp_?GetPaletteColor@@YAEHHH@Z 10037298     cossacks2:cossacks2.exe
+ 0002:0000029c       __imp_?WhiteFont@@3VRLCFont@@A 1003729c     cossacks2:cossacks2.exe
+ 0002:000002a0       __imp_?YellowFont@@3VRLCFont@@A 100372a0     cossacks2:cossacks2.exe
+ 0002:000002a4       __imp_?ShowClanString@@YAXHHPADEPAVRLCFont@@1H@Z 100372a4     cossacks2:cossacks2.exe
+ 0002:000002a8       __imp_?ShowString@@YAXHHPBDPAVRLCFont@@@Z 100372a8     cossacks2:cossacks2.exe
+ 0002:000002ac       __imp_?xLine@@YAXHHHHE@Z   100372ac     cossacks2:cossacks2.exe
+ 0002:000002b0       __imp_?RedFont@@3VRLCFont@@A 100372b0     cossacks2:cossacks2.exe
+ 0002:000002b4       __imp_?g_SetWindParam@@YAXHHHH@Z 100372b4     cossacks2:cossacks2.exe
+ 0002:000002b8       __imp_?ScrWidth@@3HA       100372b8     cossacks2:cossacks2.exe
+ 0002:000002bc       __imp_?g_GetWindParam@@YAXAAH000@Z 100372bc     cossacks2:cossacks2.exe
+ 0002:000002c0       __imp_?GetRLCStrWidth@@YAHPADPAVRLCFont@@@Z 100372c0     cossacks2:cossacks2.exe
+ 0002:000002c4       __imp_?Ggetch@@YAHPAVGFILE@@@Z 100372c4     cossacks2:cossacks2.exe
+ 0002:000002c8       __imp_?GetSound@@YAHPAD@Z  100372c8     cossacks2:cossacks2.exe
+ 0002:000002cc       __imp_?PlayEffect@@YAXHHH@Z 100372cc     cossacks2:cossacks2.exe
+ 0002:000002d0       __imp_?ProcessMessages@@YA_NXZ 100372d0     cossacks2:cossacks2.exe
+ 0002:000002d4       __imp_?_ExFree@@YAXPAX@Z   100372d4     cossacks2:cossacks2.exe
+ 0002:000002d8       __imp_?_ExMalloc@@YAPAXH@Z 100372d8     cossacks2:cossacks2.exe
+ 0002:000002dc       __imp_?GetTextByID@@YAPADPAD@Z 100372dc     cossacks2:cossacks2.exe
+ 0002:000002e0       __imp_?AddToGChat@@YAXPAD0@Z 100372e0     cossacks2:cossacks2.exe
+ 0002:000002e4       __imp_?_ExRealloc@@YAPAXPAXH@Z 100372e4     cossacks2:cossacks2.exe
+ 0002:000002e8       \177cossacks2_NULL_THUNK_DATA 100372e8     cossacks2:cossacks2.exe
+ 0002:0000030c       ??_C@_00CNPNBAHC@?$AA@     1003730c     cs_chat.obj
+ 0002:00000310       ??_C@_05EDNMAHLK@?$CFs?$CFs?3?$AA@ 10037310     cs_chat.obj
+ 0002:00000318       ??_C@_06HCIONIIB@ONLYOU?$AA@ 10037318     cs_chat.obj
+ 0002:00000320       ??_C@_03MFEMLKBL@?$EA?$EA?$EA?$AA@ 10037320     cs_chat.obj
+ 0002:00000324       ??_C@_0BD@JFOKNOFN@?$EA?$EA?$EANFO?5?2$flags$?2g?2?$AA@ 10037324     cs_chat.obj
+ 0002:00000338       ??_C@_03NIPCJJOH@?$HL6?$HN?$AA@ 10037338     cs_chat.obj
+ 0002:0000033c       ??_C@_03EGDLPOO@?$HL5?$CJ?$AA@ 1003733c     cs_chat.obj
+ 0002:00000340       ??_C@_03NLHGENIJ@?$HL4?$HN?$AA@ 10037340     cs_chat.obj
+ 0002:00000344       ??_C@_03OOMDFM@?$HL3?$CJ?$AA@ 10037344     cs_chat.obj
+ 0002:00000348       ??_C@_03NODJFLAM@?$HL3?$HN?$AA@ 10037348     cs_chat.obj
+ 0002:0000034c       ??_C@_03BCMKJGL@?$HL2?$CJ?$AA@ 1003734c     cs_chat.obj
+ 0002:00000350       ??_C@_03NPPLDBDL@?$HL2?$HN?$AA@ 10037350     cs_chat.obj
+ 0002:00000354       ??_C@_03NNLNIPGC@?$HL1?$HN?$AA@ 10037354     cs_chat.obj
+ 0002:00000358       ??_C@_01CLKCMJKC@?5?$AA@   10037358     cs_chat.obj
+ 0002:0000035c       ??_C@_0M@OJPPJHFC@?$EA?$EA?$EAADDABPL?5?$AA@ 1003735c     cs_chat.obj
+ 0002:00000368       ??_C@_0BF@HABNGMNN@?$CDGSP?$CBcossacks?$CBA2V001?$AA@ 10037368     cs_chat.obj
+ 0002:00000380       ??_C@_0O@DNDJMDLF@?$CDGSP?$CBcossacks?$AA@ 10037380     cs_chat.obj
+ 0002:00000390       ??_C@_0BF@PJOMLONG@peerchat?4gamespy?4com?$AA@ 10037390     cs_chat.obj
+ 0002:000003a8       ??_C@_0BE@JJIBPPEI@pos?$DO?$DN0?$CG?$CGpos?$DMNValues?$AA@ 100373a8     cs_chat.obj
+ 0002:000003bc       ??_C@_0DI@GEGIMIHN@d?3?2cossacks2_project?2cossacks?5ii@ 100373bc     cs_chat.obj
+ 0002:000003f4       ??_C@_05JLPDBANI@START?$AA@ 100373f4     GSC_ChatWindow.obj
+ 0002:000003fc       ??_C@_04PFAOODAA@?$CFs?3?5?$AA@ 100373fc     GSC_ChatWindow.obj
+ 0002:00000404       ??_C@_03NAEMJKHE@?$CI?$DP?$CJ?$AA@ 10037404     GSC_ChatWindow.obj
+ 0002:00000408       ??_C@_07FOMIFKOD@?$CFs?9?9?$DO?$CFs?$AA@ 10037408     GSC_ChatWindow.obj
+ 0002:00000410       ??_C@_08LMHGJPEM@?9?9?$DO?$CFs?3?$CFs?$AA@ 10037410     GSC_ChatWindow.obj
+ 0002:0000041c       ??_C@_09HGKCHGP@ENTERMESS?$AA@ 1003741c     GSC_ChatWindow.obj
+ 0002:00000428       ??_C@_07EGFIAKIP@?$EACANCEL?$AA@ 10037428     GSC_ChatWindow.obj
+ 0002:00000430       ??_C@_03CNOECEON@?$EAOK?$AA@ 10037430     GSC_ChatWindow.obj
+ 0002:00000434       ??_C@_0BE@FDJGEHCM@Internet?2pix?2i_bor1?$AA@ 10037434     GSC_ChatWindow.obj
+ 0002:00000448       ??_C@_0P@OOOEGKOK@Interface?2bor2?$AA@ 10037448     GSC_ChatWindow.obj
+ 0002:00000458       ??_C@_0BD@OHNPKBBE@Interface?2_Loading?$AA@ 10037458     GSC_ChatWindow.obj
+ 0002:0000046c       ??_C@_09JHJEDDP@httpc?4exe?$AA@ 1003746c     GSC_ChatWindow.obj
+ 0002:00000478       ??_C@_06MKJHDOMO@?$CFCG_IP?$AA@ 10037478     GSC_ChatWindow.obj
+ 0002:00000480       ??_C@_05NMMJGJIE@JGAME?$AA@ 10037480     GSC_ChatWindow.obj
+ 0002:00000488       ??_C@_05ICJDLAAL@?$CFGOPT?$AA@ 10037488     GSC_ChatWindow.obj
+ 0002:00000490       ??_C@_0L@EKKDABIC@?$CFCG_PLNAME?$AA@ 10037490     GSC_ChatWindow.obj
+ 0002:0000049c       ??_C@_09EMEHFDMK@?$CFCG_MAXPL?$AA@ 1003749c     GSC_ChatWindow.obj
+ 0002:000004a8       ??_C@_0N@LKOBKKEK@?$CFCG_GAMENAME?$AA@ 100374a8     GSC_ChatWindow.obj
+ 0002:000004b8       ??_C@_0L@ICJEMEAG@?$CFCG_GAMEID?$AA@ 100374b8     GSC_ChatWindow.obj
+ 0002:000004c4       ??_C@_05PLMGDIEM@CGAME?$AA@ 100374c4     GSC_ChatWindow.obj
+ 0002:000004cc       ??_C@_08BKNNHMPK@?$CFCOMMAND?$AA@ 100374cc     GSC_ChatWindow.obj
+ 0002:000004d8       ??_C@_0BJ@EDIOOLJN@Interface?2Back_Shell?4bmp?$AA@ 100374d8     GSC_ChatWindow.obj
+ 0002:000004f4       ??_C@_0BM@BCBFBDPF@Interface?2Back_Shell_02?4bmp?$AA@ 100374f4     GSC_ChatWindow.obj
+ 0002:00000510       ??_C@_0N@GLPHEDLL@EXPLORER_DLY?$AA@ 10037510     GSC_ChatWindow.obj
+ 0002:00000520       ??_C@_0BK@PGEEBINN@Internet?2Cash?2pl_info?4cmd?$AA@ 10037520     GSC_ChatWindow.obj
+ 0002:0000053c       ??_C@_0BK@EDPIGMEO@Internet?2Cash?2join_pl?4cmd?$AA@ 1003753c     GSC_ChatWindow.obj
+ 0002:00000558       ??_C@_0BH@LLPBEDIG@Internet?2Cash?2t100?4cmd?$AA@ 10037558     GSC_ChatWindow.obj
+ 0002:00000570       ??_C@_0BI@IDAGDBCG@Internet?2Cash?2rooms?4cmd?$AA@ 10037570     GSC_ChatWindow.obj
+ 0002:00000588       ??_C@_09CEFCLLHD@?$HOGSCPROF_?$AA@ 10037588     GSC_ChatWindow.obj
+ 0002:00000594       ??_C@_0L@EDNELBBF@?$CFCV_ENGINE?$AA@ 10037594     GSC_ChatWindow.obj
+ 0002:000005a0       ??_C@_02DPKJAMEF@?$CFd?$AA@ 100375a0     GSC_ChatWindow.obj
+ 0002:000005a4       ??_C@_09JPIJCJEK@?$CFCV_LOBBY?$AA@ 100375a4     GSC_ChatWindow.obj
+ 0002:000005b0       ??_C@_08IMDKPMA@?$CFCP_MAIL?$AA@ 100375b0     GSC_ChatWindow.obj
+ 0002:000005bc       ??_C@_08CMHNJALK@?$CFCP_PROF?$AA@ 100375bc     GSC_ChatWindow.obj
+ 0002:000005c8       ??_C@_08MIABOOOO@?$CFCP_NICK?$AA@ 100375c8     GSC_ChatWindow.obj
+ 0002:000005d4       ??_C@_0O@NJAMEEI@?$CFd?2agew_1?4pal?$AA@ 100375d4     GSC_ChatWindow.obj
+ 0002:000005e4       ??_C@_0BE@JPLCPLLG@LW_gvar?$CG?$CF?$CFASTATE?$CG?$CFd?$AA@ 100375e4     GSC_ChatWindow.obj
+ 0002:000005f8       ??_C@_0BI@IANAMCHK@Internet?2Cash?2home1?4cmd?$AA@ 100375f8     GSC_ChatWindow.obj
+ 0002:00000610       ??_C@_0BH@PNOLBMFC@LF?$HMLW_new?$HMopen?$CGreq?4txt?$AA@ 10037610     GSC_ChatWindow.obj
+ 0002:00000628       ??_C@_0L@ICFEKJHL@EXPLORER_X?$AA@ 10037628     GSC_ChatWindow.obj
+ 0002:00000634       ??_C@_0L@JLEPJIDK@EXPLORER_Y?$AA@ 10037634     GSC_ChatWindow.obj
+ 0002:00000640       ??_C@_0M@BAIPLKP@EXPLORER_X1?$AA@ 10037640     GSC_ChatWindow.obj
+ 0002:0000064c       ??_C@_0M@MKJBJI@EXPLORER_Y1?$AA@ 1003764c     GSC_ChatWindow.obj
+ 0002:00000658       ??_C@_0BH@KPOIACCE@Internet?2Cash?2home?4cmd?$AA@ 10037658     GSC_ChatWindow.obj
+ 0002:00000670       ??_C@_07LALBJJKD@IG_BACK?$AA@ 10037670     GSC_ChatWindow.obj
+ 0002:00000678       ??_C@_09LNDHNMLD@IG_CANCEL?$AA@ 10037678     GSC_ChatWindow.obj
+ 0002:00000684       ??_C@_0BF@MLENPPDF@CHAT_CANCEL_BUTTON_X?$AA@ 10037684     GSC_ChatWindow.obj
+ 0002:0000069c       ??_C@_0BF@NCFGMOHE@CHAT_CANCEL_BUTTON_Y?$AA@ 1003769c     GSC_ChatWindow.obj
+ 0002:000006b4       ??_C@_0BK@ODGAJOJP@CHAT_CANCEL_BUTTON_STATE1?$AA@ 100376b4     GSC_ChatWindow.obj
+ 0002:000006d0       ??_C@_0BK@MIENMNFM@CHAT_CANCEL_BUTTON_STATE2?$AA@ 100376d0     GSC_ChatWindow.obj
+ 0002:000006ec       ??_C@_08LODOLFOC@NPLAYMSS?$AA@ 100376ec     GSC_ChatWindow.obj
+ 0002:000006f8       ??_C@_0BH@IFDKBELM@JOIN_TO_PLAYER_VISIBLE?$AA@ 100376f8     GSC_ChatWindow.obj
+ 0002:00000710       ??_C@_08JPOFGLHM@JOINPLGM?$AA@ 10037710     GSC_ChatWindow.obj
+ 0002:0000071c       ??_C@_0BB@PCGFEHHA@JOIN_TO_PLAYER_X?$AA@ 1003771c     GSC_ChatWindow.obj
+ 0002:00000730       ??_C@_0BB@OLHOHGDB@JOIN_TO_PLAYER_Y?$AA@ 10037730     GSC_ChatWindow.obj
+ 0002:00000744       ??_C@_06NAPIBNHE@INHIN5?$AA@ 10037744     GSC_ChatWindow.obj
+ 0002:0000074c       ??_C@_06PLNFEOLH@INHIN6?$AA@ 1003774c     GSC_ChatWindow.obj
+ 0002:00000754       ??_C@_0O@CDDIMLJN@PLAYER_MUTE_X?$AA@ 10037754     GSC_ChatWindow.obj
+ 0002:00000764       ??_C@_0O@DKCDPKNM@PLAYER_MUTE_Y?$AA@ 10037764     GSC_ChatWindow.obj
+ 0002:00000774       ??_C@_06MJODCMDF@INHIN4?$AA@ 10037774     GSC_ChatWindow.obj
+ 0002:0000077c       ??_C@_0BH@OFMJCLEN@PERSONAL_CHAT_BUTTON_X?$AA@ 1003777c     GSC_ChatWindow.obj
+ 0002:00000794       ??_C@_0BH@PMNCBKAM@PERSONAL_CHAT_BUTTON_Y?$AA@ 10037794     GSC_ChatWindow.obj
+ 0002:000007ac       ??_C@_06JPLJILLD@INHIN2?$AA@ 100377ac     GSC_ChatWindow.obj
+ 0002:000007b4       ??_C@_0BF@EOEPFLNG@PLAYER_INFO_BUTTON_X?$AA@ 100377b4     GSC_ChatWindow.obj
+ 0002:000007cc       ??_C@_0BF@FHFEGKJH@PLAYER_INFO_BUTTON_Y?$AA@ 100377cc     GSC_ChatWindow.obj
+ 0002:000007e4       ??_C@_0N@IENOOIBF@CHAT_VERSION?$AA@ 100377e4     GSC_ChatWindow.obj
+ 0002:000007f4       ??_C@_0M@CKFAFKIH@CHAT_COMMON?$AA@ 100377f4     GSC_ChatWindow.obj
+ 0002:00000800       ??_C@_0BG@IGGBNLEE@CHAT_VERSION_SWITCH_X?$AA@ 10037800     GSC_ChatWindow.obj
+ 0002:00000818       ??_C@_0BG@JPHKOKAF@CHAT_VERSION_SWITCH_Y?$AA@ 10037818     GSC_ChatWindow.obj
+ 0002:00000830       ??_C@_0O@HOCPJGHI@CHAT_PERSONAL?$AA@ 10037830     GSC_ChatWindow.obj
+ 0002:00000840       ??_C@_08MNFFCKAI@CHAT_ALL?$AA@ 10037840     GSC_ChatWindow.obj
+ 0002:0000084c       ??_C@_0BF@LIKPFGDG@CHAT_SWITCH_BUTTON_X?$AA@ 1003784c     GSC_ChatWindow.obj
+ 0002:00000864       ??_C@_0BF@KBLEGHHH@CHAT_SWITCH_BUTTON_Y?$AA@ 10037864     GSC_ChatWindow.obj
+ 0002:0000087c       ??_C@_0M@IGJKDBOM@VIEW_RESIZE?$AA@ 1003787c     GSC_ChatWindow.obj
+ 0002:00000888       ??_C@_0BC@FPGNPMGB@EXPLORER_RESIZE_X?$AA@ 10037888     GSC_ChatWindow.obj
+ 0002:0000089c       ??_C@_0BC@EGHGMNCA@EXPLORER_RESIZE_Y?$AA@ 1003789c     GSC_ChatWindow.obj
+ 0002:000008b0       ??_C@_06LEJENIHA@INHIN1?$AA@ 100378b0     GSC_ChatWindow.obj
+ 0002:000008b8       ??_C@_0BP@PPLNABO@EXPLORER_TOP100_BUTTON_VISIBLE?$AA@ 100378b8     GSC_ChatWindow.obj
+ 0002:000008d8       ??_C@_0BJ@IIACDKGM@EXPLORER_TOP100_BUTTON_X?$AA@ 100378d8     GSC_ChatWindow.obj
+ 0002:000008f4       ??_C@_0BJ@JBBJALCN@EXPLORER_TOP100_BUTTON_Y?$AA@ 100378f4     GSC_ChatWindow.obj
+ 0002:00000910       ??_C@_0CA@EPJCIGFP@EXPLORER_BATTLES_BUTTON_VISIBLE?$AA@ 10037910     GSC_ChatWindow.obj
+ 0002:00000930       ??_C@_06IGKCLKPC@INHIN3?$AA@ 10037930     GSC_ChatWindow.obj
+ 0002:00000938       ??_C@_0BK@NNHGNNFJ@EXPLORER_BATTLES_BUTTON_X?$AA@ 10037938     GSC_ChatWindow.obj
+ 0002:00000954       ??_C@_0BK@MEGNOMBI@EXPLORER_BATTLES_BUTTON_Y?$AA@ 10037954     GSC_ChatWindow.obj
+ 0002:00000970       ??_C@_0O@HGBBGGHM@VIEW_HOMEPAGE?$AA@ 10037970     GSC_ChatWindow.obj
+ 0002:00000980       ??_C@_0BN@HEGAMFID@EXPLORER_HOME_BUTTON_VISIBLE?$AA@ 10037980     GSC_ChatWindow.obj
+ 0002:000009a0       ??_C@_0BH@IDPKAGGJ@EXPLORER_HOME_BUTTON_X?$AA@ 100379a0     GSC_ChatWindow.obj
+ 0002:000009b8       ??_C@_0BH@JKOBDHCI@EXPLORER_HOME_BUTTON_Y?$AA@ 100379b8     GSC_ChatWindow.obj
+ 0002:000009d0       ??_C@_0CA@BCINDADF@EXPLORER_FORWARD_BUTTON_VISIBLE?$AA@ 100379d0     GSC_ChatWindow.obj
+ 0002:000009f0       ??_C@_0BK@GIAGEIFB@EXPLORER_FORWARD_BUTTON_X?$AA@ 100379f0     GSC_ChatWindow.obj
+ 0002:00000a0c       ??_C@_0BK@HBBNHJBA@EXPLORER_FORWARD_BUTTON_Y?$AA@ 10037a0c     GSC_ChatWindow.obj
+ 0002:00000a28       ??_C@_0CA@GFAFONHA@EXPLORER_REFRESH_BUTTON_VISIBLE?$AA@ 10037a28     GSC_ChatWindow.obj
+ 0002:00000a48       ??_C@_0BK@ODFHGMLA@EXPLORER_REFRESH_BUTTON_X?$AA@ 10037a48     GSC_ChatWindow.obj
+ 0002:00000a64       ??_C@_0BK@PKEMFNPB@EXPLORER_REFRESH_BUTTON_Y?$AA@ 10037a64     GSC_ChatWindow.obj
+ 0002:00000a80       ??_C@_0BN@OPABJJDE@EXPLORER_BACK_BUTTON_VISIBLE?$AA@ 10037a80     GSC_ChatWindow.obj
+ 0002:00000aa0       ??_C@_0BH@BAGMCIFK@EXPLORER_BACK_BUTTON_X?$AA@ 10037aa0     GSC_ChatWindow.obj
+ 0002:00000ab8       ??_C@_0BH@JHHBJBL@EXPLORER_BACK_BUTTON_Y?$AA@ 10037ab8     GSC_ChatWindow.obj
+ 0002:00000ad0       ??_C@_0P@FELFPONC@PLAYERS_LIST_X?$AA@ 10037ad0     GSC_ChatWindow.obj
+ 0002:00000ae0       ??_C@_0P@ENKOMPJD@PLAYERS_LIST_Y?$AA@ 10037ae0     GSC_ChatWindow.obj
+ 0002:00000af0       ??_C@_0BA@BLFLDPNJ@PLAYERS_LIST_NY?$AA@ 10037af0     GSC_ChatWindow.obj
+ 0002:00000b00       ??_C@_0BF@OEFPFFMP@PLAYERS_LIST_LINE_LY?$AA@ 10037b00     GSC_ChatWindow.obj
+ 0002:00000b18       ??_C@_0BD@PANBBBDN@PLAYERS_SCROLLER_X?$AA@ 10037b18     GSC_ChatWindow.obj
+ 0002:00000b2c       ??_C@_0BD@OJMKCAHM@PLAYERS_SCROLLER_Y?$AA@ 10037b2c     GSC_ChatWindow.obj
+ 0002:00000b40       ??_C@_0BE@CIMOHALB@PLAYERS_SCROLLER_LY?$AA@ 10037b40     GSC_ChatWindow.obj
+ 0002:00000b54       ??_C@_0BA@GNIGAKKJ@CHAT_SCROLLER_X?$AA@ 10037b54     GSC_ChatWindow.obj
+ 0002:00000b64       ??_C@_0BA@HEJNDLOI@CHAT_SCROLLER_Y?$AA@ 10037b64     GSC_ChatWindow.obj
+ 0002:00000b74       ??_C@_0BB@NPDBHAPH@CHAT_SCROLLER_LY?$AA@ 10037b74     GSC_ChatWindow.obj
+ 0002:00000b88       ??_C@_0BE@JHGPFFLD@ENTER_CHAT_STRING_X?$AA@ 10037b88     GSC_ChatWindow.obj
+ 0002:00000b9c       ??_C@_0BE@IOHEGEPC@ENTER_CHAT_STRING_Y?$AA@ 10037b9c     GSC_ChatWindow.obj
+ 0002:00000bb0       ??_C@_0BF@DLLCFBJD@ENTER_CHAT_STRING_LX?$AA@ 10037bb0     GSC_ChatWindow.obj
+ 0002:00000bc8       ??_C@_0BF@CCKJGANC@ENTER_CHAT_STRING_LY?$AA@ 10037bc8     GSC_ChatWindow.obj
+ 0002:00000be0       ??_C@_0O@OGELGLFN@CHAT_WINDOW_X?$AA@ 10037be0     GSC_ChatWindow.obj
+ 0002:00000bf0       ??_C@_0O@PPFAFKBM@CHAT_WINDOW_Y?$AA@ 10037bf0     GSC_ChatWindow.obj
+ 0002:00000c00       ??_C@_0BC@HGKJDGDK@CHAT_WINDOW_LINES?$AA@ 10037c00     GSC_ChatWindow.obj
+ 0002:00000c14       ??_C@_0BH@JHIHOEGA@CHAT_WINDOW_LINES_DIST?$AA@ 10037c14     GSC_ChatWindow.obj
+ 0002:00000c2c       ??_C@_0BC@MENHCGNL@CHAT_WINDOW_WIDTH?$AA@ 10037c2c     GSC_ChatWindow.obj
+ 0002:00000c40       ??_C@_0BH@JJBDICGC@PLLIST_PASSIVE_BGROUND?$AA@ 10037c40     GSC_ChatWindow.obj
+ 0002:00000c58       ??_C@_0BE@FIFKDFLL@PLLIST_SELECTION_LX?$AA@ 10037c58     GSC_ChatWindow.obj
+ 0002:00000c6c       ??_C@_0BD@HJGHKEKO@PLLIST_SELECTION_X?$AA@ 10037c6c     GSC_ChatWindow.obj
+ 0002:00000c80       ??_C@_0BG@IPGFMEOK@PLLIST_ACTIVE_BGROUND?$AA@ 10037c80     GSC_ChatWindow.obj
+ 0002:00000c98       ??_C@_0BH@BLJAGMDG@PLLIST_PASSIVE_CORNERS?$AA@ 10037c98     GSC_ChatWindow.obj
+ 0002:00000cb0       ??_C@_0BG@NOGCKLO@PLLIST_ACTIVE_CORNERS?$AA@ 10037cb0     GSC_ChatWindow.obj
+ 0002:00000cc8       ??_C@_0BB@JFMJGBEP@?$CFd?$CFd?$CFd?$CFd?$CFd?$CFd?$CFd?$CFd?$AA@ 10037cc8     GSC_ChatWindow.obj
+ 0002:00000cdc       ??_C@_07POPBLGHN@ICUNCON?$AA@ 10037cdc     GSC_ChatWindow.obj
+ 0002:00000ce4       ??_C@_0L@LPBMOPDE@GSCPROF_?$CFs?$AA@ 10037ce4     GSC_ChatWindow.obj
+ 0002:00000cf0       ??_C@_07NFANNNEC@UNKNOWN?$AA@ 10037cf0     GSC_ChatWindow.obj
+ 0002:00000cf8       ??_C@_05LJBANPDP@?$CFMAIL?$AA@ 10037cf8     GSC_ChatWindow.obj
+ 0002:00000d00       ??_C@_05JNKOOAEF@?$CFPROF?$AA@ 10037d00     GSC_ChatWindow.obj
+ 0002:00000d08       ??_C@_05HJNCJOBB@?$CFNICK?$AA@ 10037d08     GSC_ChatWindow.obj
+ 0002:00000d10       ??_C@_06PCBGMAFK@ICCONN?$AA@ 10037d10     GSC_ChatWindow.obj
+ 0002:00000d18       ??_C@_06PBGCFCCL@?$CFCHNL2?$AA@ 10037d18     GSC_ChatWindow.obj
+ 0002:00000d20       ??_C@_06NKEPABOI@?$CFCHNL1?$AA@ 10037d20     GSC_ChatWindow.obj
+ 0002:00000d28       ??_C@_05PHCAOHDF@?$CFCHAT?$AA@ 10037d28     GSC_ChatWindow.obj
+ 0002:00000d30       ??_C@_0BF@DMHLGFOK@Internet?2pix?2is_btns?$AA@ 10037d30     GSC_ChatWindow.obj
+ 0002:00000d48       ??_C@_0BE@HILLBEOP@Internet?2pix?2i_bor2?$AA@ 10037d48     GSC_ChatWindow.obj
+ 0002:00000d5c       ??_C@_0BA@CHEAFKBA@Interface?2igame?$AA@ 10037d5c     GSC_ChatWindow.obj
+ 0002:00000d6c       ??_C@_0BF@NMLKB@Internet?2pix?2_Slider?$AA@ 10037d6c     GSC_ChatWindow.obj
+ 0002:00000d84       ??_C@_0BJ@MNDOIEN@Interface?2Back_shell?4bmp?$AA@ 10037d84     GSC_ChatWindow.obj
+ 0002:00000da0       ??_C@_0N@CGBOEKFP@PALETTE_FILE?$AA@ 10037da0     GSC_ChatWindow.obj
+ 0002:00000db0       ??_C@_0O@PFCMDFJ@PALETTE_INDEX?$AA@ 10037db0     GSC_ChatWindow.obj
+ 0002:00000dc0       ??_C@_0BF@PILJDAJH@Internet?2gscchat?4ini?$AA@ 10037dc0     GSC_ChatWindow.obj
+ 0002:00000dd8       ??_C@_02DKCKIIND@?$CFs?$AA@ 10037dd8     GSC_ChatWindow.obj
+ 0002:00000ddc       ??_C@_01KDCPPGHE@r?$AA@    10037ddc     GSC_ChatWindow.obj
+ 0002:00000de0       ??_C@_08DCKGOJGF@GW?$HMleave?$AA@ 10037de0     GSC_ChatWindow.obj
+ 0002:00000dec       ??_C@_0BC@MEIOBCO@StartGSCGame?$CI?$CFs?$CJ?6?$AA@ 10037dec     GSC_ChatWindow.obj
+ 0002:00000e00       ??_C@_04EACKMPAP@?$DMAI?$DO?$AA@ 10037e00     GSC_ChatWindow.obj
+ 0002:00000e08       ??_C@_08GHENCBHI@sav?3?$FL?$CFs?$FN?$AA@ 10037e08     GSC_ChatWindow.obj
+ 0002:00000e14       ??_C@_05FAGFPHJG@start?$AA@ 10037e14     GSC_ChatWindow.obj
+ 0002:00000e1c       ??_C@_02IAJBHGDL@GW?$AA@   10037e1c     GSC_ChatWindow.obj
+ 0002:00000e20       ??_C@_07FLFDJLCH@Save?2?$CFs?$AA@ 10037e20     GSC_ChatWindow.obj
+ 0002:00000e28       ??_C@_04DCNCEOO@?4SAV?$AA@ 10037e28     GSC_ChatWindow.obj
+ 0002:00000e30       ??_C@_04ONGOJJC@?4sav?$AA@ 10037e30     GSC_ChatWindow.obj
+ 0002:00000e38       ??_C@_0BA@DINAHNHA@?9?$DOStartGSCGame?6?$AA@ 10037e38     GSC_ChatWindow.obj
+ 0002:00000e48       ??_C@_0CB@LFNFNABC@ReportGSCGame?$CI?$CFd?0?$CFd?0?$HL?$CFd?0?$CFd?0?$CFd?$HN?$CJ?6@ 10037e48     GSC_ChatWindow.obj
+ 0002:00000e6c       ??_C@_05BLKJBNOD@stats?$AA@ 10037e6c     GSC_ChatWindow.obj
+ 0002:00000e74       ??_C@_0BB@JDCBIGJB@?9?$DOReportGSCGame?6?$AA@ 10037e74     GSC_ChatWindow.obj
+ 0002:00000e88       ??_C@_05NPIPCLGG@alive?$AA@ 10037e88     GSC_ChatWindow.obj
+ 0002:00000e90       ??_C@_0BJ@BBCMKHPJ@SendVictoryState?$CI?$CFd?0?$CFd?$CJ?6?$AA@ 10037e90     GSC_ChatWindow.obj
+ 0002:00000eac       ??_C@_07LKDHAIBH@endgame?$AA@ 10037eac     GSC_ChatWindow.obj
+ 0002:00000eb4       ??_C@_0BE@KJBCLNOD@?9?$DOSendVictoryState?6?$AA@ 10037eb4     GSC_ChatWindow.obj
+ 0002:00000ec8       ??_C@_0P@CMFPIHEE@GW?$HMdontrate?$CG?$CFs?$AA@ 10037ec8     GSC_ChatWindow.obj
+ 0002:00000ed8       ??_C@_06DKEDAPL@?$CFs?6?$CFs?6?$AA@ 10037ed8     GSC_ChatWindow.obj
+ 0002:00000ee0       ??_C@_0BI@MDJENLFE@Internet?2Cash?2info?4cash?$AA@ 10037ee0     GSC_ChatWindow.obj
+ 0002:00000ef8       ??_C@_01NOFIACDB@w?$AA@    10037ef8     GSC_ChatWindow.obj
+ 0002:00000efc       ??_C@_01HNPIGOCE@?$CG?$AA@ 10037efc     ParseRQ.obj
+ 0002:00000f00       ??_C@_01DNKMNLPK@?$HM?$AA@ 10037f00     ParseRQ.obj
+ 0002:00000f04       ??_C@_0N@LKIBCLDH@data?5?$CB?$DN?5NULL?$AA@ 10037f04     chatCallbacks.obj
+ 0002:00000f14       ??_C@_0DM@PMAIGLNE@d?3?2cossacks2_project?2cossacks?5ii@ 10037f14     chatCallbacks.obj
+ 0002:00000f50       ??_C@_0O@PIHHDOJA@data?9?$DOID?5?$DO?$DN?50?$AA@ 10037f50     chatCallbacks.obj
+ 0002:00000f60       ??_C@_0BN@BKDGBEMA@data?9?$DOcallbackParams?5?$CB?$DN?5NULL?$AA@ 10037f60     chatCallbacks.obj
+ 0002:00000f80       ??_C@_0BH@LIFAPBGC@data?9?$DOcallback?5?$CB?$DN?5NULL?$AA@ 10037f80     chatCallbacks.obj
+ 0002:00000f98       ??_C@_0BK@JKFHDDGO@data?9?$DOtype?5?$DM?5CALLBACK_NUM?$AA@ 10037f98     chatCallbacks.obj
+ 0002:00000fb4       ??_C@_0BA@PDFOJPCI@data?9?$DOtype?5?$DO?$DN?50?$AA@ 10037fb4     chatCallbacks.obj
+ 0002:00000fc4       ??_C@_0N@EEHNDFNL@chat?5?$CB?$DN?5NULL?$AA@ 10037fc4     chatCallbacks.obj
+ 0002:00000fd4       ??_C@_01GBGANLPD@0?$AA@    10037fd4     chatCallbacks.obj
+ 0002:00000fd8       ??_C@_0BE@LEPOAHKO@srcParams?9?$DOnum?5?$DO?$DN?50?$AA@ 10037fd8     chatCallbacks.obj
+ 0002:00000fec       ??_C@_0BI@KHCIMKOD@srcParams?9?$DOnumBans?5?$DO?$DN?50?$AA@ 10037fec     chatCallbacks.obj
+ 0002:00001004       ??_C@_0BJ@HPKGGHI@srcParams?9?$DOmodes?5?$CB?$DN?5NULL?$AA@ 10038004     chatCallbacks.obj
+ 0002:00001020       ??_C@_0BJ@NOJPHFAG@srcParams?9?$DOnumUsers?5?$DO?$DN?50?$AA@ 10038020     chatCallbacks.obj
+ 0002:0000103c       ??_C@_0BM@MJDIJBO@srcParams?9?$DOnumUsers?5?$CB?$DN?5NULL?$AA@ 1003803c     chatCallbacks.obj
+ 0002:00001058       ??_C@_0BM@EDDJCEFL@srcParams?9?$DOnumChannels?5?$DO?$DN?50?$AA@ 10038058     chatCallbacks.obj
+ 0002:00001074       ??_C@_0BD@JPIFPJJN@channel?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038074     chatCallbacks.obj
+ 0002:00001088       ??_C@_07OALMPLIE@ID?5?$DO?$DN?50?$AA@ 10038088     chatCallbacks.obj
+ 0002:00001090       ??_C@_0BH@IHHGEDHP@callbackParamsSize?5?$DO?50?$AA@ 10038090     chatCallbacks.obj
+ 0002:000010a8       ??_C@_0BH@GCHLAIIP@callbackParams?5?$CB?$DN?5NULL?$AA@ 100380a8     chatCallbacks.obj
+ 0002:000010c0       ??_C@_0BB@FKKFOAML@callback?5?$CB?$DN?5NULL?$AA@ 100380c0     chatCallbacks.obj
+ 0002:000010d4       ??_C@_0CB@JICGOPEE@connection?9?$DOcallbackList?5?$CB?$DN?5NULL@ 100380d4     chatCallbacks.obj
+ 0002:000010f8       ??_C@_0BE@NCPAHAOA@type?5?$DM?5CALLBACK_NUM?$AA@ 100380f8     chatCallbacks.obj
+ 0002:0000110c       ??_C@_09DGPOGGIJ@type?5?$DO?$DN?50?$AA@ 1003810c     chatCallbacks.obj
+ 0002:00001118       ??_C@_0P@CMBNEEFP@numBuckets?5?$DO?50?$AA@ 10038118     chatChannel.obj
+ 0002:00001128       ??_C@_0N@IMPMAINJ@elem?5?$CB?$DN?5NULL?$AA@ 10038128     chatChannel.obj
+ 0002:00001138       ??_C@_0DK@HCBMOLKD@d?3?2cossacks2_project?2cossacks?5ii@ 10038138     chatChannel.obj
+ 0002:00001174       ??_C@_0P@EKKODEIO@str?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038174     chatChannel.obj
+ 0002:00001184       ??_C@_0M@CMNAFCJK@str?5?$CB?$DN?5NULL?$AA@ 10038184     chatChannel.obj
+ 0002:00001190       ??_C@_0BA@FJCGKONA@str2?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038190     chatChannel.obj
+ 0002:000011a0       ??_C@_0BA@OEOMMCBO@str1?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100381a0     chatChannel.obj
+ 0002:000011b0       ??_C@_0N@FNNIOGFB@str2?5?$CB?$DN?5NULL?$AA@ 100381b0     chatChannel.obj
+ 0002:000011c0       ??_C@_0N@LGOPFNFC@str1?5?$CB?$DN?5NULL?$AA@ 100381c0     chatChannel.obj
+ 0002:000011d0       ??_C@_0O@LCKNNKCB@elem2?5?$CB?$DN?5NULL?$AA@ 100381d0     chatChannel.obj
+ 0002:000011e0       ??_C@_0O@FJJKGBCC@elem1?5?$CB?$DN?5NULL?$AA@ 100381e0     chatChannel.obj
+ 0002:000011f0       ??_C@_0M@ENHHCIN@chatChannel?$AA@ 100381f0     chatChannel.obj
+ 0002:000011fc       ??_C@_0BC@DALKJOBP@callbacks?5?$CB?$DN?5NULL?$AA@ 100381fc     chatChannel.obj
+ 0002:00001210       ??_C@_0BO@GNFIKGLM@strlen?$CIchannel?$CJ?5?$DM?5MAX_CHANNEL?$AA@ 10038210     chatChannel.obj
+ 0002:00001230       ??_C@_0BA@HOPJBEC@channel?5?$CB?$DN?5NULL?$AA@ 10038230     chatChannel.obj
+ 0002:00001240       ??_C@_0CP@HAAALAG@?$CIdata?9?$DOmodes?$FLi?$FN?5?$DO?$DN?50?$CJ?5?$CG?$CG?5?$CIdata?9?$DO@ 10038240     chatChannel.obj
+ 0002:00001270       ??_C@_0CC@HFJLDDGD@strlen?$CIdata?9?$DOusers?$FLi?$FN?$CJ?5?$DM?5MAX_NAM@ 10038270     chatChannel.obj
+ 0002:00001294       ??_C@_0BK@KCMCJDNE@data?9?$DOusers?$FLi?$FN?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038294     chatChannel.obj
+ 0002:000012b0       ??_C@_0BH@KCCELBKI@data?9?$DOusers?$FLi?$FN?5?$CB?$DN?5NULL?$AA@ 100382b0     chatChannel.obj
+ 0002:000012c8       ??_C@_0BE@LPIOMGPK@data?9?$DOnumUsers?5?$DO?$DN?50?$AA@ 100382c8     chatChannel.obj
+ 0002:000012dc       ??_C@_0BO@MAJICFCJ@strlen?$CIuser?9?$DOname?$CJ?5?$DM?5MAX_NAME?$AA@ 100382dc     chatChannel.obj
+ 0002:000012fc       ??_C@_0BG@OMFAOHHJ@user?9?$DOname?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100382fc     chatChannel.obj
+ 0002:00001314       ??_C@_0BD@CHFDINDA@user?9?$DOname?5?$CB?$DN?5NULL?$AA@ 10038314     chatChannel.obj
+ 0002:00001328       ??_C@_0BD@OCKOKAGK@clientData?5?$CB?$DN?5NULL?$AA@ 10038328     chatChannel.obj
+ 0002:0000133c       ??_C@_0DD@IIOFJDBI@TableLookup?$CIchatChannel?9?$DOusers?0?5@ 1003833c     chatChannel.obj
+ 0002:00001370       ??_C@_0BL@HNFGLOMJ@?$CImode?5?$DO?$DN?50?$CJ?5?$CG?$CG?5?$CImode?5?$DM?$DN?53?$CJ?$AA@ 10038370     chatChannel.obj
+ 0002:0000138c       ??_C@_0BI@MBACFKHO@strlen?$CIname?$CJ?5?$DM?5MAX_NAME?$AA@ 1003838c     chatChannel.obj
+ 0002:000013a4       ??_C@_0BA@IFHBEKGA@name?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100383a4     chatChannel.obj
+ 0002:000013b4       ??_C@_0N@FMIOBHCF@name?5?$CB?$DN?5NULL?$AA@ 100383b4     chatChannel.obj
+ 0002:000013c4       ??_C@_0BI@MOKIJGMP@strlen?$CIuser?$CJ?5?$DM?5MAX_NAME?$AA@ 100383c4     chatChannel.obj
+ 0002:000013dc       ??_C@_0BA@CPEEMPCJ@user?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100383dc     chatChannel.obj
+ 0002:000013ec       ??_C@_0N@JANCAGOL@user?5?$CB?$DN?5NULL?$AA@ 100383ec     chatChannel.obj
+ 0002:000013fc       ??_C@_0BM@KGIFAKDB@data?9?$DOuser?9?$DOname?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100383fc     chatChannel.obj
+ 0002:00001418       ??_C@_0BD@FLMAMIGF@data?9?$DOuser?5?$CB?$DN?5NULL?$AA@ 10038418     chatChannel.obj
+ 0002:0000142c       ??_C@_0BH@MNMOOFCM@channel?9?$DOusers?5?$CB?$DN?5NULL?$AA@ 1003842c     chatChannel.obj
+ 0002:00001444       ??_C@_0BL@KOFGLBIF@strlen?$CInewNick?$CJ?5?$DM?5MAX_NAME?$AA@ 10038444     chatChannel.obj
+ 0002:00001460       ??_C@_0BD@OCOPLBLF@newNick?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038460     chatChannel.obj
+ 0002:00001474       ??_C@_0BA@KBFEKFIN@newNick?5?$CB?$DN?5NULL?$AA@ 10038474     chatChannel.obj
+ 0002:00001484       ??_C@_0BL@NBFHJGGE@strlen?$CIoldNick?$CJ?5?$DM?5MAX_NAME?$AA@ 10038484     chatChannel.obj
+ 0002:000014a0       ??_C@_0BD@IJMFOLPJ@oldNick?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100384a0     chatChannel.obj
+ 0002:000014b4       ??_C@_0BA@GDJNDKME@oldNick?5?$CB?$DN?5NULL?$AA@ 100384b4     chatChannel.obj
+ 0002:000014c4       ??_C@_0L@BIFEMKMJ@rcode?5?$CB?$DN?50?$AA@ 100384c4     chatChannel.obj
+ 0002:000014d0       ??_C@_0CB@MDOOIIE@strlen?$CIdata?9?$DOoldNick?$CJ?5?$DM?5MAX_NAME@ 100384d0     chatChannel.obj
+ 0002:000014f4       ??_C@_0BJ@JMLACOFO@data?9?$DOoldNick?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100384f4     chatChannel.obj
+ 0002:00001510       ??_C@_0BG@COPGIHAN@data?9?$DOoldNick?5?$CB?$DN?5NULL?$AA@ 10038510     chatChannel.obj
+ 0002:00001528       ??_C@_0CB@HDDPMPGF@strlen?$CIdata?9?$DOnewNick?$CJ?5?$DM?5MAX_NAME@ 10038528     chatChannel.obj
+ 0002:0000154c       ??_C@_0BJ@PHJKHEBC@data?9?$DOnewNick?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 1003854c     chatChannel.obj
+ 0002:00001568       ??_C@_0BG@OMDPBIEE@data?9?$DOnewNick?5?$CB?$DN?5NULL?$AA@ 10038568     chatChannel.obj
+ 0002:00001580       ??_C@_0BI@JEPJIIME@strlen?$CInick?$CJ?5?$DM?5MAX_NAME?$AA@ 10038580     chatChannel.obj
+ 0002:00001598       ??_C@_0BA@HLIFNPNH@nick?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038598     chatChannel.obj
+ 0002:000015a8       ??_C@_0N@BGDNHKGO@nick?5?$CB?$DN?5NULL?$AA@ 100385a8     chatChannel.obj
+ 0002:000015b8       ??_C@_01NBENCBCI@?$CK?$AA@ 100385b8     chatChannel.obj
+ 0002:000015bc       ??_C@_03GKKPEAKN@432?$AA@  100385bc     chatHandlers.obj
+ 0002:000015c0       ??_C@_03EDMEKNDH@401?$AA@  100385c0     chatHandlers.obj
+ 0002:000015c4       ??_C@_03JMKCNHF@476?$AA@   100385c4     chatHandlers.obj
+ 0002:000015c8       ??_C@_03CCOHHOLG@475?$AA@  100385c8     chatHandlers.obj
+ 0002:000015cc       ??_C@_03DLPMEPPH@474?$AA@  100385cc     chatHandlers.obj
+ 0002:000015d0       ??_C@_03HELNNJDA@473?$AA@  100385d0     chatHandlers.obj
+ 0002:000015d4       ??_C@_03EGILLLLC@471?$AA@  100385d4     chatHandlers.obj
+ 0002:000015d8       ??_C@_03CHKIGIDD@405?$AA@  100385d8     chatHandlers.obj
+ 0002:000015dc       ??_C@_03HBPCMPLF@403?$AA@  100385dc     chatHandlers.obj
+ 0002:000015e0       ??_C@_03HDLEHBOM@433?$AA@  100385e0     chatHandlers.obj
+ 0002:000015e4       ??_C@_03CMAGPGJM@704?$AA@  100385e4     chatHandlers.obj
+ 0002:000015e8       ??_C@_03GDEHGAFL@703?$AA@  100385e8     chatHandlers.obj
+ 0002:000015ec       ??_C@_03HKFMFBBK@702?$AA@  100385ec     chatHandlers.obj
+ 0002:000015f0       ??_C@_03FBHBACNJ@701?$AA@  100385f0     chatHandlers.obj
+ 0002:000015f4       ??_C@_03EIGKDDJI@700?$AA@  100385f4     chatHandlers.obj
+ 0002:000015f8       ??_C@_03LLLNDKLN@315?$AA@  100385f8     chatHandlers.obj
+ 0002:000015fc       ??_C@_03MMKGDKGA@001?$AA@  100385fc     chatHandlers.obj
+ 0002:00001600       ??_C@_03LFMFCHF@368?$AA@   10038600     chatHandlers.obj
+ 0002:00001604       ??_C@_03IMMEEOLK@367?$AA@  10038604     chatHandlers.obj
+ 0002:00001608       ??_C@_03OBDEEPA@318?$AA@   10038608     chatHandlers.obj
+ 0002:0000160c       ??_C@_03BHAIHFLB@319?$AA@  1003860c     chatHandlers.obj
+ 0002:00001610       ??_C@_03NPNBPPLJ@311?$AA@  10038610     chatHandlers.obj
+ 0002:00001614       ??_C@_03KAOALFKF@324?$AA@  10038614     chatHandlers.obj
+ 0002:00001618       ??_C@_03OPKBCDGC@323?$AA@  10038618     chatHandlers.obj
+ 0002:0000161c       ??_C@_03PGLKBCCD@322?$AA@  1003861c     chatHandlers.obj
+ 0002:00001620       ??_C@_03NNJHEBOA@321?$AA@  10038620     chatHandlers.obj
+ 0002:00001624       ??_C@_03PFDOMGEN@302?$AA@  10038624     chatHandlers.obj
+ 0002:00001628       ??_C@_03PDPFAEKG@352?$AA@  10038628     chatHandlers.obj
+ 0002:0000162c       ??_C@_03NMFFCLNH@331?$AA@  1003862c     chatHandlers.obj
+ 0002:00001630       ??_C@_03PHHIHIBE@332?$AA@  10038630     chatHandlers.obj
+ 0002:00001634       ??_C@_03JFNPHPPL@366?$AA@  10038634     chatHandlers.obj
+ 0002:00001638       ??_C@_03OKOODFOH@353?$AA@  10038638     chatHandlers.obj
+ 0002:0000163c       ??_C@_06DBKGGLMH@INVITE?$AA@ 1003863c     chatHandlers.obj
+ 0002:00001644       ??_C@_05MBDEGLCK@ERROR?$AA@ 10038644     chatHandlers.obj
+ 0002:0000164c       ??_C@_04KAFEECCN@MODE?$AA@ 1003864c     chatHandlers.obj
+ 0002:00001654       ??_C@_05GMJDHOAO@TOPIC?$AA@ 10038654     chatHandlers.obj
+ 0002:0000165c       ??_C@_04NFKOACKA@KILL?$AA@ 1003865c     chatHandlers.obj
+ 0002:00001664       ??_C@_04GBOBDPBG@QUIT?$AA@ 10038664     chatHandlers.obj
+ 0002:0000166c       ??_C@_04JBLDNDFK@KICK?$AA@ 1003866c     chatHandlers.obj
+ 0002:00001674       ??_C@_04JDIJJKPP@PART?$AA@ 10038674     chatHandlers.obj
+ 0002:0000167c       ??_C@_04PJFINEKF@JOIN?$AA@ 1003867c     chatHandlers.obj
+ 0002:00001684       ??_C@_04FJFDFMCK@NICK?$AA@ 10038684     chatHandlers.obj
+ 0002:0000168c       ??_C@_04CCOOKJJG@PING?$AA@ 1003868c     chatHandlers.obj
+ 0002:00001694       ??_C@_03NDHBKIJP@ATM?$AA@  10038694     chatHandlers.obj
+ 0002:00001698       ??_C@_03MAKGIFH@UTM?$AA@   10038698     chatHandlers.obj
+ 0002:0000169c       ??_C@_06FMPEGAHJ@NOTICE?$AA@ 1003869c     chatHandlers.obj
+ 0002:000016a4       ??_C@_07FMAJIDMK@PRIVMSG?$AA@ 100386a4     chatHandlers.obj
+ 0002:000016ac       ??_C@_0DL@JJFKFIGM@d?3?2cossacks2_project?2cossacks?5ii@ 100386ac     chatHandlers.obj
+ 0002:000016e8       ??_C@_0DC@GPOCEGAK@?$CIfilter?9?$DOtype?5?$DO?$DN?50?$CJ?5?$CG?$CG?5?$CIfilter?9?$DO@ 100386e8     chatHandlers.obj
+ 0002:0000171c       ??_C@_06EOIELIPE@filter?$AA@ 1003871c     chatHandlers.obj
+ 0002:00001724       ??_C@_0P@ENDAOHEL@filter?5?$CB?$DN?5NULL?$AA@ 10038724     chatHandlers.obj
+ 0002:00001734       ??_C@_06BBPHIINE@ID?5?$DO?50?$AA@ 10038734     chatHandlers.obj
+ 0002:0000173c       ??_C@_0CA@MOEOILEM@strlen?$CIpassword?$CJ?5?$DM?5MAX_PASSWORD?$AA@ 1003873c     chatHandlers.obj
+ 0002:0000175c       ??_C@_0BB@OAMIHACL@password?5?$CB?$DN?5NULL?$AA@ 1003875c     chatHandlers.obj
+ 0002:00001770       ??_C@_03EHBPLKMO@b_?$CK?$AA@ 10038770     chatHandlers.obj
+ 0002:00001774       ??_C@_0N@HDDIJGHA@mode?5?$CB?$DN?5NULL?$AA@ 10038774     chatHandlers.obj
+ 0002:00001784       ??_C@_06DHJAPAEE@ACTION?$AA@ 10038784     chatHandlers.obj
+ 0002:0000178c       ??_C@_0BI@KFCEIKDJ@message?9?$DOnumParams?5?$DN?$DN?52?$AA@ 1003878c     chatHandlers.obj
+ 0002:000017a4       ??_C@_07DIJPDIIF@PONG?5?$CFs?$AA@ 100387a4     chatHandlers.obj
+ 0002:000017ac       ??_C@_0BL@PPPPJJOO@strlen?$CInewNick?$CJ?5?$DM?5MAX_NICK?$AA@ 100387ac     chatHandlers.obj
+ 0002:000017c8       ??_C@_0BI@IOAJNJPK@message?9?$DOnumParams?5?$DN?$DN?51?$AA@ 100387c8     chatHandlers.obj
+ 0002:000017e0       ??_C@_0DI@LJBOAMMO@?$CImatches?$FLi?$FN?4type?5?$DO?$DN?50?$CJ?5?$CG?$CG?5?$CImatch@ 100387e0     chatHandlers.obj
+ 0002:00001818       ??_C@_07GEPGMPF@matches?$AA@ 10038818     chatHandlers.obj
+ 0002:00001820       ??_C@_0P@GEKANGEF@numMatches?5?$DO?50?$AA@ 10038820     chatHandlers.obj
+ 0002:00001830       ??_C@_07EHKGMHJ@MODE?5?$CFs?$AA@ 10038830     chatHandlers.obj
+ 0002:00001838       ??_C@_0O@OFGJJOIG@?$CKnick?5?$CB?$DN?5?8?20?8?$AA@ 10038838     chatHandlers.obj
+ 0002:00001848       ??_C@_0DH@BIAMFMFC@?$CImessage?9?$DOnumParams?5?$DN?$DN?52?$CJ?5?$HM?$HM?5?$CIme@ 10038848     chatHandlers.obj
+ 0002:00001880       ??_C@_0P@EFFCDMFJ@reason?5?$CB?$DN?5NULL?$AA@ 10038880     chatHandlers.obj
+ 0002:00001890       ??_C@_0BI@OCIEPAOJ@message?9?$DOnumParams?5?$DO?$DN?52?$AA@ 10038890     chatHandlers.obj
+ 0002:000018a8       ??_C@_0BA@LKALAABH@nick?$FL1?$FN?5?$CB?$DN?5?8?20?8?$AA@ 100388a8     chatHandlers.obj
+ 0002:000018b8       ??_C@_0BI@PDHOCNLP@message?9?$DOnumParams?5?$DN?$DN?54?$AA@ 100388b8     chatHandlers.obj
+ 0002:000018d0       ??_C@_0BI@LMDPLLHI@message?9?$DOnumParams?5?$DN?$DN?53?$AA@ 100388d0     chatHandlers.obj
+ 0002:000018e8       ??_C@_0BH@NKMOMHJP@connection?9?$DOconnecting?$AA@ 100388e8     chatHandlers.obj
+ 0002:00001900       ??_C@_0BI@FPMLGCLD@message?9?$DOnumParams?5?$DN?$DN?58?$AA@ 10038900     chatHandlers.obj
+ 0002:00001918       ??_C@_03BKCJCHLK@len?$AA@  10038918     chatHandlers.obj
+ 0002:0000191c       ??_C@_05GECEPKB@flags?$AA@ 1003891c     chatHandlers.obj
+ 0002:00001924       ??_C@_02HGMOHIDI@b_?$AA@   10038924     chatHandlers.obj
+ 0002:00001928       ??_C@_05IAHLOAED@BCAST?$AA@ 10038928     chatHandlers.obj
+ 0002:00001930       ??_C@_0BI@OKGFBMPO@message?9?$DOnumParams?5?$DN?$DN?55?$AA@ 10038930     chatHandlers.obj
+ 0002:00001948       ??_C@_0BH@JFLCONNL@message?9?$DOnumParams?5?$DO?$DN3?$AA@ 10038948     chatHandlers.obj
+ 0002:00001960       ??_C@_0BC@EONKLIMK@MODE?5?$CFs?5?$CLb?5?$CK?$CB?$CK?$EA?$CFs?$AA@ 10038960     chatHandlers.obj
+ 0002:00001974       ??_C@_0BJ@IKPADMDK@data?9?$DOchannel?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038974     chatHandlers.obj
+ 0002:00001990       ??_C@_0BG@EKIECMIL@data?9?$DOchannel?5?$CB?$DN?5NULL?$AA@ 10038990     chatHandlers.obj
+ 0002:000019a8       ??_C@_0BI@MBEIEPDN@message?9?$DOnumParams?5?$DN?$DN?56?$AA@ 100389a8     chatHandlers.obj
+ 0002:000019c0       ??_C@_0BD@NNGEOFDN@data?9?$DOnumBans?5?$DO?$DN?50?$AA@ 100389c0     chatHandlers.obj
+ 0002:000019d4       ??_C@_0BI@PLJPMBKI@message?9?$DOnumParams?5?$DO?$DN?53?$AA@ 100389d4     chatHandlers.obj
+ 0002:000019f0       ??_C@_0EJ@KJBELAJI@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef@ 100389f0     chatMain.obj
+ 0002:00001a3c       ??_C@_0DH@KODEKFFA@d?3?2cossacks2_project?2cossacks?5ii@ 10038a3c     chatMain.obj
+ 0002:00001a74       ??_C@_0BC@NICEFNPL@USER?5?$CFs?5?$CFs?5?$CFs?5?3?$CFs?$AA@ 10038a74     chatMain.obj
+ 0002:00001a88       ??_C@_09PFCHIMEP@127?40?40?41?$AA@ 10038a88     chatMain.obj
+ 0002:00001a94       ??_C@_07ELBANAHJ@NICK?5?$CFs?$AA@ 10038a94     chatMain.obj
+ 0002:00001a9c       ??_C@_01HIHLOKLC@1?$AA@    10038a9c     chatMain.obj
+ 0002:00001aa0       ??_C@_0L@FPFMPDDA@0123456789?$AA@ 10038aa0     chatMain.obj
+ 0002:00001aac       ??_C@_05MJDJFODB@USRIP?$AA@ 10038aac     chatMain.obj
+ 0002:00001ab4       ??_C@_0BI@NIACFMKP@connectCallback?5?$CB?$DN?5NULL?$AA@ 10038ab4     chatMain.obj
+ 0002:00001acc       ??_C@_0BI@MFFAKAKP@strlen?$CInick?$CJ?5?$DM?5MAX_NICK?$AA@ 10038acc     chatMain.obj
+ 0002:00001ae4       ??_C@_0BG@LCIOFEDJ@serverAddress?5?$CB?$DN?5NULL?$AA@ 10038ae4     chatMain.obj
+ 0002:00001afc       ??_C@_0N@NFBNFHML@Disconnected?$AA@ 10038afc     chatMain.obj
+ 0002:00001b0c       ??_C@_0BA@HJHJCGPK@message?5?$CB?$DN?5NULL?$AA@ 10038b0c     chatMain.obj
+ 0002:00001b1c       ??_C@_08ENMLOGLG@NICK?5?3?$CFs?$AA@ 10038b1c     chatMain.obj
+ 0002:00001b28       ??_C@_0N@JAAKJNMK@QUIT?5?3Later?$CB?$AA@ 10038b28     chatMain.obj
+ 0002:00001b38       ??_C@_0BG@IOFMKKHO@connection?9?$DOconnected?$AA@ 10038b38     chatMain.obj
+ 0002:00001b50       ??_C@_08PPIJGMPL@callback?$AA@ 10038b50     chatMain.obj
+ 0002:00001b5c       ??_C@_0L@EABPDOGO@newNick?$FL0?$FN?$AA@ 10038b5c     chatMain.obj
+ 0002:00001b68       ??_C@_07PNGAFFJA@newNick?$AA@ 10038b68     chatMain.obj
+ 0002:00001b70       ??_C@_07CBBAGAOI@oldNick?$AA@ 10038b70     chatMain.obj
+ 0002:00001b78       ??_C@_0L@IEDLNNGI@MODE?5?$CFs?5?9q?$AA@ 10038b78     chatMain.obj
+ 0002:00001b84       ??_C@_0L@IALGKBNK@MODE?5?$CFs?5?$CLq?$AA@ 10038b84     chatMain.obj
+ 0002:00001b90       ??_C@_07OIFDNFMM@LIST?5?$CFs?$AA@ 10038b90     chatMain.obj
+ 0002:00001b98       ??_C@_0DA@MBKFGLJP@?$CIcallbackAll?5?$CB?$DN?5NULL?$CJ?5?$HM?$HM?5?$CIcallba@ 10038b98     chatMain.obj
+ 0002:00001bc8       ??_C@_0L@DNAAAANA@JOIN?5?$CFs?5?$CFs?$AA@ 10038bc8     chatMain.obj
+ 0002:00001bd4       ??_C@_0M@LAEOHBEB@PART?5?$CFs?5?3?$CFs?$AA@ 10038bd4     chatMain.obj
+ 0002:00001be0       ??_C@_0L@JBBKNIKD@ATM?5?$CFs?5?3?$CFs?$AA@ 10038be0     chatMain.obj
+ 0002:00001bec       ??_C@_0L@IPDFGPOK@UTM?5?$CFs?5?3?$CFs?$AA@ 10038bec     chatMain.obj
+ 0002:00001bf8       ??_C@_0O@MAONEONI@NOTICE?5?$CFs?5?3?$CFs?$AA@ 10038bf8     chatMain.obj
+ 0002:00001c08       ??_C@_0BI@DOBIJLCM@PRIVMSG?5?$CFs?5?3?$ABACTION?5?$CFs?$AB?$AA@ 10038c08     chatMain.obj
+ 0002:00001c20       ??_C@_0P@PBAEOGCF@PRIVMSG?5?$CFs?5?3?$CFs?$AA@ 10038c20     chatMain.obj
+ 0002:00001c30       ??_C@_0FP@CCDHIJN@?$CItype?5?$DN?$DN?5CHAT_MESSAGE?$CJ?5?$HM?$HM?5?$CItype?5@ 10038c30     chatMain.obj
+ 0002:00001c90       ??_C@_0N@LMHJAGK@TOPIC?5?$CFs?5?3?$CFs?$AA@ 10038c90     chatMain.obj
+ 0002:00001ca0       ??_C@_08EIICLKOA@TOPIC?5?$CFs?$AA@ 10038ca0     chatMain.obj
+ 0002:00001cac       ??_C@_0L@LIBOOOFC@MODE?5?$CFs?5?$CFs?$AA@ 10038cac     chatMain.obj
+ 0002:00001cb8       ??_C@_03EBJOKFHF@?5?$CFd?$AA@ 10038cb8     chatMain.obj
+ 0002:00001cbc       ??_C@_0P@EAOLEEK@XiXpXsXmXnXtXl?$AA@ 10038cbc     chatMain.obj
+ 0002:00001ccc       ??_C@_0O@HDKPEGEJ@MODE?5?$CFs?5?9k?5?$CFs?$AA@ 10038ccc     chatMain.obj
+ 0002:00001cdc       ??_C@_0O@KFPGKFFE@MODE?5?$CFs?5?$CLk?5?$CFs?$AA@ 10038cdc     chatMain.obj
+ 0002:00001cec       ??_C@_0BE@DKOMHOBD@password?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038cec     chatMain.obj
+ 0002:00001d00       ??_C@_0L@OBFJOAEI@MODE?5?$CFs?5?$CLb?$AA@ 10038d00     chatMain.obj
+ 0002:00001d0c       ??_C@_0O@KIOGMHCF@MODE?5?$CFs?5?$CLb?5?$CFs?$AA@ 10038d0c     chatMain.obj
+ 0002:00001d1c       ??_C@_0BA@POJAJOML@ban?5?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038d1c     chatMain.obj
+ 0002:00001d2c       ??_C@_0M@FJFOPKOG@ban?5?$CB?$DN?5NULL?$AA@ 10038d2c     chatMain.obj
+ 0002:00001d38       ??_C@_0O@HOLPCEDI@MODE?5?$CFs?5?9b?5?$CFs?$AA@ 10038d38     chatMain.obj
+ 0002:00001d48       ??_C@_0P@GBJCBBGG@SETGROUP?5?$CFs?5?$CFs?$AA@ 10038d48     chatMain.obj
+ 0002:00001d58       ??_C@_0O@CNBFKDCP@param?5?$CB?$DN?5NULL?$AA@ 10038d58     chatMain.obj
+ 0002:00001d68       ??_C@_0GP@KODHICPH@?$CImodes?$FLi?$FN?5?$DN?$DN?5CHAT_MESSAGE?$CJ?5?$HM?$HM?5?$CIm@ 10038d68     chatMain.obj
+ 0002:00001dd8       ??_C@_0BM@DDPMFEMM@strlen?$CIusers?$FLi?$FN?$CJ?5?$DM?5MAX_USER?$AA@ 10038dd8     chatMain.obj
+ 0002:00001df4       ??_C@_0BE@OKGFNAFK@users?$FLi?$FN?$FL0?$FN?5?$CB?$DN?5?8?20?8?$AA@ 10038df4     chatMain.obj
+ 0002:00001e08       ??_C@_0BB@EANBKAAB@users?$FLi?$FN?5?$CB?$DN?5NULL?$AA@ 10038e08     chatMain.obj
+ 0002:00001e1c       ??_C@_0O@GMCAGJGN@modes?5?$CB?$DN?5NULL?$AA@ 10038e1c     chatMain.obj
+ 0002:00001e2c       ??_C@_0O@LBOMJDB@users?5?$CB?$DN?5NULL?$AA@ 10038e2c     chatMain.obj
+ 0002:00001e3c       ??_C@_0O@LFEFHKBD@numUsers?5?$DO?$DN?50?$AA@ 10038e3c     chatMain.obj
+ 0002:00001e4c       ??_C@_08HFMNMKMK@NAMES?5?$CFs?$AA@ 10038e4c     chatMain.obj
+ 0002:00001e58       ??_C@_0BI@CIBIHKGG@strlen?$CIuser?$CJ?5?$DM?5MAX_USER?$AA@ 10038e58     chatMain.obj
+ 0002:00001e70       ??_C@_08IKLMPEJJ@WHOIS?5?$CFs?$AA@ 10038e70     chatMain.obj
+ 0002:00001e7c       ??_C@_06CHOPLBCB@WHO?5?$CFs?$AA@ 10038e7c     chatMain.obj
+ 0002:00001e84       ??_C@_0BI@HCEJGEGN@strlen?$CInick?$CJ?5?$DM?5MAX_USER?$AA@ 10038e84     chatMain.obj
+ 0002:00001e9c       ??_C@_0N@BDKOJHCI@INVITE?5?$CFs?5?$CFs?$AA@ 10038e9c     chatMain.obj
+ 0002:00001eac       ??_C@_0P@PJDKONBP@KICK?5?$CFs?5?$CFs?5?3?$CFs?$AA@ 10038eac     chatMain.obj
+ 0002:00001ebc       ??_C@_0P@DMGBCIBG@MODE?5?$CFs?5?$CFcv?5?$CFs?$AA@ 10038ebc     chatMain.obj
+ 0002:00001ecc       ??_C@_0P@FBJBNNOF@MODE?5?$CFs?5?$CFco?5?$CFs?$AA@ 10038ecc     chatMain.obj
+ 0002:00001ee0       ??_C@_0FP@PIELKEPN@?$CImode?5?$DN?$DN?5CHAT_MESSAGE?$CJ?5?$HM?$HM?5?$CImode?5@ 10038ee0     chatMain.obj
+ 0002:00001f40       ??_C@_04GMGOKAFF@mode?$AA@ 10038f40     chatMain.obj
+ 0002:00001f48       ??_C@_06NELKLDPM@?2?$CFs?2?$CFs?$AA@ 10038f48     chatMain.obj
+ 0002:00001f50       ??_C@_08LKKDGCOI@SETKEY?5?3?$AA@ 10038f50     chatMain.obj
+ 0002:00001f5c       ??_C@_04IEPFDAGF@keys?$AA@ 10038f5c     chatMain.obj
+ 0002:00001f64       ??_C@_08HPHBFAAI@num?5?$DO?$DN?50?$AA@ 10038f64     chatMain.obj
+ 0002:00001f70       ??_C@_04OHGLKFFN@?$CF03d?$AA@ 10038f70     chatMain.obj
+ 0002:00001f78       ??_C@_0BB@DHHKMPBE@GETKEY?5?$CFs?5?$CFs?50?5?3?$AA@ 10038f78     chatMain.obj
+ 0002:00001f8c       ??_C@_08GGGKGBEJ@num?5?$DO?$DN?51?$AA@ 10038f8c     chatMain.obj
+ 0002:00001f98       ??_C@_0BE@MFIICMPO@cookie?5?$CG?$CG?5cookie?$FL0?$FN?$AA@ 10038f98     chatMain.obj
+ 0002:00001fac       ??_C@_0BE@EFDACKNH@target?5?$CG?$CG?5target?$FL0?$FN?$AA@ 10038fac     chatMain.obj
+ 0002:00001fc0       ??_C@_0BA@BCKCKJHG@SETCKEY?5?$CFs?5?$CFs?5?3?$AA@ 10038fc0     chatMain.obj
+ 0002:00001fd0       ??_C@_0BA@HFIHELIF@SETCHANKEY?5?$CFs?5?3?$AA@ 10038fd0     chatMain.obj
+ 0002:00001fe0       ??_C@_04FNJKLAAF@?2b_?$CK?$AA@ 10038fe0     chatMain.obj
+ 0002:00001fe8       ??_C@_0BF@INMKHABO@GETCKEY?5?$CFs?5?$CFs?5?$CFs?50?5?3?$AA@ 10038fe8     chatMain.obj
+ 0002:00002000       ??_C@_0BF@OKBCKKEL@GETCHANKEY?5?$CFs?5?$CFs?50?5?3?$AA@ 10039000     chatMain.obj
+ 0002:00002018       ??_C@_0BG@ODEOOHCF@channel?5?$CG?$CG?5channel?$FL0?$FN?$AA@ 10039018     chatMain.obj
+ 0002:00002030       ??_C@_0BO@MCGMFIFC@?$CF02d?4?$CF02d?4?$CF02d?5?$CF02d?3?$CF02d?4?$CF02d?$AA@ 10039030     chatSocket.obj
+ 0002:00002050       ??_C@_0N@KCLBJCK@sock?5?$CB?$DN?5NULL?$AA@ 10039050     chatSocket.obj
+ 0002:00002060       ??_C@_0DJ@HNMLENL@d?3?2cossacks2_project?2cossacks?5ii@ 10039060     chatSocket.obj
+ 0002:0000209c       ??_C@_0P@FBHHDKCM@buffer?5?$CB?$DN?5NULL?$AA@ 1003909c     chatSocket.obj
+ 0002:000020ac       ??_C@_0CF@BLFLHBHB@sock?9?$DOconnectState?5?$DN?$DN?5ciNotConne@ 100390ac     chatSocket.obj
+ 0002:000020d4       ??_C@_0BC@HBHIMOGM@port?5?$DM?$DN?5USHRT_MAX?$AA@ 100390d4     chatSocket.obj
+ 0002:000020e8       ??_C@_09GDEDGNAP@port?5?$DO?$DN?50?$AA@ 100390e8     chatSocket.obj
+ 0002:000020f4       ??_C@_0DP@HFHHAKCN@?$CI?$CG?$CIsock?$CJ?9?$DOoutputQueue?$CJ?9?$DOlength?5?$DM@ 100390f4     chatSocket.obj
+ 0002:00002134       ??_C@_0CE@EAFFLKMI@?$CI?$CG?$CIsock?$CJ?9?$DOoutputQueue?$CJ?9?$DOlength?5?$DO@ 10039134     chatSocket.obj
+ 0002:00002158       ??_C@_0DB@INICACDG@?$CI?$CI?$CG?$CIsock?$CJ?9?$DOoutputQueue?$CJ?9?$DOsize?5?$CF?5@ 10039158     chatSocket.obj
+ 0002:0000218c       ??_C@_0CC@JBNPCOJF@?$CI?$CG?$CIsock?$CJ?9?$DOoutputQueue?$CJ?9?$DOsize?5?$DO?$DN?5@ 1003918c     chatSocket.obj
+ 0002:000021b0       ??_C@_0BP@OEJLNKFA@?$CI?$CG?$CIsock?$CJ?9?$DOoutputQueue?$CJ?5?$CB?$DN?5NULL?$AA@ 100391b0     chatSocket.obj
+ 0002:000021d0       ??_C@_0DN@HBOCIOGC@?$CI?$CG?$CIsock?$CJ?9?$DOinputQueue?$CJ?9?$DOlength?5?$DM?$DN@ 100391d0     chatSocket.obj
+ 0002:00002210       ??_C@_0CD@IFLCABLP@?$CI?$CG?$CIsock?$CJ?9?$DOinputQueue?$CJ?9?$DOlength?5?$DO?$DN@ 10039210     chatSocket.obj
+ 0002:00002234       ??_C@_0DA@JHDGFJIF@?$CI?$CI?$CG?$CIsock?$CJ?9?$DOinputQueue?$CJ?9?$DOsize?5?$CF?5B@ 10039234     chatSocket.obj
+ 0002:00002264       ??_C@_0CB@HJANJEGP@?$CI?$CG?$CIsock?$CJ?9?$DOinputQueue?$CJ?9?$DOsize?5?$DO?$DN?50@ 10039264     chatSocket.obj
+ 0002:00002288       ??_C@_0BO@LGLAAOLN@?$CI?$CG?$CIsock?$CJ?9?$DOinputQueue?$CJ?5?$CB?$DN?5NULL?$AA@ 10039288     chatSocket.obj
+ 0002:000022a8       ??_C@_0HO@PEBMJDKI@?$CI?$CIsock?$CJ?9?$DOconnectState?5?$DN?$DN?5ciNotCo@ 100392a8     chatSocket.obj
+ 0002:00002328       ??_C@_0P@IPFFMLA@?$CIsock?$CJ?5?$CB?$DN?5NULL?$AA@ 10039328     chatSocket.obj
+ 0002:00002338       ??_C@_0CE@FFKBGDCK@?$CIsock?$CJ?9?$DOconnectState?5?$DN?$DN?5ciConnec@ 10039338     chatSocket.obj
+ 0002:0000235c       ??_C@_0BG@OKDDLHCL@len?5?$DM?$DN?5buffer?9?$DOlength?$AA@ 1003935c     chatSocket.obj
+ 0002:00002374       ??_C@_08BMNEFDDI@len?5?$DO?$DN?50?$AA@ 10039374     chatSocket.obj
+ 0002:00002380       ??_C@_0CD@EKHFGLID@?$CIbuffer?$CJ?9?$DOlength?5?$DM?$DN?5?$CIbuffer?$CJ?9?$DOsi@ 10039380     chatSocket.obj
+ 0002:000023a4       ??_C@_0BG@CLDABNEL@?$CIbuffer?$CJ?9?$DOlength?5?$DO?$DN?50?$AA@ 100393a4     chatSocket.obj
+ 0002:000023bc       ??_C@_0CD@FNKJLCOL@?$CI?$CIbuffer?$CJ?9?$DOsize?5?$CF?5BUFFER_INC?$CJ?5?$DN?$DN@ 100393bc     chatSocket.obj
+ 0002:000023e0       ??_C@_0BE@LMCAEMJN@?$CIbuffer?$CJ?9?$DOsize?5?$DO?$DN?50?$AA@ 100393e0     chatSocket.obj
+ 0002:000023f4       ??_C@_0BB@ENAOOKBD@?$CIbuffer?$CJ?5?$CB?$DN?5NULL?$AA@ 100393f4     chatSocket.obj
+ 0002:00002408       ??_C@_0BH@FMHKPKJK@sock?5?$CB?$DN?5INVALID_SOCKET?$AA@ 10039408     chatSocket.obj
+ 0002:00002420       ??_C@_0BA@PHNDAAFK@len?5?$DM?$DN?5SHRT_MAX?$AA@ 10039420     chatSocket.obj
+ 0002:00002430       ??_C@_02BNFKLOHE@?5?3?$AA@ 10039430     chatSocket.obj
+ 0002:00002434       ??_C@_0O@EBMDKJAM@pText?5?$CB?$DN?5NULL?$AA@ 10039434     chatSocket.obj
+ 0002:00002444       ??_C@_0M@MDKMOID@array?9?$DOlist?$AA@ 10039444     darray.obj
+ 0002:00002450       ??_C@_08JNNDJKHO@elemSize?$AA@ 10039450     darray.obj
+ 0002:0000245c       ??_C@_05HIFJDKLD@array?$AA@ 1003945c     darray.obj
+ 0002:00002464       ??_C@_0DA@ODLEHFCG@d?3?2cossacks2_project?2cossacks?5ii@ 10039464     darray.obj
+ 0002:00002494       ??_C@_0BP@NPNLMBOK@?$CIn?5?$DO?$DN?50?$CJ?5?$CG?$CG?5?$CIn?5?$DM?5array?9?$DOcount?$CJ?$AA@ 10039494     darray.obj
+ 0002:000024b4       ??_C@_0CA@CPMHMJLI@?$CIn?5?$DO?$DN?50?$CJ?5?$CG?$CG?5?$CIn?5?$DM?$DN?5array?9?$DOcount?$CJ?$AA@ 100394b4     darray.obj
+ 0002:000024d4       ??_C@_0L@JHIADHA@comparator?$AA@ 100394d4     darray.obj
+ 0002:000024e0       ??_C@_02LHJKNHFG@fn?$AA@   100394e0     darray.obj
+ 0002:000024e4       ??_C@_0P@JMPEEECE@table?9?$DObuckets?$AA@ 100394e4     hashtable.obj
+ 0002:000024f4       ??_C@_05LCLENNFI@table?$AA@ 100394f4     hashtable.obj
+ 0002:000024fc       ??_C@_08GDCPFNFL@nBuckets?$AA@ 100394fc     hashtable.obj
+ 0002:00002508       ??_C@_06KEJLGPEN@compFn?$AA@ 10039508     hashtable.obj
+ 0002:00002510       ??_C@_06NGOLAMFE@hashFn?$AA@ 10039510     hashtable.obj
+ 0002:00002518       ??_C@_0DD@JLPJMKFI@d?3?2cossacks2_project?2cossacks?5ii@ 10039518     hashtable.obj
+ 0002:0000254c       ??_C@_04NOJCDH@?$CF02x?$AA@ 1003954c     md5c.obj
+ 0002:00002554       ??_C@_05ENHGKOIF@Crypt?$AA@ 10039554     nonport.obj
+ 0002:0000255c       ??_C@_0CJ@NOGJADHF@Software?2GameSpy?2GameSpy?53D?2Regi@ 1003955c     nonport.obj
+ 0002:00002588       ??_C@_0DP@CCELEMID@0123456789abcdefghijklmnopqrstuv@ 10039588     nonport.obj
+ 0002:000025f4       ??_C@_02PHMGELLB@?6?6?$AA@ 100395f4     LIBC:assert.obj
+ 0002:000025f8       ??_C@_01EEMJAFIK@?6?$AA@   100395f8     LIBC:assert.obj
+ 0002:000025fc       ??_C@_03KHICJKCI@?4?4?4?$AA@ 100395fc     LIBC:assert.obj
+ 0002:00002600       ??_C@_0CF@GOGNBNAK@Microsoft?5Visual?5C?$CL?$CL?5Runtime?5Lib@ 10039600     LIBC:assert.obj
+ 0002:00002628       ??_C@_0DN@EBBNMLME@?$CIPress?5Retry?5to?5debug?5the?5applic@ 10039628     LIBC:assert.obj
+ 0002:00002668       ??_C@_0HA@OJHAGA@For?5information?5on?5how?5your?5prog@ 10039668     LIBC:assert.obj
+ 0002:000026d8       ??_C@_0N@MEECIJGN@Expression?3?5?$AA@ 100396d8     LIBC:assert.obj
+ 0002:000026e8       ??_C@_06FIEBOLOH@Line?3?5?$AA@ 100396e8     LIBC:assert.obj
+ 0002:000026f0       ??_C@_06IGPBOHMJ@File?3?5?$AA@ 100396f0     LIBC:assert.obj
+ 0002:000026f8       ??_C@_0BH@DNAGHKFM@?$DMprogram?5name?5unknown?$DO?$AA@ 100396f8     LIBC:assert.obj
+ 0002:00002710       ??_C@_09KLGCKDOD@Program?3?5?$AA@ 10039710     LIBC:assert.obj
+ 0002:0000271c       ??_C@_0BC@LAIDCHCH@Assertion?5failed?$CB?$AA@ 1003971c     LIBC:assert.obj
+ 0002:00002744       ??_C@_0BO@GNIAFIKK@Unknown?5Runtime?5Check?5Error?6?$AN?$AA@ 10039744     LIBC:error.obj
+ 0002:00002764       ??_C@_0DG@HKJMLLLP@A?5local?5variable?5was?5used?5before@ 10039764     LIBC:error.obj
+ 0002:0000279c       ??_C@_0BN@FFOINMNJ@Stack?5memory?5was?5corrupted?6?$AN?$AA@ 1003979c     LIBC:error.obj
+ 0002:000027c0       ??_C@_0BBN@GPMLNJCF@A?5cast?5to?5a?5smaller?5data?5type?5ha@ 100397c0     LIBC:error.obj
+ 0002:000028e0       ??_C@_0NN@NGPKDKPD@The?5value?5of?5ESP?5was?5not?5properl@ 100398e0     LIBC:error.obj
+ 0002:000029dc       ??_C@_0BC@KNBMEBEO@IsDebuggerPresent?$AA@ 100399dc     LIBC:error.obj
+ 0002:000029f0       ??_C@_0N@HAOHNMDE@Kernel32?4dll?$AA@ 100399f0     LIBC:error.obj
+ 0002:00002a00       ??_C@_0CA@IODNCDPG@Run?9Time?5Check?5Failure?5?$CD?$CFd?5?9?5?$CFs?$AA@ 10039a00     LIBC:error.obj
+ 0002:00002a20       ??_C@_0L@CJCNHJJG@?6?$ANModule?3?7?$AA@ 10039a20     LIBC:error.obj
+ 0002:00002a2c       ??_C@_08GJEJCAJD@?6?$ANLine?3?7?$AA@ 10039a2c     LIBC:error.obj
+ 0002:00002a38       ??_C@_0CI@INCLAPNB@Invalid?5pointer?5was?5assigned?5at?6@ 10039a38     LIBC:error.obj
+ 0002:00002a60       ??_C@_0BB@JEGFEAAM@?8?5was?5corrupted?4?$AA@ 10039a60     LIBC:error.obj
+ 0002:00002a74       ??_C@_0BM@FGFAMDLF@Stack?5around?5the?5variable?5?8?$AA@ 10039a74     LIBC:error.obj
+ 0002:00002a90       ??_C@_0DA@BEGFPCGG@A?5variable?5is?5being?5used?5without@ 10039a90     LIBC:error.obj
+ 0002:00002ac0       ??_C@_0CH@LOIIHGKM@?8?5is?5being?5used?5without?5being?5de@ 10039ac0     LIBC:error.obj
+ 0002:00002ae8       ??_C@_0P@HLKMHJCG@The?5variable?5?8?$AA@ 10039ae8     LIBC:error.obj
+ 0002:00002b04       ??_C@_0CK@CNLNOEPB@Local?5variable?5used?5before?5initi@ 10039b04     LIBC:userapi.obj
+ 0002:00002b30       ??_C@_0BI@CIGMDCBH@Stack?5memory?5corruption?$AA@ 10039b30     LIBC:userapi.obj
+ 0002:00002b48       ??_C@_0CK@FEGOIOPB@Cast?5to?5smaller?5type?5causing?5los@ 10039b48     LIBC:userapi.obj
+ 0002:00002b74       ??_C@_0BJ@HEGAHDFO@Stack?5pointer?5corruption?$AA@ 10039b74     LIBC:userapi.obj
+ 0002:00002b90       ___lookuptable             10039b90     LIBC:output.obj
+ 0002:00002bec       ??_C@_1O@CEDCILHN@?$AA?$CI?$AAn?$AAu?$AAl?$AAl?$AA?$CJ?$AA?$AA@ 10039bec     LIBC:output.obj
+ 0002:00002bfc       ??_C@_06OJHGLDPL@?$CInull?$CJ?$AA@ 10039bfc     LIBC:output.obj
+ 0002:00002c94       ??_C@_0P@MIGLKIOC@CorExitProcess?$AA@ 10039c94     LIBC:crt0dat.obj
+ 0002:00002ca4       ??_C@_0M@MBOPBNBK@mscoree?4dll?$AA@ 10039ca4     LIBC:crt0dat.obj
+ 0002:00002cb0       ??_C@_0BI@DFKBFLJE@GetProcessWindowStation?$AA@ 10039cb0     LIBC:crtmbox.obj
+ 0002:00002cc8       ??_C@_0BK@CIDNPOGP@GetUserObjectInformationA?$AA@ 10039cc8     LIBC:crtmbox.obj
+ 0002:00002ce4       ??_C@_0BD@HHGDFDBJ@GetLastActivePopup?$AA@ 10039ce4     LIBC:crtmbox.obj
+ 0002:00002cf8       ??_C@_0BA@HNOPNCHB@GetActiveWindow?$AA@ 10039cf8     LIBC:crtmbox.obj
+ 0002:00002d08       ??_C@_0M@CHKKJDAI@MessageBoxA?$AA@ 10039d08     LIBC:crtmbox.obj
+ 0002:00002d14       ??_C@_0L@GMPLCCII@user32?4dll?$AA@ 10039d14     LIBC:crtmbox.obj
+ 0002:00002d3c       ??_C@_13NOLLCAOD@?$AA?$AA?$AA?$AA@ 10039d3c     LIBC:a_map.obj
+ 0002:00002d68       ___newctype                10039d68     LIBC:ctype.obj
+ 0002:00003068       __wctype                   1003a068     LIBC:ctype.obj
+ 0002:0000326c       ??_C@_0M@HHEBEAAO@MSPDB71?4DLL?$AA@ 1003a26c     LIBC:pdblkup.obj
+ 0002:00003278       ??_C@_0N@KIGOLBLC@Module32Next?$AA@ 1003a278     LIBC:pdblkup.obj
+ 0002:00003288       ??_C@_0O@CNMFJJGO@Module32First?$AA@ 1003a288     LIBC:pdblkup.obj
+ 0002:00003298       ??_C@_0BF@OCLFCNKN@GetModuleInformation?$AA@ 1003a298     LIBC:pdblkup.obj
+ 0002:000032b0       ??_C@_0BD@FIEJBLME@EnumProcessModules?$AA@ 1003a2b0     LIBC:pdblkup.obj
+ 0002:000032c4       ??_C@_09EPMADGLA@PSAPI?4DLL?$AA@ 1003a2c4     LIBC:pdblkup.obj
+ 0002:000032d0       ??_C@_0BJ@JEFKDHMD@CreateToolhelp32Snapshot?$AA@ 1003a2d0     LIBC:pdblkup.obj
+ 0002:000032ec       ??_C@_0O@CHDGJGFP@ImageNtHeader?$AA@ 1003a2ec     LIBC:pdblkup.obj
+ 0002:000032fc       ??_C@_0N@KBGMOMJO@IMAGEHLP?4DLL?$AA@ 1003a2fc     LIBC:pdblkup.obj
+ 0002:0000330c       ??_C@_0N@NHGLKGEC@KERNEL32?4DLL?$AA@ 1003a30c     LIBC:pdblkup.obj
+ 0002:0000331c       ??_C@_0BF@BMIHBHCA@EnvironmentDirectory?$AA@ 1003a31c     LIBC:pdblkup.obj
+ 0002:00003334       ??_C@_0CN@KGLAKABH@SOFTWARE?2Microsoft?2VisualStudio?2@ 1003a334     LIBC:pdblkup.obj
+ 0002:00003364       ??_C@_0M@HLOHPNFA@RegCloseKey?$AA@ 1003a364     LIBC:pdblkup.obj
+ 0002:00003370       ??_C@_0BB@HHEIPGME@RegQueryValueExA?$AA@ 1003a370     LIBC:pdblkup.obj
+ 0002:00003384       ??_C@_0O@DCOGKJGG@RegOpenKeyExA?$AA@ 1003a384     LIBC:pdblkup.obj
+ 0002:00003394       ??_C@_0N@JJPEKNFO@ADVAPI32?4DLL?$AA@ 1003a394     LIBC:pdblkup.obj
+ 0002:000033a4       ??_C@_08ONJBEOFA@PDBClose?$AA@ 1003a3a4     LIBC:pdblkup.obj
+ 0002:000033b0       ??_C@_08NINFAAFA@DBIClose?$AA@ 1003a3b0     LIBC:pdblkup.obj
+ 0002:000033bc       ??_C@_08LIGPJJNA@ModClose?$AA@ 1003a3bc     LIBC:pdblkup.obj
+ 0002:000033c8       ??_C@_0O@IPLOKOKN@ModQueryLines?$AA@ 1003a3c8     LIBC:pdblkup.obj
+ 0002:000033d8       ??_C@_0BE@GDNPNLGH@DBIQueryModFromAddr?$AA@ 1003a3d8     LIBC:pdblkup.obj
+ 0002:000033ec       ??_C@_0L@KPMOCKEL@PDBOpenDBI?$AA@ 1003a3ec     LIBC:pdblkup.obj
+ 0002:000033f8       ??_C@_0BB@PENKIMFE@PDBOpenValidate3?$AA@ 1003a3f8     LIBC:pdblkup.obj
+ 0002:0000341c       ___dnames                  1003a41c     LIBC:timeset.obj
+ 0002:00003434       ___mnames                  1003a434     LIBC:timeset.obj
+ 0002:0000345c       ??_C@_02CLFPBFFP@TZ?$AA@   1003a45c     LIBC:tzset.obj
+ 0002:0000347c       ??_C@_0P@GGKDKEEG@runtime?5error?5?$AA@ 1003a47c     LIBC:crt0msg.obj
+ 0002:0000348c       ??_C@_02PCIJFNDE@?$AN?6?$AA@ 1003a48c     LIBC:crt0msg.obj
+ 0002:00003490       ??_C@_0O@MJNIPGOH@TLOSS?5error?$AN?6?$AA@ 1003a490     LIBC:crt0msg.obj
+ 0002:000034a0       ??_C@_0N@BONNPDHF@SING?5error?$AN?6?$AA@ 1003a4a0     LIBC:crt0msg.obj
+ 0002:000034b0       ??_C@_0P@MBDAJNE@DOMAIN?5error?$AN?6?$AA@ 1003a4b0     LIBC:crt0msg.obj
+ 0002:000034c0       ??_C@_0KC@BDDGGBEJ@R6029?$AN?6?9?5This?5application?5cannot@ 1003a4c0     LIBC:crt0msg.obj
+ 0002:00003564       ??_C@_0CF@KJDAIALP@R6028?$AN?6?9?5unable?5to?5initialize?5he@ 1003a564     LIBC:crt0msg.obj
+ 0002:0000358c       ??_C@_0DF@GAKBPDFP@R6027?$AN?6?9?5not?5enough?5space?5for?5lo@ 1003a58c     LIBC:crt0msg.obj
+ 0002:000035c4       ??_C@_0DF@IBLNNAIG@R6026?$AN?6?9?5not?5enough?5space?5for?5st@ 1003a5c4     LIBC:crt0msg.obj
+ 0002:000035fc       ??_C@_0CG@IOHKGFNJ@R6025?$AN?6?9?5pure?5virtual?5function?5c@ 1003a5fc     LIBC:crt0msg.obj
+ 0002:00003624       ??_C@_0DF@JIJJFJDC@R6024?$AN?6?9?5not?5enough?5space?5for?5_o@ 1003a624     LIBC:crt0msg.obj
+ 0002:0000365c       ??_C@_0CJ@EGEJHFME@R6019?$AN?6?9?5unable?5to?5open?5console?5@ 1003a65c     LIBC:crt0msg.obj
+ 0002:00003688       ??_C@_0CB@GNHNIELH@R6018?$AN?6?9?5unexpected?5heap?5error?$AN?6@ 1003a688     LIBC:crt0msg.obj
+ 0002:000036ac       ??_C@_0CN@FOLDKNG@R6017?$AN?6?9?5unexpected?5multithread?5@ 1003a6ac     LIBC:crt0msg.obj
+ 0002:000036dc       ??_C@_0CM@FAHFJNHO@R6016?$AN?6?9?5not?5enough?5space?5for?5th@ 1003a6dc     LIBC:crt0msg.obj
+ 0002:00003708       ??_C@_0JG@LBKMGKLD@?$AN?6This?5application?5has?5requested@ 1003a708     LIBC:crt0msg.obj
+ 0002:000037a0       ??_C@_0CM@FLCNIPKK@R6009?$AN?6?9?5not?5enough?5space?5for?5en@ 1003a7a0     LIBC:crt0msg.obj
+ 0002:000037cc       ??_C@_0CK@KMMJOAPP@R6008?$AN?6?9?5not?5enough?5space?5for?5ar@ 1003a7cc     LIBC:crt0msg.obj
+ 0002:000037f8       ??_C@_0CF@HOHMHDEK@R6002?$AN?6?9?5floating?5point?5not?5load@ 1003a7f8     LIBC:crt0msg.obj
+ 0002:00003820       ??_C@_0BK@OFGJDLJJ@Runtime?5Error?$CB?6?6Program?3?5?$AA@ 1003a820     LIBC:crt0msg.obj
+ 0002:00003840       ??_C@_0KA@JEHFIFGP@A?5buffer?5overrun?5has?5been?5detect@ 1003a840     LIBC:secfail.obj
+ 0002:000038e0       ??_C@_0BJ@MDEKIEOJ@Buffer?5overrun?5detected?$CB?$AA@ 1003a8e0     LIBC:secfail.obj
+ 0002:00003900       ??_C@_0LB@BPLHHLFD@A?5security?5error?5of?5unknown?5caus@ 1003a900     LIBC:secfail.obj
+ 0002:000039b4       ??_C@_0CD@GMKACBEK@Unknown?5security?5failure?5detecte@ 1003a9b4     LIBC:secfail.obj
+ 0002:00003a5c       ___rtc_iaa                 1003aa5c     LIBC:initsect.obj
+ 0002:00003a94       ___rtc_izz                 1003aa94     LIBC:initsect.obj
+ 0002:00003a98       ___rtc_taa                 1003aa98     LIBC:initsect.obj
+ 0002:00003ad0       ___rtc_tzz                 1003aad0     LIBC:initsect.obj
+ 0002:00003c94       __IMPORT_DESCRIPTOR_cossacks2 1003ac94     cossacks2:cossacks2.exe
+ 0002:00003ca8       __IMPORT_DESCRIPTOR_KERNEL32 1003aca8     kernel32:KERNEL32.dll
+ 0002:00003cbc       __IMPORT_DESCRIPTOR_ADVAPI32 1003acbc     advapi32:ADVAPI32.dll
+ 0002:00003cd0       __IMPORT_DESCRIPTOR_WSOCK32 1003acd0     wsock32:WSOCK32.dll
+ 0002:00003ce4       __NULL_IMPORT_DESCRIPTOR   1003ace4     cossacks2:cossacks2.exe
+ 0003:00000000       ___xc_a                    1003e000     LIBC:crt0init.obj
+ 0003:00000010       ___xc_z                    1003e010     LIBC:crt0init.obj
+ 0003:00000014       ___xi_a                    1003e014     LIBC:crt0init.obj
+ 0003:0000002c       ___xi_z                    1003e02c     LIBC:crt0init.obj
+ 0003:00000030       ___xp_a                    1003e030     LIBC:crt0init.obj
+ 0003:00000038       ___xp_z                    1003e038     LIBC:crt0init.obj
+ 0003:0000003c       ___xt_a                    1003e03c     LIBC:crt0init.obj
+ 0003:00000044       ___xt_z                    1003e044     LIBC:crt0init.obj
+ 0003:00000050       ?HXARR@@3PADA              1003e050     ParseRQ.obj
+ 0003:00000060       ?__LINE__Var@?1??ciCallbacksArrayElementFreeFn@@9@9@b1e3a85b 1003e060     chatCallbacks.obj
+ 0003:00000064       ?__LINE__Var@?1??ciCleanupCallbacks@@9@9 1003e064     chatCallbacks.obj
+ 0003:00000068       ?__LINE__Var@?1??ciFreeCallbackData@@9@9@b1e3a85b 1003e068     chatCallbacks.obj
+ 0003:0000006c       ?__LINE__Var@?1??ciAddCallback_@@9@9 1003e06c     chatCallbacks.obj
+ 0003:00000070       ?__LINE__Var@?1??ciCallCallback@@9@9 1003e070     chatCallbacks.obj
+ 0003:00000074       ?__LINE__Var@?1??ciCallCallbacks@@9@9 1003e074     chatCallbacks.obj
+ 0003:00000078       ?__LINE__Var@?1??ciGetCallbackIndexByID@@9@9@b1e3a85b 1003e078     chatCallbacks.obj
+ 0003:0000007c       ?__LINE__Var@?1??ciChannelTableHashFn@@9@9@1b8c26c6 1003e07c     chatChannel.obj
+ 0003:00000080       ?__LINE__Var@?1??ciHashString@@9@9@1b8c26c6 1003e080     chatChannel.obj
+ 0003:00000084       ?__LINE__Var@?1??ciChannelTableCompareFn@@9@9@1b8c26c6 1003e084     chatChannel.obj
+ 0003:00000088       ?__LINE__Var@?1??ciChannelTableElementFreeFn@@9@9@1b8c26c6 1003e088     chatChannel.obj
+ 0003:0000008c       ?__LINE__Var@?1??ciCleanupChannels@@9@9 1003e08c     chatChannel.obj
+ 0003:00000090       ?__LINE__Var@?1??ciChannelEntering@@9@9 1003e090     chatChannel.obj
+ 0003:00000094       ?__LINE__Var@?1??ciIsEnteringChannel@@9@9 1003e094     chatChannel.obj
+ 0003:00000098       ?__LINE__Var@?1??ciChannelEntered@@9@9 1003e098     chatChannel.obj
+ 0003:0000009c       ?__LINE__Var@?1??ciUserTableHashFn@@9@9@1b8c26c6 1003e09c     chatChannel.obj
+ 0003:000000a0       ?__LINE__Var@?1??ciUserTableCompareFn@@9@9@1b8c26c6 1003e0a0     chatChannel.obj
+ 0003:000000a4       ?__LINE__Var@?1??ciUserTableElementFreeFn@@9@9@1b8c26c6 1003e0a4     chatChannel.obj
+ 0003:000000a8       ?__LINE__Var@?1??ciChannelLeft@@9@9 1003e0a8     chatChannel.obj
+ 0003:000000ac       ?__LINE__Var@?1??ciGetChannelCallbacks@@9@9 1003e0ac     chatChannel.obj
+ 0003:000000b0       ?__LINE__Var@?1??ciChannelListUsers@@9@9 1003e0b0     chatChannel.obj
+ 0003:000000b4       ?__LINE__Var@?1??ciChannelListUsersMap@@9@9@1b8c26c6 1003e0b4     chatChannel.obj
+ 0003:000000b8       ?__LINE__Var@?1??ciInChannel@@9@9 1003e0b8     chatChannel.obj
+ 0003:000000bc       ?__LINE__Var@?1??ciGetChannelMode@@9@9 1003e0bc     chatChannel.obj
+ 0003:000000c0       ?__LINE__Var@?1??ciSetChannelMode@@9@9 1003e0c0     chatChannel.obj
+ 0003:000000c4       ?__LINE__Var@?1??ciSetChannelPassword@@9@9 1003e0c4     chatChannel.obj
+ 0003:000000c8       ?__LINE__Var@?1??ciGetChannelPassword@@9@9 1003e0c8     chatChannel.obj
+ 0003:000000cc       ?__LINE__Var@?1??ciJoinCallbackCalled@@9@9 1003e0cc     chatChannel.obj
+ 0003:000000d0       ?__LINE__Var@?1??ciWasJoinCallbackCalled@@9@9 1003e0d0     chatChannel.obj
+ 0003:000000d4       ?__LINE__Var@?1??ciSetChannelTopic@@9@9 1003e0d4     chatChannel.obj
+ 0003:000000d8       ?__LINE__Var@?1??ciGetChannelTopic@@9@9 1003e0d8     chatChannel.obj
+ 0003:000000dc       ?__LINE__Var@?1??ciGetChannelNumUsers@@9@9 1003e0dc     chatChannel.obj
+ 0003:000000e0       ?__LINE__Var@?1??ciUserEnteredChannel@@9@9 1003e0e0     chatChannel.obj
+ 0003:000000e4       ?__LINE__Var@?1??ciUserLeftChannel@@9@9 1003e0e4     chatChannel.obj
+ 0003:000000e8       ?__LINE__Var@?1??ciUserEnumChannels@@9@9 1003e0e8     chatChannel.obj
+ 0003:000000ec       ?__LINE__Var@?1??ciUserEnumChannelsMap@@9@9@1b8c26c6 1003e0ec     chatChannel.obj
+ 0003:000000f0       ?__LINE__Var@?1??ciUserChangedNick@@9@9 1003e0f0     chatChannel.obj
+ 0003:000000f4       ?__LINE__Var@?1??ciUserChangeNickMap@@9@9@1b8c26c6 1003e0f4     chatChannel.obj
+ 0003:000000f8       ?__LINE__Var@?1??ciUserChangedMode@@9@9 1003e0f8     chatChannel.obj
+ 0003:000000fc       ?__LINE__Var@?1??ciUserInChannel@@9@9 1003e0fc     chatChannel.obj
+ 0003:00000100       ?__LINE__Var@?1??ciGetUserMode@@9@9 1003e100     chatChannel.obj
+ 0003:00000104       ?__LINE__Var@?1??ciEnumJoinedChannels@@9@9 1003e104     chatChannel.obj
+ 0003:00000108       ?__LINE__Var@?1??ciEnumJoinedChannelsMap@@9@9@1b8c26c6 1003e108     chatChannel.obj
+ 0003:0000010c       ?__LINE__Var@?1??ciSetUserBasicInfo@@9@9 1003e10c     chatChannel.obj
+ 0003:00000110       ?__LINE__Var@?1??ciSetUserBasicInfoMap@@9@9@1b8c26c6 1003e110     chatChannel.obj
+ 0003:00000114       ?__LINE__Var@?1??ciGetUserBasicInfo@@9@9 1003e114     chatChannel.obj
+ 0003:00000118       ?__LINE__Var@?1??ciGetUserBasicInfoMap@@9@9@1b8c26c6 1003e118     chatChannel.obj
+ 0003:0000011c       ?__LINE__Var@?1??ciClearAllUsers@@9@9 1003e11c     chatChannel.obj
+ 0003:00000120       ?__LINE__Var@?1??ciClearAllUsersChannelMap@@9@9@1b8c26c6 1003e120     chatChannel.obj
+ 0003:00000124       ?__LINE__Var@?1??ciClearAllUsersUsersMap@@9@9@1b8c26c6 1003e124     chatChannel.obj
+ 0003:00000128       _serverMessageTypes        1003e128     chatHandlers.obj
+ 0003:000002a0       _numServerMessageTypes     1003e2a0     chatHandlers.obj
+ 0003:000002a4       ?__LINE__Var@?1??ciFilterThink@@9@9 1003e2a4     chatHandlers.obj
+ 0003:000002a8       ?__LINE__Var@?1??ciFilterTimedout@@9@9@5309d603 1003e2a8     chatHandlers.obj
+ 0003:000002ac       ?__LINE__Var@?1??ciRemoveFilter@@9@9@5309d603 1003e2ac     chatHandlers.obj
+ 0003:000002b0       ?__LINE__Var@?1??ciDestroyFilter@@9@9@5309d603 1003e2b0     chatHandlers.obj
+ 0003:000002b4       ?__LINE__Var@?1??ciFinishFilter@@9@9@5309d603 1003e2b4     chatHandlers.obj
+ 0003:000002b8       ?__LINE__Var@?1??ciGetNextID@@9@9 1003e2b8     chatHandlers.obj
+ 0003:000002bc       ?__LINE__Var@?1??ciCheckFiltersForID@@9@9 1003e2bc     chatHandlers.obj
+ 0003:000002c0       ?__LINE__Var@?1??ciCleanupFilters@@9@9 1003e2c0     chatHandlers.obj
+ 0003:000002c4       ?__LINE__Var@?1??ciAddFilter@@9@9@5309d603 1003e2c4     chatHandlers.obj
+ 0003:000002c8       ?__LINE__Var@?1??ciAddJOINFilter@@9@9 1003e2c8     chatHandlers.obj
+ 0003:000002cc       ?__LINE__Var@?1??ciParseMode@@9@9 1003e2cc     chatHandlers.obj
+ 0003:000002d0       ?__LINE__Var@?1??ciApplyChangesToMode@@9@9 1003e2d0     chatHandlers.obj
+ 0003:000002d4       ?__LINE__Var@?1??ciNickError@@9@9 1003e2d4     chatHandlers.obj
+ 0003:000002d8       ?__LINE__Var@?1??ciPrivmsgHandler@@9@9 1003e2d8     chatHandlers.obj
+ 0003:000002dc       ?__LINE__Var@?1??ciNoticeHandler@@9@9 1003e2dc     chatHandlers.obj
+ 0003:000002e0       ?__LINE__Var@?1??ciUTMHandler@@9@9 1003e2e0     chatHandlers.obj
+ 0003:000002e4       ?__LINE__Var@?1??ciATMHandler@@9@9 1003e2e4     chatHandlers.obj
+ 0003:000002e8       ?__LINE__Var@?1??ciPingHandler@@9@9 1003e2e8     chatHandlers.obj
+ 0003:000002ec       ?__LINE__Var@?1??ciNickHandler@@9@9 1003e2ec     chatHandlers.obj
+ 0003:000002f0       ?__LINE__Var@?1??ciFindFilter@@9@9@5309d603 1003e2f0     chatHandlers.obj
+ 0003:000002f4       ?__LINE__Var@?1??ciJoinHandler@@9@9 1003e2f4     chatHandlers.obj
+ 0003:000002f8       ?__LINE__Var@?1??ciPartHandler@@9@9 1003e2f8     chatHandlers.obj
+ 0003:000002fc       ?__LINE__Var@?1??ciKickHandler@@9@9 1003e2fc     chatHandlers.obj
+ 0003:00000300       ?__LINE__Var@?1??ciQuitEnumChannelsCallback@@9@9 1003e300     chatHandlers.obj
+ 0003:00000304       ?__LINE__Var@?1??ciQuitHandler@@9@9 1003e304     chatHandlers.obj
+ 0003:00000308       ?__LINE__Var@?1??ciKillEnumChannelsCallback@@9@9 1003e308     chatHandlers.obj
+ 0003:0000030c       ?__LINE__Var@?1??ciKillHandler@@9@9 1003e30c     chatHandlers.obj
+ 0003:00000310       ?__LINE__Var@?1??ciTopicHandler@@9@9 1003e310     chatHandlers.obj
+ 0003:00000314       ?__LINE__Var@?1??ciModeHandler@@9@9 1003e314     chatHandlers.obj
+ 0003:00000318       ?__LINE__Var@?1??ciErrorHandler@@9@9 1003e318     chatHandlers.obj
+ 0003:0000031c       ?__LINE__Var@?1??ciInviteHandler@@9@9 1003e31c     chatHandlers.obj
+ 0003:00000320       ?__LINE__Var@?1??ciNameReplyHandler@@9@9 1003e320     chatHandlers.obj
+ 0003:00000324       ?__LINE__Var@?1??ciEndOfNamesHandler@@9@9 1003e324     chatHandlers.obj
+ 0003:00000328       ?__LINE__Var@?1??ciRplTopicHandler@@9@9 1003e328     chatHandlers.obj
+ 0003:0000032c       ?__LINE__Var@?1??ciRplNoTopicHandler@@9@9 1003e32c     chatHandlers.obj
+ 0003:00000330       ?__LINE__Var@?1??ciErrNickInUseHandler@@9@9 1003e330     chatHandlers.obj
+ 0003:00000334       ?__LINE__Var@?1??ciRplWhoReplyHandler@@9@9 1003e334     chatHandlers.obj
+ 0003:00000338       ?__LINE__Var@?1??ciRplEndOfWhoHandler@@9@9 1003e338     chatHandlers.obj
+ 0003:0000033c       ?__LINE__Var@?1??ciRplGetKeyHandler@@9@9 1003e33c     chatHandlers.obj
+ 0003:00000340       ?__LINE__Var@?1??ciParseValue@@9@9@5309d603 1003e340     chatHandlers.obj
+ 0003:00000344       ?__LINE__Var@?1??ciRplEndGetKeyHandler@@9@9 1003e344     chatHandlers.obj
+ 0003:00000348       ?__LINE__Var@?1??ciRplGetCKeyHandler@@9@9 1003e348     chatHandlers.obj
+ 0003:0000034c       ?__LINE__Var@?1??ciRplEndGetCKeyHandler@@9@9 1003e34c     chatHandlers.obj
+ 0003:00000350       ?__LINE__Var@?1??ciRplGetChanKeyHandler@@9@9 1003e350     chatHandlers.obj
+ 0003:00000354       ?__LINE__Var@?1??ciRplUserIPHandler@@9@9 1003e354     chatHandlers.obj
+ 0003:00000358       ?__LINE__Var@?1??ciRplListStartHandler@@9@9 1003e358     chatHandlers.obj
+ 0003:0000035c       ?__LINE__Var@?1??ciRplListHandler@@9@9 1003e35c     chatHandlers.obj
+ 0003:00000360       ?__LINE__Var@?1??ciRplChannelModeIsHandler@@9@9 1003e360     chatHandlers.obj
+ 0003:00000364       ?__LINE__Var@?1??ciRplWhoisUserHandler@@9@9 1003e364     chatHandlers.obj
+ 0003:00000368       ?__LINE__Var@?1??ciRplWhoisChannelsHandler@@9@9 1003e368     chatHandlers.obj
+ 0003:0000036c       ?__LINE__Var@?1??ciRplEndOfWhoisHandler@@9@9 1003e36c     chatHandlers.obj
+ 0003:00000370       ?__LINE__Var@?1??ciRplBanListHandler@@9@9 1003e370     chatHandlers.obj
+ 0003:00000374       ?__LINE__Var@?1??ciRplEndOfBanListHandler@@9@9 1003e374     chatHandlers.obj
+ 0003:00000378       ?__LINE__Var@?1??ciRplWelcomeHandler@@9@9 1003e378     chatHandlers.obj
+ 0003:0000037c       ?__LINE__Var@?1??ciErrNoSuchChannelHandler@@9@9 1003e37c     chatHandlers.obj
+ 0003:00000380       ?__LINE__Var@?1??ciErrTooManyChannelsHandler@@9@9 1003e380     chatHandlers.obj
+ 0003:00000384       ?__LINE__Var@?1??ciErrChannelIsFullHandler@@9@9 1003e384     chatHandlers.obj
+ 0003:00000388       ?__LINE__Var@?1??ciErrInviteOnlyChanHandler@@9@9 1003e388     chatHandlers.obj
+ 0003:0000038c       ?__LINE__Var@?1??ciErrBannedFromChanHandler@@9@9 1003e38c     chatHandlers.obj
+ 0003:00000390       ?__LINE__Var@?1??ciErrBadChannelKeyHandler@@9@9 1003e390     chatHandlers.obj
+ 0003:00000394       ?__LINE__Var@?1??ciErrBadChanMaskHandler@@9@9 1003e394     chatHandlers.obj
+ 0003:00000398       ?__LINE__Var@?1??ciErrErroneusNicknameHandler@@9@9 1003e398     chatHandlers.obj
+ 0003:000003a0       ?__LINE__Var@?1??ciHandleDisconnect@@9@9 1003e3a0     chatMain.obj
+ 0003:000003a4       ?__LINE__Var@?1??ciSendNickAndUser@@9@9 1003e3a4     chatMain.obj
+ 0003:000003a8       ?__LINE__Var@?1??chatConnectDoit@@9@9 1003e3a8     chatMain.obj
+ 0003:000003ac       ?__LINE__Var@?1??ciThink@@9@9@e5cf1ae8 1003e3ac     chatMain.obj
+ 0003:000003b0       ?__LINE__Var@?1??ciProcessServerMessage@@9@9@e5cf1ae8 1003e3b0     chatMain.obj
+ 0003:000003b4       ?__LINE__Var@?1??chatRetryWithNick@@9@9 1003e3b4     chatMain.obj
+ 0003:000003b8       ?__LINE__Var@?1??chatDisconnect@@9@9 1003e3b8     chatMain.obj
+ 0003:000003bc       ?__LINE__Var@?1??chatSendRaw@@9@9 1003e3bc     chatMain.obj
+ 0003:000003c0       ?__LINE__Var@?1??chatChangeNick@@9@9 1003e3c0     chatMain.obj
+ 0003:000003c4       ?__LINE__Var@?1??chatGetNick@@9@9 1003e3c4     chatMain.obj
+ 0003:000003c8       ?__LINE__Var@?1??chatFixNick@@9@9 1003e3c8     chatMain.obj
+ 0003:000003cc       ?__LINE__Var@?1??chatSetQuietMode@@9@9 1003e3cc     chatMain.obj
+ 0003:000003d0       ?__LINE__Var@?1??chatEnumChannels@@9@9 1003e3d0     chatMain.obj
+ 0003:000003d4       ?__LINE__Var@?1??chatEnterChannel@@9@9 1003e3d4     chatMain.obj
+ 0003:000003d8       ?__LINE__Var@?1??chatLeaveChannel@@9@9 1003e3d8     chatMain.obj
+ 0003:000003dc       ?__LINE__Var@?1??chatSendChannelMessage@@9@9 1003e3dc     chatMain.obj
+ 0003:000003e0       ?__LINE__Var@?1??chatSetChannelTopic@@9@9 1003e3e0     chatMain.obj
+ 0003:000003e4       ?__LINE__Var@?1??chatGetChannelTopic@@9@9 1003e3e4     chatMain.obj
+ 0003:000003e8       ?__LINE__Var@?1??chatSetChannelMode@@9@9 1003e3e8     chatMain.obj
+ 0003:000003ec       ?__LINE__Var@?1??chatGetChannelMode@@9@9 1003e3ec     chatMain.obj
+ 0003:000003f0       ?__LINE__Var@?1??chatSetChannelPassword@@9@9 1003e3f0     chatMain.obj
+ 0003:000003f4       ?__LINE__Var@?1??chatGetChannelPassword@@9@9 1003e3f4     chatMain.obj
+ 0003:000003f8       ?__LINE__Var@?1??chatEnumChannelBans@@9@9 1003e3f8     chatMain.obj
+ 0003:000003fc       ?__LINE__Var@?1??chatAddChannelBan@@9@9 1003e3fc     chatMain.obj
+ 0003:00000400       ?__LINE__Var@?1??chatRemoveChannelBan@@9@9 1003e400     chatMain.obj
+ 0003:00000404       ?__LINE__Var@?1??chatSetChannelGroup@@9@9 1003e404     chatMain.obj
+ 0003:00000408       ?__LINE__Var@?1??chatGetChannelNumUsers@@9@9 1003e408     chatMain.obj
+ 0003:0000040c       ?__LINE__Var@?1??ciEnumUsersCallback@@9@9 1003e40c     chatMain.obj
+ 0003:00000410       ?__LINE__Var@?1??chatEnumUsers@@9@9 1003e410     chatMain.obj
+ 0003:00000414       ?__LINE__Var@?1??chatSendUserMessage@@9@9 1003e414     chatMain.obj
+ 0003:00000418       ?__LINE__Var@?1??chatGetUserInfo@@9@9 1003e418     chatMain.obj
+ 0003:0000041c       ?__LINE__Var@?1??chatGetBasicUserInfo@@9@9 1003e41c     chatMain.obj
+ 0003:00000420       ?__LINE__Var@?1??chatGetBasicUserInfoNoWait@@9@9 1003e420     chatMain.obj
+ 0003:00000424       ?__LINE__Var@?1??chatGetChannelBasicUserInfo@@9@9 1003e424     chatMain.obj
+ 0003:00000428       ?__LINE__Var@?1??chatInviteUser@@9@9 1003e428     chatMain.obj
+ 0003:0000042c       ?__LINE__Var@?1??chatKickUser@@9@9 1003e42c     chatMain.obj
+ 0003:00000430       ?__LINE__Var@?1??chatBanUser@@9@9 1003e430     chatMain.obj
+ 0003:00000434       ?__LINE__Var@?1??chatSetUserMode@@9@9 1003e434     chatMain.obj
+ 0003:00000438       ?__LINE__Var@?1??chatGetUserMode@@9@9 1003e438     chatMain.obj
+ 0003:0000043c       ?__LINE__Var@?1??chatGetUserModeNoWait@@9@9 1003e43c     chatMain.obj
+ 0003:00000440       ?__LINE__Var@?1??chatSetGlobalKeys@@9@9 1003e440     chatMain.obj
+ 0003:00000444       ?__LINE__Var@?1??chatGetGlobalKeys@@9@9 1003e444     chatMain.obj
+ 0003:00000448       ?__LINE__Var@?1??ciSendGetKey@@9@9@e5cf1ae8 1003e448     chatMain.obj
+ 0003:0000044c       ?__LINE__Var@?1??chatSetChannelKeys@@9@9 1003e44c     chatMain.obj
+ 0003:00000450       ?__LINE__Var@?1??chatGetChannelKeys@@9@9 1003e450     chatMain.obj
+ 0003:00000454       ?__LINE__Var@?1??ciSendGetChannelKey@@9@9@e5cf1ae8 1003e454     chatMain.obj
+ 0003:00000458       ?__LINE__Var@?1??ciSocketInit@@9@9 1003e458     chatSocket.obj
+ 0003:0000045c       ?__LINE__Var@?1??ciBufferInit@@9@9@b170c204 1003e45c     chatSocket.obj
+ 0003:00000460       ?__LINE__Var@?1??ciSocketConnect@@9@9 1003e460     chatSocket.obj
+ 0003:00000464       ?__LINE__Var@?1??ciSocketDisconnect@@9@9 1003e464     chatSocket.obj
+ 0003:00000468       ?__LINE__Var@?1??ciSocketThink@@9@9 1003e468     chatSocket.obj
+ 0003:0000046c       ?__LINE__Var@?1??ciSocketThinkSend@@9@9@b170c204 1003e46c     chatSocket.obj
+ 0003:00000470       ?__LINE__Var@?1??ciBufferClipFront@@9@9@b170c204 1003e470     chatSocket.obj
+ 0003:00000474       ?__LINE__Var@?1??ciSocketSelect@@9@9@b170c204 1003e474     chatSocket.obj
+ 0003:00000478       ?__LINE__Var@?1??ciSocketThinkRecv@@9@9@b170c204 1003e478     chatSocket.obj
+ 0003:0000047c       ?__LINE__Var@?1??ciBufferPreAppend@@9@9@b170c204 1003e47c     chatSocket.obj
+ 0003:00000480       ?__LINE__Var@?1??ciSocketSend@@9@9 1003e480     chatSocket.obj
+ 0003:00000484       ?__LINE__Var@?1??ciSocketSendf@@9@9 1003e484     chatSocket.obj
+ 0003:00000488       ?__LINE__Var@?1??ciParseParam@@9@9 1003e488     chatSocket.obj
+ 0003:0000048c       ?__LINE__Var@?1??ciSocketRecv@@9@9 1003e48c     chatSocket.obj
+ 0003:00000490       ?__LINE__Var@?1??ciParseMessage@@9@9@b170c204 1003e490     chatSocket.obj
+ 0003:00000494       ?__LINE__Var@?1??ciParseUser@@9@9@b170c204 1003e494     chatSocket.obj
+ 0003:00000498       ?__LINE__Var@?1??ArrayNew@@9@9 1003e498     darray.obj
+ 0003:0000049c       ?__LINE__Var@?1??ArrayFree@@9@9 1003e49c     darray.obj
+ 0003:000004a0       ?__LINE__Var@?1??ArrayNth@@9@9 1003e4a0     darray.obj
+ 0003:000004a4       ?__LINE__Var@?1??ArrayInsertAt@@9@9 1003e4a4     darray.obj
+ 0003:000004a8       ?__LINE__Var@?1??ArrayGrow@@9@9@d77e3488 1003e4a8     darray.obj
+ 0003:000004ac       ?__LINE__Var@?1??ArrayInsertSorted@@9@9 1003e4ac     darray.obj
+ 0003:000004b0       ?__LINE__Var@?1??ArrayRemoveAt@@9@9 1003e4b0     darray.obj
+ 0003:000004b4       ?__LINE__Var@?1??ArrayDeleteAt@@9@9 1003e4b4     darray.obj
+ 0003:000004b8       ?__LINE__Var@?1??ArrayReplaceAt@@9@9 1003e4b8     darray.obj
+ 0003:000004bc       ?__LINE__Var@?1??ArrayMap@@9@9 1003e4bc     darray.obj
+ 0003:000004c0       ?__LINE__Var@?1??ArrayMapBackwards@@9@9 1003e4c0     darray.obj
+ 0003:000004c4       ?__LINE__Var@?1??ArrayMap2@@9@9 1003e4c4     darray.obj
+ 0003:000004c8       ?__LINE__Var@?1??TableNew2@@9@9 1003e4c8     hashtable.obj
+ 0003:000004cc       ?__LINE__Var@?1??TableFree@@9@9 1003e4cc     hashtable.obj
+ 0003:000004d0       ?__LINE__Var@?1??TableMap@@9@9 1003e4d0     hashtable.obj
+ 0003:000004d4       ?__LINE__Var@?1??TableMapSafe@@9@9 1003e4d4     hashtable.obj
+ 0003:000004d8       ?__LINE__Var@?1??TableMap2@@9@9 1003e4d8     hashtable.obj
+ 0003:00000534       __NLG_Destination          1003e534     LIBC:exsup.obj
+ 0003:00000590       ?_RTC_ErrorLevels@@3PAHA   1003e590     LIBC:error.obj
+ 0003:000005b4       ___mb_cur_max              1003e5b4     LIBC:nlsdata1.obj
+ 0003:000005b8       ___decimal_point           1003e5b8     LIBC:nlsdata1.obj
+ 0003:000005bc       ___decimal_point_length    1003e5bc     LIBC:nlsdata1.obj
+ 0003:000005c0       __aexit_rtn                1003e5c0     LIBC:dllcrt0.obj
+ 0003:000005d4       ___nullstring              1003e5d4     LIBC:output.obj
+ 0003:000005d8       ___wnullstring             1003e5d8     LIBC:output.obj
+ 0003:000005e0       ___security_cookie         1003e5e0     LIBC:seccook.obj
+ 0003:000005e4       ?__pUnexpected@@3P6AXXZA   1003e5e4     LIBC:hooks.obj
+ 0003:000005e8       ?__pInconsistency@@3P6AXXZA 1003e5e8     LIBC:hooks.obj
+ 0003:000005f0       __iob                      1003e5f0     LIBC:_file.obj
+ 0003:00000870       __amblksiz                 1003e870     LIBC:heapinit.obj
+ 0003:00000874       ___lc_clike                1003e874     LIBC:nlsdata2.obj
+ 0003:00000878       __pctype                   1003e878     LIBC:ctype.obj
+ 0003:0000087c       __pwctype                  1003e87c     LIBC:ctype.obj
+ 0003:00000888       __timezone                 1003e888     LIBC:timeset.obj
+ 0003:0000088c       __daylight                 1003e88c     LIBC:timeset.obj
+ 0003:00000890       __dstbias                  1003e890     LIBC:timeset.obj
+ 0003:00000918       __tzname                   1003e918     LIBC:timeset.obj
+ 0003:00000940       ___badioinfo               1003e940     LIBC:ioinit.obj
+ 0003:00000948       __XcptActTab               1003e948     LIBC:winxfltr.obj
+ 0003:000009c0       __First_FPE_Indx           1003e9c0     LIBC:winxfltr.obj
+ 0003:000009c4       __Num_FPE                  1003e9c4     LIBC:winxfltr.obj
+ 0003:000009c8       __XcptActTabCount          1003e9c8     LIBC:winxfltr.obj
+ 0003:000009cc       __fpecode                  1003e9cc     LIBC:winxfltr.obj
+ 0003:00000a68       __cfltcvt_tab              1003ea68     LIBC:cmiscdat.obj
+ 0003:00000ce0       __lpdays                   1003ece0     LIBC:days.obj
+ 0003:00000d14       __days                     1003ed14     LIBC:days.obj
+ 0003:00000d60       ?PREVSEND@@3HA             1003ed60     cs_chat.obj
+ 0003:00000d64       ?NSS@@3HA                  1003ed64     cs_chat.obj
+ 0003:00000d68       ?LastPID@@3HA              1003ed68     GSC_ChatWindow.obj
+ 0003:00000d6c       ?CUBM@@3PAVCustomBorder@@A 1003ed6c     GSC_ChatWindow.obj
+ 0003:00000d70       ?CUBC@@3PAVCustomBorder@@A 1003ed70     GSC_ChatWindow.obj
+ 0003:00000d74       ?LastState@@3EA            1003ed74     GSC_ChatWindow.obj
+ 0003:00000d78       ?NCHATS@@3PAHA             1003ed78     GSC_ChatWindow.obj
+ 0003:00000d84       ?MAXCHATS@@3PAHA           1003ed84     GSC_ChatWindow.obj
+ 0003:00000d90       ?ChatMess@@3PAPAPADA       1003ed90     GSC_ChatWindow.obj
+ 0003:00000d9c       ?ChatSender@@3PAPAPADA     1003ed9c     GSC_ChatWindow.obj
+ 0003:00000da8       ?CM_Vis@@3_NA              1003eda8     GSC_ChatWindow.obj
+ 0003:00000da9       ?CC_Vis@@3_NA              1003eda9     GSC_ChatWindow.obj
+ 0003:00000daa       ?RCOLOR@@3EA               1003edaa     GSC_ChatWindow.obj
+ 0003:00000dac       ?LoadGP@@3HA               1003edac     GSC_ChatWindow.obj
+ 0003:00000db0       ?GRIF@@3PAURoomInfo@@A     1003edb0     GSC_ChatWindow.obj
+ 0003:00000db4       ?NeedSmallSize@@3_NA       1003edb4     GSC_ChatWindow.obj
+ 0003:00000db5       ?NeedBigSize@@3_NA         1003edb5     GSC_ChatWindow.obj
+ 0003:00000db6       ?LockResize@@3_NA          1003edb6     GSC_ChatWindow.obj
+ 0003:00000db7       ?RunHomePageAnyway@@3_NA   1003edb7     GSC_ChatWindow.obj
+ 0003:00000db8       ?WasHere@@3_NA             1003edb8     GSC_ChatWindow.obj
+ 0003:00000db9       ?InRoom@@3_NA              1003edb9     GSC_ChatWindow.obj
+ 0003:00000dbc       ?LastSVS_Time@@3HA         1003edbc     GSC_ChatWindow.obj
+ 0003:00000dc0       ?CSYS@@3VChatSystem@@A     1003edc0     GSC_ChatWindow.obj
+ 0003:00001178       ?NMCASH@@3VCNamesCash@@A   1003f178     GSC_ChatWindow.obj
+ 0003:000023c4       __aenvptr                  100403c4     LIBC:dllcrt0.obj
+ 0003:000023c8       __wenvptr                  100403c8     LIBC:dllcrt0.obj
+ 0003:000023cc       ___error_mode              100403cc     LIBC:dllcrt0.obj
+ 0003:000023d0       ___app_type                100403d0     LIBC:dllcrt0.obj
+ 0003:000023d8       ?_pCurrentException@@3PAUEHExceptionRecord@@A 100403d8     LIBC:frame.obj
+ 0003:000023dc       ?_pCurrentExContext@@3PAU_CONTEXT@@A 100403dc     LIBC:frame.obj
+ 0003:000023e0       ?__ProcessingThrow@@3HA    100403e0     LIBC:frame.obj
+ 0003:000023e4       ?__pSETranslator@@3P6AXIPAU_EXCEPTION_POINTERS@@@ZA 100403e4     LIBC:hooks.obj
+ 0003:000023e8       ?__pTerminate@@3P6AXXZA    100403e8     LIBC:hooks.obj
+ 0003:000023ec       __cflush                   100403ec     LIBC:_file.obj
+ 0003:000023f0       _errno                     100403f0     LIBC:crt0dat.obj
+ 0003:000023f4       __doserrno                 100403f4     LIBC:crt0dat.obj
+ 0003:000023f8       __umaskval                 100403f8     LIBC:crt0dat.obj
+ 0003:000023fc       __osplatform               100403fc     LIBC:crt0dat.obj
+ 0003:00002400       __osver                    10040400     LIBC:crt0dat.obj
+ 0003:00002404       __winver                   10040404     LIBC:crt0dat.obj
+ 0003:00002408       __winmajor                 10040408     LIBC:crt0dat.obj
+ 0003:0000240c       __winminor                 1004040c     LIBC:crt0dat.obj
+ 0003:00002410       ___argc                    10040410     LIBC:crt0dat.obj
+ 0003:00002414       ___argv                    10040414     LIBC:crt0dat.obj
+ 0003:00002418       ___wargv                   10040418     LIBC:crt0dat.obj
+ 0003:0000241c       __environ                  1004041c     LIBC:crt0dat.obj
+ 0003:00002420       ___initenv                 10040420     LIBC:crt0dat.obj
+ 0003:00002424       __wenviron                 10040424     LIBC:crt0dat.obj
+ 0003:00002428       ___winitenv                10040428     LIBC:crt0dat.obj
+ 0003:0000242c       __pgmptr                   1004042c     LIBC:crt0dat.obj
+ 0003:00002430       __wpgmptr                  10040430     LIBC:crt0dat.obj
+ 0003:00002434       __exitflag                 10040434     LIBC:crt0dat.obj
+ 0003:00002438       __C_Termination_Done       10040438     LIBC:crt0dat.obj
+ 0003:0000243c       __C_Exit_Done              1004043c     LIBC:crt0dat.obj
+ 0003:00002468       __stdbuf                   10040468     LIBC:_sftbuf.obj
+ 0003:00002470       ?_pnhHeap@@3P6AHI@ZA       10040470     LIBC:handler.obj
+ 0003:00002474       __newmode                  10040474     LIBC:_newmode.obj
+ 0003:0000247c       ___lc_handle               1004047c     LIBC:nlsdata2.obj
+ 0003:00002494       ___lc_codepage             10040494     LIBC:nlsdata2.obj
+ 0003:00002498       ___lc_collate_cp           10040498     LIBC:nlsdata2.obj
+ 0003:000026dc       __pxcptinfoptrs            100406dc     LIBC:winxfltr.obj
+ 0003:000026e0       __adbgmsg                  100406e0     LIBC:crt0msg.obj
+ 0003:00002740       __commode                  10040740     LIBC:ncommode.obj
+ 0003:00002744       __fmode                    10040744     LIBC:txtmode.obj
+ 0003:0000274c       ___mblcid                  1004074c     <common>
+ 0003:00002750       ___ismbcodepage            10040750     <common>
+ 0003:00002760       __mbctype                  10040760     <common>
+ 0003:00002864       ___mbcodepage              10040864     <common>
+ 0003:00002870       ___mbulinfo                10040870     <common>
+ 0003:00002880       __mbcasemap                10040880     <common>
+ 0003:00002980       __nhandle                  10040980     <common>
+ 0003:000029a0       ___pioinfo                 100409a0     <common>
+ 0003:00002aa0       ___sbh_initialized         10040aa0     <common>
+ 0003:00002aa4       ___sbh_pHeaderDefer        10040aa4     <common>
+ 0003:00002aa8       ___sbh_cntHeaderList       10040aa8     <common>
+ 0003:00002aac       ___sbh_pHeaderList         10040aac     <common>
+ 0003:00002ab0       ___sbh_threshold           10040ab0     <common>
+ 0003:00002ab4       ___sbh_pHeaderScan         10040ab4     <common>
+ 0003:00002ab8       ___sbh_sizeHeaderList      10040ab8     <common>
+ 0003:00002abc       ___sbh_indGroupDefer       10040abc     <common>
+ 0003:00002ac0       __crtheap                  10040ac0     <common>
+ 0003:00002ac4       ___active_heap             10040ac4     <common>
+ 0003:00002ac8       ___env_initialized         10040ac8     <common>
+ 0003:00002acc       ___onexitend               10040acc     <common>
+ 0003:00002ad0       ___onexitbegin             10040ad0     <common>
+ 0003:00002ad4       ___mbctype_initialized     10040ad4     <common>
+ 0003:00002ad8       __FPinit                   10040ad8     <common>
+ 0003:00002adc       ___piob                    10040adc     <common>
+ 0003:00002ae0       __bufin                    10040ae0     <common>
+ 0003:00003ae0       __nstream                  10041ae0     <common>
+ 0003:00003ae4       __acmdln                   10041ae4     <common>
+ 0003:00003ae8       __pRawDllMain              10041ae8     <common>
+
+ entry point at        0001:0002c088
+
+ Static symbols
+
+ 0001:0000dcd3       __catch$?Extract@ParsedRQ@@QAEXPADH@Z$0 1000ecd3 f   ParseRQ.obj
+ 0001:0000e520       _ciCallbacksArrayElementFreeFn 1000f520 f   chatCallbacks.obj
+ 0001:0000e740       _ciFreeCallbackData        1000f740 f   chatCallbacks.obj
+ 0001:00012ef0       _ciGetCallbackIndexByID    10013ef0 f   chatCallbacks.obj
+ 0001:00013140       _ciChannelTableHashFn      10014140 f   chatChannel.obj
+ 0001:000131d0       _ciHashString              100141d0 f   chatChannel.obj
+ 0001:000132b0       _ciChannelTableCompareFn   100142b0 f   chatChannel.obj
+ 0001:00013410       _ciChannelTableElementFreeFn 10014410 f   chatChannel.obj
+ 0001:000139c0       _ciUserTableHashFn         100149c0 f   chatChannel.obj
+ 0001:00013a50       _ciUserTableCompareFn      10014a50 f   chatChannel.obj
+ 0001:00013b70       _ciUserTableElementFreeFn  10014b70 f   chatChannel.obj
+ 0001:00013e60       _ciGetChannel              10014e60 f   chatChannel.obj
+ 0001:000140b0       _ciChannelListUsersMap     100150b0 f   chatChannel.obj
+ 0001:00015360       _ciUserEnumChannelsMap     10016360 f   chatChannel.obj
+ 0001:00015670       _ciUserChangeNickMap       10016670 f   chatChannel.obj
+ 0001:00015f50       _ciEnumJoinedChannelsMap   10016f50 f   chatChannel.obj
+ 0001:000161b0       _ciSetUserBasicInfoMap     100171b0 f   chatChannel.obj
+ 0001:00016460       _ciGetUserBasicInfoMap     10017460 f   chatChannel.obj
+ 0001:00016600       _ciClearAllUsersChannelMap 10017600 f   chatChannel.obj
+ 0001:00016750       _ciClearAllUsersUsersMap   10017750 f   chatChannel.obj
+ 0001:000168a0       _ciFilterTimedout          100178a0 f   chatHandlers.obj
+ 0001:00016ed0       _ciRemoveFilter            10017ed0 f   chatHandlers.obj
+ 0001:00016fe0       _ciDestroyFilter           10017fe0 f   chatHandlers.obj
+ 0001:00017070       _ciFinishFilter            10018070 f   chatHandlers.obj
+ 0001:00017a60       _ciAddFilter               10018a60 f   chatHandlers.obj
+ 0001:00019820       _ciFindFilter              1001a820 f   chatHandlers.obj
+ 0001:0001bfe0       _ciParseValue              1001cfe0 f   chatHandlers.obj
+ 0001:0001f180       _ciThink                   10020180 f   chatMain.obj
+ 0001:0001f2d0       _ciProcessServerMessage    100202d0 f   chatMain.obj
+ 0001:0001f9e0       _ciCheckForID              100209e0 f   chatMain.obj
+ 0001:0001fcf0       _ciSetQuietModeEnumJoinedChannels 10020cf0 f   chatMain.obj
+ 0001:00022a40       _ciRandomCookie            10023a40 f   chatMain.obj
+ 0001:00022ac0       _ciSendGetKey              10023ac0 f   chatMain.obj
+ 0001:00023080       _ciSendGetChannelKey       10024080 f   chatMain.obj
+ 0001:00023560       _ciBufferInit              10024560 f   chatSocket.obj
+ 0001:00023600       _ciBufferFree              10024600 f   chatSocket.obj
+ 0001:00024050       _ciSocketThinkSend         10025050 f   chatSocket.obj
+ 0001:000243a0       _ciBufferClipFront         100253a0 f   chatSocket.obj
+ 0001:00024520       _ciSocketSelect            10025520 f   chatSocket.obj
+ 0001:000247d0       _ciSocketThinkRecv         100257d0 f   chatSocket.obj
+ 0001:00024b30       _ciBufferPreAppend         10025b30 f   chatSocket.obj
+ 0001:000254d0       _ciAddParam                100264d0 f   chatSocket.obj
+ 0001:00025810       _ciParseInput              10026810 f   chatSocket.obj
+ 0001:00025b60       _ciParseMessage            10026b60 f   chatSocket.obj
+ 0001:00026170       _ciParseUser               10027170 f   chatSocket.obj
+ 0001:00026550       _FreeElement               10027550 f   darray.obj
+ 0001:00026790       _ArrayGrow                 10027790 f   darray.obj
+ 0001:00026820       _SetElement                10027820 f   darray.obj
+ 0001:00026f10       _mylsearch                 10027f10 f   darray.obj
+ 0001:00026f90       _mybsearch                 10027f90 f   darray.obj
+ 0001:00027a00       _MD5Transform              10028a00 f   md5c.obj
+ 0001:000288a0       _Encode                    100298a0 f   md5c.obj
+ 0001:00028960       _Decode                    10029960 f   md5c.obj
+ 0001:000289f0       _MD5_memcpy                100299f0 f   md5c.obj
+ 0001:00028a40       _MD5_memset                10029a40 f   md5c.obj
+ 0001:000290f0       _GenerateID                1002a0f0 f   nonport.obj
+ 0001:00029220       _Util_RandSeed             1002a220 f   nonport.obj
+ 0001:00029280       _Util_RandInt              1002a280 f   nonport.obj
+ 0001:000292d0       _longrand                  1002a2d0 f   nonport.obj
+ 0001:00029320       _nextlongrand              1002a320 f   nonport.obj
+ 0001:00029ce0       _$$$00001                  1002ace0 f   LIBC:strchr.obj
+ 0001:00029f24       ?CatchGuardHandler@@YA?AW4_EXCEPTION_DISPOSITION@@PAUEHExceptionRecord@@PAUCatchGuardRN@@PAX2@Z 1002af24 f   LIBC:trnsctrl.obj
+ 0001:0002a024       ?TranslatorGuardHandler@@YA?AW4_EXCEPTION_DISPOSITION@@PAUEHExceptionRecord@@PAUTranslatorGuardRN@@PAX2@Z 1002b024 f   LIBC:trnsctrl.obj
+ 0001:0002a218       $$$00001                   1002b218 f   LIBC:exsup.obj
+ 0001:0002a238       __unwind_handler           1002b238 f   LIBC:exsup.obj
+ 0001:0002a238       $$$00003                   1002b238 f   LIBC:exsup.obj
+ 0001:0002a25a       $$$00005                   1002b25a f   LIBC:exsup.obj
+ 0001:0002a2c2       $$$00007                   1002b2c2 f   LIBC:exsup.obj
+ 0001:0002a306       ?ArrayUnwindFilter@@YAHPAU_EXCEPTION_POINTERS@@@Z 1002b306 f   LIBC:ehvecdtr.obj
+ 0001:0002a306       $$$00011                   1002b306 f   LIBC:exsup.obj
+ 0001:0002b2bc       ?DebuggerProbe@@YAHK@Z     1002c2bc f   LIBC:error.obj
+ 0001:0002b309       ?DebuggerRuntime@@YAHKHPAXPB_W@Z 1002c309 f   LIBC:error.obj
+ 0001:0002b368       ?IntToString@@YAPADH@Z     1002c368 f   LIBC:error.obj
+ 0001:0002b3a2       ?GetCurrentTib@@YAPAU_TIB@@XZ 1002c3a2 f   LIBC:error.obj
+ 0001:0002b3a9       ?WinGetDebugContext@@YAPAXXZ 1002c3a9 f   LIBC:error.obj
+ 0001:0002b3b3       ?Win95IsDebuggerPresent@@YGHXZ 1002c3b3 f   LIBC:error.obj
+ 0001:0002b3c4       ?Initialize@@YAHXZ         1002c3c4 f   LIBC:error.obj
+ 0001:0002b42c       ?_IsDebuggerPresent@@YAHXZ 1002c42c f   LIBC:error.obj
+ 0001:0002b45c       ?failwithmessage@@YAXPAXHHPBD@Z 1002c45c f   LIBC:error.obj
+ 0001:0002bbf0       _swap                      1002cbf0 f   LIBC:qsort.obj
+ 0001:0002bc10       _shortsort                 1002cc10 f   LIBC:qsort.obj
+ 0001:0002c323       _write_char                1002d323 f   LIBC:output.obj
+ 0001:0002c356       _write_multi_char          1002d356 f   LIBC:output.obj
+ 0001:0002c37a       _write_string              1002d37a f   LIBC:output.obj
+ 0001:0002c3b1       _get_int_arg               1002d3b1 f   LIBC:output.obj
+ 0001:0002c3ba       _get_int64_arg             1002d3ba f   LIBC:output.obj
+ 0001:0002c3c6       _get_short_arg             1002d3c6 f   LIBC:output.obj
+ 0001:0002cd21       $$$00003                   1002dd21 f   LIBC:exsup3.obj
+ 0001:0002cd21       ?TypeMatch@@YAHPBU_s_HandlerType@@PBU_s_CatchableType@@PBU_s_ThrowInfo@@@Z 1002dd21 f   LIBC:frame.obj
+ 0001:0002cd70       ?FrameUnwindFilter@@YAHPAU_EXCEPTION_POINTERS@@@Z 1002dd70 f   LIBC:frame.obj
+ 0001:0002ce46       ?ExFilterRethrow@@YAHPAU_EXCEPTION_POINTERS@@@Z 1002de46 f   LIBC:frame.obj
+ 0001:0002cebb       ?AdjustPointer@@YAPAXPAXABUPMD@@@Z 1002debb f   LIBC:frame.obj
+ 0001:0002d073       ?CallCatchBlock@@YAPAXPAUEHExceptionRecord@@PAUEHRegistrationNode@@PAU_CONTEXT@@PBU_s_FuncInfo@@PAXHK@Z 1002e073 f   LIBC:frame.obj
+ 0001:0002d21d       ?BuildCatchObject@@YAXPAUEHExceptionRecord@@PAXPBU_s_HandlerType@@PBU_s_CatchableType@@@Z 1002e21d f   LIBC:frame.obj
+ 0001:0002d4a1       ?CatchIt@@YAXPAUEHExceptionRecord@@PAUEHRegistrationNode@@PAU_CONTEXT@@PAXPBU_s_FuncInfo@@PBU_s_HandlerType@@PBU_s_CatchableType@@PBU_s_TryBlockMapEntry@@H1E@Z 1002e4a1 f   LIBC:frame.obj
+ 0001:0002d508       ?FindHandlerForForeignException@@YAXPAUEHExceptionRecord@@PAUEHRegistrationNode@@PAU_CONTEXT@@PAXPBU_s_FuncInfo@@HH1@Z 1002e508 f   LIBC:frame.obj
+ 0001:0002d5c4       ?FindHandler@@YAXPAUEHExceptionRecord@@PAUEHRegistrationNode@@PAU_CONTEXT@@PAXPBU_s_FuncInfo@@EH1@Z 1002e5c4 f   LIBC:frame.obj
+ 0001:0002d9cc       _flsall                    1002e9cc f   LIBC:fflush.obj
+ 0001:0002dbd3       __initterm                 1002ebd3 f   LIBC:crt0dat.obj
+ 0001:0002dbeb       __initterm_e               1002ebeb f   LIBC:crt0dat.obj
+ 0001:0002dc73       _doexit                    1002ec73 f   LIBC:crt0dat.obj
+ 0001:0002dd74       _ctrlevent_capture@4       1002ed74 f   LIBC:winsig.obj
+ 0001:0002ddac       _siglookup                 1002edac f   LIBC:winsig.obj
+ 0001:0002e10f       _xtoa                      1002f10f f   LIBC:xtoa.obj
+ 0001:0002e1b8       _x64toa@20                 1002f1b8 f   LIBC:xtoa.obj
+ 0001:0002e3b5       _report_failure            1002f3b5 f   LIBC:secchk.obj
+ 0001:0002e4c4       __hextodec                 1002f4c4 f   LIBC:input.obj
+ 0001:0002e4f6       __inc                      1002f4f6 f   LIBC:input.obj
+ 0001:0002e50c       __un_inc                   1002f50c f   LIBC:input.obj
+ 0001:0002e519       __whiteout                 1002f519 f   LIBC:input.obj
+ 0001:000307ef       _strncnt                   100317ef f   LIBC:a_map.obj
+ 0001:00030c2e       ?GetImageInfo@@YAPAUImageInfo@@K@Z 10031c2e f   LIBC:pdblkup.obj
+ 0001:00030f7f       ?GetPdbDll@@YAPAUHINSTANCE__@@XZ 10031f7f f   LIBC:pdblkup.obj
+ 0001:00031813       _cvtdate                   10032813 f   LIBC:tzset.obj
+ 0001:00031f6d       _parse_cmdline             10032f6d f   LIBC:stdargv.obj
+ 0001:00032325       _xcptlookup                10033325 f   LIBC:winxfltr.obj
+ 0001:00033090       _getSystemCP               10034090 f   LIBC:mbctype.obj
+ 0001:000330d6       _CPtoLCID                  100340d6 f   LIBC:mbctype.obj
+ 0001:00033105       _setSBCS                   10034105 f   LIBC:mbctype.obj
+ 0001:0003312e       _setSBUpLow                1003412e f   LIBC:mbctype.obj
+ 0001:000347ab       _strncnt                   100357ab f   LIBC:a_cmp.obj
+ 0001:00034b4b       _findenv                   10035b4b f   LIBC:setenv.obj
+ 0001:00034b98       _copy_environ              10035b98 f   LIBC:setenv.obj
+ 0001:00035050       __unwindfunclet$??0ChatSystem@@QAE@XZ$0 10036050 f   cs_chat.obj
+ 0001:0003505e       __ehhandler$??0ChatSystem@@QAE@XZ 1003605e f   cs_chat.obj
+ 0001:00035070       __unwindfunclet$??1ChatSystem@@QAE@XZ$0 10036070 f   cs_chat.obj
+ 0001:0003507e       __unwindfunclet$??1ChatSystem@@QAE@XZ$1 1003607e f   cs_chat.obj
+ 0001:00035096       __ehhandler$??1ChatSystem@@QAE@XZ 10036096 f   cs_chat.obj
+ 0001:000350a0       __unwindfunclet$?EnterPersonalMessage@@YAXPAD_N@Z$0 100360a0 f   GSC_ChatWindow.obj
+ 0001:000350b5       __unwindfunclet$?EnterPersonalMessage@@YAXPAD_N@Z$1 100360b5 f   GSC_ChatWindow.obj
+ 0001:000350ca       __unwindfunclet$?EnterPersonalMessage@@YAXPAD_N@Z$2 100360ca f   GSC_ChatWindow.obj
+ 0001:000350df       __ehhandler$?EnterPersonalMessage@@YAXPAD_N@Z 100360df f   GSC_ChatWindow.obj
+ 0001:000350f0       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$0 100360f0 f   GSC_ChatWindow.obj
+ 0001:000350f8       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$1 100360f8 f   GSC_ChatWindow.obj
+ 0001:0003510a       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$2 1003610a f   GSC_ChatWindow.obj
+ 0001:0003511c       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$3 1003611c f   GSC_ChatWindow.obj
+ 0001:0003512e       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$4 1003612e f   GSC_ChatWindow.obj
+ 0001:00035140       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$5 10036140 f   GSC_ChatWindow.obj
+ 0001:00035152       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$6 10036152 f   GSC_ChatWindow.obj
+ 0001:00035164       __unwindfunclet$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z$7 10036164 f   GSC_ChatWindow.obj
+ 0001:00035179       __ehhandler$?Process_GSC_ChatWindow@@YAH_NPAURoomInfo@@@Z 10036179 f   GSC_ChatWindow.obj
+ 0001:00035190       __unwindfunclet$?StartGSCGame@@YAXPAD0HPAHPAPAD11@Z$0 10036190 f   GSC_ChatWindow.obj
+ 0001:0003519b       __ehhandler$?StartGSCGame@@YAXPAD0HPAHPAPAD11@Z 1003619b f   GSC_ChatWindow.obj
+ 0001:000351b0       __unwindfunclet$?ReportGSCGame@@YAXHHPAUOnePlayerReport@@@Z$0 100361b0 f   GSC_ChatWindow.obj
+ 0001:000351b8       __ehhandler$?ReportGSCGame@@YAXHHPAUOnePlayerReport@@@Z 100361b8 f   GSC_ChatWindow.obj
+ 0001:000351d0       __unwindfunclet$?ReportAliveState@@YAXHPAH@Z$0 100361d0 f   GSC_ChatWindow.obj
+ 0001:000351d8       __ehhandler$?ReportAliveState@@YAXHPAH@Z 100361d8 f   GSC_ChatWindow.obj
+ 0001:000351f0       __unwindfunclet$?SendVictoryState@@YAXHE@Z$0 100361f0 f   GSC_ChatWindow.obj
+ 0001:000351f8       __ehhandler$?SendVictoryState@@YAXHE@Z 100361f8 f   GSC_ChatWindow.obj
+ 0001:00035210       __ehhandler$?Extract@ParsedRQ@@QAEXPADH@Z 10036210 f   ParseRQ.obj
+ 0001:00035220       _$E1                       10036220 f   GSC_ChatWindow.obj
+ 0001:00035270       _$E4                       10036270 f   GSC_ChatWindow.obj
+ 0001:000352c0       _$E2                       100362c0 f   GSC_ChatWindow.obj
+ 0001:00035300       _$E5                       10036300 f   GSC_ChatWindow.obj

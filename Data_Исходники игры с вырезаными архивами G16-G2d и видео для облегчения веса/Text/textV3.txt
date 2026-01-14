@@ -1,0 +1,4 @@
+Setl_Settlement Поселение
+Setl_Goods Товар
+Setl_Workers Рабочие
+Setl_Owner Хозяин

@@ -1,0 +1,18 @@
+<>
+ <cvi_Campaign>
+  <Name></Name>
+  <Missions></Missions>
+  <DeskName></DeskName>
+  <Over>00000000</Over>
+  <Finished>00000000</Finished>
+  <Next>00000000</Next>
+  <Selected>00000000</Selected>
+  <Frontier>00000000</Frontier>
+  <heroGP>icons</heroGP>
+  <heroSPR>0</heroSPR>
+  <heroGP_Left>icons</heroGP_Left>
+  <heroGP_Right>icons</heroGP_Right>
+  <heroDx>0</heroDx>
+  <heroDy>0</heroDy>
+ </cvi_Campaign>
+</>

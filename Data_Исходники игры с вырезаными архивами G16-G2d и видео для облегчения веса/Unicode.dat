@@ -1,0 +1,12 @@
+3
+Interface\ISymb2
+Interface\signs_0
+Interface\signs_2
+2
+MainFont  3 
+-4 -2    0    3  0  0 Interface\ISymb2
+-4 -1    23   2  0  0 Interface\signs_2
+-4  -3    25   2  0  0 Interface\signs_0
+rom10 2
+-4 -1    23   2  0  0 Interface\signs_2
+-4  -3    25   2  0  0 Interface\signs_0

@@ -1,0 +1,36 @@
+<terra>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<ColorVertex>True</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<NormalizeNormals>False</NormalizeNormals>
+				<CullMode>None</CullMode>
+				<Lighting>True</Lighting>
+				<FillMode>Solid</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>False</DitherEnable>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<DiffuseMaterialSource>Color1</DiffuseMaterialSource>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MinFilter>Point</MinFilter>
+				<MipFilter>None</MipFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<TexCoordIndex>PassThru</TexCoordIndex>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</terra>

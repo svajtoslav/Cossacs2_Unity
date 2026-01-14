@@ -1,0 +1,40 @@
+//skill factor p=p0*A1/(A1+NKilled)
+A1 1
+//hungry factor p=p0*(1+HF1/(HF2+(t-t_hungry)^2))
+HF1 5000
+HF2 1000
+//command center lost factor p=p0*(1+CF1/(CF2+(t-t_lost)^2))
+CF1 5000
+CF2 1000
+//officer killed p=p0*OFN1/100
+OFN1 125
+//drummer lost p=p0*DRF1/100
+DRF1 125
+//znamenonocez lost p=p0*FLF1/100
+FLF1 150
+//FP1% of formation killed p=p0*FKF1/100
+FP1 30
+FKF1 500
+//formation bonus p=p0*100/(100+NMemb*100/FB1)
+FB1 10
+//formation skill bonus p=p0*FA1/(FA1+NKilled)
+FA1 10
+//officer skill bonus p=p0*OFA1/(OFA1+NKilled*OFA2)
+OFA1 100
+OFA2 10
+//distance from command center p=p0/(1+(PANIC_CCA-1)*exp(-(R/CCR0R)**2)
+CCA 5
+CCR0 1000
+//
+STEPS 3
+//Vera V>0 p=p0/(1-V*VeraFactor/256) V<0 p=p0*(1+V*VeraFactor/256)
+VERAFACTOR 192
+DAMPERCENT0 100
+DAMPERCENTBACK0 100
+DAMPERCENT1 100
+DAMPERCENTBACK1 300
+DAMPERCENT2 10
+DAMPERCENTBACK2 30
+DAMPERCENT3 10
+DAMPERCENTBACK3 30
+MINVERA 1

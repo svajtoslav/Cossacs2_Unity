@@ -1,0 +1,34 @@
+[MEMBERS]
+AnmVep(AN) AnmVep
+AnmOlnG(AN) AnmOlnG
+AnmOlnT(AN) AnmOlnT
+AnmKosG(AN) AnmKosG
+AnmKosT(AN) AnmKosT
+AnmBik(AN) AnmBik
+AnmKor1(AN) AnmKor1
+AnmKor2(AN) AnmKor2
+AnmBar(AN) AnmBar
+AnmOvc(AN) AnmOvc
+AnmSwiW(AN) AnmSwiW
+AnmSwiB(AN) AnmSwiB
+[COUNTRY]
+ANIMALS 13
+#AMINALS
+AnmVep(AN)
+AnmOlnG(AN)
+AnmOlnT(AN)
+AnmKosG(AN)
+AnmKosT(AN)
+AnmBik(AN) 
+AnmKor1(AN)
+AnmKor2(AN)
+AnmBar(AN) 
+AnmOvc(AN)
+AnmSwiW(AN)
+AnmSwiB(AN) 
+[OFFICERS]
+AnmSwiW(AN) AnmSwiB(AN)  3
+SQUARE 1 #PRUS60COS  1 AnmVep(AN)
+LINE   1 #TRI1COS60  1 AnmVep(AN)
+KARE   1 #SHER2COS   1 AnmVep(AN)
+[END]

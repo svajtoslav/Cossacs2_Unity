@@ -1,0 +1,43 @@
+<overlay>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>One</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>0x00000004</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<ZFunc>Less</ZFunc>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Diffuse</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Diffuse</AlphaArg1>
+				<AlphaArg2>Texture</AlphaArg2>
+				<AddressU>Mirror</AddressU>
+				<AddressV>Mirror</AddressV>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Current</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Current</AlphaArg1>
+				<AlphaArg2>Texture</AlphaArg2>
+				<TexCoordIndex>1</TexCoordIndex>
+				<AddressU>Mirror</AddressU>
+				<AddressV>Mirror</AddressV>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+			</TextureStageState>
+</overlay>

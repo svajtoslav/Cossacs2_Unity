@@ -1,0 +1,16 @@
+<Wire>
+			<RenderState>
+				<FillMode>Wireframe</FillMode>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</Wire>

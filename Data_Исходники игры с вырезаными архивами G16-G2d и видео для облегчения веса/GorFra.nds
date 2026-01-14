@@ -1,0 +1,52 @@
+[MEMBERS]
+GorFraDom1_1(GFR)    GorFraDom1_1
+GorFraDom1_2(GFR)    GorFraDom1_2
+GorFraDom1_3(GFR)    GorFraDom1_3
+GorFraDom1_4(GFR)    GorFraDom1_4
+GorFraDom2_1(GFR)    GorFraDom2_1
+GorFraDom2_2(GFR)    GorFraDom2_2
+GorFraDom2_3(GFR)    GorFraDom2_3
+GorFraDom2_4(GFR)    GorFraDom2_4
+GorFraDom3_1(GFR)    GorFraDom3_1
+GorFraDom3_2(GFR)    GorFraDom3_2
+GorFraDom4_1(GFR)    GorFraDom4_1
+GorFraDom4_2(GFR)    GorFraDom4_2
+GorFraDom4_3(GFR)    GorFraDom4_3
+GorFraDom4_4(GFR)    GorFraDom4_4
+GorFraDom5_1(GFR)    GorFraDom5_1
+GorFraDom5_2(GFR)    GorFraDom5_2
+GorFraDom6_1(GFR)    GorFraDom6_1
+GorFraDom6_2(GFR)    GorFraDom6_2
+GorFraMag1_2(GFR)    GorFraMag1_2
+GorFraMag1_1(GFR)    GorFraMag1_1
+GorFraUti1_1(GFR)    GorFraUti1_1
+GorFraDom8_1(GFR)    GorFraDom8_1
+GorFraDom7_1(GFR)    GorFraDom7_1
+
+[COUNTRY]
+GORFRA 24
+#BUILDINGS
+GorFraDom1_1(GFR)
+GorFraDom1_2(GFR)
+GorFraDom1_3(GFR)
+GorFraDom1_4(GFR)
+GorFraDom2_1(GFR)
+GorFraDom2_2(GFR)
+GorFraDom2_3(GFR)
+GorFraDom2_4(GFR)
+GorFraDom3_1(GFR)
+GorFraDom3_2(GFR)
+GorFraDom4_1(GFR)
+GorFraDom4_2(GFR)
+GorFraDom4_3(GFR)
+GorFraDom4_4(GFR)
+GorFraDom5_1(GFR)
+GorFraDom5_2(GFR)
+GorFraDom6_1(GFR)
+GorFraDom6_2(GFR)
+GorFraMag1_2(GFR)
+GorFraMag1_1(GFR)
+GorFraUti1_1(GFR)
+GorFraDom8_1(GFR)
+GorFraDom7_1(GFR)
+[END]

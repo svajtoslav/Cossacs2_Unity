@@ -1,0 +1,2 @@
+#EW2_CloseVideo_hint Отключить видео
+#EW2_CloseInfo_hint Закрыть исторические сведения

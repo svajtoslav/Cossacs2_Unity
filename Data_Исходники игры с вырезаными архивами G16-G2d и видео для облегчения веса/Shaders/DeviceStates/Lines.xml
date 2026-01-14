@@ -1,0 +1,20 @@
+<Lines>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Diffuse</ColorArg1>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Diffuse</AlphaArg1>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+			</TextureStageState>
+</Lines>

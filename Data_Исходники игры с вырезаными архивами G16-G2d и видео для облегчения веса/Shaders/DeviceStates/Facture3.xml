@@ -1,0 +1,35 @@
+<Facture3>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>DestColor</SrcBlend>
+				<DestBlend>SrcColor</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>0x00000004</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+				<TextureFactor>0x80808080</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>BlendDiffuseAlpha</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Tfactor</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Diffuse</AlphaArg1>
+				<AlphaArg2>Texture</AlphaArg2>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<MipFilter>Linear</MipFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</Facture3>

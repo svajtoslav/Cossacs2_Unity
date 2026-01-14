@@ -1,0 +1,23 @@
+FASTMOD Ѕыстрый режим 
+SLOWMOD ћедленный режим 
+VICOND0 ”ничтожение 
+//VICOND1 «ахват территории 
+VICOND2 ќчки 
+TIME0 30 м.
+-TIME0 30
+TIME1 45 м.
+-TIME1 45
+TIME2 1 ч.
+-TIME2 60
+TIME3 1.5 ч.
+-TIME3 90
+TIME4 2 ч.
+-TIME4 120
+TIME5 4 ч.
+-TIME5 240
+TIME6 8 ч.
+-TIME6 480
+PLEXIT »грок %s вышел из игры. 
+BESTPL Ћучший: %s 
+GOLDFIN “–≈¬ќ√ј! »—„≈–ѕјЌџ «јѕј—џ «ќЋќ“ј! ћя“≈∆ Ќ≈»«Ѕ≈∆≈Ќ! 
+PAUSETEXT ѕј”«ј

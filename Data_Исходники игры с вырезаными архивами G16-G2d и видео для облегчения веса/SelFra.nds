@@ -1,0 +1,52 @@
+[MEMBERS]
+SelFraDom1_1(SFR)  SelFraDom1_1
+SelFraDom1_2(SFR)  SelFraDom1_2
+SelFraDom1_3(SFR)  SelFraDom1_3
+SelFraDom1_4(SFR)  SelFraDom1_4
+SelFraDom2_1(SFR)  SelFraDom2_1
+SelFraDom2_2(SFR)  SelFraDom2_2
+SelFraDom2_3(SFR)  SelFraDom2_3
+SelFraDom2_4(SFR)  SelFraDom2_4
+SelFraDom3_1(SFR)  SelFraDom3_1
+SelFraDom3_2(SFR)  SelFraDom3_2
+SelFraDom3_3(SFR)  SelFraDom3_3
+SelFraDom3_4(SFR)  SelFraDom3_4
+SelFraDom4_1(SFR)  SelFraDom4_1
+SelFraDom4_2(SFR)  SelFraDom4_2
+SelFraDom4_3(SFR)  SelFraDom4_3
+SelFraDom4_4(SFR)  SelFraDom4_4
+SelFraDom5_1(SFR)  SelFraDom5_1
+SelFraDom5_2(SFR)  SelFraDom5_2
+SelFraDom5_3(SFR)  SelFraDom5_3
+SelFraDom5_4(SFR)  SelFraDom5_4
+SelFraDom6_1(SFR)  SelFraDom6_1
+SelFraDom6_2(SFR)  SelFraDom6_2
+                              
+
+[COUNTRY]
+SELFRA 23
+#BUILDINGS
+SelFraDom1_1(SFR)
+SelFraDom1_2(SFR)
+SelFraDom1_3(SFR)
+SelFraDom1_4(SFR)
+SelFraDom2_1(SFR)
+SelFraDom2_2(SFR)
+SelFraDom2_3(SFR)
+SelFraDom2_4(SFR)
+SelFraDom3_1(SFR)
+SelFraDom3_2(SFR)
+SelFraDom3_3(SFR)
+SelFraDom3_4(SFR)
+SelFraDom4_1(SFR)
+SelFraDom4_2(SFR)
+SelFraDom4_3(SFR)
+SelFraDom4_4(SFR)
+SelFraDom5_1(SFR)
+SelFraDom5_2(SFR)
+SelFraDom5_3(SFR)
+SelFraDom5_4(SFR)
+SelFraDom6_1(SFR)
+SelFraDom6_2(SFR)
+
+[END]

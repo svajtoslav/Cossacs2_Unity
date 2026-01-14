@@ -1,0 +1,37 @@
+<Ground>
+			<RenderState>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ColorVertex>False</ColorVertex>
+				<CullMode>None</CullMode>
+				<FillMode>Solid</FillMode>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<FogEnable>False</FogEnable>
+				<FogColor>fogColor</FogColor>
+				<FogStart>150.000000</FogStart>
+				<FogEnd>200.000000</FogEnd>
+				<FogDensity>0.010000</FogDensity>
+				<FogTableMode>Exp</FogTableMode>
+				<FogVertexMode>Exp</FogVertexMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<MipFilter>None</MipFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>None</MinFilter>
+				<MagFilter>None</MagFilter>
+				<MipFilter>None</MipFilter>
+			</TextureStageState>
+</Ground>

@@ -1,0 +1,18 @@
+#ifndef __CALSS_TYPE_LIST__
+#define __CALSS_TYPE_LIST__
+
+// Value Type ////////////////////////////////////////////////////////////
+#define _ssValue_		('VT'*0x100+0 )
+#define _ssVoid_		('VT'*0x100+1 )
+#define _ssBool_		('VT'*0x100+2 )
+#define _ssInt_			('VT'*0x100+3 )
+#define _ssFloat_		('VT'*0x100+4 )
+#define _ssStr_			('VT'*0x100+5 )
+//////////////////////////////////////////////////////////////////////////
+
+// Moduls Type ///////////////////////////////////////////////////////////
+#define _ssBaseFunction_	('MT'*0x100+0 )
+#define _csBaseModul_		('MT'*0x100+1 )
+//////////////////////////////////////////////////////////////////////////
+
+#endif//__CALSS_TYPE_LIST__

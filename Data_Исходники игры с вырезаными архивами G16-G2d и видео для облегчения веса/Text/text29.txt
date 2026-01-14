@@ -1,0 +1,11 @@
+NEUTRAL Нейтралы
+ANIMALS Животные
+SHIPS Корабли
+SOUND Звук
+
+INFANTRY Пехота
+CAVALRY Кавалерия
+ARTILERY Артиллерия
+BUILDINGS Здания
+
+FORMATION Отряд

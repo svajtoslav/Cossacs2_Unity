@@ -1,0 +1,6 @@
+LOADING Загрузка...
+WAITPL Одну минуту...
+Assume_HR_P_Formation Выстроиться в колонну 
+Assume_HR_TRI_Formation Выстроиться клином 
+Assume_HR_LINE_Formation Выстроиться в линию 
+

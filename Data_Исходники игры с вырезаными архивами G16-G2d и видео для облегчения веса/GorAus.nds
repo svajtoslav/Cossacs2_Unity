@@ -1,0 +1,73 @@
+[MEMBERS]
+GorAusDom1_1(GAU) GorAusDom1_1 
+GorAusDom1_2(GAU) GorAusDom1_2 
+GorAusDom2_1(GAU) GorAusDom2_1 
+GorAusDom2_2(GAU) GorAusDom2_2 
+GorAusDom3_1(GAU) GorAusDom3_1 
+GorAusDom3_2(GAU) GorAusDom3_2 
+GorAusDom4_1(GAU) GorAusDom4_1 
+GorAusDom4_2(GAU) GorAusDom4_2 
+GorAusDom5_1(GAU) GorAusDom5_1 
+GorAusDom5_2(GAU) GorAusDom5_2 
+GorAusDom5_3(GAU) GorAusDom5_3 
+GorAusDom5_4(GAU) GorAusDom5_4 
+GorAusDom6_1(GAU) GorAusDom6_1
+GorAusDom6_2(GAU) GorAusDom6_2
+GorAusDom6_3(GAU) GorAusDom6_3
+GorAusDom6_4(GAU) GorAusDom6_4
+GorAusDom7_1(GAU) GorAusDom7_1
+GorAusDom7_2(GAU) GorAusDom7_2
+GorAusDom7_3(GAU) GorAusDom7_3
+GorAusDom7_4(GAU) GorAusDom7_4
+GorAusDom7_5(GAU) GorAusDom7_5
+GorAusDom7_6(GAU) GorAusDom7_6
+GorAusDom7_7(GAU) GorAusDom7_7
+GorAusDom7_8(GAU) GorAusDom7_8
+GorAusDom8_1(GAU) GorAusDom8_1
+GorAusDom9_1(GAU) GorAusDom9_1
+GorAusDom9_2(GAU) GorAusDom9_2    
+GorAusDom9_3(GAU) GorAusDom9_3
+GorAusDom9_4(GAU) GorAusDom9_4
+GorAusDom9_5(GAU) GorAusDom9_5
+GorAusDom9_6(GAU) GorAusDom9_6
+GorAusDom9_7(GAU) GorAusDom9_7
+GorAusDom9_8(GAU) GorAusDom9_8
+
+[COUNTRY]
+GORAUS 34
+#BUILDINGS
+GorAusDom1_1(GAU)
+GorAusDom1_2(GAU)
+GorAusDom2_1(GAU)
+GorAusDom2_2(GAU)
+GorAusDom3_1(GAU)
+GorAusDom3_2(GAU)
+GorAusDom4_1(GAU)
+GorAusDom4_2(GAU)
+GorAusDom5_1(GAU)
+GorAusDom5_2(GAU)
+GorAusDom5_3(GAU)
+GorAusDom5_4(GAU)
+GorAusDom6_1(GAU)
+GorAusDom6_2(GAU)
+GorAusDom6_3(GAU)
+GorAusDom6_4(GAU)
+GorAusDom7_1(GAU)
+GorAusDom7_2(GAU)
+GorAusDom7_3(GAU)
+GorAusDom7_4(GAU)
+GorAusDom7_5(GAU)
+GorAusDom7_6(GAU)
+GorAusDom7_7(GAU)
+GorAusDom7_8(GAU)
+GorAusDom8_1(GAU)
+GorAusDom9_1(GAU)
+GorAusDom9_2(GAU)     
+GorAusDom9_3(GAU)
+GorAusDom9_4(GAU)
+GorAusDom9_5(GAU)
+GorAusDom9_6(GAU)
+GorAusDom9_7(GAU)
+GorAusDom9_8(GAU)
+
+[END]

@@ -1,0 +1,206 @@
+ABLINE0 GSC Game World
+ABLINE1  
+ABLINE2 Авторы
+ABLINE3  
+ABLINE4 Продюсер/директор
+ABLINE5 Сергей "-GSC-" Григорович
+ABLINE6  
+ABLINE7 Руководитель проекта
+ABLINE8 Евгений "-GEC-" Григорович
+ABLINE9  
+ABLINE10 Заместитель директора
+ABLINE11 Антон Большаков
+ABLINE12 
+ABLINE13 Ведущий программист
+ABLINE14 Андрей Шпагин
+ABLINE15 
+ABLINE16 Программирование
+ABLINE17 Виталий Лысенко
+ABLINE18 Александр Лазарь
+ABLINE19 Руслан Шестопалюк
+ABLINE20 Андрей Фролов
+ABLINE21 Анатолий Чистопалюк
+ABLINE22 Сергей "ManOwaR" Иванцов
+ABLINE23 
+ABLINE24 Программирование "Битва за Европу"
+ABLINE25 Сергей "Moby dick" Дешко
+ABLINE26 
+ABLINE27 Гейм-дизайнер
+ABLINE28 Александр Чучкевич
+ABLINE29 
+ABLINE30 Ассистент гейм-дизайнера 
+ABLINE31 Андрей "Diallin" Стабровский
+ABLINE32 
+ABLINE33 Ведущий тестер
+ABLINE34 Александр "Diehard" Васильконов
+ABLINE35 
+ABLINE36 Тестеры
+ABLINE37 Денис "Hireling" Шубовский
+ABLINE38 Сергей "Freeman" Грицай
+ABLINE39 Виктор "Unforgiven" Концевич
+ABLINE40 Владимир "Fresh" Ежов
+ABLINE41 Максим "Max" Емец
+ABLINE42 Евгений "John" Гордиенко
+ABLINE43 Александр "Olimp" Ильницкий
+ABLINE44 Владислав "Ataman" Насад
+ABLINE45 Сергей Сальников
+ABLINE46 
+ABLINE47 Ведущий дизайнер миссий
+ABLINE48 Виктор Левченко
+ABLINE49 
+ABLINE50 Дизайнеры миссий
+ABLINE51 Андрей "Matron" Мотузков
+ABLINE52 Даниил "BugCop" Меранов
+ABLINE53 Ярослав "Smoke" Шкляр
+ABLINE54 Сергей "Pako" Стороженко
+ABLINE55 
+ABLINE56 Ведущие дизайнеры карт
+ABLINE57 Тимофей "TimUr" Урсуленко
+ABLINE58 Николай "Tiamat" Морозов
+ABLINE59 
+ABLINE60 Дизайнеры карт
+ABLINE61 Алексей "Fara" Онищенко
+ABLINE62 Владимир "Razor" Мотлях
+ABLINE63 Алекс Драгон
+ABLINE64 
+ABLINE65 Ведущий дизайнер
+ABLINE66 Андрей Заволокин
+ABLINE67 
+ABLINE68 Главный дизайнер интерфейса
+ABLINE69 Роман Несин
+ABLINE70 
+ABLINE71 Дизайнеры интерфейса
+ABLINE72 Ольга Троекурова
+ABLINE73 Владимир Котов
+ABLINE74 
+ABLINE75 Художник
+ABLINE76 Иван Хивренко
+ABLINE77 
+ABLINE78 Ведущий 3D дизайнер
+ABLINE79 Сергей Заволокин
+ABLINE80 
+ABLINE81 ЗD дизайнеры
+ABLINE82 Виталий Мисютин
+ABLINE83 Сергей Кружельный
+ABLINE84 Андрей Еськов
+ABLINE85 Андрей Луцкевич
+ABLINE86 
+ABLINE87 Ведущий аниматор
+ABLINE88 Павел Маркевич
+ABLINE89 
+ABLINE90 Аниматоры
+ABLINE91 Алексей Кублицкий
+ABLINE92 Надежда Бабарыка
+ABLINE93 
+ABLINE94 Технический рендер
+ABLINE95 Александр "Alex" Демиденко
+ABLINE96            
+ABLINE97 Видеомонтаж
+ABLINE98 Василий Гуралевич
+ABLINE99 
+ABLINE100 Звукорежиссёр
+ABLINE101 Дмитрий Кузьменко
+ABLINE102 
+ABLINE103 Композитор
+ABLINE104 Алексей Омельчук
+ABLINE105 
+ABLINE106 Озвучивание видео-ролика
+ABLINE107 Randall Thomas (Fader8 Production)
+ABLINE108                    
+ABLINE109 Директор по продажам
+ABLINE110 Сергей "nelper" Грушко
+ABLINE111 
+ABLINE112 Менеджер по продажам
+ABLINE113 Андрей Сальников
+ABLINE114 
+ABLINE115 Главный PR-менеджер
+ABLINE116 Олег Яворский
+ABLINE117 
+ABLINE118 PR-менеджер проекта
+ABLINE119 Юрий "Drakon v palto" Бесараб
+ABLINE120  
+ABLINE121 PR-менеджеры
+ABLINE122 Анна Зинченко
+ABLINE123 Алексей "Giraffe" Савченко
+ABLINE124                      
+ABLINE125 Техническая поддержка
+ABLINE126 Роман "ShoDan" Лупашевский
+ABLINE127 
+ABLINE128 Менеджер по локализации
+ABLINE129 Роман "ShoDan" Лупашевский
+ABLINE130 
+ABLINE131 Локализация
+ABLINE132 Евгений Кучма
+ABLINE133  
+ABLINE134 Исторический консультант
+ABLINE135 Андрей Заволокин
+ABLINE136 
+ABLINE137 Ассистент исторического консультанта
+ABLINE138 Николай "Alador" Волчков
+ABLINE139  
+ABLINE140 Ассистент исторического консультанта
+ABLINE141 Владимир "Vic" Авдеев
+ABLINE142 
+ABLINE143 Корректировка текстов
+ABLINE144 Владимир Литвиненко
+ABLINE145 
+ABLINE146 Энциклопедия
+ABLINE147 Андрей "Nestor_Izuit" Боднар
+ABLINE148 
+ABLINE149                                                 
+ABLINE150 Отдельная благодарность
+ABLINE151 
+ABLINE152 Обществу археологии и антропологии при
+ABLINE153 Государственном Университете
+ABLINE154 
+ABLINE155 2-му полку Легиона Вислы (фр.) (Киев)
+ABLINE156 
+ABLINE157 Минскому пехотному полку (рус.) (Минск)
+ABLINE158 
+ABLINE159 Гвардейскому Морскому экипажу (рус.) (СПБ)
+ABLINE160 
+ABLINE161 Студии "Леста"
+ABLINE162 
+ABLINE163 Martin Walter (Австрия)
+ABLINE164 
+ABLINE165 Ростовцеву "=Patron=" Михаилу за помощь в
+ABLINE166 доработке проекта
+ABLINE167 
+ABLINE168 А также Наталье Луговой, Наталье Авдеенко,
+ABLINE169 Татьяне Перепичай
+ABLINE170 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

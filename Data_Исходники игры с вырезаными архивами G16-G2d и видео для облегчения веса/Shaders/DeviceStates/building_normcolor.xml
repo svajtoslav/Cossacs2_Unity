@@ -1,0 +1,42 @@
+<building_normcolor>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>0xB0</AlphaRef>
+				<DitherEnable>False</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>True</ZEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<ZWriteEnable>True</ZWriteEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate2x</ColorOp>
+				<ColorArg1>Diffuse</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Diffuse</AlphaArg1>
+				<AlphaArg2>Texture</AlphaArg2>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Modulate2x</ColorOp>
+				<ColorArg1>Current</ColorArg1>
+				<ColorArg2>Tfactor</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Current</AlphaArg1>
+				<AlphaArg2>Texture</AlphaArg2>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+			</TextureStageState>
+</building_normcolor>

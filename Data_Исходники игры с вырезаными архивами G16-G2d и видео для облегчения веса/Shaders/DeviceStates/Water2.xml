@@ -1,0 +1,44 @@
+<Water2>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>0x00000001</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+				<TextureFactor>0xFF608070</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Diffuse</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Diffuse</AlphaArg1>
+				<AlphaArg2>Texture</AlphaArg2>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<MipFilter>None</MipFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Current</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Current</AlphaArg1>
+				<AlphaArg2>Texture</AlphaArg2>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<MipFilter>None</MipFilter>
+			</TextureStageState>
+</Water2>

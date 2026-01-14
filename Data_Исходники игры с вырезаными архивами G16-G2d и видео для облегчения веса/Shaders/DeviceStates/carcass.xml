@@ -1,0 +1,34 @@
+<carcass>
+	<RenderState>
+		<AlphaBlendEnable>True</AlphaBlendEnable>
+		<AlphaTestEnable>True</AlphaTestEnable>
+		<AlphaRef>0x000000AA</AlphaRef>
+		<ColorVertex>False</ColorVertex>
+		<SpecularEnable>False</SpecularEnable>
+		<NormalizeNormals>False</NormalizeNormals>
+		<CullMode>None</CullMode>
+		<Lighting>False</Lighting>
+		<FillMode>Solid</FillMode>
+		<DitherEnable>True</DitherEnable>
+		<TextureTransformFlags>Count2</TextureTransformFlags>
+		<ZEnable>True</ZEnable>
+		<ZWriteEnable>True</ZWriteEnable>
+		<ZFunc>LessEqual</ZFunc>
+		<TextureFactor>0xFFFFFFFB</TextureFactor>
+	</RenderState>
+	<TextureStageState Stage="0">
+		<LightEnable>False</LightEnable>
+		<ColorOp>SelectArg1</ColorOp>
+		<ColorArg1>Texture</ColorArg1>
+		<ColorArg2>Diffuse</ColorArg2>
+		<AlphaOp>SelectArg1</AlphaOp>
+		<AlphaArg1>Texture</AlphaArg1>
+		<AlphaArg2>Diffuse</AlphaArg2>
+		<MipFilter>Point</MipFilter>
+		<MinFilter>Linear</MinFilter>
+		<MagFilter>Point</MagFilter>
+		<AddressU>Wrap</AddressU>
+		<AddressV>Wrap</AddressV>
+		<TexCoordIndex>PassThru</TexCoordIndex>
+	</TextureStageState>
+</carcass>

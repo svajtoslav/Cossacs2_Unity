@@ -1,0 +1,40 @@
+[MEMBERS]
+AusMay(DR)  AusMay
+BldArs(DR)  BldArs
+BldLes(DR)  BldLes
+BldMan(DR)  BldMan
+BldRudGln(DR)  BldRudGln
+BldRudKam(DR)  BldRudKam
+BldRudRud(DR)  BldRudRud
+BldRudSel(DR)  BldRudSel
+BldRudUgl(DR)  BldRudUgl
+EgpArs(DR)  EgpArs
+EgpMan(DR)  EgpMan
+EgpMay(DR)  EgpMay
+EgpMel(DR)  EgpMel
+EngVer(DR)  EngVer
+FrnMay(DR)  FrnMay
+FrnMel(DR)  FrnMel
+PruVer(DR)  PruVer
+
+[COUNTRY]
+DRAGON 18
+#BUILDINGS
+AusMay(DR)
+BldArs(DR)
+BldLes(DR)
+BldMan(DR)
+BldRudGln(DR)
+BldRudKam(DR)
+BldRudRud(DR)
+BldRudSel(DR)
+BldRudUgl(DR)
+EgpArs(DR)
+EgpMan(DR)
+EgpMay(DR)
+EgpMel(DR)
+EngVer(DR)
+FrnMay(DR)
+FrnMel(DR)
+PruVer(DR)
+[END]

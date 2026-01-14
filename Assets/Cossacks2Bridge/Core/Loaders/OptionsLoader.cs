@@ -196,6 +196,7 @@ namespace Cossacks2Bridge.Core.Loaders
             // VitButton (Multi)
             // VitButton (Multi)
             // VitButton (Multi) — БЕЗ проверки IsInsideContainer!
+            // VitButton (Multi)
             foreach (var block in FindAllBlocks(xml, "VitButton"))
             {
                 var node = new UiVitButton();
@@ -208,20 +209,10 @@ namespace Cossacks2Bridge.Core.Loaders
                 node.Width = GetContainerCoord(block, "Width");
                 node.Height = GetContainerCoord(block, "Height");
 
-                // ✅ Пропускаем VitButton с нулевыми координатами И размерами (это корневой контейнер)
+                // Пропускаем корневой VitButton (x=0, y=0, часто шаблон внутри ListDesk)
                 if (node.X == 0 && node.Y == 0)
                 {
                     Debug.Log($"[OptionsLoader] SKIP root VitButton at (0,0)");
-
-                    // Но всё равно проверяем InputBox внутри!
-                    string vitChildDialogs = GetTagValue(block, "ChildDialogs");
-                    if (!string.IsNullOrEmpty(vitChildDialogs))
-                    {
-                        foreach (var inner in FindAllBlocks(vitChildDialogs, "InputBox"))
-                        {
-                            // ... парсинг InputBox ...
-                        }
-                    }
                     continue;
                 }
 
@@ -232,33 +223,43 @@ namespace Cossacks2Bridge.Core.Loaders
 
                 node.GP_File = GetTagValue(block, "GP_File") ?? "";
 
+                // ═══════════════════════════════════════════════════════════
+                // ИСПРАВЛЕНИЕ: правильно читаем State и спрайты
+                // ═══════════════════════════════════════════════════════════
                 int state = GetInt(block, "State");
+
+                // Читаем OneSprited
+                bool oneSprited = GetBool(block, "OneSprited", false);
+                node.OneSprited = oneSprited;  // ← добавить поле в UiVitButton!
+
                 node.SpritePassive = GetInt(block, $"SpritePassive{state}");
                 node.SpriteActive = GetInt(block, $"SpriteOver{state}");
 
-                if (node.SpritePassive == 0 && node.SpriteActive == 0)
-                {
-                    node.SpritePassive = GetInt(block, "SpritePassive0");
-                    node.SpriteActive = GetInt(block, "SpriteOver0");
-                }
+                // Fallback если -1 или 0
+                if (node.SpritePassive <= 0 && node.SpriteActive > 0)
+                    node.SpritePassive = node.SpriteActive;
 
                 string vitKey = $"VitButton_{node.X}_{node.Y}";
                 if (_processedInputBoxKeys.Contains(vitKey))
                     continue;
                 _processedInputBoxKeys.Add(vitKey);
 
-                Debug.Log($"[OptionsLoader] VitButton: base=({baseX},{baseY}), local=({localX},{localY}), result=({node.X},{node.Y})");
+                Debug.Log($"[OptionsLoader] VitButton: ({node.X},{node.Y}), W={node.Width}, " +
+                          $"GP={node.GP_File}, State={state}, SprPassive={node.SpritePassive}, OneSprited={oneSprited}");
 
-                // Проверяем есть ли InputBox внутри
-                string vitChildDialogs2 = GetTagValue(block, "ChildDialogs");
-                bool hasInputBox = false;
-
-                if (!string.IsNullOrEmpty(vitChildDialogs2))
+                // ═══════════════════════════════════════════════════════════
+                // ИСПРАВЛЕНИЕ: ВСЕГДА добавляем VitButton (это фон!)
+                // ═══════════════════════════════════════════════════════════
+                if (node.Visible)
                 {
-                    var inputBoxes = FindAllBlocks(vitChildDialogs2, "InputBox");
-                    hasInputBox = inputBoxes.Count > 0;
+                    desk.Children.Add(node);
+                }
 
-                    foreach (var inner in inputBoxes)
+                // Также обрабатываем InputBox внутри
+                string vitChildDialogs = GetTagValue(block, "ChildDialogs");
+                if (!string.IsNullOrEmpty(vitChildDialogs))
+                {
+                    foreach (var inner in FindAllBlocks(vitChildDialogs, "InputBox"))
                     {
                         int innerX = GetInt(inner, "x");
                         int innerY = GetInt(inner, "y");
@@ -268,49 +269,29 @@ namespace Cossacks2Bridge.Core.Loaders
 
                         string ibKey = $"InputBox_{ibX}_{ibY}";
                         if (_processedInputBoxKeys.Contains(ibKey))
-                        {
-                            Debug.Log($"[OptionsLoader] SKIP duplicate InputBox at ({ibX},{ibY})");
                             continue;
-                        }
                         _processedInputBoxKeys.Add(ibKey);
 
                         var ib = new UiInputBox
                         {
                             X = ibX,
                             Y = ibY,
-                            Width = GetInt(inner, "Width"),
-                            Height = GetInt(inner, "Height"),
+                            Width = GetInt(inner, "Width", 320),
+                            Height = GetInt(inner, "Height", 18),
                             Name = GetTagValue(inner, "Name") ?? "",
                             Hint = GetTagValue(inner, "Hint") ?? "",
                             Visible = GetBool(inner, "Visible", true),
                             Enabled = GetBool(inner, "Enabled", true),
                             Action = GetTagValue(inner, "Action") ?? "",
-                            Font = GetTagValue(inner, "Font") ?? "BlackFont"
+                            Font = GetTagValue(inner, "Font") ?? "BlackFont",
+                            MaxLen = GetInt(inner, "StrMaxLen", 30)
                         };
 
-                        if (ib.Width <= 0) ib.Width = 320;
-                        if (ib.Height <= 0) ib.Height = 18;
-
-                        int maxLen = GetInt(inner, "StrMaxLen");
-                        if (maxLen <= 0) maxLen = GetInt(inner, "MaxLen");
-                        if (maxLen <= 0) maxLen = 30;
-                        ib.MaxLen = maxLen;
-
-                        Debug.Log($"[OptionsLoader] InputBox: VitButton({node.X},{node.Y}) + ({innerX},{innerY}) = ({ib.X},{ib.Y})");
+                        Debug.Log($"[OptionsLoader] InputBox inside VitButton: ({ib.X},{ib.Y})");
 
                         if (ib.Visible)
                             desk.Children.Add(ib);
                     }
-                }
-
-                // НЕ добавляем VitButton если он содержит InputBox
-                if (!hasInputBox && node.Visible)
-                {
-                    desk.Children.Add(node);
-                }
-                else if (hasInputBox)
-                {
-                    Debug.Log($"[OptionsLoader] SKIP VitButton at ({node.X},{node.Y}) - it's InputBox container");
                 }
             }
 
@@ -318,7 +299,7 @@ namespace Cossacks2Bridge.Core.Loaders
 
 
 
-            // ListDesk (Multi)
+            // ListDesk
             foreach (var block in FindAllBlocks(xml, "ListDesk"))
             {
                 if (IsInsideContainer(xml, block)) continue;
@@ -326,9 +307,49 @@ namespace Cossacks2Bridge.Core.Loaders
                 var node = new UiListDesk();
                 FillCommon(node, block, baseX, baseY);
 
-                node.ElementWidth = GetInt(block, "ElementWidth");
-                node.ElementHeight = GetInt(block, "ElementHeight");
+                node.Border = GetTagValue(block, "Border") ?? "";
+                node.MarginX = GetInt(block, "marginX", 3);
+                node.MarginY = GetInt(block, "marginY", 3);
                 node.Action = GetTagValue(block, "Action") ?? "";
+
+                // ═══════════════════════════════════════════════════════════
+                // Парсим <Element><VitButton>...</VitButton></Element>
+                // ═══════════════════════════════════════════════════════════
+                string elementXml = GetTagValue(block, "Element");
+                if (!string.IsNullOrEmpty(elementXml))
+                {
+                    var vitBlocks = FindAllBlocks(elementXml, "VitButton");
+                    if (vitBlocks.Count > 0)
+                    {
+                        string vb = vitBlocks[0];
+
+                        int state = GetInt(vb, "State");
+
+                        node.ElementTemplate = new UiListDeskElement
+                        {
+                            GP_File = GetTagValue(vb, "GP_File") ?? "",
+                            Width = GetInt(vb, "Width", 460),
+                            Height = GetInt(vb, "Height", 20),
+                            FontPassive = GetTagValue(vb, "FontPassive") ?? "BlackFont",
+                            FontOver = GetTagValue(vb, "FontOver") ?? "RedFont",
+                            FontDx = GetInt(vb, "FontDx", 10),
+                            FontDy = GetInt(vb, "FontDy", 0),
+                            Align = GetTagValue(vb, "Align") ?? "Left",
+
+                            // Спрайты зависят от State
+                            SpritePassive = GetInt(vb, $"SpritePassive{state}", -1),
+                            SpriteOver = GetInt(vb, $"SpriteOver{state}", 0),
+                            SpriteSelected = GetInt(vb, "SpritePassive1", 5),
+                        };
+
+                        // Если Width не указан в элементе, берём из ListDesk
+                        if (node.ElementTemplate.Width <= 0)
+                            node.ElementTemplate.Width = node.Width - node.MarginX * 2 - 20; // -20 на скроллер
+                    }
+                }
+
+                Debug.Log($"[OptionsLoader] ListDesk at ({node.X},{node.Y}), size={node.Width}x{node.Height}, " +
+                          $"element={node.ElementTemplate?.Width}x{node.ElementTemplate?.Height}");
 
                 if (node.Visible && !IsDuplicate(desk, node))
                     desk.Children.Add(node);

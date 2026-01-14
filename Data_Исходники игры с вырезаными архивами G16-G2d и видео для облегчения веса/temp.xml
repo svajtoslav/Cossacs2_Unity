@@ -1,0 +1,25 @@
+<>
+ <ColorParams></ColorParams>
+ <Refresh></Refresh>
+ <DynamicalReflection>true</DynamicalReflection>
+ <MiniRoadColor>FFD43626</MiniRoadColor>
+ <MiniWaterColor>FF096EF3</MiniWaterColor>
+ <WaterColorModulator>C45389CD</WaterColorModulator>
+ <MiniFogOfWarColor>8E000002</MiniFogOfWarColor>
+ <FogOfWarColor>4CD4D4D4</FogOfWarColor>
+ <LightDiffuse>1D898989</LightDiffuse>
+ <LightAmbient>FF777779</LightAmbient>
+ <AtmosphereColor>00000000</AtmosphereColor>
+ <ShadowsColor>00000000</ShadowsColor>
+ <SunColor>00000000</SunColor>
+ <ShadowColor>00000000</ShadowColor>
+ <Refresh></Refresh>
+ <GeneralGameplayParams></GeneralGameplayParams>
+ <AutoProduceFoodLimit>500</AutoProduceFoodLimit>
+ <AutoChangeFormationType>false</AutoChangeFormationType>
+ <AllowChangeFormationDistance>false</AllowChangeFormationDistance>
+ <GreaterFormationDistanceScale>0</GreaterFormationDistanceScale>
+ <LowerFormationDistanceScale>0</LowerFormationDistanceScale>
+ <MoraleType>Cossacks2</MoraleType>
+ <AllowTiring>true</AllowTiring>
+</>

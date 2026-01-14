@@ -1,0 +1,23 @@
+<fground>
+			<RenderState>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ColorVertex>False</ColorVertex>
+				<CullMode>None</CullMode>
+				<FillMode>Solid</FillMode>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<ColorWriteEnable>0</ColorWriteEnable>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Disable</ColorOp>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<AlphaOp>Disable</AlphaOp>
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</fground>

@@ -1,0 +1,7 @@
+**********************************************************************************
+*    Logger session start: Thu Oct 14 10:14:05
+**********************************************************************************
+
+10:14:05 | Info     | Initializing D3D Render System...
+10:14:06 | Info     | D3D Render System was initialized succesfully.
+10:15:12 | Warning  | Unknown device state: lightenable in file BumpWater

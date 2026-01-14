@@ -1,0 +1,26 @@
+[MEMBERS]
+AusOf(CO)  AusOf
+FrnAka(CO) FrnAka
+FrnCen(CO) FrnCen
+FrnDo1(CO) FrnDo1
+FrnDo2(CO) FrnDo2
+FrnDvo(CO) FrnDvo
+FrnHra(CO) FrnHra
+FrnKuz(CO) FrnKuz
+FrnMay(CO) FrnMay
+FrnSkl(CO) FrnSkl
+
+[COUNTRY]									
+COS 10
+AusOf(CO)
+FrnAka(CO)
+FrnCen(CO)
+FrnDo1(CO)
+FrnDo2(CO)
+FrnDvo(CO)
+FrnHra(CO)
+FrnKuz(CO)
+FrnMay(CO)
+FrnSkl(CO)
+
+[END]

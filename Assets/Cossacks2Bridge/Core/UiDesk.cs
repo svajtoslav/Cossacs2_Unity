@@ -42,7 +42,16 @@ namespace Cossacks2Bridge.Core
         public string Payload = "";
     }
 
+    
     // ═══════════════════════════════════════════════════════════
+    // DIALOGS DESK (frame/background area)
+    // ═══════════════════════════════════════════════════════════
+    public sealed class UiDialogsDesk : UiNode
+    {
+        public string Border = "";
+    }
+
+// ═══════════════════════════════════════════════════════════
     // PICTURES
     // ═══════════════════════════════════════════════════════════
     
@@ -138,28 +147,51 @@ namespace Cossacks2Bridge.Core
 
 namespace Cossacks2Bridge.Core
 {
+    // UiVitButton - УБРАЛИ Width/Height (они уже есть в UiNode!)
     public sealed class UiVitButton : UiNode
     {
         public string GP_File;
         public int SpritePassive;
         public int SpriteActive;
-        public int Width;
-        public int Height;
+        // Width и Height УДАЛЕНЫ - наследуются от UiNode
+        public bool OneSprited;
     }
 
+    // UiInputBox - УБРАЛИ Width/Height
     public sealed class UiInputBox : UiNode
     {
         public int MaxLen;
         public string Action;
         public string Font;
-        public int Width;
-        public int Height;
+        // Width и Height УДАЛЕНЫ - наследуются от UiNode
     }
 
+    // Остальное без изменений...
     public sealed class UiListDesk : UiNode
     {
+        public string Border = "";
         public int ElementWidth;
         public int ElementHeight;
-        public string Action;
+        public int MarginX = 3;
+        public int MarginY = 3;
+        public string Action = "";
+        public UiListDeskElement ElementTemplate;
+        public List<string> Items = new();
+    }
+
+    public sealed class UiListDeskElement
+    {
+        public string GP_File = "";
+        public int SpritePassive = -1;
+        public int SpriteOver = 0;
+        public int SpriteSelected = 5;
+        public int Width = 460;
+        public int Height = 20;
+        public string FontPassive = "BlackFont";
+        public string FontOver = "RedFont";
+        public int FontDx = 10;
+        public int FontDy = 0;
+        public string Align = "Left";
     }
 }
+

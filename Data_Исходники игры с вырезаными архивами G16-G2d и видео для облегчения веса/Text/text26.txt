@@ -1,0 +1,5 @@
+MINEID1 Золото
+MINEID4 Железо
+MINEID5 Уголь
+MINEID2 Камень
+

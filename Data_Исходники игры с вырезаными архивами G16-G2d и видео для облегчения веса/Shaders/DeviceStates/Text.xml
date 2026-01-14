@@ -1,0 +1,27 @@
+<Text>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<ColorVertex>True</ColorVertex>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Tfactor</AlphaArg2>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</Text>

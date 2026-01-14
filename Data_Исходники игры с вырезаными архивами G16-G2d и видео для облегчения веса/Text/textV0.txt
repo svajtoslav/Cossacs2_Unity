@@ -1,0 +1,182 @@
+// Interface messages
+
+@RMID_IMPOSIBLE Невозможно
+
+INTF_BACK_CAMP_MENU Вернуться в главное меню
+INTF_ACCEPT Принять
+INTF_CANCEL Отменить
+INTF_LOAD Загрузить
+INTF_SAVE Сохранить
+INTF_JOIN Присоединиться
+INTF_GENERATE Создать
+INTF_REFRESH Обновить
+INTF_CREATE Создать
+INTF_MAIN_0 Одиночная игра
+INTF_MAIN_1 Сетевая игра
+INTF_MAIN_2 Загрузить
+INTF_MAIN_3 Настройки
+INTF_MAIN_4 Редактор
+INTF_MAIN_5 Выход
+INTF_MAIN_S0 Кампания
+INTF_MAIN_S1 Одиночные миссии
+INTF_MAIN_S2 Случайная карта
+INTF_MAIN_B Назад
+INTF_MAIN_M0 Сражение
+INTF_MAIN_M1 Историческая баталия
+INTF_OPT_TITLE0 НАСТРОЙКИ ИГРЫ 
+INTF_OPT_TITLE1 Настройки игры
+INTF_OPT_VO Настройки видео
+INTF_OPT_VO_0 Разрешение экрана
+INTF_OPT_AO Настройки аудио
+INTF_OPT_AO_0 Тип музыки
+INTF_OPT_AO_1 Громкость звука
+INTF_OPT_AO_2 Громкость музыки
+INTF_OPT_GO Игровые настройки
+INTF_OPT_GO_0 Режим игры
+INTF_OPT_GO_1 Скорость мыши
+INTF_OPT_GO_2 Скорость игры
+INTF_OPT_GO_3 Сохранить запись игры
+INTF_PLAYER_TITLE0 ИМЯ ИГРОКА
+INTF_PLAYER_TITLE1 Игрок
+INTF_PLAYER_CP Текущий игрок:
+INTF_LOAD_TITLE0 ЗАГРУЗКА СОХРАНЕННОЙ ИГРЫ
+INTF_LOAD_TITLE1 Имя игры
+INTF_LOAD_CG Выбранная игра:
+INTF_LOAD_P0 Сохраненные игры
+INTF_LOAD_P1 Сохраненные записи
+INTF_SMISS_T0 ОДИНОЧНЫЕ МИССИИ
+INTF_SMISS_T1 Миссии
+INTF_SMISS_T2 Карта сражения
+INTF_SMISS_T3 Описание
+INTF_CMISS_T0 МИССИИ КАМПАНИИ
+INTF_SMISS_DIFF Сложность:
+INTF_PROT_T0 ПРОТОКОЛ МНОГОПОЛЬЗОВАТЕЛЬСКОЙ ИГРЫ
+INTF_PROT_T1 Сетевые протоколы
+INTF_PROT_B0 Сеть IPX 
+INTF_PROT_B1 Сетевое соединение TCP/IP
+INTF_PROT_B2 Прямой TCP/IP
+INTF_PROT_B3 Игра в Интернете
+INTF_PROT_IP Адрес IP:
+INTF_CROOM_SCR0 НАСТРОЙКИ МНОГОПОЛЬЗОВАТЕЛЬСКОЙ ИГРЫ
+INTF_CROOM_SCR1 СЛУЧАЙНАЯ КАРТА
+INTF_CROOM_WIN0 Игроки
+INTF_CROOM_WIN1 Настройки игры
+INTF_CROOM_WIN2 Карта сражения
+INTF_CROOM_PL0 Игроки
+INTF_CROOM_PL1 Нации
+INTF_CROOM_PL2 Цвет
+INTF_CROOM_PL3 Команда
+INTF_CROOM_PL4 CD
+INTF_CROOM_PL5 Статус
+INTF_CROOM_CHAT0 Текст:
+INTF_CROOM_GS0 Созданные
+INTF_CROOM_GS1 Случайные
+INTF_CROOM_GS2 Сохраненные
+INTF_CROOM_O0 Тип ландшафта
+INTF_CROOM_O1 Местность
+INTF_CROOM_O2 Начальные ресурсы
+INTF_CROOM_O3 Минералы
+INTF_CROOM_O4 Размер карты
+INTF_CROOM_O5 Климатическая зона
+//INTF_CROOM_O3 
+INTF_CROOM_VIC Победа
+INTF_GMENU_WIN Игровое меню
+
+INTF_MESSAGE Сообщение
+
+INTF_EMENU_RESM Вернутся в редактор
+INTF_EMENU_SAVE Сохранить текущую карты
+INTF_EMENU_LOAD Загрузить сохраненную карту
+
+INTF_GMENU_PAD0 Вернуться в игру
+INTF_GMENU_PAD1 Сохранить
+INTF_GMENU_PAD3 Настройки
+INTF_GMENU_PAD4 Выйти в меню
+INTF_JOINGAME_SCR0 Присоединиться 
+INTF_JOINGAME_TXT0 Выбранная игра:
+INTF_CAMPAIGN_T0 МЕНЮ КАМПАНИИ
+INTF_CAMPAIGN_W0 Выбор кампании
+
+INTF_HISTORICAL_BATTLE_OPTIONS ОПЦИИ ИСТОРИЧЕСКИХ БИТВ
+INTF_Players Игроки
+INTF_Nations Нации
+INTF_Color Цвет
+INTF_CD CD
+INTF_Status Статус
+INTF_Battle_Map Карта сражения
+INTF_Description Описание
+INTF_Mission_ Миссия:
+INTF_Historical Историческая
+INTF_Game Игра
+
+DIP_HDR Дипломатия (I)
+	
+INTF_GMENU_PAD0 Вернуться в игру
+INTF_GMENU_PAD1 Сохранить
+INTF_GMENU_PAD3 Настройки
+INTF_GMENU_PAD4 Выйти в меню
+
+INTF_EMENU_WIN Меню редактора
+INTF_EMENU_RESM Продолжить редактирование карты
+INTF_EMENU_LOAD Загрузить карту
+INTF_EMENU_SAVE Сохранить карту
+
+INTF_JOINGAME_SCR0 Присоединиться
+INTF_JOINGAME_TXT0 Выбранная игра:
+INTF_CAMPAIGN_T0 МЕНЮ КАМПАНИИ
+INTF_CAMPAIGN_W0 Выбрать кампанию
+
+INTF_EDIT_RESOURCE_AI НАСТРОЙКА ИИ
+INTF_EDIT_PLAYER Игрок
+INTF_EDIT_NAME Имя
+INTF_EDIT_WOOD Дерево
+INTF_EDIT_FOOD Еда
+INTF_EDIT_STONE Камень
+INTF_EDIT_GOLD Золото
+INTF_EDIT_IRON Железо
+INTF_EDIT_COAL Уголь
+INTF_EDIT_LANDTYPE AI Тип ландшафта
+INTF_EDIT_STARTRES AI Начальные ресурсы
+INTF_EDIT_MAPRES AI Ресурсы карты
+INTF_EDIT_SCENDLL Путь к Dll файлам
+
+IHINT_ACEPT_NAME Подтвердите выбранное имя
+
+INTF_BITM_LOAD Загрузить битовый образ 
+INTF_BITM_SAVE Сохранить битовый образ
+INTF_EDIT_TERRAIN Править местность
+INTF_BRUSH_SZ Размер кисти
+INTF_BRUSH_BR Яркость кисти
+
+INTF_SMOOTH_HILL Сгладить горы
+
+INTF_EDIT_RELIEF Править рельеф
+INTF_HEIGHT_EMI Высота возвышенностей
+INTF_RADIUS_EMI Радиус возвышенностей
+INTF_WIDTH_CRO Ширина пересечения
+INTF_JAG_NU Number of Jag
+INTF_JAG_DE Depth of Jag
+INTF_JAG_PH Phase of Jag
+INTF_JAG_TY Jag Type
+INTF_HEIGHT Высота
+INTF_PRESSURE_TYPE Тип давления
+INTF_BRUSH Кисть
+
+INTF_LOAD_MAP Загрузить карту
+INTF_SAVE_MAP Сохранить карту
+
+INTF_FILE_NAME Имя файла:
+
+RES_LOT_MONEY Не ограничено
+
+RESHINT0 {C FFE74634}Дерево{C FF502515} (вырубка леса)
+RESHINT1 {C FFE74634}Еда{C FF502515} (обработка полей)
+RESHINT2 {C FFE74634}Камень{C FF502515} (добыча камня)
+RESHINT3 {C FFE74634}Золото{C FF502515} (золотоносный рудник)
+RESHINT4 {C FFE74634}Железо{C FF502515} (железная жила)
+RESHINT5 {C FFE74634}Уголь{C FF502515} (угольная шахта)
+RESHINT_POP {C FFE74634}Население{C FF502515} (Текущее/максимальное население)
+
+DIFFICULT5 Здесь вы можете выбрать одну из пяти настроек сложности.
+
+INTF_BACK_CAMP_MENU Вернуться в меню.

@@ -19,14 +19,36 @@ namespace Cossacks2Bridge.Core.Loaders
         public bool CanHandle(string screenId)
         {
             if (string.IsNullOrWhiteSpace(screenId)) return false;
-            
+
             if (screenId.Equals("Options", StringComparison.OrdinalIgnoreCase)) return false;
             if (screenId.StartsWith("Options_", StringComparison.OrdinalIgnoreCase)) return false;
             if (screenId.StartsWith("Options/", StringComparison.OrdinalIgnoreCase)) return false;
-            
+
             return true;
         }
+        private static string RemoveSimpleTagBlocks(string text, string tag)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
 
+            char[] buf = text.ToCharArray();
+            int i = 0;
+
+            while (i < text.Length)
+            {
+                int open = text.IndexOf("<" + tag + ">", i, StringComparison.OrdinalIgnoreCase);
+                if (open < 0) break;
+
+                int close = text.IndexOf("</" + tag + ">", open, StringComparison.OrdinalIgnoreCase);
+                if (close < 0) break;
+
+                int end = close + tag.Length + 3; // </Tag>
+                for (int k = open; k < end; k++) buf[k] = ' ';
+
+                i = end;
+            }
+
+            return new string(buf);
+        }
         public UiDesk LoadScreen(string screenId)
         {
             string routerPath = @"Dialogs\MainMenu.xml";
@@ -42,7 +64,7 @@ namespace Cossacks2Bridge.Core.Loaders
             if (string.IsNullOrWhiteSpace(target))
             {
                 target = @"dialogs\v\M_Main.DialogsSystem.xml";
-                 
+
             }
 
             target = NormalizePath(target);
@@ -79,7 +101,96 @@ namespace Cossacks2Bridge.Core.Loaders
         {
             if (string.IsNullOrEmpty(region)) return;
 
-            foreach (string block in FindBlocks(region, "BitPicture"))
+            string region2 = region;
+
+            // ─────────────────────────────────────────────────────────────
+            // 1) DialogsDesk рекурсивно (с учётом tail x/y!)
+            foreach (var cb in FindCompositeBlocks(region2, "DialogsDesk"))
+            {
+                // coords (x/y/Width/Height) у DialogsDesk лежат в хвосте после закрывающего тега
+                int tx = ToInt(Get(cb.Tail, "x"));
+                int ty = ToInt(Get(cb.Tail, "y"));
+
+                // внутренний dx/dy (если вдруг используется в каких-то диалогах)
+                int dx = ToInt(Get(cb.Inner, "dx"));
+                int dy = ToInt(Get(cb.Inner, "dy"));
+
+                // если у Desk есть Border != NullBorder — создаём отдельный узел, чтобы рендерить рамку/зону
+                string border = Get(cb.Inner, "Border") ?? "";
+                bool hasBorder = !string.IsNullOrEmpty(border) &&
+                                 border.IndexOf("NullBorder", StringComparison.OrdinalIgnoreCase) < 0;
+
+                if (hasBorder)
+                {
+                    var dd = new UiDialogsDesk();
+                    FillCommon(dd, cb.Tail, baseX, baseY);
+                    dd.Border = border;
+                    desk.Children.Add(dd);
+
+                    ParseElements(cb.Inner, baseX + tx + dx, baseY + ty + dy, desk);
+                }
+                else
+                {
+                    ParseElements(cb.Inner, baseX + tx + dx, baseY + ty + dy, desk);
+                }
+            }
+
+            // вырезаем DialogsDesk чтобы не распарсить второй раз
+            region2 = RemoveSimpleTagBlocks(region2, "DialogsDesk");
+
+ 
+
+            // ─────────────────────────────────────────────────────────────
+            // 2) ListDesk как composite (и сразу вырезаем, чтобы шаблонный VitButton не попал в общий парсинг)
+            // ─────────────────────────────────────────────────────────────
+            foreach (var cb in FindCompositeBlocks(region2, "ListDesk"))
+            {
+                var ld = new UiListDesk();
+
+                // coords/size/flags идут в хвосте (после закрывающего тега)
+                FillCommon(ld, cb.Tail, baseX, baseY);
+
+                // Border + Element template живут внутри тега
+                ld.Border = Get(cb.Inner, "Border") ?? "";
+
+                string element = GetRawInner(cb.Inner, "Element") ?? "";
+                if (!string.IsNullOrWhiteSpace(element))
+                {
+                    string vb = GetRawInner(element, "VitButton") ?? "";
+                    if (!string.IsNullOrWhiteSpace(vb))
+                    {
+                        var e = new UiListDeskElement();
+                        e.GP_File = Get(vb, "GP_File") ?? "";
+
+                        e.SpritePassive = ToInt(Get(vb, "SpritePassive"));
+                        e.SpriteOver = ToInt(Get(vb, "SpriteOver"));
+                        e.SpriteSelected = ToInt(Get(vb, "SpriteSelected"));
+
+                        e.Width = ToInt(Get(vb, "Width"));
+                        e.Height = ToInt(Get(vb, "Height"));
+
+                        e.FontPassive = Get(vb, "FontPassive") ?? "";
+                        e.FontOver = Get(vb, "FontOver") ?? "";
+
+                        e.FontDx = ToInt(Get(vb, "FontDx"));
+                        e.FontDy = ToInt(Get(vb, "FontDy"));
+                        e.Align = Get(vb, "Align") ?? "";
+
+                        ld.ElementTemplate = e;
+                    }
+                }
+
+                desk.Children.Add(ld);
+            }
+            // Удаляем ListDesk из текста
+            region2 = RemoveCompositeTagBlocks(region2, "ListDesk");
+
+            // ─────────────────────────────────────────────────────────────
+            // Дальше ПАРСИМ ТОЛЬКО region2 (очищенный от контейнеров)
+            // ─────────────────────────────────────────────────────────────
+
+            // BitPicture
+            foreach (string block in FindBlocks(region2, "BitPicture"))
             {
                 var pic = new UiBitPicture();
                 FillCommon(pic, block, baseX, baseY);
@@ -87,7 +198,35 @@ namespace Cossacks2Bridge.Core.Loaders
                 desk.Children.Add(pic);
             }
 
-            foreach (string block in FindBlocks(region, "TextButton"))
+            // GPPicture
+            foreach (var b in FindBlocks(region2, "GPPicture"))
+            {
+                var gp = new UiGPPicture();
+                FillCommon(gp, b, baseX, baseY);
+                gp.FileID = Get(b, "FileID") ?? "";
+                gp.SpriteID = ToInt(Get(b, "SpriteID"));
+
+                // FIX(AddProfile): portrait frame + portrait image exact positions
+                if (gp.FileID.IndexOf(@"INTERF3\ELEMENTS\PORTRAITS_BORDER", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    gp.X = 426;
+                    gp.Y = 418;
+                    gp.Width = 119;
+                    gp.Height = 132;
+                }
+                if (gp.FileID.IndexOf(@"Interf3\TotalWarGraph\lva_EGs", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    gp.X = 430;
+                    gp.Y = 421;
+                    gp.Width = 111;
+                    gp.Height = 124;
+                }
+
+                desk.Children.Add(gp);
+            }
+
+            // TextButton
+            foreach (string block in FindBlocks(region2, "TextButton"))
             {
                 var btn = new UiTextButton();
                 FillCommon(btn, block, baseX, baseY);
@@ -96,16 +235,72 @@ namespace Cossacks2Bridge.Core.Loaders
                 btn.PassiveFont = Get(block, "PassiveFont") ?? "";
                 btn.ActiveFont = Get(block, "ActiveFont") ?? "";
                 btn.DisabledFont = Get(block, "DisabledFont") ?? "";
-                
-                // ✅ ИСПРАВЛЕНО: Для главного меню НЕ назначаем стиль - используем Default
-                // Это сохранит оригинальные цвета из RenderOptions
+
+                // Для главного меню НЕ назначаем стиль - используем Default
                 btn.Style = DetermineMainMenuStyle(btn.MessageKey, btn.PassiveFont);
-                
+
                 FillActions(btn, block);
                 desk.Children.Add(btn);
             }
 
-            foreach (string flat in FindFlatBlocks(region, "Text"))
+            // InputBox
+            foreach (var b in FindBlocks(region2, "InputBox"))
+            {
+                var ib = new UiInputBox();
+                FillCommon(ib, b, baseX, baseY);
+                ib.MaxLen = ToInt(Get(b, "MaxLen"));
+                ib.Action = Get(b, "Action") ?? "";
+                ib.Font = Get(b, "Font") ?? "";
+
+                // FIX(AddProfile): nickname input exact position
+                if (!string.IsNullOrEmpty(ib.Action) &&
+                    ib.Action.IndexOf("cva_ProfAdd_Name", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    ib.X = 573;
+                    ib.Y = 286;
+                    ib.Width = 280;
+                    ib.Height = 20;
+                }
+
+                desk.Children.Add(ib);
+            }
+
+            // ComboBox
+            foreach (var b in FindBlocks(region2, "ComboBox"))
+            {
+                var cbx = new UiComboBox();
+                FillCommon(cbx, b, baseX, baseY);
+                cbx.GP_File = Get(b, "GP_File") ?? "";
+                cbx.ActiveFont = Get(b, "ActiveFont") ?? "";
+                cbx.PassiveFont = Get(b, "PassiveFont") ?? "";
+                cbx.FontDx = ToInt(Get(b, "FontDx"));
+                cbx.FontDy = ToInt(Get(b, "FontDy"));
+                cbx.OneDx = ToInt(Get(b, "OneDx"));
+                cbx.OneDy = ToInt(Get(b, "OneDy"));
+                cbx.Center = ToInt(Get(b, "Center"));
+                cbx.MaxLY = ToInt(Get(b, "MaxLY"));
+                FillActions(cbx, b);
+                desk.Children.Add(cbx);
+            }
+
+            // VitButton (только реальный, не из ListDesk, т.к. ListDesk уже вырезан)
+            // VitButton (реальный)
+            foreach (var b in FindBlocks(region2, "VitButton"))
+            {
+                var vb = new UiVitButton();
+                FillCommon(vb, b, baseX, baseY);
+
+                vb.GP_File = Get(b, "GP_File") ?? "";
+                vb.SpritePassive = ToInt(Get(b, "SpritePassive"));
+                vb.SpriteActive = ToInt(Get(b, "SpriteActive"));
+                vb.OneSprited = ToBool(Get(b, "OneSprited"), false);
+
+                FillActions(vb, b);
+                desk.Children.Add(vb);
+            }
+
+            // Text (плоский)
+            foreach (string flat in FindFlatBlocks(region2, "Text"))
             {
                 var btn = new UiTextButton();
                 FillCommon(btn, flat, baseX, baseY);
@@ -114,18 +309,18 @@ namespace Cossacks2Bridge.Core.Loaders
                 btn.PassiveFont = Get(flat, "PassiveFont") ?? "";
                 btn.ActiveFont = Get(flat, "ActiveFont") ?? "";
                 btn.DisabledFont = Get(flat, "DisabledFont") ?? "";
-                
+
                 if (btn.Width <= 0) btn.Width = 600;
                 if (btn.Height <= 0) btn.Height = 40;
                 btn.Visible = true;
-                
-                // ✅ ИСПРАВЛЕНО: Для главного меню используем Default стиль
+
                 btn.Style = DetermineMainMenuStyle(btn.MessageKey, btn.PassiveFont);
-                
+
                 FillActions(btn, flat);
                 desk.Children.Add(btn);
             }
         }
+
 
         /// <summary>
         /// Определяет стиль для элементов главного меню.
@@ -153,6 +348,97 @@ namespace Cossacks2Bridge.Core.Loaders
             public int End;
             public string Content;
         }
+
+
+        private sealed class CompositeBlock
+        {
+            public string Inner; // содержимое между <Tag>...</Tag>
+            public string Tail;  // параметры после </Tag> до следующего блока
+        }
+
+        /// <summary>
+        /// Удаляет полностью блок тега вместе с его "хвостом" (параметрами до следующего маркера),
+        /// заменяя всё пробелами, чтобы не нарушать индексы (хотя здесь мы передаем строку целиком, 
+        /// но замена пробелами безопаснее).
+        /// </summary>
+        private static string RemoveCompositeTagBlocks(string text, string tag)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            string[] markers = {
+        "BitPicture","TextButton","Text","CheckBox","Window","ListDesk",
+        "DialogsDesk","GPPicture","InputBox","ComboBox","VitButton"
+    };
+
+            char[] buf = text.ToCharArray();
+            int i = 0;
+
+            while (i < text.Length)
+            {
+                int open = text.IndexOf("<" + tag + ">", i, StringComparison.OrdinalIgnoreCase);
+                if (open < 0) break;
+
+                int close = text.IndexOf("</" + tag + ">", open, StringComparison.OrdinalIgnoreCase);
+                if (close < 0) break;
+
+                int tailStart = close + tag.Length + 3; // </Tag>
+                int next = text.Length;
+
+                foreach (var mk in markers)
+                {
+                    var rx = new Regex($@"<{mk}(\s*>|\s+/?>)", RegexOptions.IgnoreCase);
+                    var m = rx.Match(text, tailStart);
+                    if (m.Success && m.Index < next) next = m.Index;
+                }
+
+                // replace [open, next) with spaces
+                for (int k = open; k < next; k++)
+                    buf[k] = ' ';
+
+                i = next;
+            }
+
+            return new string(buf);
+        }
+
+        private static IEnumerable<CompositeBlock> FindCompositeBlocks(string text, string tag)
+        {
+            // <Tag> ... </Tag>  +  "хвост" (x/y/Width/Height/Visible/...) до следующего маркера
+            string[] markers = {
+                "BitPicture", "TextButton", "Text", "CheckBox", "Window", "ListDesk",
+                "DialogsDesk", "GPPicture", "InputBox", "ComboBox", "VitButton"
+            };
+
+            int i = 0;
+            while (i < text.Length)
+            {
+                int open = text.IndexOf("<" + tag + ">", i, StringComparison.OrdinalIgnoreCase);
+                if (open < 0) yield break;
+
+                int close = text.IndexOf("</" + tag + ">", open, StringComparison.OrdinalIgnoreCase);
+                if (close < 0) yield break;
+
+                int innerStart = open + tag.Length + 2;
+                int innerEnd = close;
+                string inner = text.Substring(innerStart, innerEnd - innerStart);
+
+                int tailStart = close + tag.Length + 3; // </Tag>
+                int next = text.Length;
+
+                foreach (var mk in markers)
+                {
+                    var rx = new Regex($@"<{mk}(\s*>|\s+/?>)", RegexOptions.IgnoreCase);
+                    var m = rx.Match(text, tailStart);
+                    if (m.Success && m.Index < next) next = m.Index;
+                }
+
+                string tail = text.Substring(tailStart, Math.Max(0, next - tailStart));
+                yield return new CompositeBlock { Inner = inner, Tail = tail };
+
+                i = next;
+            }
+        }
+
 
         private static List<Span> ExtractTopLevelWindowSpans(string text)
         {
@@ -243,7 +529,10 @@ namespace Cossacks2Bridge.Core.Loaders
 
         private static IEnumerable<string> FindFlatBlocks(string text, string tag)
         {
-            string[] markers = { "BitPicture", "TextButton", "Text", "CheckBox", "Window" };
+            string[] markers = {
+                "BitPicture", "TextButton", "Text", "CheckBox", "Window",
+                "DialogsDesk", "GPPicture", "InputBox", "ComboBox", "VitButton"
+            };
             var markerPositions = new List<(int start, int end)>();
 
             var rxThis = new Regex($@"<{tag}>\s*</{tag}>", RegexOptions.Singleline | RegexOptions.IgnoreCase);

@@ -1,8 +1,8 @@
-using UnityEngine;
 using Cossacks2Bridge.Core;
 using Cossacks2Bridge.Core.Loaders;
 using Cossacks2Bridge.UnityAdapters.Renderers;
-// IUiActionSink теперь в Cossacks2Bridge.UnityAdapters (текущий namespace)
+using System;
+using UnityEngine;
 
 namespace Cossacks2Bridge.UnityAdapters
 {
@@ -34,6 +34,9 @@ namespace Cossacks2Bridge.UnityAdapters
         private MainMenuRenderer _mainMenuRenderer;
         private OptionsRenderer _optionsRenderer;
 
+        // Добавлено: рендерер для создания игрока
+        private readonly NewPlayerRenderer _newPlayer = new NewPlayerRenderer();
+
         // Shared options
         private BaseUiRenderer.RenderOptions _renderOptions;
 
@@ -46,7 +49,7 @@ namespace Cossacks2Bridge.UnityAdapters
             InitializeCore();
             InitializeLoaders();
             InitializeRenderers();
-            
+
             RenderByScreenId(startScreenId);
         }
 
@@ -57,9 +60,9 @@ namespace Cossacks2Bridge.UnityAdapters
             if (string.IsNullOrWhiteSpace(dataRoot))
             {
                 string guess = @"C:\GSC Game World\Cossacks II\Data";
-                if (System.IO.Directory.Exists(guess)) 
+                if (System.IO.Directory.Exists(guess))
                     dataRoot = guess;
-                else 
+                else
                     dataRoot = System.IO.Path.Combine(Application.streamingAssetsPath, "Cossacks2", "Data");
             }
 
@@ -84,12 +87,12 @@ namespace Cossacks2Bridge.UnityAdapters
             {
                 FontResourcePath = "Fonts/Slovic",
                 FontSize = 29f,
-                
+
                 // ✅ Оригинальные цвета для главного меню
                 NormalColor = new Color32(40, 10, 10, 255),
                 HoverColor = new Color32(95, 30, 30, 255),
                 DisabledColor = new Color32(90, 90, 90, 255),
-                
+
                 CanvasScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize,
                 ReferenceResolution = new Vector2(1024, 768),
                 VerboseLogs = verboseLogs,
@@ -108,6 +111,13 @@ namespace Cossacks2Bridge.UnityAdapters
                 return;
             }
 
+            // 1=1: Single -> если профиля нет, открываем создание нового игрока
+            if (string.Equals(screenId, "Single", System.StringComparison.OrdinalIgnoreCase))
+            {
+                if (!HasAnyProfile())
+                    screenId = "AddProfile"; // <AddProfile> -> M_PROF_ADD...
+            }
+
             // Track navigation
             if (!string.IsNullOrWhiteSpace(screenId) && !string.Equals(CurrentScreenId, screenId))
             {
@@ -117,6 +127,15 @@ namespace Cossacks2Bridge.UnityAdapters
 
             var sink = GetOrCreateSink();
             UiDesk desk;
+
+            // AddProfile рендерим отдельно, не трогая CanHandle(), чтобы не ломать другие окна
+            if (string.Equals(screenId, "AddProfile", StringComparison.OrdinalIgnoreCase))
+            {
+                desk = _mainMenuLoader.LoadScreen(screenId);
+                Debug.Log($"[MenuBootstrap] ADDPROFILE -> {desk.Children.Count} elements");
+                _newPlayer.Render(desk, _fs, _renderOptions, sink, _loc);
+                return;
+            }
 
             // Выбираем loader и renderer
             if (_optionsLoader.CanHandle(screenId))
@@ -128,8 +147,25 @@ namespace Cossacks2Bridge.UnityAdapters
             else if (_mainMenuLoader.CanHandle(screenId))
             {
                 desk = _mainMenuLoader.LoadScreen(screenId);
+                if (string.Equals(screenId, "AddProfile", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.Log("=== ADDPROFILE NODES ===");
+                    foreach (var n in desk.Children)
+                        Debug.Log($"[ADD] {n.GetType().Name} name='{n.Name}' x={n.X} y={n.Y} w={n.Width} h={n.Height} vis={n.Visible}");
+                }
                 Debug.Log($"[MenuBootstrap] MAIN MENU screen '{screenId}' -> {desk.Children.Count} elements");
+
+                // Выбираем рендерер: обычный или для создания игрока
+                // AddProfile/M_PROF_ADD рисуем через OptionsRenderer (там есть все примитивы)
+                if(screenId.Equals("AddProfile", StringComparison.OrdinalIgnoreCase))
+{
+                    _newPlayer.Render(desk, _fs, _renderOptions, sink, _loc);
+                    return;
+                }
+
+                // обычные экраны главного меню
                 _mainMenuRenderer.Render(desk, _fs, _renderOptions, sink, _loc);
+                return;
             }
             else
             {
@@ -137,6 +173,12 @@ namespace Cossacks2Bridge.UnityAdapters
                 desk = _mainMenuLoader.LoadScreen("Main");
                 _mainMenuRenderer.Render(desk, _fs, _renderOptions, sink, _loc);
             }
+        }
+
+        private bool HasAnyProfile()
+        {
+            // Профили пока не реализованы — значит всегда "нет"
+            return false;
         }
 
         public void RenderPreviousOrMain()
@@ -147,12 +189,12 @@ namespace Cossacks2Bridge.UnityAdapters
 
         private IUiActionSink GetOrCreateSink()
         {
-            var sink = Object.FindFirstObjectByType<MenuActionSink>(FindObjectsInactive.Include);
+            var sink = UnityEngine.Object.FindFirstObjectByType<MenuActionSink>(FindObjectsInactive.Include);
             if (sink != null) return sink;
 
             var go = new GameObject("C2_MenuActionSink");
             sink = go.AddComponent<MenuActionSink>();
-             
+
             return sink;
         }
     }

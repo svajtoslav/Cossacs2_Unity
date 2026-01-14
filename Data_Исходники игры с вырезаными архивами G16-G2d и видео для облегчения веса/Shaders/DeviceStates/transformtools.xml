@@ -1,0 +1,17 @@
+<gizmo>
+			<RenderState>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<Lighting>False</Lighting>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</gizmo>

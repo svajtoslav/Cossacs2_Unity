@@ -1,0 +1,80 @@
+#VILAGECAPTURED Вы захватили селение
+#VILAGECAPTUREDBYENEMY Ваше селение захвачено противником
+
+#AutoShot_is_ON Автовыстрел включен
+#AutoShot_is_OFF Автовыстрел выключен
+
+#GS_AnimQ0 Высокий
+#GS_AnimQ1 Средний
+#GS_AnimQ2 Низкий
+
+#MM_BackToGame_hint Вернуться к игре
+#MM_Options_hint Настройки игры: разрешение экрана, громкость звука и др.
+#MM_Back2MM Вернутся в Главное меню
+#MM_Back2MM_hint Нажмите для возвращения в Главное меню
+
+#ip03_01 Вы уверены, что хотите удалить этот файл?
+#ip03_02 Удалить текущий файл
+#ip03_03 Отменить удаление файла
+
+#MM_Load_hint Загрузить сохраненную игру
+#MM_Save_hint Сохранить текущую игру
+#MM_Withdraw_hint Завершить игру и вернуться в Главное меню
+
+#MM_SaveCancel_hint Закрыть без сохранения
+#MM_LoadCancel_hint Выйти без сохранения
+
+#MM_LoadList_hint Список сохраненных игр
+#MM_LoadName_hint Имя выбранной игры
+#MM_SaveName_hint Введите имя текущей игры
+
+#MO_ArcadeMode Аркадный режим
+#MO_ArcadeMode_hint Аркадный режим Вкл/Выкл
+#C2intfArcadeMess Аркадный режим включен. Влияние морали и усталости на общий ход ведения боевых действий уменьшено вдвое.
+
+#GSR_Total Всего
+#GSR_OnUpgrade Улучшения
+#GSR_OnMines Шахты
+#GSR_OnUnits Войска
+#GSR_OnBuildings Строения
+#GSR_OnLife Содержание
+#GSR_Buy Покупки
+#GSR_Sell Продажи
+	
+#GSR_Total_hint Всего
+#GSR_OnUpgrade_hint Для улучшений
+#GSR_OnMines_hint Для шахт
+#GSR_OnUnits_hint Формирование войск
+#GSR_OnBuildings_hint Создание строений
+#GSR_OnLife_hint На содержание
+#GSR_Buy_hint Покупки
+#GSR_Sell_hint Продажи
+
+#SP_Kills {C FF60A05A}Опыт{C FF502515} - начисляется за убитых врагов
+#SP_Protect {C FF60A05A}Защита{C FF502515} - обороноспособность солдата - урон поглощаемый войсками во время атаки (не может быть меньше 1)
+
+#GlobalBrigIcoDisable Создать строй\ \создание строя требует необходимое количество солдат возле ваших казарм или конюшен \пехота 120 солдат\кавалерия 45 солдат\егеря, саперы 15 солдат
+#GlobalBrigIcoEnable Создать строй\ \создание строя требует необходимое количество солдат возле ваших казарм или конюшен \пехота 120 солдат\кавалерия 45 солдат\егеря, саперы 15 солдат
+#GlobalBrigIOf Обучить офицера
+#GlobalBrigIDr Обучить барабанщика
+#GlobalBrigIFl Обучить знаменосца
+
+#EW2_sectors_num Территория нации
+#EW2_supply Затраты на содержание
+#EW2_resources_amount Количество ресурсов
+#EW2_recruits_number Количество рекрутов
+#EW2_power_of_army Сила армии
+#EW2_power_of_nation Сила нации
+#EW2_commander_exp_amount Опыт военачальника
+#EW2_formation_killed Врагов убито
+#EW2_formation_lost Подразделений потеряно
+
+#MR_Team_hint Команда
+#MR_Ready_hint Готов
+#MR_Player_hint Игрок
+#NewPlayerName Игрок
+
+#SelectMission_Hint Выбрать миссию
+#SELECT_SCENARIOS СПИСОК МИССИЙ
+#SINGLE_MISSIONS Кампания
+#MAP_DESCRIPTIONS ОПИСАНИЕ МИССИИ

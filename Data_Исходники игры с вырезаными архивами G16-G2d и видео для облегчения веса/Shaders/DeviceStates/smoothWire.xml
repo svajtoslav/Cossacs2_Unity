@@ -1,0 +1,46 @@
+<smoothWire>
+			<RenderState>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<ColorVertex>False</ColorVertex>
+				<SpecularEnable>True</SpecularEnable>
+				<NormalizeNormals>True</NormalizeNormals>
+				<CullMode>CCW</CullMode>
+				<Lighting>True</Lighting>
+				<FillMode>WireFrame</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>True</DitherEnable>
+				<Ambient>ambColor</Ambient>
+				<MaterialDiffuse>difColor</MaterialDiffuse>
+				<MaterialAmbient>ambColor</MaterialAmbient>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<LightType>Directional</LightType>
+				<LightDiffuse>difColor</LightDiffuse>
+				<LightAmbient>ambColor</LightAmbient>
+				<LightSpecular>difColor</LightSpecular>
+				<LightDirection>lightDir</LightDirection>
+				<LightRange>10000</LightRange>
+				<LightEnable>True</LightEnable>
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MipFilter>None</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>None</MinFilter>
+				<MagFilter>None</MagFilter>
+			</TextureStageState>
+</smoothWire>

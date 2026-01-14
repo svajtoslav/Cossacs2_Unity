@@ -1,0 +1,148 @@
+[MEMBERS]
+MisFuzOf(NE)  MisFuzOf
+NEngMus(NE)   NEngMus
+HGuDeath(NE)  HGuDeath
+UnitDo1(NE)   SelFraDom5_1
+Bochka(NE)    Bochka
+EgpLuc(NE)    EgpLuc
+HGu(NE)       HGu
+TempMent(NE)  SpnPar
+TurMent(NE)   TurMent
+FrnBarin(NE)  FrnBarin
+FrnDama(NE)   FrnDama
+FrnBarin2(NE) FrnBarin2
+FrnDama2(NE)  FrnDama2
+RusDama(NE)   RusDama
+ArtPus1(NE)    ArtPus1
+ArtPus2(NE)    ArtPus2
+ArtPus3(NE)    ArtPus3
+ArtPus4(NE)    ArtPus4
+ArtGau(NE)     EngKri
+ArtPus(NE)     EngKri
+Field(NE)      Field
+NetPal2(NE)    NetPal2
+oboz(NE)       oboz
+TempCommandCenter(NE) TempCommandCenter
+ArtPus4G(NE)   ArtPus4G
+ArtPus4L(NE)   ArtPus4L
+ArtPus3(NE)    ArtPus3
+ArtPusR(NE)    ArtPusR
+PusKon1(NE)    PusKon1
+PusKon2(NE)    PusKon2
+BldRed2(NE)    BldRed2
+BldRed3(NE)    BldRed3
+BldRed4(NE)    BldRed4
+BldRed6(NE)    BldRed6
+BldRed7(NE)    BldRed7
+BldRed8(NE)    BldRed8
+ArtPus4E(NE)   ArtPus4E
+ArtPus4LE(NE)  ArtPus4LE
+ArtPus4GE(NE)  ArtPus4GE
+ArtPus4R(NE)   ArtPus4R
+ArtPus4LR(NE)  ArtPus4LR
+ArtPus4GR(NE)  ArtPus4GR
+ShpFregat(NE)  ShpFregat
+NetPal1(NE)    NetPal1
+NetPal2(NE)    NetPal2
+NetPal3(NE)    NetPal3
+NetPal4(NE)    NetPal4
+NetPal5(NE)    NetPal5
+Greg(NE)       misgreg
+Wilford(NE)    miswil
+Ebeneser(NE)   misebe
+Abraham(NE)    misabr
+Hemphry(NE)    mishem
+Fabricio(NE)   misfab
+Emyli(NE)      misemi
+Curtis(NE)     misker
+Fergisson(NE)  misfer
+Trinity(NE)    mistri
+Wildings(NE)   miswild
+Jons(NE)       misjon
+Flag(NE)       bldflag
+RebEngMus(NE)  RebEngMus
+
+[FIXED_PRODUCE]
+UnitDo1(NE) 1 
+HGu(NE) 1 1 A
+
+[ENABLED]
+HGu(NE)
+
+[COUNTRY]
+NEUTRAL 63
+#UNITS
+Bochka(NE)
+EgpLuc(NE)
+TempCommandCenter(NE)
+HGu(NE)
+TempMent(NE)
+FrnBarin(NE)
+FrnDama(NE)
+FrnBarin2(NE)
+FrnDama2(NE)
+RusDama(NE)
+TurMent(NE)
+#REDUTS
+BldRed2(NE)
+BldRed3(NE)
+BldRed4(NE)
+BldRed6(NE)
+BldRed7(NE)
+BldRed8(NE)
+#ARTILARY
+ArtPus1(NE)
+ArtPus2(NE)
+ArtPus3(NE)
+ArtPus4(NE)
+ArtPus4G(NE)  
+ArtPus4L(NE)  
+ArtPus3(NE)   
+ArtPus4E(NE) 
+ArtPus4LE(NE)
+ArtPus4GE(NE)
+oboz(NE)
+ArtPusR(NE)
+PusKon1(NE) 
+PusKon2(NE)
+ArtPus4R(NE) 
+ArtPus4LR(NE)
+ArtPus4GR(NE)
+#SHIPS
+ShpFregat(NE)
+#PALATKI
+NetPal1(NE)
+NetPal2(NE)
+NetPal3(NE)
+NetPal4(NE)
+NetPal5(NE)
+#TEST
+UnitDo1(NE)
+#MISSIONS
+Greg(NE)
+NEngMus(NE) //50
+Wilford(NE)
+Ebeneser(NE)
+Abraham(NE)
+Hemphry(NE)
+Fabricio(NE)
+Emyli(NE)
+Curtis(NE)
+Fergisson(NE)
+Trinity(NE)
+Wildings(NE)
+Jons(NE)
+RebEngMus(NE)
+Flag(NE)
+
+
+[OFFICERS]
+UnitOf(EN) UnitBar(EN) UnitFlg(EN)   3
+SQUARE 1 #SQUARE120   4 NEngMus(NE) UnitFuz(EN) UnitGre(EN) UnitVol(EN)
+LINE   1 #LINE120COS  4 NEngMus(NE) UnitFuz(EN) UnitGre(EN) UnitVol(EN)
+KARE   1 #KARE120COS  4 NEngMus(NE) UnitFuz(EN) UnitGre(EN) UnitVol(EN)
+ShpFregat(NE) NONE  1
+SQUARE 1 #SINGLEUNIT1   1 ShpFregat(NE)
+TempMent(NE) NONE 1
+LINE   1 #LINE60MENTCOS 2 TempMent(NE) RebEngMus(NE)
+[END] 

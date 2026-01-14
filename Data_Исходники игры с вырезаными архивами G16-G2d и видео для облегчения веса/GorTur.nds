@@ -1,0 +1,38 @@
+[MEMBERS]
+GorTurDom1_1(GAU)   GorTurDom1_1 
+GorTurDom10_1(GAU)  GorTurDom10_1
+GorTurDom10_2(GAU)  GorTurDom10_2
+GorTurDom11_1(GAU)  GorTurDom11_1
+GorTurDom11_2(GAU)  GorTurDom11_2
+GorTurDom2_1(GAU)   GorTurDom2_1 
+GorTurDom3_1(GAU)   GorTurDom3_1 
+GorTurDom4_1(GAU)   GorTurDom4_1 
+GorTurDom5_1(GAU)   GorTurDom5_1 
+GorTurDom6_1(GAU)   GorTurDom6_1 
+GorTurDom7_1(GAU)   GorTurDom7_1 
+GorTurDom8_1(GAU)   GorTurDom8_1 
+GorTurDom8_2(GAU)   GorTurDom8_2 
+GorTurDom9_1(GAU)   GorTurDom9_1 
+GorTurDom9_2(GAU)   GorTurDom9_2 
+
+[COUNTRY]
+GORTUR 16
+#BUILDINGS
+GorTurDom1_1(GAU)
+GorTurDom10_1(GAU)
+GorTurDom10_2(GAU)
+GorTurDom11_1(GAU)
+GorTurDom11_2(GAU)
+GorTurDom2_1(GAU)
+GorTurDom3_1(GAU)
+GorTurDom4_1(GAU)
+GorTurDom5_1(GAU)
+GorTurDom6_1(GAU)
+GorTurDom7_1(GAU)
+GorTurDom8_1(GAU)
+GorTurDom8_2(GAU)
+GorTurDom9_1(GAU)
+GorTurDom9_2(GAU)
+               
+[END]          
+               

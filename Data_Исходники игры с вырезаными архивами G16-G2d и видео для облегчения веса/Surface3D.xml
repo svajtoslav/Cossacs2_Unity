@@ -1,0 +1,20 @@
+<>
+ <Maps>
+  <PenRadius>0.000000</PenRadius>
+  <PenWidth>0.000000</PenWidth>
+  <ActionType>Set</ActionType>
+  <CurrentLayer>Climat1</CurrentLayer>
+ </Maps>
+ <Size>0</Size>
+ <Relief></Relief>
+ <Texturing></Texturing>
+ <DontGenerateRelief>false</DontGenerateRelief>
+ <ShapeOfBound>
+  <Scale>0.000000</Scale>
+  <Center>0.000000</Center>
+  <Contrast>0.000000</Contrast>
+  <Mapping>Planar</Mapping>
+  <Type>Usual</Type>
+ </ShapeOfBound>
+ <ClearMaps></ClearMaps>
+</>

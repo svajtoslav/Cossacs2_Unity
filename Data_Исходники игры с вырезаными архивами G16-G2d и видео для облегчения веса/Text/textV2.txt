@@ -1,0 +1,4 @@
+// Neutral and Diplomatic messages
+
+NET_FIND_TREASURE Вы нашли древние сокровища. Ваша прибыль составила %d золота.
+NET_LOSE_TREASURE Вы нашли древнее жилище. Но оно оказалось пустым...

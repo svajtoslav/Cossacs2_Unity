@@ -1,0 +1,180 @@
+SHOW_DIPLOMACY Показать/Скрыть информацию по Дипломатии (I)
+$SBLD_INC01_HELLO Вы хотели бы торговать?
+$SBLD_INC01_RESELL Эй! Если вы поможете нам, мы поддержим вас. Наша цена: %s. Готовы ли вы заплатить?
+$YESTXT$ Да
+$NOTXT$ Нет
+$CONTXT$ Показать договора 
+$LETMETHINK$ Хм ... Дайте мне поразмыслить ...
+$WECAN$ За определенную сумму мы готовы помочь вам в ведении войны.
+
+$SBLD_INC01_PP1 Ждите, пока ваши разведчики пройдут подготовку...
+$SBLD_INC01_PP2 Ждите, пока саботажники пройдут подготовку...
+$SBLD_INC01_PP3 Ждите, ваши войны вскоре будут готовы...
+$SBLD_INC01_PP4 Ждите, ваш штурмовой отряд скоро будет готов...
+$SBLD_INC01_PP5 Ждите, отряд карателей вскоре будет подготовлен...
+$SBLD_INC01_PP6 Пожалуйста, ждите.
+$SBLD_INC01_PP7 Ждите, партизанский отряд вскоре будет готов...
+
+$SBLD_ACT_P1 $G золота - разведчики
+$SBLD_ACT_P2 $G золота - саботажники
+$SBLD_ACT_P3 $G золота - наемники
+$SBLD_ACT_P4 $G золота - штурмовой отряд
+$SBLD_ACT_P5 $G золота - каратели
+$SBLD_ACT_P6 $G золота - 1000 железа и угля
+$SBLD_ACT_P7 $G золота - партизаны
+
+$SBLD_AZT_P1 $G золота - разведчики
+$SBLD_AZT_P2 $G золота - саботажники
+$SBLD_AZT_P3 $G золота - наемники
+$SBLD_AZT_P4 $G золота - штурмовой отряд
+$SBLD_AZT_P5 $G золота - каратели
+$SBLD_AZT_P6 $G золота - 1000 железа и угля
+$SBLD_AZT_P7 $G золота - партизаны
+
+$SBLD_DEL_P1 $G золота - разведчики
+$SBLD_DEL_P2 $G золота - саботажники
+$SBLD_DEL_P3 $G золота - наемники
+$SBLD_DEL_P4 $G золота - штурмовой отряд
+$SBLD_DEL_P5 $G золота - каратели
+$SBLD_DEL_P6 $G золота - 1000 железа и угля
+$SBLD_DEL_P7 $G золота - партизаны
+
+$SBLD_HUR_P1 $G золота - разведчики
+$SBLD_HUR_P2 $G золота - саботажники
+$SBLD_HUR_P3 $G золота - наемники
+$SBLD_HUR_P4 $G золота - штурмовой отряд
+$SBLD_HUR_P5 $G золота - каратели
+$SBLD_HUR_P6 $G золота - 1000 железа и угля
+$SBLD_HUR_P7 $G золота - партизаны
+
+$SBLD_INC_P1 $G золота - разведчики
+$SBLD_INC_P2 $G золота - саботажники
+$SBLD_INC_P3 $G золота - наемники
+$SBLD_INC_P4 $G золота - штурмовой отряд
+$SBLD_INC_P5 $G золота - каратели
+$SBLD_INC_P6 $G золота - 1000 железа и угля
+$SBLD_INC_P7 $G золота - партизаны
+
+$SBLD_IRO_P1 $G золота - разведчики
+$SBLD_IRO_P2 $G золота - саботажники
+$SBLD_IRO_P3 $G золота - наемники
+$SBLD_IRO_P4 $G золота - штурмовой отряд
+$SBLD_IRO_P5 $G золота - каратели
+$SBLD_IRO_P6 $G золота - 1000 железа и угля
+$SBLD_IRO_P7 $G золота - партизаны
+
+$SBLD_MAY_P1 $G золота - разведчики
+$SBLD_MAY_P2 $G золота - саботажники
+$SBLD_MAY_P3 $G золота - наемники
+$SBLD_MAY_P4 $G золота - штурмовой отряд
+$SBLD_MAY_P5 $G золота - каратели
+$SBLD_MAY_P6 $G золота - 1000 железа и угля
+$SBLD_MAY_P7 $G золота - партизаны
+
+$SBLD_PUE_P1 $G золота - разведчики
+$SBLD_PUE_P2 $G золота - саботажники
+$SBLD_PUE_P3 $G золота - наемники
+$SBLD_PUE_P4 $G золота - штурмовой отряд
+$SBLD_PUE_P5 $G золота - каратели
+$SBLD_PUE_P6 $G золота - 1000 железа и угля
+$SBLD_PUE_P7 $G Золота - партизаны
+
+$SBLD_SIU_P1 $G золота - разведчики
+$SBLD_SIU_P2 $G золота - саботажники
+$SBLD_SIU_P3 $G золота - наемники
+$SBLD_SIU_P4 $G золота - штурмовой отряд
+$SBLD_SIU_P5 $G золота - каратели
+$SBLD_SIU_P6 $G золота - 1000 железа и угля
+$SBLD_SIU_P7 $G Золота - партизаны
+
+$SBLD_SHU_P1 $G золота - разведчики
+$SBLD_SHU_P2 $G золота - саботажники
+$SBLD_SHU_P3 $G золота - наемники
+$SBLD_SHU_P4 $G золота - штурмовой отряд
+$SBLD_SHU_P5 $G золота - каратели
+$SBLD_SHU_P6 $G золота - 1000 железа и угля
+$SBLD_SHU_P7 $G Золота - партизаны
+
+$SBLD_SHR_P1 $G золота - разведчики
+$SBLD_SHR_P2 $G золота - саботажники
+$SBLD_SHR_P3 $G золота - наемники
+$SBLD_SHR_P4 $G золота - штурмовой отряд
+$SBLD_SHR_P5 $G золота - каратели
+$SBLD_SHR_P6 $G золота - 1000 железа и угля
+$SBLD_SHR_P7 $G Золота - партизаны
+
+$SBLD_SDE_P1 $G золота - разведчики
+$SBLD_SDE_P2 $G золота - саботажники
+$SBLD_SDE_P3 $G золота - наемники
+$SBLD_SDE_P4 $G золота - штурмовой отряд
+$SBLD_SDE_P5 $G золота - каратели
+$SBLD_SDE_P6 $G золота - 1000 железа и угля
+$SBLD_SDE_P7 $G Золота - партизаны
+
+$SBLD_SDW_P1 $G золота - разведчики
+$SBLD_SDW_P2 $G золота - саботажники
+$SBLD_SDW_P3 $G золота - наемники
+$SBLD_SDW_P4 $G золота - штурмовой отряд
+$SBLD_SDW_P5 $G золота - каратели
+$SBLD_SDW_P6 $G золота - 1000 железа и угля
+$SBLD_SDW_P7 $G Золота - партизаны
+
+$SBLD_SIR_P1 $G золота - разведчики
+$SBLD_SIR_P2 $G золота - саботажники
+$SBLD_SIR_P3 $G золота - наемники
+$SBLD_SIR_P4 $G золота - штурмовой отряд
+$SBLD_SIR_P5 $G золота - каратели
+$SBLD_SIR_P6 $G золота - 1000 железа и угля
+$SBLD_SIR_P7 $G Золота - партизаны
+
+$SBLD_SIO_P1 $G золота - разведчики
+$SBLD_SIO_P2 $G золота - саботажники
+$SBLD_SIO_P3 $G золота - наемники
+$SBLD_SIO_P4 $G золота - штурмовой отряд
+$SBLD_SIO_P5 $G золота - каратели
+$SBLD_SIO_P6 $G золота - 1000 железа и угля
+$SBLD_SIO_P7 $G Золота - партизаны
+             
+$SBLD_SSI_P1 $G золота - разведчики
+$SBLD_SSI_P2 $G золота - саботажники
+$SBLD_SSI_P3 $G золота - наемники
+$SBLD_SSI_P4 $G золота - штурмовой отряд
+$SBLD_SSI_P5 $G золота - каратели
+$SBLD_SSI_P6 $G золота - 1000 железа и угля
+$SBLD_SSI_P7 $G Золота - партизаны
+
+$SBLD_SSO_P1 $G золота - разведчики
+$SBLD_SSO_P2 $G золота - саботажники
+$SBLD_SSO_P3 $G золота - наемники
+$SBLD_SSO_P4 $G золота - штурмовой отряд
+$SBLD_SSO_P5 $G золота - каратели
+$SBLD_SSO_P6 $G золота - 1000 железа и угля
+$SBLD_SSO_P7 $G Золота - партизаны
+
+$TRIBELIST$ Список Союзников 
+$SBLD_INC01_NAME0 Huitzilihuitl
+$SBLD_INC01_NAME1 Chimalpopoca
+$SBLD_INC01_NAME2 Itzcoatl
+$SBLD_INC01_NAME3 Lloke Yukpanki
+$SBLD_INC01_NAME4 Tupac Yupanqui
+$SBLD_INC01_NAME5 Pachakuti
+$SBLD_INC01_NAME6 Sinchi
+$SBLD_INC01_NAME7 Chucky Huipa
+$SBLD_INC01_NAME8 Lloke Yukpanki
+$SBLD_INC01_NAME9 Ah Xupan Xiu
+
+$SBLD_SIN01_NAME0 Cheeseekau
+$SBLD_SIN01_NAME1 Tenkswatawa
+$SBLD_SIN01_NAME2 Lalawethika
+$SBLD_SIN01_NAME3 Mattauppa
+$SBLD_SIN01_NAME4 Powhatan
+$SBLD_SIN01_NAME5 Kintpuash
+$SBLD_SIN01_NAME6 Mishe-Mokwa
+$SBLD_SIN01_NAME7 Pau-Wau 
+$SBLD_SIN01_NAME8 Tecumseh
+$SBLD_SIN01_NAME9 Agichita
+
+$NOMONEY$ Мой друг, без денег мы обречены.
+$GOBACK$ << Назад
+$TELLNO Отказом сотрудничать с нами вы только навредите себе. 
+$DIPREBEL С вами переговоры вестись не будут. Если вы действительно хотите обсудить что-то важное - посылайте священника.

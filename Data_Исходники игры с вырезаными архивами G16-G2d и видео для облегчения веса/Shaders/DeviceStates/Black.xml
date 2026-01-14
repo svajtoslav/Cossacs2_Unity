@@ -1,0 +1,24 @@
+<Black>
+			<RenderState>
+				<TextureFactor>0xFF222222</TextureFactor>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<FillMode>Solid</FillMode>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZBias>0</ZBias>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg2</ColorOp>
+				<ColorArg2>Tfactor</ColorArg2>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>None</MinFilter>
+				<MagFilter>None</MagFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</Black>

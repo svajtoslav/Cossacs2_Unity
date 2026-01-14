@@ -1,0 +1,41 @@
+#MAY Maya
+#SPAIN Spain
+#ENGLAND Британия
+#FRANCE Франция
+#USA USA
+#INCAS Incas
+#ACTEC Aztecs
+#PUEBLO Pueblos
+#DELAVAR Delawares
+#HURONI Hurons
+#IROKEZ Iroquoians
+#SIU Sioux
+#NEUTRAL Нейтр.
+#TESCOCO Texcoco
+#NEW Нейтр.
+#GORFRN France Town
+#TREES Деревья
+#TREES2 Деревья 2
+#EGIPET Египет
+
+#SOSNI Сосна
+#DER1 Деверья 1
+#DER2 Деревья 2
+#DER3 Деревья 3
+#DER Деревья 4
+#YELKI Ель
+#KAMNI1 Камень 1
+#KAMNI2 камень 2
+#KAKTUS1 Кактус 1
+#KAKTUS2 Кактус 2
+#KUST1 Кусты 1
+#KUST2 Кусты 2
+#SUHIE Дерево
+#KAMNI4 Камни
+#PALMI Пальмы
+#OTHERS Другое
+#KAMNIVODNI Утес
+#NEW Особенное
+#KAMNI Отдельные камни
+#VOBLIN Шахты
+#GOLOVA Статуя

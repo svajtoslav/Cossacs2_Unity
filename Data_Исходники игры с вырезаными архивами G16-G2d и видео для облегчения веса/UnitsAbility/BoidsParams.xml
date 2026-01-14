@@ -1,0 +1,15 @@
+<BP>
+	<Radius>60</Radius>
+	<MinDist>14</MinDist>
+	<OneUnitW>5</OneUnitW>
+	<MainDirNorma>1000</MainDirNorma>
+	<DensNorma>350</DensNorma>
+	<DensW>4</DensW>
+	<CentNorma>10</CentNorma>
+	<CentW>1</CentW>
+	<DeviationW>3</DeviationW>
+	<LockNorma>64</LockNorma>
+	<LockW>5000</LockW>
+	<ChangeSpeedW>8</ChangeSpeedW>
+	<InFormation>40</InFormation>
+</BP>

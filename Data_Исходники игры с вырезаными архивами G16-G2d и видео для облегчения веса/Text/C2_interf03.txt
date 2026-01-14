@@ -1,0 +1,7 @@
+#Info Инфо
+#Back_MultiBattleServer_Hint Закрыть комнату
+#Guardian_hint Гвардейский отряд
+#UnitHistoryInfo Исторические сведения
+
+#Looser Проиграл
+#Winner Победил

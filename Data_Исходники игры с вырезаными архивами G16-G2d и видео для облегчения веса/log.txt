@@ -1,0 +1,12 @@
+**********************************************************************************
+*    Logger session start: Mon Dec 29 22:19:17
+**********************************************************************************
+
+22:19:17 | Info     | Initializing D3D Render System...
+22:19:17 | Info     | D3D Render System was initialized succesfully.
+22:19:18 | Info     | Creating reflection map. TexMem: 640Mb
+22:19:18 | Info     | Creating shadow map. TexMem: 640Mb
+22:19:18 | Info     | Creating terrain cache. TexMem: 640Mb, NSurf: 128
+22:19:18 | Info     | Creating sprite cache. TexMem: 640Mb, NSurf: 1024
+22:19:22 | Warning  | DrawBrigsAbility can not find file: Dialogs\v\BrigMarkers.DialogsSystem.xml
+22:19:22 | Warning  | DrawBrigsAbility can not find file: Dialogs\v\BrigMarkersMini.DialogsSystem.xml

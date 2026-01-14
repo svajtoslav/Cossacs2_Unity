@@ -103,16 +103,11 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
             }
 
             case "cva_MM_SinStart":
-            {
-                var id = TryGetTag(action.Payload, "ID");
-                if (string.IsNullOrWhiteSpace(id)) id = TryGetTag(action.Payload, "Name");
-                if (string.IsNullOrWhiteSpace(id)) id = "Single";
-
-                Debug.Log($"[C2:SINK] SinStart -> go '{id}'");
-                if (_bootstrap != null)
-                    _bootstrap.RenderByScreenId(id);
-                break;
-            }
+                {
+                    Debug.Log("[C2:SINK] SinStart -> go 'Single'");
+                    _bootstrap?.RenderByScreenId("Single");
+                    break;
+                }
 
             case "cva_MM_Close":
             {

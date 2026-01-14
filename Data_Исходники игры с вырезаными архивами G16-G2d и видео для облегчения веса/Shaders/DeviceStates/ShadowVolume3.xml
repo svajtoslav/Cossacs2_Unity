@@ -1,0 +1,21 @@
+<ShadowVolume3>
+			<RenderState>
+				<ZEnable>False</ZEnable>
+				<StencilEnable>True</StencilEnable>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<StencilFunc>LessEqual</StencilFunc>
+				<StencilRef>0x00000001</StencilRef>
+				<StencilPass>Keep</StencilPass>
+				<TextureFactor>0x77111100</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Tfactor</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+			</TextureStageState>
+</ShadowVolume3>

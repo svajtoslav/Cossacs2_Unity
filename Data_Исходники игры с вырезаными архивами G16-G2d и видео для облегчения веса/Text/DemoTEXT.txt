@@ -1,0 +1,17 @@
+#CUR_PROFILE: Текущий игрок
+#Tab_Skirmish Сражения
+#Tab_Battles Баталии
+#SingleBattle_Start Начать
+#MAP_DESCRIPTION ОПИСАНИЕ КАРТЫ
+#SINGLE_MISSION СРАЖЕНИЯ И БАТАЛИИ
+#SELECT_SCENARIO ИГРОВАЯ КОМНАТА
+#Skirmish_List_Hint Выберите Сражение 
+#Battles_List_Hint Выберите Баталию
+#SingleBattle_Start_Hint Нажать для начала игры 
+#Back_SingleBattle_Hint Назад в меню Одиночной игры 
+#Load_InGame_Title ЗАГРУЗИТЬ ИГРУ
+#LoadAccept Загрузить
+#Save_InGame_Title СОХРАНИТЬ ИГРУ
+#SaveAccept Сохранить
+#Help_InGame_Title ПОМОЩЬ
+#Help_InGame_Close Закрыть

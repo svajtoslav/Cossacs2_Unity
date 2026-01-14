@@ -1,0 +1,20 @@
+#ArcadeOff Выключен
+#ArcadeOn Включен
+#EW2_InternetGame ИНТЕРНЕТ ИГРА
+#EW2_Credits АВТОРЫ
+#EW2_Exit ВЫХОД
+#EW2_ListMissions СПИСОК МИССИЙ
+#EW2_MissDescr ОПИСАНИЕ МИССИИ
+#EW2_Campaign КАМПАНИЯ
+#EW2_Exit2MM ВЫХОД В ГЛАВНОЕ МЕНЮ
+#EW2_Restart ПЕРЕЗАПУСК МИССИИ
+#EW2_Back2Game ВЕРНУТЬСЯ К ИГРЕ
+#EW2_StepBack ОТОЗВАТЬ ВОЙСКА
+#EW2_Accept_hint Применить изменения
+#EW2_Cancel_hint Восстановить настройки
+#MO_ArcadeMode_hint2 Аркадный режим вкл/выкл
+#EW2_Battle4Europe ЗАВОЕВАНИЕ ЕВРОПЫ
+#EW2_Chat ОКНО СООБЩЕНИЙ
+#EW2_RoomSet НАСТРОЙКИ КОМНАТЫ
+#EW2_MapSel ВЫБОР КАРТЫ
+#EW2_Stat СТАТИСТИКА

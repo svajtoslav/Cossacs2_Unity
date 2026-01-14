@@ -1,0 +1,34 @@
+<AnimDescr>
+	<Effect Name="Effect">
+		<EffectFile>Models\Sled_Korablya.c2m</EffectFile>
+		<ParentBone>frigate</ParentBone>
+		<Position>-1039.595093 13.822327 0.0</Position>
+		<Scale>10.000000</Scale>
+		<StartTime>0.000000</StartTime>
+		<ActiveTime>0.000000</ActiveTime>
+	</Effect>
+	<Effect Name="Effect1">
+		<EffectFile>Models\Sled_Korablya.c2m</EffectFile>
+		<ParentBone>frigate</ParentBone>
+		<Position>1131.107910 9.203026 0.0</Position>
+		<Scale>4.000000</Scale>
+		<StartTime>0.000000</StartTime>
+		<ActiveTime>0.000000</ActiveTime>
+	</Effect>
+	<Effect Name="Effect2">
+		<EffectFile>Models\Sled_Korablya.c2m</EffectFile>
+		<ParentBone>frigate</ParentBone>
+		<Position>1035.889893 166.121719 0.0</Position>
+		<Scale>4.000000</Scale>
+		<StartTime>0.000000</StartTime>
+		<ActiveTime>0.000000</ActiveTime>
+	</Effect>
+	<Effect Name="Effect3">
+		<EffectFile>Models\Sled_Korablya.c2m</EffectFile>
+		<ParentBone>frigate</ParentBone>
+		<Position>1061.938232 -146.001053 0.0</Position>
+		<Scale>4.000000</Scale>
+		<StartTime>0.000000</StartTime>
+		<ActiveTime>0.000000</ActiveTime>
+	</Effect>
+</AnimDescr>

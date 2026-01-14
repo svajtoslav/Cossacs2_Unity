@@ -1,0 +1,37 @@
+[MEMBERS]
+GorRusDom1_1(GRU) GorRusDom1_1
+GorRusDom2_1(GRU) GorRusDom2_1
+GorRusDom2_2(GRU) GorRusDom2_2
+GorRusDom3_1(GRU) GorRusDom3_1
+GorRusDom3_2(GRU) GorRusDom3_2
+GorRusDom4_1(GRU) GorRusDom4_1
+GorRusDom5_1(GRU) GorRusDom5_1
+GorRusDom5_2(GRU) GorRusDom5_2
+GorRusDom6_1(GRU) GorRusDom6_1
+GorRusDom7_1(GRU) GorRusDom7_1
+GorRusDom8_1(GRU) GorRusDom8_1
+GorRusDom8_2(GRU) GorRusDom8_2
+
+[COUNTRY]
+GORRUS 13
+#BUILDINGS
+GorRusDom1_1(GRU)
+GorRusDom2_1(GRU)
+GorRusDom2_2(GRU)
+GorRusDom3_1(GRU)
+GorRusDom3_2(GRU)
+GorRusDom4_1(GRU)
+GorRusDom5_1(GRU)
+GorRusDom5_2(GRU)
+GorRusDom6_1(GRU)
+GorRusDom7_1(GRU)
+GorRusDom8_1(GRU)
+GorRusDom8_2(GRU)
+
+[END]       
+            
+            
+            
+            
+            
+            
