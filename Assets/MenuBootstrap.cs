@@ -131,7 +131,7 @@ namespace Cossacks2Bridge.UnityAdapters
             // AddProfile рендерим отдельно, не трогая CanHandle(), чтобы не ломать другие окна
             if (string.Equals(screenId, "AddProfile", StringComparison.OrdinalIgnoreCase))
             {
-                desk = _mainMenuLoader.LoadScreen(screenId);
+                desk = _optionsLoader.LoadScreen(screenId); // ✅ ВОТ ЭТО
                 Debug.Log($"[MenuBootstrap] ADDPROFILE -> {desk.Children.Count} elements");
                 _newPlayer.Render(desk, _fs, _renderOptions, sink, _loc);
                 return;
@@ -175,10 +175,13 @@ namespace Cossacks2Bridge.UnityAdapters
             }
         }
 
+        private bool _hasAnyProfile;
+
+        public void SetHasProfile(bool has) => _hasAnyProfile = has;
+
         private bool HasAnyProfile()
         {
-            // Профили пока не реализованы — значит всегда "нет"
-            return false;
+            return _hasAnyProfile;
         }
 
         public void RenderPreviousOrMain()

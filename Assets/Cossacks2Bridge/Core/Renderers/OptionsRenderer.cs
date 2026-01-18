@@ -29,6 +29,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             // 1) Найти/создать Canvas
             RectTransform root = EnsureOptionsCanvas(opt);
 
+
             // 2) Очистить Canvas
             DestroyAllChildrenImmediate(root);
 
@@ -53,6 +54,16 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
 
             if (desk?.Children == null) return;
 
+            // ДИАГНОСТИКА: какие InputBox есть в desk
+            Debug.Log("═══════════════════════════════════════════════════════════");
+            Debug.Log("[OptionsRenderer] InputBox elements in desk:");
+            foreach (var node in desk.Children)
+            {
+                if (node is UiInputBox ib)
+                    Debug.Log($"  InputBox: name='{ib.Name}', pos=({ib.X},{ib.Y}), size=({ib.Width}x{ib.Height}), visible={ib.Visible}");
+            }
+            Debug.Log("═══════════════════════════════════════════════════════════");
+
             // 1) BitPicture (фоны)
             foreach (var node in desk.Children)
             {
@@ -68,31 +79,85 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             }
 
             // 3) VitButton / VitLine (фон под ник) + InputBox + ListDesk
+            bool inputBoxCreated = false;
+
+            // Координаты целевой позиции InputBox (где VitButton служит фоном)
+            const float TARGET_INPUT_X = 573f;
+            const float TARGET_INPUT_Y = 286f;
+
             foreach (var node in desk.Children)
             {
                 if (!node.Visible) continue;
 
                 if (node is UiVitButton vb)
                 {
-                    // Если у VitButton НЕТ Actions — это декоративная линия (фон под ник)
-                    if (vb.Actions == null || vb.Actions.Count == 0)
+                    // ═══════════════════════════════════════════════════════════
+                    // Пропускаем ТОЛЬКО ВЕРХНИЙ VitButton (Y < 100) - он не нужен
+                    // Нижний VitButton (Y > 200) ОСТАВЛЯЕМ - это фон для InputBox
+                    // ═══════════════════════════════════════════════════════════
+                    bool isDecorative = (vb.Actions == null || vb.Actions.Count == 0);
+                    bool isInputBackground = (vb.Width >= 300 && vb.Height <= 25);
+                    bool isUpperPosition = (vb.Y < 100);
+
+                    if (isDecorative && isInputBackground && isUpperPosition)
+                    {
+                        Debug.Log($"[OptionsRenderer] SKIP VitButton (orphan upper bg): pos=({vb.X},{vb.Y})");
+                        continue;
+                    }
+
+                    // Остальные VitButton создаём
+                    if (isDecorative)
                         CreateVitButtonTiled(vb, root);
                     else
                         CreateVitButton(vb, root, opt, sink);
                 }
                 else if (node is UiInputBox ib)
                 {
-                    CreateInputBox(ib, root, opt);
+                    if (inputBoxCreated)
+                    {
+                        // ═══════════════════════════════════════════════════════════
+                        // ФИКС: Второй InputBox ПЕРЕМЕЩАЕМ на место первого (поверх фона)
+                        // ═══════════════════════════════════════════════════════════
+                        Debug.Log($"[OptionsRenderer] RELOCATE InputBox from ({ib.X},{ib.Y}) to ({TARGET_INPUT_X},{TARGET_INPUT_Y})");
+
+                        // Меняем координаты напрямую
+                        ib.X = (int)TARGET_INPUT_X;
+                        ib.Y = (int)TARGET_INPUT_Y;
+                        CreateInputBox(ib, root, opt);
+                        continue;
+                    }
+
+                    // ═══════════════════════════════════════════════════════════
+                    // Первый InputBox (573,286) - ПРОПУСКАЕМ, но помечаем что был
+                    // ═══════════════════════════════════════════════════════════
+                    Debug.Log($"[OptionsRenderer] SKIP first InputBox (will use second): pos=({ib.X},{ib.Y})");
+                    inputBoxCreated = true;  // Помечаем что "первый обработан"
                 }
-                 
             }
+
+
 
             // 4) TextButton
             foreach (var node in desk.Children)
             {
                 if (!node.Visible) continue;
-                if (node is UiTextButton btn) CreateTextButton(root, btn, opt, sink, loc, MenuOverrideDb.Resolve);
+                if (node is UiTextButton btn)
+                {
+                    string resolvedText = loc?.Resolve(btn.MessageKey) ?? btn.MessageKey;
+
+                    // ═══════════════════════════════════════════════════════════
+                    // ФИКС: Принудительный сдвиг "Имя игрока" влево
+                    // ═══════════════════════════════════════════════════════════
+                    if (resolvedText != null && resolvedText.Contains("Имя игрока"))
+                    {
+                        btn.X -= 15;  // Попробуйте -50, -80, -100 пока не выровняется
+                        Debug.Log($"[OptionsRenderer] FORCE SHIFT 'Имя игрока' to X={btn.X}");
+                    }
+
+                    CreateTextButton(root, btn, opt, sink, loc, MenuOverrideDb.Resolve);
+                }
             }
+
 
             // 5) GP_TextButton
             foreach (var node in desk.Children)
@@ -122,7 +187,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 }
                 else if (node is UiSlider sl)
                 {
-                    CreateSlider(sl, desk, root, opt, sink, loc);
+                    // CreateSlider(sl, desk, root, opt, sink, loc);  // <-- ВРЕМЕННО
                 }
                 else if (node is UiComboBox combo)
                 {
@@ -154,6 +219,10 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                     }
                 }
                 else if (canvas.gameObject.name == "C2_MainMenuCanvas")
+                {
+                    UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+                }
+                else if (canvas.gameObject.name == "C2_MenuCanvas")
                 {
                     UnityEngine.Object.DestroyImmediate(canvas.gameObject);
                 }

@@ -42,65 +42,80 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
 
         switch (action.Name)
         {
+            // --- AddProfile ---
+            case "cva_ProfAdd_Accept":
+                {
+                    _bootstrap?.SetHasProfile(true);
+                    _bootstrap?.RenderPreviousOrMain();
+                    break;
+                }
+
+            case "cva_ProfAdd_Cancel":
+                {
+                    _bootstrap?.RenderByScreenId("Main");
+                    break;
+                }
+
+            // --- Main menu ---
             case "cva_MM_Start":
-            {
-                var id = ExtractTargetFromPayload(action.Payload);
-                Debug.Log($"[C2:SINK] MM_Start -> go '{id}' (payload='{action.Payload}')");
-                if (_bootstrap != null && !string.IsNullOrWhiteSpace(id))
-                    _bootstrap.RenderByScreenId(id);
-                else
-                    Debug.LogWarning("[C2:SINK] MM_Start ignored (missing target id or bootstrap)");
-                break;
-            }
+                {
+                    var id = ExtractTargetFromPayload(action.Payload);
+                    Debug.Log($"[C2:SINK] MM_Start -> go '{id}' (payload='{action.Payload}')");
+                    if (_bootstrap != null && !string.IsNullOrWhiteSpace(id))
+                        _bootstrap.RenderByScreenId(id);
+                    else
+                        Debug.LogWarning("[C2:SINK] MM_Start ignored (missing target id or bootstrap)");
+                    break;
+                }
 
             case "cva_MM_Cancel":
-            {
-                Debug.Log("[C2:SINK] MM_Cancel -> back");
-                _bootstrap?.RenderPreviousOrMain();
-                break;
-            }
+                {
+                    Debug.Log("[C2:SINK] MM_Cancel -> back");
+                    _bootstrap?.RenderPreviousOrMain();
+                    break;
+                }
 
             case "cva_MM_Accept":
-            {
-                Debug.Log("[C2:SINK] MM_Accept -> back (stub)");
-                _bootstrap?.RenderPreviousOrMain();
-                break;
-            }
+                {
+                    Debug.Log("[C2:SINK] MM_Accept -> back (stub)");
+                    _bootstrap?.RenderPreviousOrMain();
+                    break;
+                }
 
             case "Options":
-            {
-                Debug.Log("[C2:SINK] Options -> go 'Options'");
-                _bootstrap?.RenderByScreenId("Options");
-                break;
-            }
+                {
+                    Debug.Log("[C2:SINK] Options -> go 'Options'");
+                    _bootstrap?.RenderByScreenId("Options");
+                    break;
+                }
 
             case "Cancel":
-            {
-                Debug.Log("[C2:SINK] Cancel -> back");
-                _bootstrap?.RenderPreviousOrMain();
-                break;
-            }
+                {
+                    Debug.Log("[C2:SINK] Cancel -> back");
+                    _bootstrap?.RenderPreviousOrMain();
+                    break;
+                }
 
             case "Accept":
-            {
-                Debug.Log("[C2:SINK] Accept -> back (stub)");
-                _bootstrap?.RenderPreviousOrMain();
-                break;
-            }
+                {
+                    Debug.Log("[C2:SINK] Accept -> back (stub)");
+                    _bootstrap?.RenderPreviousOrMain();
+                    break;
+                }
 
             case "cva_InGameMenu_MainDesk_Set":
-            {
-                var id = TryGetTag(action.Payload, "ID");
-                if (string.IsNullOrWhiteSpace(id))
-                    id = TryGetTag(action.Payload, "Name");
+                {
+                    var id = TryGetTag(action.Payload, "ID");
+                    if (string.IsNullOrWhiteSpace(id))
+                        id = TryGetTag(action.Payload, "Name");
 
-                Debug.Log($"[C2:SINK] Desk_Set -> id='{id}'");
-                if (_bootstrap != null && !string.IsNullOrWhiteSpace(id))
-                    _bootstrap.RenderByScreenId(id);
-                else
-                    Debug.LogWarning("[C2:SINK] Desk_Set ignored (missing ID or bootstrap)");
-                break;
-            }
+                    Debug.Log($"[C2:SINK] Desk_Set -> id='{id}'");
+                    if (_bootstrap != null && !string.IsNullOrWhiteSpace(id))
+                        _bootstrap.RenderByScreenId(id);
+                    else
+                        Debug.LogWarning("[C2:SINK] Desk_Set ignored (missing ID or bootstrap)");
+                    break;
+                }
 
             case "cva_MM_SinStart":
                 {
@@ -109,46 +124,50 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
                     break;
                 }
 
-            case "cva_MM_Close":
-            {
-                Debug.Log("[C2:SINK] Close -> Application.Quit()");
-
-#if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
-#else
-                Application.Quit();
-#endif
-                break;
-            }
-
-            case "cva_MM_MultiBack":
-            {
-                _bootstrap?.RenderPreviousOrMain();
-                break;
-            }
-            case "cva_MM_MultiJoin":
-            {
-                Debug.Log("[C2:SINK] MultiJoin stub (no net yet)");
-                break;
-            }
-            case "cva_MM_MultiCreate":
-            {
-                Debug.Log("[C2:SINK] MultiCreate stub (no net yet)");
-                break;
-            }
-
-            default:
-                Debug.Log("[C2:SINK] Unhandled action: " + action.Name);
-                break;
             case "cva_MM_MultiEnter":
                 {
                     _bootstrap?.RenderByScreenId("Multi");
                     break;
                 }
 
+            case "cva_MM_Close":
+                {
+                    Debug.Log("[C2:SINK] Close -> Application.Quit()");
+#if UNITY_EDITOR
+                    UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+                    break;
+                }
+
+            case "cva_MM_MultiBack":
+                {
+                    _bootstrap?.RenderPreviousOrMain();
+                    break;
+                }
+
+            case "cva_MM_MultiJoin":
+                {
+                    Debug.Log("[C2:SINK] MultiJoin stub (no net yet)");
+                    break;
+                }
+
+            case "cva_MM_MultiCreate":
+                {
+                    Debug.Log("[C2:SINK] MultiCreate stub (no net yet)");
+                    break;
+                }
+
             case "cva_DemoDisable":
                 {
                     Debug.Log("[C2:SINK] DemoDisable stub");
+                    break;
+                }
+
+            default:
+                {
+                    Debug.Log("[C2:SINK] Unhandled action: " + action.Name);
                     break;
                 }
         }

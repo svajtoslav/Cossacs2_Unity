@@ -595,14 +595,29 @@ namespace Cossacks2Bridge.Core.Loaders
 
         private static int GetContainerCoord(string containerBlock, string coord)
         {
+            // 1) Пытаемся взять координаты контейнера ПОСЛЕ ChildDialogs (это правильное место в этих XML)
             int childDialogsEnd = containerBlock.LastIndexOf("</ChildDialogs>", StringComparison.OrdinalIgnoreCase);
             if (childDialogsEnd > 0)
             {
                 string afterChildren = containerBlock.Substring(childDialogsEnd);
                 int val = GetInt(afterChildren, coord);
                 if (val != 0) return val;
+
+                // даже если 0 — это валидно, но тогда НЕ надо падать в GetLastInt по всему блоку,
+                // иначе можно схватить x/y из дочерних элементов.
+                // Проверим наличие тега явно:
+                if (Regex.IsMatch(afterChildren, $@"<{coord}>\s*\d+\s*</{coord}>", RegexOptions.IgnoreCase))
+                    return 0;
             }
-            return GetLastInt(containerBlock, coord);
+
+            // 2) Если координаты контейнера лежат до ChildDialogs — вырежем ChildDialogs и возьмём координаты из остатка
+            string stripped = Regex.Replace(
+                containerBlock,
+                @"<ChildDialogs>.*?</ChildDialogs>",
+                "",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+            return GetLastInt(stripped, coord);
         }
 
         private static int GetLastInt(string xml, string tag)
