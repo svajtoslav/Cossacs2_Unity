@@ -245,6 +245,7 @@ private static Image CreateBorderedBg(RectTransform parent, string name, Vector2
     img.raycastTarget = false;
 
     var outline = go.GetComponent<Outline>();
+    if (outline == null) outline = go.gameObject.AddComponent<Outline>();
     outline.effectColor = outer;
     outline.effectDistance = new Vector2(TextBorderThickness, -TextBorderThickness);
     outline.useGraphicAlpha = true;
@@ -308,12 +309,60 @@ private static void ApplyTextZonePaper(Image viewportImg)
         fillImg.color = new Color(1f, 1f, 1f, Mathf.Clamp01(TextZonePaperAlpha));
     }
 
-    // Base viewport should keep only mask + outline, no fill.
+    // Base viewport should keep only mask + layout, no fill.
     viewportImg.sprite = null;
     viewportImg.type = Image.Type.Simple;
-    // Keep a nearly invisible graphic so outline/layout remain valid, but no colored fill bleeds through.
-    viewportImg.color = new Color(1f, 1f, 1f, 0.01f);
+    viewportImg.color = new Color(1f, 1f, 1f, 0f);
     viewportImg.raycastTarget = false;
+}
+
+private static void EnsureViewportFrame(RectTransform viewport)
+{
+    if (viewport == null) return;
+
+    var root = viewport.Find("FrameRoot") as RectTransform;
+    if (root == null)
+    {
+        var go = new GameObject("FrameRoot", typeof(RectTransform));
+        go.transform.SetParent(viewport, false);
+        root = (RectTransform)go.transform;
+    }
+
+    root.anchorMin = Vector2.zero;
+    root.anchorMax = Vector2.one;
+    root.pivot = new Vector2(0.5f, 0.5f);
+    root.offsetMin = Vector2.zero;
+    root.offsetMax = Vector2.zero;
+    root.SetAsLastSibling();
+
+    float t = Mathf.Max(1f, TextBorderThickness);
+    var borderColor = new Color(0.58f, 0.16f, 0.16f, 0.95f);
+
+    void MakeLine(string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+    {
+        var rt = root.Find(name) as RectTransform;
+        if (rt == null)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(root, false);
+            rt = (RectTransform)go.transform;
+        }
+
+        rt.anchorMin = anchorMin;
+        rt.anchorMax = anchorMax;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.offsetMin = offsetMin;
+        rt.offsetMax = offsetMax;
+
+        var img = rt.GetComponent<Image>();
+        img.color = borderColor;
+        img.raycastTarget = false;
+    }
+
+    MakeLine("Top",    new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -t), new Vector2(0f, 0f));
+    MakeLine("Bottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f),  new Vector2(0f, t));
+    MakeLine("Left",   new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0f),  new Vector2(t, 0f));
+    MakeLine("Right",  new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-t, 0f), new Vector2(0f, 0f));
 }
 
 private static void EnsureFillTile(RectTransform parent, string name, Sprite sprite, Vector2 anchorMin, Vector2 anchorMax)
@@ -522,10 +571,17 @@ private void BuildDescriptionUi()
     if (rectMask == null) rectMask = _descViewport.gameObject.AddComponent<RectMask2D>();
 
     var outline = _descViewport.GetComponent<Outline>();
-    if (outline == null) outline = _descViewport.gameObject.AddComponent<Outline>();
-    outline.effectColor = new Color(0.58f, 0.16f, 0.16f, 0.95f);
-    outline.effectDistance = new Vector2(TextBorderThickness, -TextBorderThickness);
-    outline.useGraphicAlpha = true;
+    if (outline != null)
+    {
+#if UNITY_EDITOR
+        if (!Application.isPlaying) DestroyImmediate(outline);
+        else Destroy(outline);
+#else
+        Destroy(outline);
+#endif
+    }
+
+    EnsureViewportFrame(_descViewport);
 
     var content = _descViewport.Find("DescContent") as RectTransform;
     if (content == null)
