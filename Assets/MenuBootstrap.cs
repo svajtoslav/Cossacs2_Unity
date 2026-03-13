@@ -26,6 +26,9 @@ namespace Cossacks2Bridge.UnityAdapters
         private CoreFileSystem _fs;
         private LocDb _loc;
 
+        public CoreFileSystem Fs => _fs;
+        public LocDb Loc => _loc;
+
         // Loaders
         private MainMenuLoader _mainMenuLoader;
         private OptionsLoader _optionsLoader;

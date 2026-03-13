@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;  // <-- ДОБАВИТЬ для List<>
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -18,6 +19,27 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
     /// </summary>
     public abstract class BaseUiRenderer
     {
+        // Lightweight Resources sprite cache (cannot reuse OptionsRenderer.ResFrames because it is private).
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> _resSpriteCache = new();
+
+        private static Sprite GetResFrame(string folder, string frameName)
+        {
+            string key = folder + "/" + frameName;
+            if (_resSpriteCache.TryGetValue(key, out var sp) && sp != null) return sp;
+
+            // Try Sprite first (if imported as Sprite), then Texture2D.
+            sp = Resources.Load<Sprite>(key);
+            if (sp == null)
+            {
+                var tex = Resources.Load<Texture2D>(key);
+                if (tex == null) return null;
+                sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 1f);
+                sp.name = frameName;
+            }
+
+            _resSpriteCache[key] = sp;
+            return sp;
+        }
         public sealed class RenderOptions
         {
             public string FontResourcePath = "Fonts/Slovic";
@@ -183,7 +205,10 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             if (!string.IsNullOrEmpty(resolved) && resolved.StartsWith("#MO_", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            var go = new GameObject($"TextButton_{SafeName(btn.MessageKey)}");
+            bool isAddProfileDesc = btn?.Actions != null && btn.Actions.Any(a => a != null &&
+                !string.IsNullOrEmpty(a.Name) && a.Name.Equals("cva_ProfAdd_Desc", StringComparison.OrdinalIgnoreCase));
+
+            var go = new GameObject(isAddProfileDesc ? "TextButton_ProfAdd_Desc" : $"TextButton_{SafeName(btn.MessageKey)}");
             go.transform.SetParent(parent, false);
 
             var rt = go.AddComponent<RectTransform>();
@@ -201,14 +226,93 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             button.targetGraphic = image;
             button.interactable = btn.Enabled;
 
+            // For AddProfile commander description we build a ScrollRect (1=1 behavior: long text scrolls inside area).
+            GameObject labelParent = go;
+            ScrollRect scrollRect = null;
+            if (isAddProfileDesc)
+            {
+                scrollRect = go.AddComponent<ScrollRect>();
+                scrollRect.horizontal = false;
+                scrollRect.vertical = true;
+                scrollRect.movementType = ScrollRect.MovementType.Clamped;
+                scrollRect.scrollSensitivity = 20f;
+
+                var viewportGO = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
+                viewportGO.transform.SetParent(go.transform, false);
+                var vrt = (RectTransform)viewportGO.transform;
+                vrt.anchorMin = Vector2.zero;
+                vrt.anchorMax = Vector2.one;
+                vrt.offsetMin = new Vector2(0, 0);
+                vrt.offsetMax = new Vector2(-16, 0); // leave space for scrollbar
+                viewportGO.GetComponent<Image>().color = new Color(1, 1, 1, 0f);
+
+                var contentGO = new GameObject("Content", typeof(RectTransform));
+                contentGO.transform.SetParent(viewportGO.transform, false);
+                var crt = (RectTransform)contentGO.transform;
+                crt.anchorMin = new Vector2(0, 1);
+                crt.anchorMax = new Vector2(1, 1);
+                crt.pivot = new Vector2(0, 1);
+                crt.anchoredPosition = Vector2.zero;
+                crt.sizeDelta = new Vector2(0, 0);
+
+                scrollRect.viewport = vrt;
+                scrollRect.content = crt;
+                labelParent = contentGO;
+
+                // Scrollbar (visual)
+                var sbGO = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+                sbGO.transform.SetParent(go.transform, false);
+                var sbRt = (RectTransform)sbGO.transform;
+                sbRt.anchorMin = new Vector2(1, 0);
+                sbRt.anchorMax = new Vector2(1, 1);
+                sbRt.pivot = new Vector2(1, 1);
+                sbRt.anchoredPosition = Vector2.zero;
+                sbRt.sizeDelta = new Vector2(16, 0);
+
+                var sbImg = sbGO.GetComponent<Image>();
+                sbImg.color = Color.white;
+                sbImg.sprite = GetResFrame("Interf3_elements_scroll3_frames", "frame_0004");
+                sbImg.type = Image.Type.Sliced;
+
+                var handleGO = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+                handleGO.transform.SetParent(sbGO.transform, false);
+                var hRt = (RectTransform)handleGO.transform;
+                hRt.anchorMin = new Vector2(0.5f, 1);
+                hRt.anchorMax = new Vector2(0.5f, 1);
+                hRt.pivot = new Vector2(0.5f, 1);
+                hRt.sizeDelta = new Vector2(14, 22);
+                handleGO.GetComponent<Image>().sprite = GetResFrame("Interf3_elements_scroll3_frames", "frame_0005");
+                handleGO.GetComponent<Image>().type = Image.Type.Sliced;
+
+                var sb = sbGO.GetComponent<Scrollbar>();
+                sb.direction = Scrollbar.Direction.BottomToTop;
+                sb.handleRect = hRt;
+                sb.targetGraphic = handleGO.GetComponent<Image>();
+
+                scrollRect.verticalScrollbar = sb;
+                scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+                scrollRect.verticalScrollbarSpacing = 0;
+            }
+
             var textGO = new GameObject("Label");
-            textGO.transform.SetParent(go.transform, false);
+            textGO.transform.SetParent(labelParent.transform, false);
 
             var trt = textGO.AddComponent<RectTransform>();
-            trt.anchorMin = Vector2.zero;
-            trt.anchorMax = Vector2.one;
-            trt.offsetMin = Vector2.zero;
-            trt.offsetMax = Vector2.zero;
+            if (isAddProfileDesc)
+            {
+                trt.anchorMin = new Vector2(0, 1);
+                trt.anchorMax = new Vector2(1, 1);
+                trt.pivot = new Vector2(0, 1);
+                trt.anchoredPosition = Vector2.zero;
+                trt.sizeDelta = new Vector2(0, 0);
+            }
+            else
+            {
+                trt.anchorMin = Vector2.zero;
+                trt.anchorMax = Vector2.one;
+                trt.offsetMin = Vector2.zero;
+                trt.offsetMax = Vector2.zero;
+            }
 
             string textResolved = resolved;
             bool isVersionLine = LooksLikeVersionString(textResolved);
@@ -237,16 +341,20 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 tmp.textWrappingMode = TextWrappingModes.NoWrap;
 
                 // FIX(AddProfile): commander description must be multiline and clipped
-                if (!string.IsNullOrEmpty(textResolved) &&
-                    textResolved.StartsWith("Description:", StringComparison.OrdinalIgnoreCase))
+                if (isAddProfileDesc || (!string.IsNullOrEmpty(textResolved) &&
+                    textResolved.StartsWith("Description:", StringComparison.OrdinalIgnoreCase)))
                 {
                     tmp.alignment = TextAlignmentOptions.TopLeft;
                     tmp.textWrappingMode = TextWrappingModes.Normal;
                     tmp.overflowMode = TextOverflowModes.Truncate;
+                }
 
-                    // clip inside the button rect
-                    if (go.GetComponent<RectMask2D>() == null)
-                        go.AddComponent<RectMask2D>();
+                if (isAddProfileDesc)
+                {
+                    tmp.overflowMode = TextOverflowModes.Overflow;
+                    var fitter = textGO.AddComponent<ContentSizeFitter>();
+                    fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                    fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
                 }
 
                 tmp.text = textResolved;

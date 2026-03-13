@@ -1,4 +1,6 @@
 using Cossacks2Bridge.Core;
+using UnityEngine;
+using Cossacks2Bridge.UnityAdapters.AddProfile;
 
 namespace Cossacks2Bridge.UnityAdapters.Renderers
 {
@@ -26,6 +28,14 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             };
 
             _inner.Render(desk, fs, localOpt, sink, loc);
+
+            // AddProfile extras: commander portraits + description + scrollers
+            var canvas = UnityEngine.GameObject.Find("C2_OptionsCanvas");
+            if (canvas != null)
+            {
+                if (canvas.GetComponent<Cossacks2Bridge.UnityAdapters.AddProfile.AddProfileCommanderController>() == null)
+                    canvas.AddComponent<Cossacks2Bridge.UnityAdapters.AddProfile.AddProfileCommanderController>();
+            }
         }
     }
 }

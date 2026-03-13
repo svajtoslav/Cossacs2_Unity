@@ -7,11 +7,13 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Cossacks2Bridge.UnityAdapters.AddProfile;
 
 namespace Cossacks2Bridge.UnityAdapters.Renderers
 {
     public sealed class OptionsRenderer : BaseUiRenderer
     {
+        private const bool EnableVitLogs = false; // set true only when debugging VitButtonTiled
         private static int s_lastBuildFrame = -1;
         private static object parent;
 
@@ -53,6 +55,11 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             }
 
             if (desk?.Children == null) return;
+
+            bool isAddProfile = desk.Children.Any(n =>
+    n?.Actions != null && n.Actions.Any(a =>
+        a != null && !string.IsNullOrEmpty(a.Name) &&
+        a.Name.StartsWith("cva_ProfAdd_", StringComparison.OrdinalIgnoreCase)));
 
             // ДИАГНОСТИКА: какие InputBox есть в desk
             Debug.Log("═══════════════════════════════════════════════════════════");
@@ -113,25 +120,21 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 }
                 else if (node is UiInputBox ib)
                 {
+                    if (!isAddProfile)
+                    {
+                        CreateInputBox(ib, root, opt);
+                        continue;
+                    }
+
                     if (inputBoxCreated)
                     {
-                        // ═══════════════════════════════════════════════════════════
-                        // ФИКС: Второй InputBox ПЕРЕМЕЩАЕМ на место первого (поверх фона)
-                        // ═══════════════════════════════════════════════════════════
-                        Debug.Log($"[OptionsRenderer] RELOCATE InputBox from ({ib.X},{ib.Y}) to ({TARGET_INPUT_X},{TARGET_INPUT_Y})");
-
-                        // Меняем координаты напрямую
                         ib.X = (int)TARGET_INPUT_X;
                         ib.Y = (int)TARGET_INPUT_Y;
                         CreateInputBox(ib, root, opt);
                         continue;
                     }
 
-                    // ═══════════════════════════════════════════════════════════
-                    // Первый InputBox (573,286) - ПРОПУСКАЕМ, но помечаем что был
-                    // ═══════════════════════════════════════════════════════════
-                    Debug.Log($"[OptionsRenderer] SKIP first InputBox (will use second): pos=({ib.X},{ib.Y})");
-                    inputBoxCreated = true;  // Помечаем что "первый обработан"
+                    inputBoxCreated = true; // пропускаем первый только в AddProfile
                 }
             }
 
@@ -174,6 +177,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                     CreateListDeskVisual(ld, root, opt);
                 }
             }
+             
             // 6) CheckBox, Slider, ComboBox
             int cbIndex = 0;
             foreach (var node in desk.Children)
@@ -187,11 +191,20 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 }
                 else if (node is UiSlider sl)
                 {
-                    // CreateSlider(sl, desk, root, opt, sink, loc);  // <-- ВРЕМЕННО
+                    // AddProfile: allow ONLY the profile-related scrollers (portrait selector etc.)
+                    if (!isAddProfile)
+                    {
+                        CreateSlider(sl, desk, root, opt, sink, loc);
+                    }
+                    else
+                    {
+                        if (HasActionPrefix(sl, "cva_ProfAdd_"))
+                            CreateSlider(sl, desk, root, opt, sink, loc);
+                    }
                 }
                 else if (node is UiComboBox combo)
                 {
-                    CreateComboBox(combo, desk, root, opt, sink, loc);
+                    CreateComboBox(combo, desk, fs, root, opt, sink, loc);
                 }
             }
         }
@@ -1840,7 +1853,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
         }
 
         // ===================== OPTIONS CONTROLS =====================
-
+        private static bool _isAddProfileCtx;
         private static void CreateCheckBox(
             UiCheckBox cb,
             UiDesk desk,
@@ -1850,6 +1863,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             LocDb loc,
             int index)
         {
+
             // CUT мусорные чекбоксы
             if (index == 1 || index == 5) return;
 
@@ -1888,7 +1902,171 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             dbg.State = cb.State;
         }
 
-        private static void CreateComboBox(UiComboBox box, UiDesk desk, RectTransform parent, RenderOptions opt, IUiActionSink sink, LocDb loc)
+        private static bool _aiDatLoaded;
+        // id: FRANCE, name: France (fallback), flagIndex: numeric index for INTERF3_FLAG_frames,
+        // portraitRel: Interf3\\TotalWarGraph\\lva_FRs (from ai.dat), heroPrefix: #HERO_FR_
+        private static readonly System.Collections.Generic.List<(string id, string name, int flagIndex, string portraitRel, string heroPrefix)> _aiNations = new();
+        private static readonly System.Collections.Generic.List<string> _aiDiffKeys = new();
+
+        private static void EnsureAiDatLoaded(CoreFileSystem fs)
+        {
+            if (_aiDatLoaded) return;
+            _aiDatLoaded = true;
+
+            try
+            {
+                // AI\ai.dat contains difficulty labels (@RMID_*) and nations table
+                var text = fs.ReadAllText(@"AI\ai.dat");
+                var lines = text.Split(new[] { "\r\n", "\n" }, System.StringSplitOptions.None);
+
+                int i = 0;
+                // --- difficulties ---
+                int diffCount = 0;
+                while (i < lines.Length)
+                {
+                    var l = lines[i].Trim();
+                    if (l.Length == 0) { i++; continue; }
+                    var parts = SplitWs(l);
+                    if (parts.Length >= 1 && int.TryParse(parts[0], out diffCount))
+                    {
+                        i++;
+                        break;
+                    }
+                    i++;
+                }
+
+                for (int k = 0; k < diffCount && i < lines.Length; k++, i++)
+                {
+                    var l = lines[i].Trim();
+                    if (l.Length == 0) { k--; continue; }
+                    var parts = SplitWs(l);
+                    if (parts.Length >= 1)
+                        _aiDiffKeys.Add(parts[0]); // e.g. @RMID_NORMAL
+                }
+
+                // skip until first "6 6" (nations header). We accept any "N N" with N>=1.
+                while (i < lines.Length)
+                {
+                    var l = lines[i].Trim();
+                    if (l.Length == 0) { i++; continue; }
+                    var parts = SplitWs(l);
+                    if (parts.Length >= 2 && int.TryParse(parts[0], out var n1) && int.TryParse(parts[1], out var n2) && n1 >= 1 && n1 == n2)
+                    {
+                        i++;
+                        // read n1 nations
+                        for (int n = 0; n < n1 && i < lines.Length; n++, i++)
+                        {
+                            var nl = lines[i].Trim();
+                            if (nl.Length == 0) { n--; continue; }
+                            var p = SplitWs(nl);
+                            if (p.Length >= 2)
+                            {
+                                int flagIndex = 0;
+                                // ai.dat (Data1 build):
+                                // ID Name Unit 9 1 <FlagIndex> PortraitG16 HeroPrefix
+                                // Some builds may differ; try to detect portrait+prefix heuristically.
+                                if (p.Length >= 6) int.TryParse(p[5], out flagIndex);
+
+                                string portraitRel = "";
+                                string heroPrefix = "";
+                                if (p.Length >= 8 && p[6].IndexOf('\\') >= 0)
+                                {
+                                    portraitRel = p[6];
+                                    heroPrefix = p[7];
+                                }
+                                else
+                                {
+                                    // fallback: older/other layouts
+                                    portraitRel = (p.Length >= 4) ? p[3] : "";
+                                    heroPrefix = (p.Length >= 5) ? p[4] : "";
+                                }
+                                _aiNations.Add((p[0], p[1], flagIndex, portraitRel, heroPrefix));
+                            }
+                        }
+                        break;
+                    }
+                    i++;
+                }
+            }
+            catch
+            {
+                // ignore; keep lists empty
+            }
+        }
+
+        private static bool HasActionPrefix(UiNode node, string prefix)
+        {
+            if (node?.Actions == null || node.Actions.Count == 0 || string.IsNullOrEmpty(prefix)) return false;
+            for (int i = 0; i < node.Actions.Count; i++)
+            {
+                var a = node.Actions[i];
+                if (a == null || string.IsNullOrEmpty(a.Name)) continue;
+                if (a.Name.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        private static string[] SplitWs(string s)
+        {
+            return System.Text.RegularExpressions.Regex.Split(s.Trim(), "\\s+");
+        }
+
+        private static bool HasAction(UiComboBox box, string actionName)
+        {
+            if (box == null) return false;
+            for (int i = 0; i < box.Actions.Count; i++)
+                if (box.Actions[i] != null && box.Actions[i].Name != null &&
+                    box.Actions[i].Name.Equals(actionName, System.StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
+        private static System.Collections.Generic.List<string> ResolveComboItems(UiComboBox box, CoreFileSystem fs, RenderOptions opt, LocDb loc, out string initialText)
+        {
+            initialText = "";
+
+            // AddProfile: Nation
+            if (HasAction(box, "cva_ProfAdd_Race"))
+            {
+                EnsureAiDatLoaded(fs);
+                var items = new System.Collections.Generic.List<string>();
+                for (int i = 0; i < _aiNations.Count; i++)
+                {
+                    // Prefer localized nations from Text\\Nations.txt: #FRANCE -> "Франция"
+                    string key = "#" + _aiNations[i].id;
+                    string v = loc != null ? loc.Resolve(key) : "";
+                    if (string.IsNullOrEmpty(v) || v.Equals(key, System.StringComparison.OrdinalIgnoreCase))
+                        v = _aiNations[i].name;
+                    items.Add(v);
+                }
+                initialText = items.Count > 0 ? items[0] : "";
+                return items;
+            }
+
+            // AddProfile: Difficulty
+            if (HasAction(box, "cva_ProfAdd_Diff"))
+            {
+                EnsureAiDatLoaded(fs);
+                var items = new System.Collections.Generic.List<string>();
+                for (int i = 0; i < _aiDiffKeys.Count; i++)
+                    items.Add(loc != null ? loc.Resolve(_aiDiffKeys[i]) : _aiDiffKeys[i]);
+                initialText = items.Count > 0 ? items[0] : "";
+                return items;
+            }
+
+            // Options: video mode (resolution)
+            if (opt != null && opt.FillResolutionCombos && HasAction(box, "cva_Opt_VMode"))
+            {
+                var list = BuildResolutionList();
+                initialText = $"{Screen.currentResolution.width}x{Screen.currentResolution.height}";
+                return list;
+            }
+
+            // Fallback: empty
+            return new System.Collections.Generic.List<string>();
+        }
+
+        private static void CreateComboBox(UiComboBox box, UiDesk desk, CoreFileSystem fs, RectTransform parent, RenderOptions opt, IUiActionSink sink, LocDb loc)
         {
             const string folder = "Interf3_elements_combo_frames";
 
@@ -1901,7 +2079,10 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             spRow = SpriteCropper.CropLeft(spRow, CROP_L);
             spRowHover = SpriteCropper.CropLeft(spRowHover, CROP_L);
 
-            var go = new GameObject($"ComboBox_{SafeName(box.Name)}", typeof(RectTransform));
+            string comboName = $"ComboBox_{SafeName(box.Name)}";
+            if (HasAction(box, "cva_ProfAdd_Race")) comboName = "ComboBox_ProfAdd_Race";
+            else if (HasAction(box, "cva_ProfAdd_Diff")) comboName = "ComboBox_ProfAdd_Diff";
+            var go = new GameObject(comboName, typeof(RectTransform));
             go.transform.SetParent(parent, false);
 
             var rt = (RectTransform)go.transform;
@@ -1942,13 +2123,49 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             tmp.alignment = TextAlignmentOptions.Left;
             tmp.verticalAlignment = VerticalAlignmentOptions.Middle;
             ApplyTextStyle(tmp, UiTextStyle.OptionLabel, opt);
-            tmp.text = $"{Screen.currentResolution.width}x{Screen.currentResolution.height}";
 
-            var list = BuildResolutionList();
+            var items = ResolveComboItems(box, fs, opt, loc, out string initialText);
+            tmp.text = initialText;
+
+            // AddProfile: nation flag image (uses indices from AI\\ai.dat)
+            Image nationFlagImg = null;
+            System.Collections.Generic.List<Sprite> nationFlagSprites = null;
+            if (HasAction(box, "cva_ProfAdd_Race"))
+            {
+                EnsureAiDatLoaded(fs);
+                const string flagFolder = "INTERF3_FLAG_frames";
+                nationFlagSprites = new System.Collections.Generic.List<Sprite>();
+                for (int i = 0; i < _aiNations.Count; i++)
+                    nationFlagSprites.Add(ResFrames.GetByName(flagFolder, $"frame_{_aiNations[i].flagIndex:0000}"));
+
+                var flagGO = new GameObject("NationFlag", typeof(RectTransform), typeof(Image));
+                flagGO.transform.SetParent(parent, false);
+
+                nationFlagImg = flagGO.GetComponent<Image>();
+                nationFlagImg.raycastTarget = false;
+                nationFlagImg.sprite = (nationFlagSprites.Count > 0 ? nationFlagSprites[0] : null);
+                nationFlagImg.preserveAspect = true;
+                nationFlagImg.type = Image.Type.Simple;
+
+                var frt = (RectTransform)flagGO.transform;
+                frt.anchorMin = frt.anchorMax = new Vector2(0, 1);
+                frt.pivot = new Vector2(0, 1);
+
+                float fw = 24f, fh = 16f;
+                if (nationFlagImg.sprite != null && nationFlagImg.sprite.texture != null)
+                {
+                    fw = nationFlagImg.sprite.texture.width;
+                    fh = nationFlagImg.sprite.texture.height;
+                }
+
+                // place to the right of the nation combobox
+                frt.anchoredPosition = new Vector2(box.X + box.Width + 6f, -box.Y + (box.Height - fh) * 0.5f);
+                frt.sizeDelta = new Vector2(fw, fh);
+            }
 
             float rowH = 20f;
             int maxVisible = 14;
-            int visibleCount = Mathf.Min(maxVisible, list.Count);
+            int visibleCount = Mathf.Min(maxVisible, items.Count);
 
             float topPad = 2f;
             float botPad = 4f;
@@ -1997,10 +2214,12 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             controller.BoxImage = boxImg;
             controller.SpriteClosed = spClosed;
             controller.SpriteOpen = spOpen ?? spClosed;
+            // external listeners (AddProfile)
+            controller.OnSelected = null;
 
             for (int i = 0; i < visibleCount; i++)
             {
-                string resText = list[i];
+                string itemText = items[i];
 
                 var row = new GameObject($"Row_{i:00}", typeof(RectTransform), typeof(Image), typeof(Button));
                 row.transform.SetParent(rowsContainer.transform, false);
@@ -2033,7 +2252,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 ltmp.textWrappingMode = TextWrappingModes.NoWrap;
                 ltmp.alignment = TextAlignmentOptions.Left;
                 ltmp.verticalAlignment = VerticalAlignmentOptions.Middle;
-                ltmp.text = resText;
+                ltmp.text = itemText;
                 ApplyTextStyle(ltmp, UiTextStyle.OptionLabel, opt);
 
                 var hover = row.AddComponent<RowHoverSwap>();
@@ -2041,10 +2260,24 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 hover.NormalSprite = spRow;
                 hover.HoverSprite = spRowHover ?? spRow;
 
-                string capturedText = resText;
+                string capturedText = itemText;
+                int capturedIndex = i;
                 row.GetComponent<Button>().onClick.AddListener(() =>
                 {
                     tmp.text = capturedText;
+
+                    // update nation flag (AddProfile)
+                    if (nationFlagImg != null && nationFlagSprites != null &&
+                        capturedIndex >= 0 && capturedIndex < nationFlagSprites.Count &&
+                        nationFlagSprites[capturedIndex] != null)
+                    {
+                        nationFlagImg.sprite = nationFlagSprites[capturedIndex];
+                    }
+                    // fire the first action (so later we can bind real logic)
+                    if (sink != null && box.Actions.Count > 0)
+                        sink.OnAction(box.Hint, box.Actions[0]);
+
+                    controller.OnSelected?.Invoke(capturedIndex, capturedText);
                     controller.ClosePopup();
                 });
             }
@@ -2056,6 +2289,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             blockerGO.SetActive(false);
             panelGO.SetActive(false);
         }
+
 
         private static List<string> BuildResolutionList()
         {
@@ -2084,8 +2318,25 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             }
         }
 
+        private static bool HasAction(UiNode node, string actionName)
+        {
+            if (node == null || node.Actions == null) return false;
+            for (int i = 0; i < node.Actions.Count; i++)
+                if (node.Actions[i] != null && node.Actions[i].Name != null &&
+                    node.Actions[i].Name.Equals(actionName, System.StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
         private static void CreateSlider(UiSlider sl, UiDesk desk, RectTransform parent, RenderOptions opt, IUiActionSink sink, LocDb loc)
         {
+            // AddProfile portrait scroller: render as vertical scrollbar with scroll3 frames
+            if (HasAction(sl, "cva_ProfAdd_PortScr"))
+            {
+                CreateAddProfilePortraitHScroll(sl, parent);
+                return;
+            }
+
             const string folder = "interf3_elements_slider_frames";
             const int removeLeftLamellas = 1;
             const int gapPx = 1;
@@ -2200,33 +2451,172 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             );
         }
 
+        private static void CreateAddProfilePortraitHScroll(UiSlider sl, RectTransform parent)
+        {
+            const string folder = "Interf3_elements_scroll3_frames";
+            // frame_0000/0001 are arrow/button-like frames in this asset set;
+            // track/thumb for AddProfile portrait strip are 0004/0005.
+            var spTrack = ResFrames.GetByName(folder, "frame_0004") ?? ResFrames.GetByName(folder, "frame_0000");
+            var spThumb = ResFrames.GetByName(folder, "frame_0005") ?? ResFrames.GetByName(folder, "frame_0001");
+            if (spTrack == null || spThumb == null) return;
+
+            var root = new GameObject("HScroll_ProfAdd_PortScr", typeof(RectTransform));
+            root.transform.SetParent(parent, false);
+
+            var rrt = (RectTransform)root.transform;
+            rrt.anchorMin = rrt.anchorMax = new Vector2(0, 1);
+            rrt.pivot = new Vector2(0, 1);
+            rrt.anchoredPosition = new Vector2(sl.X, -sl.Y);
+            rrt.sizeDelta = new Vector2(sl.Width, sl.Height);
+
+            var trackGO = new GameObject("Track", typeof(RectTransform), typeof(Image));
+            trackGO.transform.SetParent(root.transform, false);
+            var trackRT = (RectTransform)trackGO.transform;
+            trackRT.anchorMin = trackRT.anchorMax = new Vector2(0, 1);
+            trackRT.pivot = new Vector2(0, 1);
+            trackRT.anchoredPosition = Vector2.zero;
+            trackRT.sizeDelta = new Vector2(sl.Width, sl.Height);
+
+            var trackImg = trackGO.GetComponent<Image>();
+            trackImg.sprite = spTrack;
+            // Track must not "stretch" a single pixel column; tile it.
+            trackImg.type = Image.Type.Tiled;
+            trackImg.raycastTarget = true;
+
+            var thumbGO = new GameObject("Thumb", typeof(RectTransform), typeof(Image));
+            thumbGO.transform.SetParent(trackGO.transform, false);
+            var thumbRT = (RectTransform)thumbGO.transform;
+            thumbRT.anchorMin = thumbRT.anchorMax = new Vector2(0, 1);
+            thumbRT.pivot = new Vector2(0, 1);
+            // Keep native size so it is not distorted.
+            thumbRT.sizeDelta = new Vector2(spThumb.rect.width, spThumb.rect.height);
+
+            var thumbImg = thumbGO.GetComponent<Image>();
+            thumbImg.sprite = spThumb;
+            thumbImg.type = Image.Type.Simple;
+            thumbImg.preserveAspect = true;
+            thumbImg.raycastTarget = true;
+
+            int max = Mathf.Max(1, sl.MaxPosition);
+            int pos = Mathf.Clamp(sl.Position, 0, max);
+
+            var ctrl = root.AddComponent<Cossacks2Bridge.UnityAdapters.AddProfile.HorizontalScrollbarController>();
+            ctrl.Initialize(trackRT, thumbRT, max, pos);
+        }
+
         private static void CreateGPPicture(RectTransform parent, UiGPPicture gp, CoreFileSystem fs, RenderOptions opt)
         {
+            var fid = (gp?.FileID ?? "").Trim().Replace('\\', '/');
+
+            // ===== AddProfile portraits (lva_XXs) are loaded via DLL, not Resources =====
+            if (!string.IsNullOrEmpty(fid) &&
+                fid.StartsWith("Interf3/TotalWarGraph/lva_", System.StringComparison.OrdinalIgnoreCase))
+            {
+                bool isProfAddPort = gp?.Actions != null &&
+                    gp.Actions.Exists(a => a != null &&
+                                          !string.IsNullOrEmpty(a.Name) &&
+                                          a.Name.Equals("cva_ProfAdd_Port", System.StringComparison.OrdinalIgnoreCase));
+
+                string portraitGoName = isProfAddPort ? "GPPicture_ProfAdd_Port" : "GPPicture";
+
+                var portraitGo = new GameObject(portraitGoName, typeof(RectTransform), typeof(Image));
+                portraitGo.transform.SetParent(parent, false);
+
+                var portraitRt = (RectTransform)portraitGo.transform;
+                portraitRt.anchorMin = portraitRt.anchorMax = new Vector2(0, 1);
+                portraitRt.pivot = new Vector2(0, 1);
+                portraitRt.anchoredPosition = new Vector2(gp.X, -gp.Y);
+                portraitRt.sizeDelta = new Vector2(gp.Width, gp.Height);
+
+                // Спрайт поставит AddProfileCommanderController через DLL
+                var portraitImg = portraitGo.GetComponent<Image>();
+                portraitImg.enabled = false;
+
+                return;
+            }
+
+            // Skip flag placeholder (dynamic)
+            if (fid.Equals("INTERF3/FLAG", System.StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // УБРАТЬ ЛИШНИЙ "СТАРТОВЫЙ" ФЛАГ ИЗ XML AddProfile
+            if (gp != null &&
+                !string.IsNullOrEmpty(gp.FileID) &&
+                gp.FileID.Replace('\\', '/').Equals("INTERF3/FLAG", System.StringComparison.OrdinalIgnoreCase) &&
+                gp.Actions != null &&
+                gp.Actions.Exists(a => a != null &&
+                                      a.Name != null &&
+                                      a.Name.Equals("cva_ProfAdd_RaceFlg", System.StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            Debug.Log($"[CreateGPPicture HIT] FileID={gp?.FileID} SpriteID={gp?.SpriteID}");
+
             string resPath = (gp.FileID ?? "")
                 .Replace("\\", "_")
                 .Replace("/", "_")
                 .ToUpperInvariant() + "_frames";
 
-            var sprite = LoadSpriteFromResources(resPath, $"frame_{gp.SpriteID:0000}");
-            if (sprite == null)
+            var loadedSprite = LoadSpriteFromResources(resPath, $"frame_{gp.SpriteID:0000}");
+            if (loadedSprite == null)
             {
                 Debug.LogWarning($"[GPPicture] sprite not found {resPath}/frame_{gp.SpriteID:0000}");
                 return;
             }
 
-            var go = new GameObject("GPPicture", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
+            string normalGoName = "GPPicture";
+            bool isPortraitBorder = fid.Equals("INTERF3/ELEMENTS/PORTRAITS_BORDER", System.StringComparison.OrdinalIgnoreCase);
+            if (gp?.Actions != null)
+            {
+                if (gp.Actions.Exists(a => a != null && !string.IsNullOrEmpty(a.Name) &&
+                                          a.Name.Equals("cva_ProfAdd_Port", System.StringComparison.OrdinalIgnoreCase)))
+                    normalGoName = "GPPicture_ProfAdd_Port";
+                else if (gp.Actions.Exists(a => a != null && !string.IsNullOrEmpty(a.Name) &&
+                                               a.Name.Equals("cva_ProfAdd_RaceFlg", System.StringComparison.OrdinalIgnoreCase)))
+                    normalGoName = "GPPicture_ProfAdd_RaceFlg";
+                else if (isPortraitBorder)
+                    normalGoName = "GPPicture_ProfAdd_PortFrame";
+            }
+            else if (isPortraitBorder)
+            {
+                normalGoName = "GPPicture_ProfAdd_PortFrame";
+            }
 
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
-            rt.pivot = new Vector2(0, 1);
-            rt.anchoredPosition = new Vector2(gp.X, -gp.Y);
-            rt.sizeDelta = new Vector2(gp.Width, gp.Height);
+            var normalGo = new GameObject(normalGoName, typeof(RectTransform), typeof(Image));
+            normalGo.transform.SetParent(parent, false);
 
-            var img = go.GetComponent<Image>();
-            img.sprite = sprite;
-            img.type = Image.Type.Simple;
+            var normalRt = (RectTransform)normalGo.transform;
+            normalRt.anchorMin = normalRt.anchorMax = new Vector2(0, 1);
+            normalRt.pivot = new Vector2(0, 1);
+            normalRt.anchoredPosition = new Vector2(gp.X, -gp.Y);
+            normalRt.sizeDelta = new Vector2(gp.Width, gp.Height);
+
+            var normalImg = normalGo.GetComponent<Image>();
+            normalImg.sprite = loadedSprite;
+            normalImg.type = Image.Type.Simple;
+
+            // M_PROF_ADD has a nested portrait GPPicture inside PORTRAITS_BORDER.
+            // Our current XML model flattens/loses nested child dialogs, so create the slot explicitly.
+            if (isPortraitBorder)
+            {
+                var portGo = new GameObject("GPPicture_ProfAdd_Port", typeof(RectTransform), typeof(Image));
+                portGo.transform.SetParent(normalGo.transform, false);
+
+                var portRt = (RectTransform)portGo.transform;
+                portRt.anchorMin = portRt.anchorMax = new Vector2(0, 1);
+                portRt.pivot = new Vector2(0, 1);
+                portRt.anchoredPosition = new Vector2(4f, -3f);
+                portRt.sizeDelta = new Vector2(111f, 124f);
+
+                var portImg = portGo.GetComponent<Image>();
+                portImg.enabled = false;
+                portImg.type = Image.Type.Simple;
+                portImg.preserveAspect = true;
+                portImg.raycastTarget = false;
+            }
         }
+
 
         private static void CreateInputBox(UiInputBox ib, RectTransform root, RenderOptions opt)
         {
@@ -2399,7 +2789,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
 
             int baseSpr = vb.SpritePassive;
 
-            Debug.Log($"[VitButtonTiled] GP={vb.GP_File}, resPath={resPath}, baseSpr={baseSpr}, " +
+            if (EnableVitLogs) Debug.Log($"[VitButtonTiled] GP={vb.GP_File}, resPath={resPath}, baseSpr={baseSpr}, " +
                       $"pos=({vb.X},{vb.Y}), size=({vb.Width}x{vb.Height}), OneSprited={vb.OneSprited}");
 
             // ═══════════════════════════════════════════════════════════
@@ -2424,7 +2814,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 spC3 = LoadSpriteFromResources(resPath, $"frame_{baseSpr + 4:0000}");
             }
 
-            Debug.Log($"[VitButtonTiled] Sprites loaded: L={spL != null}, R={spR != null}, " +
+            if (EnableVitLogs) Debug.Log($"[VitButtonTiled] Sprites loaded: L={spL != null}, R={spR != null}, " +
                       $"C1={spC1 != null}, C2={spC2 != null}, C3={spC3 != null}");
 
             // Fallback
@@ -2506,7 +2896,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 tileIndex++;
             }
 
-            Debug.Log($"[VitButtonTiled] Created {tileIndex} center tiles");
+            if (EnableVitLogs) Debug.Log($"[VitButtonTiled] Created {tileIndex} center tiles");
 
             // ═══════════════════════════════════════════════════════════
             // 6. Левый край ПОВЕРХ
@@ -2552,7 +2942,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 rightGO.transform.SetAsLastSibling();
             }
 
-            Debug.Log($"[VitButtonTiled] Complete: L={widthL > 0}, R={widthR > 0}, tiles={tileIndex}");
+            if (EnableVitLogs) Debug.Log($"[VitButtonTiled] Complete: L={widthL > 0}, R={widthR > 0}, tiles={tileIndex}");
         }
 
 
@@ -2675,6 +3065,8 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             public Image BoxImage;
             public Sprite SpriteClosed;
             public Sprite SpriteOpen;
+
+            public System.Action<int, string> OnSelected;
 
             private bool _isOpen;
 

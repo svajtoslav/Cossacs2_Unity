@@ -23,6 +23,7 @@ namespace Cossacks2Bridge.Core
             LoadKeyValueFile(fs, @"Text\textV1.txt");
             LoadKeyValueFile(fs, @"Text\textV2.txt");
             LoadKeyValueFile(fs, @"Text\textV3.txt");
+            LoadKeyValueFile(fs, @"Text\text6.txt");
             LoadKeyValueFile(fs, @"Text\BigMapData.txt");
         }
 

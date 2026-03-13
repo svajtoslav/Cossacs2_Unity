@@ -13,6 +13,8 @@ namespace Cossacks2Bridge.Core.Loaders
     /// </summary>
     public sealed class OptionsLoader
     {
+        private const bool VerboseLogs = false;
+
         private readonly CoreFileSystem _fs;
         private HashSet<string> _processedContent;
         private HashSet<string> _processedInputBoxKeys;  // ✅ Добавить!
@@ -39,7 +41,7 @@ namespace Cossacks2Bridge.Core.Loaders
             string routerPath = @"Dialogs\MainMenu.xml";
             if (!_fs.Exists(routerPath))
             {
-                Debug.LogWarning($"[OptionsLoader] Router not found: {routerPath}");
+                if (VerboseLogs) Debug.LogWarning($"[OptionsLoader] Router not found: {routerPath}");
                 return new UiDesk();
             }
 
@@ -48,7 +50,7 @@ namespace Cossacks2Bridge.Core.Loaders
 
             if (string.IsNullOrWhiteSpace(target))
             {
-                Debug.LogWarning($"[OptionsLoader] Screen '{screenId}' not found in MainMenu.xml");
+                if (VerboseLogs) Debug.LogWarning($"[OptionsLoader] Screen '{screenId}' not found in MainMenu.xml");
                 return new UiDesk();
             }
 
@@ -66,7 +68,7 @@ namespace Cossacks2Bridge.Core.Loaders
         {
             if (!_fs.Exists(relativePath))
             {
-                Debug.LogWarning($"[OptionsLoader] File not found: {relativePath}");
+                if (VerboseLogs) Debug.LogWarning($"[OptionsLoader] File not found: {relativePath}");
                 return new UiDesk { SourcePath = relativePath };
             }
 
@@ -76,7 +78,7 @@ namespace Cossacks2Bridge.Core.Loaders
             _processedInputBoxKeys = new HashSet<string>();  // ✅ Сброс
             ParseContainer(xml, 0, 0, desk, 0);
 
-            Debug.Log($"[OptionsLoader] Loaded {desk.Children.Count} elements from {relativePath}");
+            if (VerboseLogs) Debug.Log($"[OptionsLoader] Loaded {desk.Children.Count} elements from {relativePath}");
             return desk;
         }
 
@@ -97,7 +99,7 @@ namespace Cossacks2Bridge.Core.Loaders
                 int absoluteY = baseY + containerY;
 
                 // ✅ ОТЛАДКА
-                Debug.Log($"[ParseContainer] DialogsDesk: container=({containerX},{containerY}), absolute=({absoluteX},{absoluteY})");
+                if (VerboseLogs) Debug.Log($"[ParseContainer] DialogsDesk: container=({containerX},{containerY}), absolute=({absoluteX},{absoluteY})");
 
                 string childDialogs = GetTagValue(containerBlock, "ChildDialogs");
                 if (!string.IsNullOrEmpty(childDialogs))
@@ -212,7 +214,7 @@ namespace Cossacks2Bridge.Core.Loaders
                 // Пропускаем корневой VitButton (x=0, y=0, часто шаблон внутри ListDesk)
                 if (node.X == 0 && node.Y == 0)
                 {
-                    Debug.Log($"[OptionsLoader] SKIP root VitButton at (0,0)");
+                    if (VerboseLogs) Debug.Log($"[OptionsLoader] SKIP root VitButton at (0,0)");
                     continue;
                 }
 
@@ -244,7 +246,7 @@ namespace Cossacks2Bridge.Core.Loaders
                     continue;
                 _processedInputBoxKeys.Add(vitKey);
 
-                Debug.Log($"[OptionsLoader] VitButton: ({node.X},{node.Y}), W={node.Width}, " +
+                if (VerboseLogs) Debug.Log($"[OptionsLoader] VitButton: ({node.X},{node.Y}), W={node.Width}, " +
                           $"GP={node.GP_File}, State={state}, SprPassive={node.SpritePassive}, OneSprited={oneSprited}");
 
                 // ═══════════════════════════════════════════════════════════
@@ -287,7 +289,7 @@ namespace Cossacks2Bridge.Core.Loaders
                             MaxLen = GetInt(inner, "StrMaxLen", 30)
                         };
 
-                        Debug.Log($"[OptionsLoader] InputBox inside VitButton: ({ib.X},{ib.Y})");
+                        if (VerboseLogs) Debug.Log($"[OptionsLoader] InputBox inside VitButton: ({ib.X},{ib.Y})");
 
                         if (ib.Visible)
                             desk.Children.Add(ib);
@@ -348,7 +350,7 @@ namespace Cossacks2Bridge.Core.Loaders
                     }
                 }
 
-                Debug.Log($"[OptionsLoader] ListDesk at ({node.X},{node.Y}), size={node.Width}x{node.Height}, " +
+                if (VerboseLogs) Debug.Log($"[OptionsLoader] ListDesk at ({node.X},{node.Y}), size={node.Width}x{node.Height}, " +
                           $"element={node.ElementTemplate?.Width}x{node.ElementTemplate?.Height}");
 
                 if (node.Visible && !IsDuplicate(desk, node))
