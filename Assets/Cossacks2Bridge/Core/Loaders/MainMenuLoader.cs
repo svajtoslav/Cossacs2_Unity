@@ -290,6 +290,8 @@ namespace Cossacks2Bridge.Core.Loaders
                 var vb = new UiVitButton();
                 FillCommon(vb, b, baseX, baseY);
 
+                vb.MessageKey = Get(b, "Message") ?? "";
+                vb.HintKey = Get(b, "Hint") ?? "";
                 vb.GP_File = Get(b, "GP_File") ?? "";
                 vb.SpritePassive = ToInt(Get(b, "SpritePassive"));
                 vb.SpriteActive = ToInt(Get(b, "SpriteActive"));

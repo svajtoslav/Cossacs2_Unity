@@ -1,7 +1,9 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 using Cossacks2Bridge.Core;
-using Cossacks2Bridge.UnityAdapters;  // ✅ Для IUiActionSink
+using Cossacks2Bridge.UnityAdapters;
 
 /// <summary>
 /// Minimal "executor" for UI actions coming from renderers.
@@ -9,6 +11,10 @@ using Cossacks2Bridge.UnityAdapters;  // ✅ Для IUiActionSink
 public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
 {
     private Cossacks2Bridge.UnityAdapters.MenuBootstrap _bootstrap;
+    public static string CurrentProfileName { get; private set; } = "";
+    public static bool SingleBattlesShowBattles { get; set; } = false;
+    public static string SingleBattlesSelectedId { get; set; } = "";
+    public static bool SingleBattlesArcadeModeEnabled { get; set; } = false;
 
     private static string ExtractTargetFromPayload(string payload)
     {
@@ -42,11 +48,11 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
 
         switch (action.Name)
         {
-            // --- AddProfile ---
             case "cva_ProfAdd_Accept":
                 {
+                    CaptureProfileNameFromScene();
                     _bootstrap?.SetHasProfile(true);
-                    _bootstrap?.RenderPreviousOrMain();
+                    _bootstrap?.RenderByScreenId("Single");
                     break;
                 }
 
@@ -56,10 +62,12 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
                     break;
                 }
 
-            // --- Main menu ---
             case "cva_MM_Start":
                 {
                     var id = ExtractTargetFromPayload(action.Payload);
+                    if (string.Equals(id, "SelProfile", StringComparison.OrdinalIgnoreCase))
+                        id = "AddProfile";
+
                     Debug.Log($"[C2:SINK] MM_Start -> go '{id}' (payload='{action.Payload}')");
                     if (_bootstrap != null && !string.IsNullOrWhiteSpace(id))
                         _bootstrap.RenderByScreenId(id);
@@ -106,14 +114,14 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
             case "cva_InGameMenu_MainDesk_Set":
                 {
                     var id = TryGetTag(action.Payload, "ID");
-                    if (string.IsNullOrWhiteSpace(id))
-                        id = TryGetTag(action.Payload, "Name");
+                    if (string.Equals(id, "SinBattles", StringComparison.OrdinalIgnoreCase))
+                        id = "SingleBattles";
+                    else if (string.Equals(id, "SinGlobalMap", StringComparison.OrdinalIgnoreCase))
+                        id = "";
 
                     Debug.Log($"[C2:SINK] Desk_Set -> id='{id}'");
                     if (_bootstrap != null && !string.IsNullOrWhiteSpace(id))
                         _bootstrap.RenderByScreenId(id);
-                    else
-                        Debug.LogWarning("[C2:SINK] Desk_Set ignored (missing ID or bootstrap)");
                     break;
                 }
 
@@ -130,13 +138,59 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
                     break;
                 }
 
+
+            case "cva_Battles_Mode_Skirmish":
+                {
+                    SingleBattlesShowBattles = false;
+                    SingleBattlesSelectedId = "";
+                    _bootstrap?.RenderByScreenId("SingleBattles");
+                    break;
+                }
+
+            case "cva_Battles_Mode_Battles":
+                {
+                    SingleBattlesShowBattles = true;
+                    SingleBattlesSelectedId = "";
+                    _bootstrap?.RenderByScreenId("SingleBattles");
+                    break;
+                }
+
+            case "cva_Battles_Select":
+                {
+                    SingleBattlesSelectedId = action.Payload ?? "";
+                    _bootstrap?.RenderByScreenId("SingleBattles");
+                    break;
+                }
+
+
+
+            case "cva_Battles_ArcadeToggle":
+                {
+                    SingleBattlesArcadeModeEnabled = !SingleBattlesArcadeModeEnabled;
+                    _bootstrap?.RenderByScreenId("SingleBattles");
+                    break;
+                }
+
+            case "cva_Battles_Back":
+                {
+                    _bootstrap?.RenderByScreenId("Single");
+                    break;
+                }
+
             case "cva_MM_Close":
                 {
+                    if (_bootstrap != null && string.Equals(_bootstrap.CurrentScreenId, "Single", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Debug.Log("[C2:SINK] Close on Single -> Main");
+                        _bootstrap.RenderByScreenId("Main");
+                        break;
+                    }
+
                     Debug.Log("[C2:SINK] Close -> Application.Quit()");
 #if UNITY_EDITOR
                     UnityEditor.EditorApplication.isPlaying = false;
 #else
-            Application.Quit();
+                    Application.Quit();
 #endif
                     break;
                 }
@@ -148,20 +202,13 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
                 }
 
             case "cva_MM_MultiJoin":
-                {
-                    Debug.Log("[C2:SINK] MultiJoin stub (no net yet)");
-                    break;
-                }
-
             case "cva_MM_MultiCreate":
-                {
-                    Debug.Log("[C2:SINK] MultiCreate stub (no net yet)");
-                    break;
-                }
-
             case "cva_DemoDisable":
+            case "cva_vGameMode_Set":
+            case "cva_M_ModalDeskSet":
+            case "cva_SPD_CampMessageCheck":
                 {
-                    Debug.Log("[C2:SINK] DemoDisable stub");
+                    Debug.Log("[C2:SINK] Ignored action: " + action.Name);
                     break;
                 }
 
@@ -171,6 +218,33 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
                     break;
                 }
         }
+    }
+
+    private void CaptureProfileNameFromScene()
+    {
+        string value = "";
+
+        var tmpFields = FindObjectsByType<TMP_InputField>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var field in tmpFields)
+        {
+            if (field == null) continue;
+            value = field.text?.Trim();
+            if (!string.IsNullOrWhiteSpace(value)) break;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            var legacyFields = FindObjectsByType<InputField>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var field in legacyFields)
+            {
+                if (field == null) continue;
+                value = field.text?.Trim();
+                if (!string.IsNullOrWhiteSpace(value)) break;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(value))
+            CurrentProfileName = value;
     }
 
     private static string TryGetTag(string xmlLike, string tag)

@@ -150,6 +150,8 @@ namespace Cossacks2Bridge.Core
     // UiVitButton - УБРАЛИ Width/Height (они уже есть в UiNode!)
     public sealed class UiVitButton : UiNode
     {
+        public string MessageKey = "";
+        public string HintKey = "";
         public string GP_File;
         public int SpritePassive;
         public int SpriteActive;

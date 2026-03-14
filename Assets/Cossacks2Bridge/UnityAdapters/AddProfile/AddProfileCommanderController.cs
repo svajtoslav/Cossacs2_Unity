@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -209,15 +209,17 @@ private static void PlacePortraitScrollerUnderFrame(RectTransform frame, Horizon
     if (root.parent != parent)
         root.SetParent(parent, false);
 
-    const float margin = 1f;
-    const float forcedHeight = 13f;
-    float w = Mathf.Max(110f, frame.rect.width - 2f);
+    // Original AddProfile portrait scroller is a rotated vertical scrollbar:
+    // native size in XML is 15x119 with angle=270, so visually it becomes 119x15.
+    const float nativeWidth = 119f;
+    const float nativeHeight = 15f;
+    const float margin = 3f;
 
     root.anchorMin = root.anchorMax = new Vector2(0, 1);
     root.pivot = new Vector2(0, 1);
-    root.sizeDelta = new Vector2(w, forcedHeight);
+    root.sizeDelta = new Vector2(nativeWidth, nativeHeight);
     root.anchoredPosition = new Vector2(
-        frame.anchoredPosition.x + 1f,
+        frame.anchoredPosition.x + Mathf.Round((frame.rect.width - nativeWidth) * 0.5f),
         frame.anchoredPosition.y - frame.rect.height - margin
     );
 
@@ -441,66 +443,83 @@ private void RestylePortraitScroller()
 
     PlacePortraitScrollerUnderFrame(target, _portraitScroll);
 
-    var spArrow = LoadResSprite("Interf3_elements_scroll3_frames", "frame_0000");
-    var spTrack = LoadResSprite("interf3_elements_slider_frames", "frame_0003");
-    var spThumb = LoadResSprite("interf3_elements_slider_frames", "frame_0000");
+    // Use the same visual family as the description scrollbar on the right.
+    // In the original game this widget is just a VScrollBar rotated by 270°.
+    var spArrowLeft = LoadResSprite("Interf3_elements_scroll3_frames", "frame_0000");
+    var spArrowRight = LoadResSprite("Interf3_elements_scroll3_frames", "frame_0002");
+    var spTrack = LoadResSprite("Interf3_elements_scroll3_frames", "frame_0005")
+                  ?? LoadResSprite("Interf3_elements_scroll3_frames", "frame_0007");
+    var spThumb = LoadResSprite("Interf3_elements_scroll3_frames", "frame_0004");
 
     DestroyChildren(root);
 
-    float rootW = Mathf.Max(110f, target.rect.width + 6f);
-    float rootH = 13f;
-    float btnW = 13f;
-    float btnH = 13f;
-    float trackH = 7f;
-    float thumbW = 12f;
-    float thumbH = 9f;
+    float rootW = root.sizeDelta.x;
+    float rootH = root.sizeDelta.y;
+    float barThickness = Mathf.Max(rootH, Mathf.Max(spTrack != null ? spTrack.rect.width : rootH, spThumb != null ? spThumb.rect.width : rootH));
+    float btnLen = spArrowLeft != null ? spArrowLeft.rect.height : 18f; // rotated 15x18 => 18x15 visually
+    float trackLen = Mathf.Max(24f, rootW - btnLen * 2f);
+    float thumbLen = spThumb != null ? spThumb.rect.height : 45f;       // rotated 15x45 => 45x15 visually
 
-    root.sizeDelta = new Vector2(rootW, rootH);
+    root.sizeDelta = new Vector2(rootW, barThickness);
 
-    Button MakeArrow(string name, float x, float rotZ)
+    Button MakeArrow(string name, float x, Sprite sprite, float rotZ)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
         go.transform.SetParent(root, false);
         var rt = (RectTransform)go.transform;
         rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
-        rt.pivot = new Vector2(0, 1);
-        rt.anchoredPosition = new Vector2(x, 0f);
-        rt.sizeDelta = new Vector2(btnW, btnH);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(x + btnLen * 0.5f, -barThickness * 0.5f);
+        rt.sizeDelta = new Vector2(btnLen, barThickness);
         rt.localEulerAngles = new Vector3(0f, 0f, rotZ);
         var img = go.GetComponent<Image>();
-        img.sprite = spArrow;
+        img.sprite = sprite;
         img.type = Image.Type.Simple;
-        img.preserveAspect = true;
+        img.preserveAspect = false;
         img.raycastTarget = true;
         return go.GetComponent<Button>();
     }
 
-    var leftBtn = MakeArrow("ArrowLeft", 0f, 90f);
-    var rightBtn = MakeArrow("ArrowRight", rootW - btnW, -90f);
+    var leftBtn = MakeArrow("ArrowLeft", 0f, spArrowLeft, 90f);
+    var rightBtn = MakeArrow("ArrowRight", rootW - btnLen, spArrowRight, 90f);
 
-    var trackGO = new GameObject("Track", typeof(RectTransform), typeof(Image));
+    var trackGO = new GameObject("Track", typeof(RectTransform));
     trackGO.transform.SetParent(root, false);
     var trackRT = (RectTransform)trackGO.transform;
     trackRT.anchorMin = trackRT.anchorMax = new Vector2(0, 1);
     trackRT.pivot = new Vector2(0, 1);
-    trackRT.anchoredPosition = new Vector2(btnW + 3f, -3f);
-    trackRT.sizeDelta = new Vector2(Mathf.Max(24f, rootW - btnW * 2f - 6f), trackH);
+    trackRT.anchoredPosition = new Vector2(btnLen, 0f);
+    trackRT.sizeDelta = new Vector2(trackLen, barThickness);
 
-    var trackImg = trackGO.GetComponent<Image>();
+    var trackVisualGO = new GameObject("TrackVisual", typeof(RectTransform), typeof(Image));
+    trackVisualGO.transform.SetParent(trackRT, false);
+    var trackVisualRT = (RectTransform)trackVisualGO.transform;
+    trackVisualRT.anchorMin = trackVisualRT.anchorMax = new Vector2(0.5f, 0.5f);
+    trackVisualRT.pivot = new Vector2(0.5f, 0.5f);
+    trackVisualRT.sizeDelta = new Vector2(barThickness, trackLen);
+    trackVisualRT.localEulerAngles = new Vector3(0f, 0f, -90f);
+    var trackImg = trackVisualGO.GetComponent<Image>();
     trackImg.sprite = spTrack;
     trackImg.type = Image.Type.Tiled;
     trackImg.raycastTarget = true;
     trackImg.color = Color.white;
 
-    var thumbGO = new GameObject("Thumb", typeof(RectTransform), typeof(Image));
-    thumbGO.transform.SetParent(trackGO.transform, false);
+    var thumbGO = new GameObject("Thumb", typeof(RectTransform));
+    thumbGO.transform.SetParent(trackRT, false);
     var thumbRT = (RectTransform)thumbGO.transform;
     thumbRT.anchorMin = thumbRT.anchorMax = new Vector2(0, 1);
     thumbRT.pivot = new Vector2(0, 1);
-    thumbRT.sizeDelta = new Vector2(thumbW, thumbH);
-    thumbRT.anchoredPosition = new Vector2(0f, -(thumbH - trackH) * 0.5f);
+    thumbRT.sizeDelta = new Vector2(thumbLen, barThickness);
+    thumbRT.anchoredPosition = Vector2.zero;
 
-    var thumbImg = thumbGO.GetComponent<Image>();
+    var thumbVisualGO = new GameObject("ThumbVisual", typeof(RectTransform), typeof(Image));
+    thumbVisualGO.transform.SetParent(thumbRT, false);
+    var thumbVisualRT = (RectTransform)thumbVisualGO.transform;
+    thumbVisualRT.anchorMin = thumbVisualRT.anchorMax = new Vector2(0.5f, 0.5f);
+    thumbVisualRT.pivot = new Vector2(0.5f, 0.5f);
+    thumbVisualRT.sizeDelta = new Vector2(barThickness, thumbLen);
+    thumbVisualRT.localEulerAngles = new Vector3(0f, 0f, -90f);
+    var thumbImg = thumbVisualGO.GetComponent<Image>();
     thumbImg.sprite = spThumb;
     thumbImg.type = Image.Type.Simple;
     thumbImg.preserveAspect = false;

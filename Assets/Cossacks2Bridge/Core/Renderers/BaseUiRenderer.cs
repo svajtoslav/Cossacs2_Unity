@@ -19,6 +19,12 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
     /// </summary>
     public abstract class BaseUiRenderer
     {
+        // Single menu tuning (можно менять прямо в файле)
+        public static float SingleCurrentPlayerLabelOpacity = 0.70f; // 0..1
+        public static float SingleTitleFontSize = 18f;
+        public static float SingleTitleCharacterSpacing = 33f;
+        public static FontWeight SingleTitleFontWeight = FontWeight.Thin;
+
         // Lightweight Resources sprite cache (cannot reuse OptionsRenderer.ResFrames because it is private).
         private static readonly System.Collections.Generic.Dictionary<string, Sprite> _resSpriteCache = new();
 
@@ -73,10 +79,10 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 CRU = 3,
                 CLD = 0,
                 CRD = 1,
-                LL = 4,
-                LR = 5,
-                LU = 7,
-                LD = 8,
+                LL = 8,
+                LR = 7,
+                LU = 4,
+                LD = 5,
                 FillerStart = 6,
                 FillerCount = 1
             };
@@ -403,15 +409,41 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                     tmp.fontStyle = FontStyles.Normal;
                     tmp.fontWeight = FontWeight.Regular;
                 }
+                else if (btn.MessageKey.Equals("#CUR_PROFILE:", StringComparison.OrdinalIgnoreCase) ||
+                         btn.MessageKey.Equals("#CUR_PROFILE", StringComparison.OrdinalIgnoreCase))
+                {
+                    ApplyFontFromPath(tmp, OptionsTextStyleConfig.OptionLabel.FontPath);
+                    tmp.fontSize = 15;
+                    byte a = (byte)Mathf.Clamp(Mathf.RoundToInt(SingleCurrentPlayerLabelOpacity * 255f), 0, 255);
+                    tmp.color = new Color32(0, 0, 0, a);
+                    tmp.fontStyle = FontStyles.Normal;
+                    tmp.fontWeight = FontWeight.Regular;
+                }
+                else if (btn.MessageKey.Equals("#MM_Single_Window", StringComparison.OrdinalIgnoreCase) &&
+                         (btn.Actions == null || btn.Actions.Count == 0))
+                {
+                    // Только заголовок окна Single. Пункт главного меню с тем же ключом имеет action и не трогается.
+                    ApplyFontFromPath(tmp, "Fonts/seminaria");
+                    tmp.fontSize = SingleTitleFontSize;
+                    tmp.characterSpacing = SingleTitleCharacterSpacing;
+                    tmp.color = new Color32(255, 255, 255, 255);
+                    tmp.fontStyle = FontStyles.Normal;
+                    tmp.fontWeight = SingleTitleFontWeight;
+                }
 
                 bool isStaticTitle =
                     btn.MessageKey.Equals("#AddProfile_Window", StringComparison.OrdinalIgnoreCase) ||
-                    btn.MessageKey.Equals("#AddProfile_Title", StringComparison.OrdinalIgnoreCase);
+                    btn.MessageKey.Equals("#AddProfile_Title", StringComparison.OrdinalIgnoreCase) ||
+                    btn.MessageKey.Equals("#CUR_PROFILE:", StringComparison.OrdinalIgnoreCase) ||
+                    btn.MessageKey.Equals("#CUR_PROFILE", StringComparison.OrdinalIgnoreCase) ||
+                    (btn.MessageKey.Equals("#MM_Single_Window", StringComparison.OrdinalIgnoreCase) &&
+                     (btn.Actions == null || btn.Actions.Count == 0));
 
                 if (isStaticTitle)
                 {
                     // не реагировать на курсор
                     button.interactable = false;
+                    button.transition = Selectable.Transition.None;
                     image.raycastTarget = false;
                     tmp.raycastTarget = false;
                 }

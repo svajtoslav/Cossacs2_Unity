@@ -15,10 +15,12 @@ namespace Cossacks2Bridge.Core
 
         public void LoadDefault(CoreFileSystem fs)
         {
-            // Основной файл локализации
+            // Базовые словари меню
             LoadKeyValueFile(fs, @"Text\dialogs.txt");
+            LoadKeyValueFile(fs, @"Text\C2_interf07.txt");
+            LoadKeyValueFile(fs, @"Text\DemoTEXT.txt");
 
-            // Дополнительные словари (в них как раз INTF_OPT_*)
+            // Дополнительные словари
             LoadKeyValueFile(fs, @"Text\textV0.txt");
             LoadKeyValueFile(fs, @"Text\textV1.txt");
             LoadKeyValueFile(fs, @"Text\textV2.txt");
@@ -126,6 +128,32 @@ namespace Cossacks2Bridge.Core
                 var k2 = key.Substring(1);
                 if (_map.TryGetValue(k2, out v))
                     return v;
+            }
+
+            // fallback для ключей с двоеточием / без двоеточия
+            if (key.EndsWith(":", StringComparison.Ordinal))
+            {
+                var trimmed = key.TrimEnd(':').TrimEnd();
+                if (_map.TryGetValue(trimmed, out v))
+                    return v;
+                if (trimmed.Length > 0 && trimmed[0] != '#' && _map.TryGetValue("#" + trimmed, out v))
+                    return v;
+            }
+            else
+            {
+                var withColon = key + ":";
+                if (_map.TryGetValue(withColon, out v))
+                    return v;
+                if (key.Length > 0 && key[0] == '#')
+                {
+                    var noHash = key.Substring(1) + ":";
+                    if (_map.TryGetValue(noHash, out v))
+                        return v;
+                }
+                else if (_map.TryGetValue("#" + key + ":", out v))
+                {
+                    return v;
+                }
             }
 
             return key; // fallback
