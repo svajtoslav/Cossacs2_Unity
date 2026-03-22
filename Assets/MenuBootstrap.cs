@@ -1,6 +1,7 @@
 using Cossacks2Bridge.Core;
 using Cossacks2Bridge.Core.Loaders;
 using Cossacks2Bridge.UnityAdapters.Renderers;
+using Cossacks2Bridge.UnityAdapters.Battles;
 using System;
 using UnityEngine;
 
@@ -39,6 +40,7 @@ namespace Cossacks2Bridge.UnityAdapters
 
         // Добавлено: рендерер для создания игрока
         private readonly NewPlayerRenderer _newPlayer = new NewPlayerRenderer();
+        private MbattlesScreenAdapter _mbattles;
 
         // Shared options
         private BaseUiRenderer.RenderOptions _renderOptions;
@@ -104,6 +106,7 @@ namespace Cossacks2Bridge.UnityAdapters
 
             _mainMenuRenderer = new MainMenuRenderer();
             _optionsRenderer = new OptionsRenderer();
+            _mbattles = new MbattlesScreenAdapter();
         }
 
         public void RenderByScreenId(string screenId)
@@ -130,6 +133,14 @@ namespace Cossacks2Bridge.UnityAdapters
 
             var sink = GetOrCreateSink();
             UiDesk desk;
+
+            // Изолированный движок только для окна "Сражения и Баталии"
+            if (string.Equals(screenId, "SingleBattles", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_mbattles == null) _mbattles = new MbattlesScreenAdapter();
+                if (_mbattles.TryRender(_fs, _renderOptions, sink, _loc))
+                    return;
+            }
 
             // AddProfile рендерим отдельно, не трогая CanHandle(), чтобы не ломать другие окна
             if (string.Equals(screenId, "AddProfile", StringComparison.OrdinalIgnoreCase))

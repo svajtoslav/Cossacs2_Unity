@@ -94,7 +94,8 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
         {
             "C2_MainMenuCanvas",
             "C2_OptionsCanvas",
-            "C2_MenuCanvas"
+            "C2_MenuCanvas",
+            "C2_MBattlesCanvas"
         };
 
         public abstract void Render(UiDesk desk, CoreFileSystem fs, RenderOptions opt, IUiActionSink sink, LocDb loc);
@@ -103,14 +104,15 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
 
         protected static RectTransform CreateCanvas(string canvasName, RenderOptions opt)
         {
-            foreach (var name in AllCanvasNames)
+            foreach (Canvas c in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
             {
-                var old = GameObject.Find(name);
-                if (old != null)
-                {
-                    Log(opt, $"[BaseRenderer] Destroying old canvas: {name}");
-                    UnityEngine.Object.Destroy(old);
-                }
+                if (c == null) continue;
+                var go = c.gameObject;
+                if (go == null) continue;
+                if (!go.name.StartsWith("C2_", StringComparison.Ordinal)) continue;
+
+                Log(opt, $"[BaseRenderer] Destroying old canvas: {go.name}");
+                UnityEngine.Object.Destroy(go);
             }
 
             var canvasGO = new GameObject(canvasName);

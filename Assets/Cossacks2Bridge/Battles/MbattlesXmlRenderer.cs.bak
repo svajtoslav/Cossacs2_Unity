@@ -1,0 +1,1296 @@
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using Cossacks2Bridge.Core;
+
+namespace Cossacks2Bridge.UnityAdapters.Battles
+{
+    internal sealed class MbattlesXmlRenderer
+    {
+        private readonly Dictionary<string, Sprite> _spriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+
+        public void Render(MbScene scene, CoreFileSystem fs, Cossacks2Bridge.UnityAdapters.Renderers.BaseUiRenderer.RenderOptions opt, IUiActionSink sink, LocDb loc)
+        {
+            RectTransform root = CreateCanvas(opt);
+
+            // draw non-overlay nodes first
+            DrawNodes(scene.Nodes.Where(n => !(n is MbTextNode t && IsMissionDescriptionNode(t))), root, fs, opt, sink, loc);
+
+            // description box is drawn from XML host + XML text node
+            MbDeskNode descDesk = scene.Nodes.OfType<MbDeskNode>()
+                .FirstOrDefault(d => d.Role.Equals("DescriptionHost", StringComparison.OrdinalIgnoreCase));
+            MbTextNode descText = scene.Nodes.OfType<MbTextNode>()
+                .FirstOrDefault(IsMissionDescriptionNode);
+
+            if (descDesk != null && descText != null)
+                CreateDescriptionFromXml(root, descDesk, descText, loc);
+
+            foreach (MbListNode list in scene.Nodes.OfType<MbListNode>())
+            {
+                if (list.Items.Count > 0 && list.Name.Equals("S", StringComparison.OrdinalIgnoreCase))
+                    CreateMissionList(root, list, scene.SelectedMissionId, sink);
+            }
+        }
+
+        private static bool IsMissionDescriptionNode(MbTextNode t)
+        {
+            return t != null && t.Role.Equals("MissionDescription", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void DrawNodes(IEnumerable<MbNode> nodes, RectTransform root, CoreFileSystem fs, Cossacks2Bridge.UnityAdapters.Renderers.BaseUiRenderer.RenderOptions opt, IUiActionSink sink, LocDb loc)
+        {
+            var ordered = nodes.Where(n => n.Visible).OrderBy(n => DrawPriority(n)).ThenBy(n => n.Y).ThenBy(n => n.X).ToList();
+            foreach (MbNode node in ordered)
+            {
+
+                MbDeskNode desk = node as MbDeskNode;
+                if (desk != null)
+                {
+                    if (!desk.Role.Equals("DescriptionHost", StringComparison.OrdinalIgnoreCase) &&
+                        !string.IsNullOrWhiteSpace(desk.Border) &&
+                        !desk.Border.Equals("NullBorder", StringComparison.OrdinalIgnoreCase))
+                    {
+                        CreateBorderByName(root, fs, desk.Border, desk.X, desk.Y, desk.Width, desk.Height, "DeskBorder_" + (desk.Name ?? desk.Role ?? "Desk"));
+                    }
+                    continue;
+                }
+
+                MbBitPictureNode bit = node as MbBitPictureNode;
+                if (bit != null)
+                {
+                    CreateBitPictureFromXml(root, bit, fs);
+                    continue;
+                }
+
+                MbGpPictureNode gp = node as MbGpPictureNode;
+                if (gp != null)
+                {
+                    CreateGpPicture(root, gp.FileID, gp.SpriteID, gp.X, gp.Y, gp.Width, gp.Height);
+                    continue;
+                }
+
+                MbGpTextButtonNode gpBtn = node as MbGpTextButtonNode;
+                if (gpBtn != null)
+                {
+                    CreateGpTextButton(root, gpBtn, sink, loc);
+                    continue;
+                }
+
+                MbComboBoxNode combo = node as MbComboBoxNode;
+                if (combo != null)
+                {
+                    CreateCombo(root, combo, loc);
+                    continue;
+                }
+
+                MbTextNode txt = node as MbTextNode;
+                if (txt != null)
+                {
+                    if (!IsMissionDescriptionNode(txt))
+                        CreateText(root, txt, loc);
+                    continue;
+                }
+            }
+        }
+
+        private static int DrawPriority(MbNode node)
+        {
+            if (node is MbDeskNode) return 0;
+            if (node is MbGpPictureNode || node is MbBitPictureNode) return 1;
+            if (node is MbTextNode) return 2;
+            if (node is MbComboBoxNode || node is MbGpTextButtonNode) return 3;
+            return 4;
+        }
+
+        private RectTransform CreateCanvas(Cossacks2Bridge.UnityAdapters.Renderers.BaseUiRenderer.RenderOptions opt)
+        {
+            string[] names = { "C2_MBattlesCanvas", "C2_MainMenuCanvas", "C2_OptionsCanvas", "C2_MenuCanvas" };
+            RectTransform existing = null;
+            foreach (Canvas c in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                if (c == null) continue;
+                if (c.gameObject.name == "C2_MBattlesCanvas")
+                {
+                    if (existing == null) existing = c.GetComponent<RectTransform>();
+                    else UnityEngine.Object.DestroyImmediate(c.gameObject);
+                }
+                else if (Array.IndexOf(names, c.gameObject.name) >= 0)
+                {
+                    UnityEngine.Object.DestroyImmediate(c.gameObject);
+                }
+            }
+
+            if (existing != null)
+            {
+                foreach (Transform ch in existing) UnityEngine.Object.DestroyImmediate(ch.gameObject);
+                return existing;
+            }
+
+            GameObject go = new GameObject("C2_MBattlesCanvas");
+            Canvas canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.pixelPerfect = true;
+            canvas.sortingOrder = 1000;
+
+            CanvasScaler scaler = go.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = opt.CanvasScaleMode;
+            scaler.referenceResolution = opt.ReferenceResolution;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+
+            go.AddComponent<GraphicRaycaster>();
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            EventSystem es = UnityEngine.Object.FindFirstObjectByType<EventSystem>();
+            if (es == null)
+                new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+
+            return rt;
+        }
+
+        private void CreateBitPictureFromXml(RectTransform parent, MbBitPictureNode bit, CoreFileSystem fs)
+        {
+            string relPath = bit.FileName ?? "";
+            if (string.IsNullOrWhiteSpace(relPath))
+                return;
+
+            string abs = fs.ResolvePath(relPath);
+            if (!File.Exists(abs)) return;
+
+            byte[] bytes = File.ReadAllBytes(abs);
+            Texture2D tex = new Texture2D(2, 2, TextureFormat.ARGB32, false);
+            if (!tex.LoadImage(bytes)) return;
+
+            if (bit.Role.Equals("MissionPreview", StringComparison.OrdinalIgnoreCase))
+            {
+                int hostX = bit.HostX;
+                int hostY = bit.HostY;
+                int hostW = bit.HostWidth > 0 ? bit.HostWidth : Mathf.Max(tex.width, bit.Width);
+                int hostH = bit.HostHeight > 0 ? bit.HostHeight : Mathf.Max(tex.height, bit.Height);
+
+                GameObject viewport = new GameObject("PreviewHost", typeof(RectTransform), typeof(Image), typeof(Mask));
+                viewport.transform.SetParent(parent, false);
+                RectTransform vpRt = viewport.GetComponent<RectTransform>();
+                vpRt.anchorMin = vpRt.anchorMax = new Vector2(0, 1);
+                vpRt.pivot = new Vector2(0, 1);
+                vpRt.anchoredPosition = new Vector2(hostX, -hostY);
+                vpRt.sizeDelta = new Vector2(hostW, hostH);
+                Image vpImg = viewport.GetComponent<Image>();
+                vpImg.color = new Color(1f, 1f, 1f, 0f);
+                vpImg.raycastTarget = true;
+                viewport.GetComponent<Mask>().showMaskGraphic = false;
+
+                Sprite spPreview = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0, 1), 1f);
+                GameObject imgGo = new GameObject("PreviewImage", typeof(RectTransform), typeof(Image));
+                imgGo.transform.SetParent(viewport.transform, false);
+                RectTransform imgRt = imgGo.GetComponent<RectTransform>();
+                imgRt.anchorMin = imgRt.anchorMax = new Vector2(0, 1);
+                imgRt.pivot = new Vector2(0, 1);
+                imgRt.sizeDelta = new Vector2(tex.width, tex.height);
+                Image img = imgGo.GetComponent<Image>();
+                img.sprite = spPreview;
+                img.type = Image.Type.Simple;
+                img.preserveAspect = false;
+                img.raycastTarget = false;
+
+                var drag = viewport.AddComponent<PreviewDragController>();
+                drag.Initialize(vpRt, imgRt, tex.width, tex.height);
+                return;
+            }
+
+            int drawX = bit.X;
+            int drawY = bit.Y;
+            int drawW = bit.Width > 0 ? bit.Width : tex.width;
+            int drawH = bit.Height > 0 ? bit.Height : tex.height;
+            Sprite sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0, 1), 1f);
+            GameObject go = new GameObject("BitPicture", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(drawX, -drawY);
+            rt.sizeDelta = new Vector2(drawW, drawH);
+            Image img2 = go.GetComponent<Image>();
+            img2.sprite = sp;
+            img2.type = Image.Type.Simple;
+            img2.preserveAspect = bit.ActualSize;
+        }
+
+        private void CreateGpPicture(RectTransform parent, string fileId, int spriteId, int x, int y, int w, int h)
+        {
+            Sprite sp = GetGpSprite(fileId, spriteId);
+            if (sp == null) return;
+
+            GameObject go = new GameObject("GPPicture", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(w > 0 ? w : sp.rect.width, h > 0 ? h : sp.rect.height);
+            Image img = go.GetComponent<Image>();
+            img.sprite = sp;
+            img.type = Image.Type.Simple;
+        }
+
+        private void CreateGpTextButton(RectTransform parent, MbGpTextButtonNode btn, IUiActionSink sink, LocDb loc)
+        {
+            Sprite sp = GetGpSprite(btn.FileID, btn.Sprite >= 0 ? btn.Sprite : btn.Sprite1);
+            GameObject go = new GameObject("GPTextButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(btn.X, -btn.Y);
+            rt.sizeDelta = new Vector2(btn.Width, btn.Height);
+            Image img = go.GetComponent<Image>();
+            if (sp != null) img.sprite = sp;
+            img.type = Image.Type.Sliced;
+
+            Button b = go.GetComponent<Button>();
+            if (btn.Actions.Count > 0)
+            {
+                UiAction first = btn.Actions[0];
+                b.onClick.AddListener(delegate { sink.OnAction(btn.Message, first); });
+            }
+            else
+            {
+                b.interactable = false;
+            }
+
+            GameObject txtGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            txtGo.transform.SetParent(go.transform, false);
+            RectTransform txtRt = txtGo.GetComponent<RectTransform>();
+            txtRt.anchorMin = Vector2.zero;
+            txtRt.anchorMax = Vector2.one;
+            txtRt.offsetMin = new Vector2(8 + btn.FontDx, 2);
+            txtRt.offsetMax = new Vector2(-8, -2);
+
+            TextMeshProUGUI tmp = txtGo.GetComponent<TextMeshProUGUI>();
+            tmp.text = Resolve(btn.Message, loc);
+            tmp.font = LoadFont();
+            tmp.fontSize = 17f;
+            tmp.alignment = btn.Center ? TextAlignmentOptions.Center : TextAlignmentOptions.MidlineLeft;
+            tmp.color = new Color32(248, 230, 176, 255);
+        }
+
+        private void CreateCombo(RectTransform parent, MbComboBoxNode combo, LocDb loc)
+        {
+            Sprite sp = GetGpSprite(combo.GP_File, 0);
+            GameObject go = new GameObject("ComboBox", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(combo.X, -combo.Y);
+            rt.sizeDelta = new Vector2(combo.Width, combo.Height);
+            Image img = go.GetComponent<Image>();
+            if (sp != null) img.sprite = sp;
+            img.type = Image.Type.Sliced;
+
+            GameObject txtGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            txtGo.transform.SetParent(go.transform, false);
+            RectTransform txtRt = txtGo.GetComponent<RectTransform>();
+            txtRt.anchorMin = Vector2.zero;
+            txtRt.anchorMax = Vector2.one;
+            txtRt.offsetMin = new Vector2(28, 1);
+            txtRt.offsetMax = new Vector2(-20, -1);
+
+            TextMeshProUGUI tmp = txtGo.GetComponent<TextMeshProUGUI>();
+            tmp.font = LoadFont();
+            tmp.fontSize = 15f;
+            tmp.text = Resolve(combo.DisplayText, loc);
+            tmp.alignment = TextAlignmentOptions.MidlineLeft;
+            tmp.color = new Color32(60, 40, 25, 255);
+        }
+
+        private void CreateText(RectTransform parent, MbTextNode txt, LocDb loc)
+        {
+            GameObject go = new GameObject("TextButton", typeof(RectTransform), typeof(TextMeshProUGUI));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(txt.X, -txt.Y);
+            rt.sizeDelta = new Vector2(txt.Width, txt.Height);
+
+            TextMeshProUGUI tmp = go.GetComponent<TextMeshProUGUI>();
+            tmp.font = LoadFont();
+            tmp.fontSize = GuessFontSize(txt);
+            tmp.text = ResolveAndFormat(txt.Message, loc, txt.IsFormatted, txt.Align);
+            tmp.richText = true;
+            tmp.color = GuessColor(txt);
+            tmp.enableWordWrapping = true;
+            tmp.overflowMode = TextOverflowModes.Overflow;
+            tmp.alignment = ToAlign(txt.Align);
+        }
+
+        private void CreateMissionList(RectTransform parent, MbListNode list, string selected, IUiActionSink sink)
+        {
+            GameObject panel = new GameObject("MissionList", typeof(RectTransform), typeof(Image), typeof(Mask));
+            panel.transform.SetParent(parent, false);
+            RectTransform prt = panel.GetComponent<RectTransform>();
+            prt.anchorMin = prt.anchorMax = new Vector2(0, 1);
+            prt.pivot = new Vector2(0, 1);
+            prt.anchoredPosition = new Vector2(list.X, -list.Y);
+            prt.sizeDelta = new Vector2(list.Width, list.Height);
+            Image pimg = panel.GetComponent<Image>();
+            pimg.color = new Color(1f, 1f, 1f, 0.02f);
+            panel.GetComponent<Mask>().showMaskGraphic = false;
+
+            float y = 6f;
+            foreach (string item in list.Items)
+            {
+                GameObject row = new GameObject("Item_" + item, typeof(RectTransform), typeof(Button));
+                row.transform.SetParent(panel.transform, false);
+                RectTransform rrt = row.GetComponent<RectTransform>();
+                rrt.anchorMin = rrt.anchorMax = new Vector2(0, 1);
+                rrt.pivot = new Vector2(0, 1);
+                rrt.anchoredPosition = new Vector2(8, -y);
+                rrt.sizeDelta = new Vector2(list.Width - 24, 28);
+
+                Button b = row.GetComponent<Button>();
+                string payload = item;
+                b.onClick.AddListener(delegate { sink.OnAction(item, new UiAction { Name = "cva_Battles_Select", Payload = payload }); });
+
+                GameObject txtGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+                txtGo.transform.SetParent(row.transform, false);
+                RectTransform txtRt = txtGo.GetComponent<RectTransform>();
+                txtRt.anchorMin = Vector2.zero;
+                txtRt.anchorMax = Vector2.one;
+                txtRt.offsetMin = Vector2.zero;
+                txtRt.offsetMax = Vector2.zero;
+
+                TextMeshProUGUI tmp = txtGo.GetComponent<TextMeshProUGUI>();
+                tmp.font = LoadFont();
+                tmp.fontSize = 16f;
+                tmp.text = item;
+                tmp.alignment = TextAlignmentOptions.MidlineLeft;
+                tmp.color = string.Equals(item, selected, StringComparison.OrdinalIgnoreCase)
+                    ? new Color32(170, 40, 40, 255)
+                    : new Color32(40, 30, 25, 255);
+
+                y += 30f;
+                if (y > list.Height - 24) break;
+            }
+        }
+
+        
+        private void CreatePaperFill(RectTransform parent, BorderDef def, float x, float y, float w, float h, string prefix)
+        {
+            if (w <= 0f || h <= 0f) return;
+
+            if (def != null && !string.IsNullOrWhiteSpace(def.GP_File) && def.StartFiller >= 0)
+            {
+                Sprite fill = GetGpSprite(def.GP_File, def.StartFiller);
+                if (fill != null)
+                {
+                    int lx = SpriteWidth(fill);
+                    int ly = SpriteHeight(fill);
+                    if (lx > 0 && ly > 0)
+                    {
+                        int nx = Mathf.CeilToInt(w / lx);
+                        int ny = Mathf.CeilToInt(h / ly);
+                        for (int ix = 0; ix < nx; ix++)
+                        {
+                            for (int iy = 0; iy < ny; iy++)
+                            {
+                                float px = x + ix * lx;
+                                float py = y + iy * ly;
+                                float pw = Mathf.Min(lx, x + w - px);
+                                float ph = Mathf.Min(ly, y + h - py);
+                                PlaceSprite(parent, fill, px, py, pw, ph, prefix + "_Fill_" + ix + "_" + iy);
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+
+            GameObject bg = new GameObject(prefix + "_FallbackFill", typeof(RectTransform), typeof(Image));
+            bg.transform.SetParent(parent, false);
+            RectTransform rt = bg.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(w, h);
+            Image img = bg.GetComponent<Image>();
+            img.color = new Color32(242, 236, 224, 255);
+        }
+
+        private void CreateInnerDescriptionBox(RectTransform parent, BorderDef def, float x, float y, float w, float h, string prefix)
+        {
+            CreatePaperFill(parent, def, x, y, w, h, prefix);
+
+            // Thin red-brown outline matching the original description text zone.
+            Color c = new Color32(178, 129, 117, 210);
+            AddRectLine(parent, prefix + "_TopLine", x, y, w, 1f, c);
+            AddRectLine(parent, prefix + "_BottomLine", x, y + h - 1f, w, 1f, c);
+            AddRectLine(parent, prefix + "_LeftLine", x, y, 1f, h, c);
+            AddRectLine(parent, prefix + "_RightLine", x + w - 1f, y, 1f, h, c);
+        }
+
+        private void CreateDescriptionFromXml(RectTransform root, MbDeskNode descDesk, MbTextNode textNode, LocDb loc)
+        {
+            float deskX = descDesk.X;
+            float deskY = descDesk.Y;
+            float deskW = descDesk.Width;
+            float deskH = descDesk.Height;
+
+            GameObject host = new GameObject("DescriptionHost", typeof(RectTransform));
+            host.transform.SetParent(root, false);
+            RectTransform hostRt = host.GetComponent<RectTransform>();
+            hostRt.anchorMin = hostRt.anchorMax = new Vector2(0, 1);
+            hostRt.pivot = new Vector2(0, 1);
+            hostRt.anchoredPosition = new Vector2(deskX, -deskY);
+            hostRt.sizeDelta = new Vector2(deskW, deskH);
+
+            if (!string.IsNullOrWhiteSpace(descDesk.Border) &&
+                !descDesk.Border.Equals("NullBorder", StringComparison.OrdinalIgnoreCase))
+            {
+                CreateBorderByName(hostRt, null, descDesk.Border, 0f, 0f, deskW, deskH, "DescBorder");
+            }
+
+            float innerX = textNode.X - descDesk.X;
+            float innerY = textNode.Y - descDesk.Y;
+            if (innerX < 0f || innerY < 0f || innerX > deskW || innerY > deskH)
+            {
+                innerX = textNode.X;
+                innerY = textNode.Y;
+            }
+            if (innerX < 0f || innerY < 0f)
+            {
+                innerX = 11f;
+                innerY = 6f;
+            }
+            float textW = textNode.Width > 0 ? textNode.Width : Mathf.Max(1f, deskW - innerX - 1f);
+            float textH = textNode.Height > 0 ? textNode.Height : Mathf.Max(1f, deskH - innerY - 1f);
+
+            BorderDef bd = null;
+            if (!string.IsNullOrWhiteSpace(descDesk.Border))
+                bd = GetBorderByName(descDesk.Border);
+
+            if (bd != null)
+                CreateBorderByName(hostRt, null, descDesk.Border, innerX, innerY, textW, textH, "DescInnerBorder");
+
+            GameObject viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            viewport.transform.SetParent(host.transform, false);
+            RectTransform vpRt = viewport.GetComponent<RectTransform>();
+            vpRt.anchorMin = vpRt.anchorMax = new Vector2(0, 1);
+            vpRt.pivot = new Vector2(0, 1);
+            vpRt.anchoredPosition = new Vector2(innerX, -innerY);
+            vpRt.sizeDelta = new Vector2(textW, textH);
+            Image vpImg = viewport.GetComponent<Image>();
+            vpImg.color = new Color(1f, 1f, 1f, 0f);
+            vpImg.raycastTarget = true;
+            viewport.GetComponent<Mask>().showMaskGraphic = false;
+
+            GameObject content = new GameObject("Content", typeof(RectTransform));
+            content.transform.SetParent(viewport.transform, false);
+            RectTransform contentRt = content.GetComponent<RectTransform>();
+            contentRt.anchorMin = new Vector2(0, 1);
+            contentRt.anchorMax = new Vector2(1, 1);
+            contentRt.pivot = new Vector2(0, 1);
+            contentRt.anchoredPosition = Vector2.zero;
+            contentRt.sizeDelta = new Vector2(0f, textH);
+
+            GameObject txtGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            txtGo.transform.SetParent(content.transform, false);
+            RectTransform txtRt = txtGo.GetComponent<RectTransform>();
+            txtRt.anchorMin = new Vector2(0, 1);
+            txtRt.anchorMax = new Vector2(1, 1);
+            txtRt.pivot = new Vector2(0, 1);
+            txtRt.anchoredPosition = Vector2.zero;
+            txtRt.sizeDelta = new Vector2(0f, textH);
+
+            TextMeshProUGUI tmp = txtGo.GetComponent<TextMeshProUGUI>();
+            tmp.font = LoadFont();
+            tmp.fontSize = 14f;
+            tmp.richText = true;
+            tmp.enableWordWrapping = true;
+            tmp.overflowMode = TextOverflowModes.Overflow;
+            tmp.alignment = ToTopAlign(textNode.Align);
+            tmp.color = new Color32(30, 20, 10, 255);
+            tmp.margin = Vector4.zero;
+            tmp.text = ResolveAndFormat(textNode.Message, loc, textNode.IsFormatted || (textNode.Message ?? string.Empty).IndexOf('{') >= 0, textNode.Align);
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(txtRt);
+            float preferred = Mathf.Max(textH, tmp.preferredHeight + 2f);
+            txtRt.sizeDelta = new Vector2(0f, preferred);
+            contentRt.sizeDelta = new Vector2(0f, preferred);
+
+            float sbX = deskW - 16f;
+            float sbY = 0f;
+            float sbH = deskH;
+            if (bd != null)
+            {
+                sbX = (deskW - 1f) - bd.VScroller_DX_right;
+                sbY = bd.VScroller_DY_top;
+                sbH = Mathf.Max(1f, deskH - bd.VScroller_DY_top - bd.VScrolled_DY_bottom);
+            }
+
+            Sprite scrollBg = bd != null ? GetGpSprite(bd.VScroller_GP_File, 0) : null;
+            float scrollW = scrollBg != null ? Mathf.Max(12f, scrollBg.rect.width) : 12f;
+            GameObject scrollbarGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            scrollbarGo.transform.SetParent(host.transform, false);
+            RectTransform sbRt = scrollbarGo.GetComponent<RectTransform>();
+            sbRt.anchorMin = sbRt.anchorMax = new Vector2(0, 1);
+            sbRt.pivot = new Vector2(0, 1);
+            sbRt.anchoredPosition = new Vector2(sbX, -sbY);
+            sbRt.sizeDelta = new Vector2(scrollW, sbH);
+            Image sbBg = scrollbarGo.GetComponent<Image>();
+            if (scrollBg != null) sbBg.sprite = scrollBg;
+            else sbBg.color = new Color32(90, 75, 60, 100);
+            sbBg.type = Image.Type.Sliced;
+
+            GameObject slidingArea = new GameObject("Sliding Area", typeof(RectTransform));
+            slidingArea.transform.SetParent(scrollbarGo.transform, false);
+            RectTransform saRt = slidingArea.GetComponent<RectTransform>();
+            saRt.anchorMin = Vector2.zero;
+            saRt.anchorMax = Vector2.one;
+            saRt.offsetMin = new Vector2(0, 14);
+            saRt.offsetMax = new Vector2(0, -14);
+
+            Sprite handleSprite = bd != null ? GetGpSprite(bd.VScroller_GP_File, 1) : null;
+            GameObject handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handleGo.transform.SetParent(slidingArea.transform, false);
+            RectTransform hRt = handleGo.GetComponent<RectTransform>();
+            hRt.anchorMin = new Vector2(0, 1);
+            hRt.anchorMax = new Vector2(1, 1);
+            hRt.pivot = new Vector2(0.5f, 1f);
+            hRt.sizeDelta = new Vector2(0f, handleSprite != null ? Mathf.Max(24f, handleSprite.rect.height) : 38f);
+            Image hImg = handleGo.GetComponent<Image>();
+            if (handleSprite != null) hImg.sprite = handleSprite;
+            else hImg.color = new Color32(150, 120, 90, 220);
+            hImg.type = Image.Type.Sliced;
+
+            Scrollbar sb = scrollbarGo.GetComponent<Scrollbar>();
+            sb.direction = Scrollbar.Direction.BottomToTop;
+            sb.targetGraphic = hImg;
+            sb.handleRect = hRt;
+            sb.numberOfSteps = 0;
+            sb.value = 1f;
+
+            ScrollRect scroll = host.AddComponent<ScrollRect>();
+            scroll.viewport = vpRt;
+            scroll.content = contentRt;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.scrollSensitivity = 18f;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.verticalScrollbar = sb;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        }
+
+        private void CreateBorderByName(RectTransform parent, CoreFileSystem fs, string borderName, float x, float y, float width, float height, string prefix)
+        {
+            BorderDef def = GetBorderByName(borderName);
+            if (def == null) return;
+            DrawBorder(parent, def, x, y, width, height, prefix);
+        }
+
+        private void DrawBorder(RectTransform parent, BorderDef def, float x, float y, float width, float height, string prefix)
+        {
+            if (def == null || width <= 0f || height <= 0f) return;
+
+            int x0 = Mathf.RoundToInt(x);
+            int y0 = Mathf.RoundToInt(y);
+            int x1 = Mathf.RoundToInt(x + width - 1f);
+            int y1 = Mathf.RoundToInt(y + height - 1f);
+
+            if (def.NFillers > 0)
+                DrawFilledRect3(parent, def, x0, y0, x1, y1, prefix + "_Fill");
+            else
+                DrawRect4(parent, def, x0, y0, x1, y1, prefix + "_Frame");
+        }
+
+        private void DrawFilledRect3(RectTransform parent, BorderDef def, int x0, int y0, int x1, int y1, string prefix)
+        {
+            List<Sprite> fills = GetFillSprites(def);
+            if (fills.Count == 0)
+            {
+                DrawRect4(parent, def, x0, y0, x1, y1, prefix + "_Frame");
+                return;
+            }
+
+            Sprite firstCorner = GetGpSprite(def.GP_File, def.LeftTop);
+            Sprite secondCorner = GetGpSprite(def.GP_File, def.RightTop);
+            Sprite thirdCorner = GetGpSprite(def.GP_File, def.LeftBottom);
+            Sprite fourthCorner = GetGpSprite(def.GP_File, def.RightBottom);
+
+            int leftInset = Mathf.Max(SpriteWidth(firstCorner), SpriteWidth(thirdCorner));
+            int rightInset = Mathf.Max(SpriteWidth(secondCorner), SpriteWidth(fourthCorner));
+            int topInset = Mathf.Max(SpriteHeight(firstCorner), SpriteHeight(secondCorner));
+            int bottomInset = Mathf.Max(SpriteHeight(thirdCorner), SpriteHeight(fourthCorner));
+
+            int ix0 = x0 + leftInset;
+            int iy0 = y0 + topInset;
+            int ix1 = x1 - rightInset;
+            int iy1 = y1 - bottomInset;
+
+            if (ix1 >= ix0 && iy1 >= iy0)
+            {
+                int tileW = Mathf.Max(1, SpriteWidth(fills[0]));
+                int tileH = Mathf.Max(1, SpriteHeight(fills[0]));
+                int nx = Mathf.Max(1, Mathf.CeilToInt((ix1 - ix0 + 1) / (float)tileW));
+                int ny = Mathf.Max(1, Mathf.CeilToInt((iy1 - iy0 + 1) / (float)tileH));
+
+                for (int iy = 0; iy < ny; iy++)
+                {
+                    for (int ix = 0; ix < nx; ix++)
+                    {
+                        Sprite sp = fills[(ix + iy) % fills.Count];
+                        float px = ix0 + ix * tileW;
+                        float py = iy0 + iy * tileH;
+                        float pw = Mathf.Min(tileW, ix1 - px + 1);
+                        float ph = Mathf.Min(tileH, iy1 - py + 1);
+                        PlaceSprite(parent, sp, px, py, pw, ph, prefix + "_" + ix + "_" + iy);
+                    }
+                }
+            }
+
+            DrawRect4(parent, def, x0, y0, x1, y1, prefix + "_Frame");
+        }
+
+        private void DrawRect4(RectTransform parent, BorderDef def, int x0, int y0, int x1, int y1, string prefix)
+        {
+            if (TryDrawFrameFolderBorder(parent, def, x0, y0, x1, y1, prefix))
+                return;
+
+            Sprite clu = GetGpSprite(def.GP_File, def.LeftTop);
+            Sprite cru = GetGpSprite(def.GP_File, def.RightTop);
+            Sprite cld = GetGpSprite(def.GP_File, def.LeftBottom);
+            Sprite crd = GetGpSprite(def.GP_File, def.RightBottom);
+            Sprite lu = GetGpSprite(def.GP_File, def.TopLine);
+            Sprite ld = GetGpSprite(def.GP_File, def.BottomLine);
+            Sprite ll = GetGpSprite(def.GP_File, def.LeftLine);
+            Sprite lr = GetGpSprite(def.GP_File, def.RightLine);
+
+            int ullx = SpriteWidth(clu); if (ullx == 0) ullx = 32;
+            int lx2 = ullx >> 1;
+            int dllx = def.LeftBottom < 0 ? SpriteWidth(clu) : SpriteWidth(cld);
+            if (dllx == 0) dllx = 32;
+            int lx3 = dllx >> 1;
+
+            int uplx = SpriteWidth(lu); if (uplx == 0) uplx = 32;
+            int dnlx = SpriteWidth(ld); if (dnlx == 0) dnlx = 32;
+
+            int lsly = SpriteHeight(clu);
+            int lly2 = lsly >> 1;
+
+            int ldly = SpriteWidth(cld);
+            if (ldly > 1000) ldly = 0;
+            int ldy2 = ldly >> 1;
+
+            int leftly = SpriteHeight(ll); if (leftly == 0) leftly = 32;
+            int rightly = SpriteHeight(lr); if (rightly == 0) rightly = 32;
+
+            int topStart = x0 + lx2;
+            int topWidth = Mathf.Max(0, (x1 - lx2 - 1) - topStart + 1);
+            TileSpriteClipped(parent, lu, topStart, y0 - lly2, topWidth, SpriteHeight(lu), true, prefix + "_Top", uplx);
+
+            int bottomStart = x0 + lx3;
+            int bottomWidth = Mathf.Max(0, (x1 - lx3 - 1) - bottomStart + 1);
+            TileSpriteClipped(parent, ld, bottomStart, y1 - ldy2, bottomWidth, SpriteHeight(ld), true, prefix + "_Bottom", dnlx);
+
+            int leftStartY = y0 + lly2;
+            int leftHeight = Mathf.Max(0, (y1 - ldy2) - leftStartY + 1);
+            TileSpriteClipped(parent, ll, x0 - lx3, leftStartY, SpriteWidth(ll), leftHeight, false, prefix + "_Left", leftly);
+            TileSpriteClipped(parent, lr, x1 - lx3, leftStartY, SpriteWidth(lr), leftHeight, false, prefix + "_Right", rightly);
+
+            PlaceSprite(parent, clu, x0 - lx2, y0 - lly2, SpriteWidth(clu), SpriteHeight(clu), prefix + "_CLU");
+            PlaceSprite(parent, cru, x1 - lx2, y0 - lly2, SpriteWidth(cru), SpriteHeight(cru), prefix + "_CRU");
+            PlaceSprite(parent, cld, x0 - lx3, y1 - ldy2, SpriteWidth(cld), SpriteHeight(cld), prefix + "_CLD");
+            PlaceSprite(parent, crd, x1 - lx3, y1 - ldy2, SpriteWidth(crd), SpriteHeight(crd), prefix + "_CRD");
+        }
+
+
+        private bool TryDrawFrameFolderBorder(RectTransform parent, BorderDef def, int x0, int y0, int x1, int y1, string prefix)
+        {
+            if (def == null) return false;
+            string folder = GetExactFrameFolder(def.GP_File);
+            if (string.IsNullOrWhiteSpace(folder)) return false;
+
+            Sprite bl = GetFrameFolderSprite(folder, def.LeftBottom);
+            Sprite br = GetFrameFolderSprite(folder, def.RightBottom);
+            Sprite tl = GetFrameFolderSprite(folder, def.LeftTop);
+            Sprite tr = GetFrameFolderSprite(folder, def.RightTop);
+            Sprite top = GetFrameFolderSprite(folder, def.TopLine);
+            Sprite bottom = GetFrameFolderSprite(folder, def.BottomLine);
+            Sprite left = GetFrameFolderSprite(folder, def.LeftLine);
+            Sprite right = GetFrameFolderSprite(folder, def.RightLine);
+
+            if (tl == null && tr == null && bl == null && br == null)
+                return false;
+
+            float width = Mathf.Max(1f, x1 - x0 + 1);
+            float height = Mathf.Max(1f, y1 - y0 + 1);
+
+            float leftInset = Mathf.Max(SpriteWidth(tl), SpriteWidth(bl));
+            float rightInset = Mathf.Max(SpriteWidth(tr), SpriteWidth(br));
+            float topInset = Mathf.Max(SpriteHeight(tl), SpriteHeight(tr));
+            float bottomInset = Mathf.Max(SpriteHeight(bl), SpriteHeight(br));
+
+            List<Sprite> fills = GetFillSprites(def);
+            float innerX = x0 + leftInset;
+            float innerY = y0 + topInset;
+            float innerW = Mathf.Max(1f, width - leftInset - rightInset);
+            float innerH = Mathf.Max(1f, height - topInset - bottomInset);
+
+            if (fills.Count > 0)
+                TileFillSprites(parent, fills.ToArray(), innerX, innerY, innerW, innerH, prefix + "_Fill");
+
+            if (top != null)
+                TileSpriteClipped(parent, top, innerX, y0, innerW, Mathf.Max(1f, SpriteHeight(top)), true, prefix + "_Top", Mathf.Max(1, SpriteWidth(top)));
+            if (bottom != null)
+                TileSpriteClipped(parent, bottom, innerX, y0 + height - SpriteHeight(bottom), innerW, Mathf.Max(1f, SpriteHeight(bottom)), true, prefix + "_Bottom", Mathf.Max(1, SpriteWidth(bottom)));
+            if (left != null)
+                TileSpriteClipped(parent, left, x0, innerY, Mathf.Max(1f, SpriteWidth(left)), innerH, false, prefix + "_Left", Mathf.Max(1, SpriteHeight(left)));
+            if (right != null)
+                TileSpriteClipped(parent, right, x0 + width - SpriteWidth(right), innerY, Mathf.Max(1f, SpriteWidth(right)), innerH, false, prefix + "_Right", Mathf.Max(1, SpriteHeight(right)));
+
+            PlaceSprite(parent, tl, x0, y0, SpriteWidth(tl), SpriteHeight(tl), prefix + "_TL");
+            PlaceSprite(parent, tr, x0 + width - SpriteWidth(tr), y0, SpriteWidth(tr), SpriteHeight(tr), prefix + "_TR");
+            PlaceSprite(parent, bl, x0, y0 + height - SpriteHeight(bl), SpriteWidth(bl), SpriteHeight(bl), prefix + "_BL");
+            PlaceSprite(parent, br, x0 + width - SpriteWidth(br), y0 + height - SpriteHeight(br), SpriteWidth(br), SpriteHeight(br), prefix + "_BR");
+            return true;
+        }
+
+        private List<Sprite> GetFillSprites(BorderDef def)
+        {
+            List<Sprite> fills = new List<Sprite>();
+            if (def == null || def.NFillers <= 0) return fills;
+
+            string folder = GetExactFrameFolder(def.GP_File);
+            for (int i = 0; i < def.NFillers; i++)
+            {
+                int index = def.StartFiller + i;
+                Sprite sp = !string.IsNullOrWhiteSpace(folder)
+                    ? GetFrameFolderSprite(folder, index)
+                    : GetGpSprite(def.GP_File, index);
+                if (sp != null)
+                    fills.Add(sp);
+            }
+            return fills;
+        }
+
+        private string GetExactFrameFolder(string gpFile)
+        {
+            if (string.IsNullOrWhiteSpace(gpFile)) return null;
+            string baseName = gpFile.Replace("\\", "_").Replace("/", "_").Trim();
+            string[] candidates =
+            {
+                baseName + "_frames",
+                baseName.ToLowerInvariant() + "_frames",
+                baseName.ToUpperInvariant() + "_frames"
+            };
+
+            foreach (string candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (Resources.Load<Texture2D>(candidate + "/frame_0000") != null || Resources.Load<Sprite>(candidate + "/frame_0000") != null)
+                    return candidate;
+            }
+            return null;
+        }
+
+        private Sprite GetFrameFolderSprite(string folder, int index)
+        {
+            if (string.IsNullOrWhiteSpace(folder) || index < 0) return null;
+            string key = folder + "/frame_" + index.ToString("0000");
+            Sprite sp;
+            if (_spriteCache.TryGetValue(key, out sp) && sp != null) return sp;
+
+            sp = Resources.Load<Sprite>(key);
+            if (sp == null)
+            {
+                Texture2D tex = Resources.Load<Texture2D>(key);
+                if (tex != null)
+                    sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0, 1), 1f);
+            }
+
+            _spriteCache[key] = sp;
+            return sp;
+        }
+
+        private void TileSpriteClipped(RectTransform parent, Sprite sp, float x, float y, float width, float height, bool horizontal, string prefix, int step)
+        {
+            if (sp == null || width <= 0f || height <= 0f || step <= 0) return;
+            int count = Mathf.Max(1, horizontal ? Mathf.CeilToInt(width / step) : Mathf.CeilToInt(height / step));
+            for (int i = 0; i < count; i++)
+            {
+                float px = horizontal ? x + i * step : x;
+                float py = horizontal ? y : y + i * step;
+                float w = horizontal ? Mathf.Min(step, x + width - px) : Mathf.Max(1f, width);
+                float h = horizontal ? Mathf.Max(1f, height) : Mathf.Min(step, y + height - py);
+                PlaceSprite(parent, sp, px, py, w, h, prefix + "_" + i);
+            }
+        }
+
+        private void PlaceSprite(RectTransform parent, Sprite sp, float x, float y, float width, float height, string name)
+        {
+            if (sp == null || width <= 0f || height <= 0f) return;
+            GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(width, height);
+            Image img = go.GetComponent<Image>();
+            img.sprite = sp;
+            img.type = Image.Type.Simple;
+        }
+
+        private static int SpriteWidth(Sprite sp) { return sp != null ? Mathf.RoundToInt(sp.rect.width) : 0; }
+        private static int SpriteHeight(Sprite sp) { return sp != null ? Mathf.RoundToInt(sp.rect.height) : 0; }
+
+        private static void AddRectLine(Transform parent, string name, float x, float y, float w, float h, Color color)
+        {
+            if (w <= 0f || h <= 0f) return;
+
+            GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(w, h);
+            go.GetComponent<Image>().color = color;
+        }
+
+
+        private sealed class BorderDef
+        {
+            public string Name = "";
+            public string GP_File = "";
+            public int LeftTop;
+            public int RightTop;
+            public int LeftBottom;
+            public int RightBottom;
+            public int TopLine;
+            public int BottomLine;
+            public int LeftLine;
+            public int RightLine;
+            public int LeftMargin;
+            public int RightMargin;
+            public int TopMargin;
+            public int BottomMargin;
+            public int StartFiller;
+            public int NFillers;
+            public string VScroller_GP_File = "";
+            public int VScroller_DX_right;
+            public int VScroller_DY_top;
+            public int VScrolled_DY_bottom;
+        }
+
+        private readonly Dictionary<string, BorderDef> _borderCache = new Dictionary<string, BorderDef>(StringComparer.OrdinalIgnoreCase);
+        private bool _bordersLoaded;
+
+        private BorderDef GetBorderByName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            EnsureBordersLoaded();
+            BorderDef def;
+            return _borderCache.TryGetValue(name, out def) ? def : null;
+        }
+
+        private void EnsureBordersLoaded()
+        {
+            if (_bordersLoaded) return;
+            _bordersLoaded = true;
+            try
+            {
+                string rel = @"Dialogs\borders.xml";
+                string abs = Path.Combine(Application.streamingAssetsPath, @"Cossacks2/Data", rel.Replace('\\', '/'));
+                string raw = File.Exists(abs) ? File.ReadAllText(abs) : null;
+                if (string.IsNullOrWhiteSpace(raw)) return;
+                XElement root = XElement.Parse(raw, LoadOptions.PreserveWhitespace);
+                foreach (XElement b in root.Elements("StdBorder"))
+                {
+                    var def = new BorderDef();
+                    def.Name = XmlValue(b, "Name");
+                    def.GP_File = XmlValue(b, "GP_File");
+                    def.LeftTop = XmlInt(b, "LeftTop");
+                    def.RightTop = XmlInt(b, "RightTop");
+                    def.LeftBottom = XmlInt(b, "LeftBottom");
+                    def.RightBottom = XmlInt(b, "RightBottom");
+                    def.TopLine = XmlInt(b, "TopLine");
+                    def.BottomLine = XmlInt(b, "BottomLine");
+                    def.LeftLine = XmlInt(b, "LeftLine");
+                    def.RightLine = XmlInt(b, "RightLine");
+                    def.LeftMargin = XmlInt(b, "LeftMargin");
+                    def.RightMargin = XmlInt(b, "RightMargin");
+                    def.TopMargin = XmlInt(b, "TopMargin");
+                    def.BottomMargin = XmlInt(b, "BottomMargin");
+                    def.StartFiller = XmlInt(b, "StartFiller");
+                    def.NFillers = XmlInt(b, "NFillers");
+                    def.VScroller_GP_File = XmlValue(b, "VScroller_GP_File");
+                    def.VScroller_DX_right = XmlInt(b, "VScroller_DX_right");
+                    def.VScroller_DY_top = XmlInt(b, "VScroller_DY_top");
+                    def.VScrolled_DY_bottom = XmlInt(b, "VScrolled_DY_bottom");
+                    if (!string.IsNullOrWhiteSpace(def.Name)) _borderCache[def.Name] = def;
+                }
+            }
+            catch { }
+        }
+
+        private static string XmlValue(XElement el, string name)
+        {
+            XElement ch = el.Element(name);
+            return ch != null ? (ch.Value ?? "") : "";
+        }
+
+        private static int XmlInt(XElement el, string name)
+        {
+            int v;
+            return int.TryParse(XmlValue(el, name), out v) ? v : 0;
+        }
+
+        private sealed class PreviewDragController : MonoBehaviour, IBeginDragHandler, IDragHandler
+        {
+            private RectTransform _viewport;
+            private RectTransform _image;
+            private Vector2 _startPointer;
+            private Vector2 _startPos;
+            private float _imageW;
+            private float _imageH;
+
+            public void Initialize(RectTransform viewport, RectTransform image, float imageW, float imageH)
+            {
+                _viewport = viewport;
+                _image = image;
+                _imageW = imageW;
+                _imageH = imageH;
+                CenterInitial();
+            }
+
+            private void CenterInitial()
+            {
+                if (_viewport == null || _image == null) return;
+                float viewW = _viewport.rect.width;
+                float viewH = _viewport.rect.height;
+                float x = viewW >= _imageW ? (viewW - _imageW) * 0.5f : (viewW - _imageW) * 0.5f;
+                float y = viewH >= _imageH ? -(viewH - _imageH) * 0.5f : -(viewH - _imageH) * 0.5f;
+                _image.anchoredPosition = Clamp(new Vector2(x, y));
+            }
+
+            public void OnBeginDrag(PointerEventData eventData)
+            {
+                if (_image == null) return;
+                _startPos = _image.anchoredPosition;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(_viewport, eventData.position, eventData.pressEventCamera, out _startPointer);
+            }
+
+            public void OnDrag(PointerEventData eventData)
+            {
+                if (_image == null || _viewport == null) return;
+                Vector2 cur;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(_viewport, eventData.position, eventData.pressEventCamera, out cur);
+                Vector2 delta = cur - _startPointer;
+                _image.anchoredPosition = Clamp(_startPos + delta);
+            }
+
+            private Vector2 Clamp(Vector2 pos)
+            {
+                float viewW = _viewport.rect.width;
+                float viewH = _viewport.rect.height;
+                float minX = _imageW > viewW ? viewW - _imageW : (viewW - _imageW) * 0.5f;
+                float maxX = _imageW > viewW ? 0f : (viewW - _imageW) * 0.5f;
+                float maxY = _imageH > viewH ? 0f : -(viewH - _imageH) * 0.5f;
+                float minY = _imageH > viewH ? -( _imageH - viewH) : -(viewH - _imageH) * 0.5f;
+                pos.x = Mathf.Clamp(pos.x, minX, maxX);
+                pos.y = Mathf.Clamp(pos.y, minY, maxY);
+                return pos;
+            }
+        }
+
+        private void CreateManualDescZone(RectTransform parent, float x, float y, float width, float height)
+        {
+            Sprite bl = GetBorderFrameSprite(0);
+            Sprite br = GetBorderFrameSprite(1);
+            Sprite tl = GetBorderFrameSprite(2);
+            Sprite tr = GetBorderFrameSprite(3);
+            Sprite top = GetBorderFrameSprite(4);
+            Sprite bottom = GetBorderFrameSprite(5);
+            Sprite left = GetBorderFrameSprite(7);
+            Sprite right = GetBorderFrameSprite(8);
+
+            Sprite[] fills = new Sprite[]
+            {
+                GetBorderFrameSprite(6),
+                GetBorderFrameSprite(9),
+                GetBorderFrameSprite(10),
+                GetBorderFrameSprite(11)
+            };
+
+            float tlW = SpriteWidth(tl);
+            float tlH = SpriteHeight(tl);
+            float trW = SpriteWidth(tr);
+            float trH = SpriteHeight(tr);
+            float blW = SpriteWidth(bl);
+            float blH = SpriteHeight(bl);
+            float brW = SpriteWidth(br);
+            float brH = SpriteHeight(br);
+
+            float innerX = x + Mathf.Max(tlW, blW);
+            float innerY = y + Mathf.Max(tlH, trH);
+            float innerW = Mathf.Max(1f, width - Mathf.Max(tlW, blW) - Mathf.Max(trW, brW));
+            float innerH = Mathf.Max(1f, height - Mathf.Max(tlH, trH) - Mathf.Max(blH, brH));
+
+            TileFillSprites(parent, fills, innerX, innerY, innerW, innerH, "DescZoneFill");
+
+            if (top != null)
+                TileSpriteClipped(parent, top, innerX, y, innerW, SpriteHeight(top), true, "DescZoneTop", Mathf.Max(1, SpriteWidth(top)));
+            if (bottom != null)
+                TileSpriteClipped(parent, bottom, innerX, y + height - SpriteHeight(bottom), innerW, SpriteHeight(bottom), true, "DescZoneBottom", Mathf.Max(1, SpriteWidth(bottom)));
+            if (left != null)
+                TileSpriteClipped(parent, left, x, innerY, SpriteWidth(left), innerH, false, "DescZoneLeft", Mathf.Max(1, SpriteHeight(left)));
+            if (right != null)
+                TileSpriteClipped(parent, right, x + width - SpriteWidth(right), innerY, SpriteWidth(right), innerH, false, "DescZoneRight", Mathf.Max(1, SpriteHeight(right)));
+
+            PlaceSprite(parent, tl, x, y, SpriteWidth(tl), SpriteHeight(tl), "DescZoneTL");
+            PlaceSprite(parent, tr, x + width - SpriteWidth(tr), y, SpriteWidth(tr), SpriteHeight(tr), "DescZoneTR");
+            PlaceSprite(parent, bl, x, y + height - SpriteHeight(bl), SpriteWidth(bl), SpriteHeight(bl), "DescZoneBL");
+            PlaceSprite(parent, br, x + width - SpriteWidth(br), y + height - SpriteHeight(br), SpriteWidth(br), SpriteHeight(br), "DescZoneBR");
+        }
+
+        private void TileFillSprites(RectTransform parent, Sprite[] sprites, float x, float y, float width, float height, string prefix)
+        {
+            if (sprites == null || sprites.Length == 0) return;
+            Sprite primary = null;
+            foreach (var s in sprites)
+            {
+                if (s != null) { primary = s; break; }
+            }
+            if (primary == null) return;
+
+            int tileW = Mathf.Max(1, SpriteWidth(primary));
+            int tileH = Mathf.Max(1, SpriteHeight(primary));
+
+            List<Sprite> valid = new List<Sprite>();
+            foreach (var s in sprites)
+            {
+                if (s != null) valid.Add(s);
+            }
+            if (valid.Count == 0) valid.Add(primary);
+
+            int nx = Mathf.Max(1, Mathf.CeilToInt(width / tileW));
+            int ny = Mathf.Max(1, Mathf.CeilToInt(height / tileH));
+
+            for (int iy = 0; iy < ny; iy++)
+            {
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    Sprite sp = valid[(ix + iy) % valid.Count];
+                    float px = x + ix * tileW;
+                    float py = y + iy * tileH;
+                    float pw = Mathf.Min(tileW, x + width - px);
+                    float ph = Mathf.Min(tileH, y + height - py);
+                    PlaceSprite(parent, sp, px, py, pw, ph, prefix + "_" + ix + "_" + iy);
+                }
+            }
+        }
+
+        private Sprite GetBorderFrameSprite(int index)
+        {
+            string key = "interf3_elements_border_BD_frames/frame_" + index.ToString("0000");
+            Sprite sp = Resources.Load<Sprite>(key);
+            if (sp == null)
+            {
+                Texture2D tex = Resources.Load<Texture2D>(key);
+                if (tex != null)
+                    sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            }
+            return sp;
+        }
+
+private Sprite GetGpSprite(string fileId, int spriteId)
+        {
+            if (string.IsNullOrWhiteSpace(fileId)) return null;
+
+            string frame = "frame_" + Mathf.Max(0, spriteId).ToString("0000");
+            string folder = GetExactFrameFolder(fileId);
+            if (string.IsNullOrWhiteSpace(folder))
+                folder = fileId.Replace("\", "_").Replace("/", "_").ToUpperInvariant() + "_frames";
+
+            string key = folder + "/" + frame;
+            Sprite sp;
+            if (_spriteCache.TryGetValue(key, out sp) && sp != null) return sp;
+
+            sp = Resources.Load<Sprite>(key);
+            if (sp == null)
+            {
+                Texture2D tex = Resources.Load<Texture2D>(key);
+                if (tex != null)
+                    sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0, 1), 1f);
+            }
+
+            _spriteCache[key] = sp;
+            return sp;
+        }
+
+        private static TMP_FontAsset LoadFont()
+        {
+            TMP_FontAsset f = Resources.Load<TMP_FontAsset>("Fonts/Slovic");
+            if (f == null) f = TMP_Settings.defaultFontAsset;
+            return f;
+        }
+
+        private static string Resolve(string s, LocDb loc)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "";
+            string r = loc != null ? loc.Resolve(s) : s;
+            r = string.IsNullOrWhiteSpace(r) ? s : r;
+            return SanitizeBrokenChars(r);
+        }
+
+        private static string ResolveAndFormat(string s, LocDb loc, bool formatted, string align)
+        {
+            s = Resolve(s, loc);
+            if (!formatted) return NormalizeTextWithAlign(s, align);
+            return ConvertCossacksFormattingToTmp(s, align);
+        }
+
+        private static string NormalizeTextWithAlign(string s, string align)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "";
+            s = SanitizeBrokenChars(s);
+            s = s.Replace("\r\n", "\n").Replace('\r', '\n');
+            s = s.Replace("\\n", "\n");
+            s = Regex.Replace(s, @"\n{3,}", "\n\n");
+            if (!string.IsNullOrWhiteSpace(align) && !align.Equals("Left", StringComparison.OrdinalIgnoreCase))
+                s = s.Trim(' ', '\n', '\r', '\t');
+            return s;
+        }
+
+        private static string ConvertCossacksFormattingToTmp(string s, string align)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "";
+
+            s = SanitizeBrokenChars(s);
+            s = ResolvePseudoEscapes(s);
+            s = s.Replace("\r\n", "\n").Replace('\r', '\n');
+            s = s.Replace("\\n", "\n");
+            s = Regex.Replace(s, @"\{FC\d+\}", "");
+            s = s.Replace("{FS}", "\n\n");
+
+            var sb = new StringBuilder();
+            int i = 0;
+            bool colorOpen = false;
+            while (i < s.Length)
+            {
+                if (s[i] == '{')
+                {
+                    int end = s.IndexOf('}', i);
+                    if (end > i)
+                    {
+                        string token = s.Substring(i + 1, end - i - 1).Trim();
+                        if (token.StartsWith("C ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string color = token.Substring(2).Trim();
+                            string html = ToHtmlColor(color);
+                            if (colorOpen) sb.Append("</color>");
+                            sb.Append("<color=").Append(html).Append(">");
+                            colorOpen = true;
+                            i = end + 1;
+                            continue;
+                        }
+                        i = end + 1;
+                        continue;
+                    }
+                }
+
+                char c = s[i];
+                if (c == '<') sb.Append("&lt;");
+                else if (c == '>') sb.Append("&gt;");
+                else sb.Append(c);
+                i++;
+            }
+            if (colorOpen) sb.Append("</color>");
+
+            string result = Regex.Replace(sb.ToString(), @"\n{3,}", "\n\n");
+            if (!string.IsNullOrWhiteSpace(align) && !align.Equals("Left", StringComparison.OrdinalIgnoreCase))
+                result = result.Trim(' ', '\n', '\r', '\t');
+            return result;
+        }
+
+        private static string SanitizeBrokenChars(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            s = s.Replace('�', ' ');
+            s = s.Replace("□", " ");
+            s = Regex.Replace(s, @"[\u0000-\u0008\u000B\u000C\u000E-\u001F]", "");
+            return s;
+        }
+
+        private static string ResolvePseudoEscapes(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "";
+            s = s.Replace("\\\n", "\n");
+            s = s.Replace("\n\\\n", "\n\n");
+            return s;
+        }
+
+        private static string ToHtmlColor(string argb)
+        {
+            argb = (argb ?? "").Trim();
+            if (argb.Length == 8)
+            {
+                string rrggbb = argb.Substring(2, 6);
+                return "#" + rrggbb;
+            }
+            if (argb.Length == 6)
+                return "#" + argb;
+            return "#20140A";
+        }
+
+
+        private static TextAlignmentOptions ToTopAlign(string align)
+        {
+            if (string.Equals(align, "Center", StringComparison.OrdinalIgnoreCase)) return TextAlignmentOptions.Top;
+            if (string.Equals(align, "Right", StringComparison.OrdinalIgnoreCase)) return TextAlignmentOptions.TopRight;
+            return TextAlignmentOptions.TopLeft;
+        }
+
+        private static TextAlignmentOptions ToAlign(string align)
+        {
+            if (string.Equals(align, "Center", StringComparison.OrdinalIgnoreCase)) return TextAlignmentOptions.Center;
+            if (string.Equals(align, "Right", StringComparison.OrdinalIgnoreCase)) return TextAlignmentOptions.MidlineRight;
+            return TextAlignmentOptions.MidlineLeft;
+        }
+
+        private static float GuessFontSize(MbTextNode txt)
+        {
+            string msg = txt.Message ?? "";
+            if (msg.StartsWith("#SELECT_SCENARIO", StringComparison.OrdinalIgnoreCase)) return 28f;
+            if (msg.StartsWith("#MAP_DESCRIPTION", StringComparison.OrdinalIgnoreCase)) return 20f;
+            if (msg.StartsWith("#MO_ArcadeMode", StringComparison.OrdinalIgnoreCase)) return 14f;
+            if (txt.Height <= 14) return 14f;
+            return 18f;
+        }
+
+        private static Color GuessColor(MbTextNode txt)
+        {
+            string msg = txt.Message ?? "";
+            if (msg.IndexOf("#Tab_", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(40, 30, 25, 255);
+            if (msg.IndexOf("#MAP_DESCRIPTION", StringComparison.OrdinalIgnoreCase) >= 0) return Color.white;
+            if (msg.IndexOf("#SELECT_SCENARIO", StringComparison.OrdinalIgnoreCase) >= 0) return Color.white;
+            if (msg.IndexOf("#MO_ArcadeMode", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(30, 20, 10, 255);
+            return new Color32(35, 25, 20, 255);
+        }
+    }
+}

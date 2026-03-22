@@ -13,6 +13,7 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
     private Cossacks2Bridge.UnityAdapters.MenuBootstrap _bootstrap;
     public static string CurrentProfileName { get; private set; } = "";
     public static bool SingleBattlesShowBattles { get; set; } = false;
+    public static bool SingleBattlesShowLoad { get; set; } = false;
     public static string SingleBattlesSelectedId { get; set; } = "";
     public static bool SingleBattlesArcadeModeEnabled { get; set; } = false;
 
@@ -142,6 +143,7 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
             case "cva_Battles_Mode_Skirmish":
                 {
                     SingleBattlesShowBattles = false;
+                    SingleBattlesShowLoad = false;
                     SingleBattlesSelectedId = "";
                     _bootstrap?.RenderByScreenId("SingleBattles");
                     break;
@@ -150,6 +152,17 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
             case "cva_Battles_Mode_Battles":
                 {
                     SingleBattlesShowBattles = true;
+                    SingleBattlesShowLoad = false;
+                    SingleBattlesSelectedId = "";
+                    _bootstrap?.RenderByScreenId("SingleBattles");
+                    break;
+                }
+
+
+            case "cva_Battles_Mode_Load":
+                {
+                    SingleBattlesShowBattles = false;
+                    SingleBattlesShowLoad = true;
                     SingleBattlesSelectedId = "";
                     _bootstrap?.RenderByScreenId("SingleBattles");
                     break;

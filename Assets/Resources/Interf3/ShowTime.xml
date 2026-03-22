@@ -1,0 +1,35 @@
+<screen>
+ <elm>
+  <type>GPButton</type>
+  <id>1</id>
+  <gpfile>interf3\units_fra</gpfile>
+  <activeframe>0</activeframe>
+  <x>260</x>
+  <y>140</y>
+  <onclick>ShowTime</onclick>
+ </elm>
+ <elm>
+  <type>GPButton</type>
+  <id>2</id>
+  <gpfile>interf3\units_fra</gpfile>
+  <activeframe>0</activeframe>
+  <x>450</x>
+  <y>100</y>
+ </elm>
+ <elm>
+  <type>GPButton</type>
+  <id>3</id>
+  <gpfile>interf3\units_fra</gpfile>
+  <activeframe>2</activeframe>
+  <x>450</x>
+  <y>360</y>
+ </elm>
+ <elm>
+  <type>GPButton</type>
+  <id>4</id>
+  <gpfile>interf3\units_fra</gpfile>
+  <activeframe>1</activeframe>
+  <x>370</x>
+  <y>240</y>
+ </elm>
+</screen>

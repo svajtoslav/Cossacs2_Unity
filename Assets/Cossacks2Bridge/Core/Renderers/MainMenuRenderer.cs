@@ -317,7 +317,9 @@ private void RenderSingleBattles(RectTransform root, CoreFileSystem fs, RenderOp
 
     CreateListDesk(new UiListDesk { X = 539, Y = 160, Width = 428, Height = 518, Border = "BD", Visible = true }, root, opt);
     CreateListDesk(new UiListDesk { X = 573, Y = 160, Width = 375, Height = 235, Border = "BD", Visible = true }, root, opt);
-    CreateListDesk(new UiListDesk { X = 569, Y = 463, Width = 366, Height = 214, Border = "BD", Visible = true }, root, opt);
+    // Description block outer frame: keep only the original red BD border without center fill.
+    // The inner gray background belongs only to the scroll/text zone, not to the whole 366x214 desk.
+    CreateTiledBorder(root, 569, 463, 366, 214, "BD", BorderCorners.BD, opt, filled: false);
 
     CreateListDesk(new UiListDesk { X = 40, Y = 160, Width = 470, Height = 518, Border = "BD", Visible = true }, root, opt);
 
@@ -362,6 +364,7 @@ private void RenderSingleBattles(RectTransform root, CoreFileSystem fs, RenderOp
         if (string.Equals(arcadeLabel, "#MO_ArcadeMode", StringComparison.OrdinalIgnoreCase))
             arcadeLabel = "Аркадный режим";
         CreateStaticText(root, 571, 436, 160, 21, arcadeLabel, 17, new Color32(25, 18, 10, 255), TextAlignmentOptions.Left);
+        Debug.Log("[MM_DBG] about to create legacy arcade combo x=726 y=434 w=226 h=21");
         CreatePseudoCombo(root, 726, 434, 226, 21,
             MenuActionSink.SingleBattlesArcadeModeEnabled ? "Включен" : "Выключен",
             "cva_Battles_ArcadeToggle", sink);
@@ -388,7 +391,7 @@ private static void CreateDescriptionScrollArea(RectTransform parent, int x, int
     const float innerX = 11f;
     const float innerY = 6f;
     const float innerW = 340f;
-    const float innerH = 167f;
+    float innerH = h - innerY - 6f; // fill to bottom edge of outer frame (symmetric 6px margin)
     const float scrollbarW = 14f;
 
     var root = new GameObject("BattleDescScroll", typeof(RectTransform));
@@ -399,6 +402,18 @@ private static void CreateDescriptionScrollArea(RectTransform parent, int x, int
     rt.pivot = new Vector2(0, 1);
     rt.anchoredPosition = new Vector2(x, -y);
     rt.sizeDelta = new Vector2(w, h);
+
+    // Inner background belongs only to the original text zone inside the outer BD frame.
+    var innerBg = new GameObject("InnerBg", typeof(RectTransform), typeof(Image));
+    innerBg.transform.SetParent(root.transform, false);
+    var brt = (RectTransform)innerBg.transform;
+    brt.anchorMin = brt.anchorMax = new Vector2(0, 1);
+    brt.pivot = new Vector2(0, 1);
+    brt.anchoredPosition = new Vector2(innerX, -innerY);
+    brt.sizeDelta = new Vector2(innerW, innerH);
+    var bgImg = innerBg.GetComponent<Image>();
+    bgImg.color = new Color32(232, 230, 225, 235);
+    bgImg.raycastTarget = false;
 
     // Viewport matches the original inner text zone.
     var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
