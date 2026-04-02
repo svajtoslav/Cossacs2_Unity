@@ -4,6 +4,9 @@ using Cossacks2Bridge.UnityAdapters.Renderers;
 using Cossacks2Bridge.UnityAdapters.Battles;
 using System;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Cossacks2Bridge.UnityAdapters
 {
@@ -56,6 +59,41 @@ namespace Cossacks2Bridge.UnityAdapters
             InitializeRenderers();
 
             RenderByScreenId(startScreenId);
+        }
+
+        private void Update()
+        {
+            if (!WasQuickRubiconHotkeyPressed())
+                return;
+
+            DebugOpenRubiconTerrain();
+        }
+
+        private static bool WasQuickRubiconHotkeyPressed()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null && Keyboard.current.f12Key.wasPressedThisFrame)
+                return true;
+#endif
+            try
+            {
+                return Input.GetKeyDown(KeyCode.F12);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void DebugOpenRubiconTerrain()
+        {
+            MenuActionSink.SingleBattlesShowBattles = false;
+            MenuActionSink.SingleBattlesShowLoad = false;
+            MenuActionSink.SingleBattlesArcadeModeEnabled = false;
+            MenuActionSink.SingleBattlesSelectedId = "Skirmish2";
+            Debug.Log("[C2:HOTKEY] F12 -> debugOpen map=Skirmish2 alias='Пересечь Рубикон' mode=terrain-view");
+            Cossacks2Bridge.UnityAdapters.Maps.C2MapLoadLighting.ApplyMapLoadDefaultsLikeOriginal();
+            Cossacks2Bridge.UnityAdapters.Maps.C2BattleTerrainMode.OpenFromBattles(this);
         }
 
         private void InitializeCore()

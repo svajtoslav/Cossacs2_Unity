@@ -266,7 +266,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
 
             // 10. BOTTOM BUTTONS
             PlaceBottomButtonBar(root, cashDir);
-            PlaceBottomButton(root, cashDir, "Начать", 280, 705 + BottomButtonsOffsetY, 225, 43, true, "", "", sink);
+            PlaceBottomButton(root, cashDir, "Начать", 280, 705 + BottomButtonsOffsetY, 225, 43, true, "cva_Battles_Start", "", sink);
             PlaceBottomButton(root, cashDir, "Вернуться", 523, 705 + BottomButtonsOffsetY, 225, 43, true, "cva_Battles_Back", "", sink);
 
             // populate list

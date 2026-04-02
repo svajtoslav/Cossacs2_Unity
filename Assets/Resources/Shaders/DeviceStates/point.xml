@@ -1,0 +1,38 @@
+<point>
+			<RenderState>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<AlphaFunc>Greater</AlphaFunc>
+				<AlphaRef>0x00000000</AlphaRef>
+				<ColorVertex>True</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<Lighting>True</Lighting>
+				<FillMode>Point</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>False</DitherEnable>
+				<TextureFactor>0xFFFF0000</TextureFactor>
+				<ZBias>12</ZBias>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Tfactor</AlphaArg1>
+				<MipFilter>None</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+				<MipFilter>None</MipFilter>
+				<MinFilter>None</MinFilter>
+				<MagFilter>None</MagFilter>
+			</TextureStageState>
+</point>

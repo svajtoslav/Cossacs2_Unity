@@ -1,0 +1,18 @@
+<ShadowVolume4>
+			<RenderState>
+				<ZEnable>False</ZEnable>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+			</TextureStageState>
+</ShadowVolume4>

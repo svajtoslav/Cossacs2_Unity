@@ -1,0 +1,49 @@
+<zground1>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<ColorVertex>False</ColorVertex>
+				<SpecularEnable>True</SpecularEnable>
+				<NormalizeNormals>True</NormalizeNormals>
+				<CullMode>CW</CullMode>
+				<Lighting>True</Lighting>
+				<FillMode>Solid</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>True</DitherEnable>
+				<Ambient>ambColor</Ambient>
+				<MaterialDiffuse>difColor</MaterialDiffuse>
+				<MaterialAmbient>ambColor</MaterialAmbient>
+				<MaterialSpecular>spColor</MaterialSpecular>
+				<MaterialPower>0.500000</MaterialPower>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<TextureFactor>0xFFFFFFFF</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<LightType>Directional</LightType>
+				<LightDiffuse>difColor</LightDiffuse>
+				<LightAmbient>ambColor</LightAmbient>
+				<LightSpecular>spColor</LightSpecular>
+				<LightDirection>lightDir</LightDirection>
+				<LightRange>1000</LightRange>
+				<LightEnable>True</LightEnable>
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Tfactor</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MipFilter>Linear</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>None</MinFilter>
+				<MagFilter>None</MagFilter>
+			</TextureStageState>
+</zground1>

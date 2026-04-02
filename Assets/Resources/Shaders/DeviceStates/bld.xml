@@ -1,0 +1,39 @@
+<bld>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<AlphaFunc>Greater</AlphaFunc>
+				<AlphaRef>0x00000000</AlphaRef>
+				<ColorVertex>False</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>True</ZEnable>
+				<Lighting>False</Lighting>
+				<FillMode>Solid</FillMode>
+				<CullMode>CCW</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Disable</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MipFilter>None</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<ColorArg1>Current</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Disable</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+			</TextureStageState>
+</bld>

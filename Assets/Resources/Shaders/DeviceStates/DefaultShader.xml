@@ -1,0 +1,38 @@
+<DefaultShader>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<ColorVertex>True</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<NormalizeNormals>False</NormalizeNormals>
+				<CullMode>None</CullMode>
+				<Lighting>True</Lighting>
+				<FillMode>Solid</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>False</DitherEnable>
+				<DiffuseMaterialSource>Color1</DiffuseMaterialSource>
+				<AmbientMaterialSource>Material</AmbientMaterialSource>
+				<SpecularMaterialSource>Color2</SpecularMaterialSource>
+				<Ambient>0xFF000000</Ambient>
+				<TextureTransformFlags>Count2</TextureTransformFlags>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<TextureFactor>0xFFFFFFFF</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<LightEnable>True</LightEnable>
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MipFilter>Linear</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<TexCoordIndex>PassThru</TexCoordIndex>
+			</TextureStageState>
+</DefaultShader>

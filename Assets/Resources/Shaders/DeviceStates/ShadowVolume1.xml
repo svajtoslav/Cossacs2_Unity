@@ -1,0 +1,19 @@
+<ShadowVolume1>
+			<RenderState>
+				<ZWriteEnable>False</ZWriteEnable>
+				<ZEnable>True</ZEnable>
+				<StencilEnable>True</StencilEnable>
+				<ShadeMode>Flat</ShadeMode>
+				<StencilFunc>Always</StencilFunc>
+				<StencilZFail>Keep</StencilZFail>
+				<StencilFail>Keep</StencilFail>
+				<StencilRef>0x00000001</StencilRef>
+				<StencilMask>0xFFFFFFFF</StencilMask>
+				<StencilWriteMask>0xFFFFFFFF</StencilWriteMask>
+				<StencilPass>Incr</StencilPass>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>Zero</SrcBlend>
+				<DestBlend>One</DestBlend>
+				<CullMode>CCW</CullMode>
+			</RenderState>
+</ShadowVolume1>

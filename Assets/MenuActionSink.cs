@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using TMPro;
 using Cossacks2Bridge.Core;
 using Cossacks2Bridge.UnityAdapters;
+using Cossacks2Bridge.UnityAdapters.Maps;
 
 /// <summary>
 /// Minimal "executor" for UI actions coming from renderers.
@@ -181,6 +182,15 @@ public sealed class MenuActionSink : MonoBehaviour, IUiActionSink
                 {
                     SingleBattlesArcadeModeEnabled = !SingleBattlesArcadeModeEnabled;
                     _bootstrap?.RenderByScreenId("SingleBattles");
+                    break;
+                }
+
+
+            case "cva_Battles_Start":
+                {
+                    Debug.Log("[C2:SINK] Battles_Start -> open terrain mode");
+                    Cossacks2Bridge.UnityAdapters.Maps.C2MapLoadLighting.ApplyMapLoadDefaultsLikeOriginal();
+                    C2BattleTerrainMode.OpenFromBattles(_bootstrap);
                     break;
                 }
 

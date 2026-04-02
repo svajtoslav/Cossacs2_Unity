@@ -1,0 +1,21 @@
+<ShadowSquare>
+			<RenderState>
+				<ZEnable>False</ZEnable>
+				<StencilEnable>True</StencilEnable>
+				<FogEnable>False</FogEnable>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<StencilRef>0x00000001</StencilRef>
+				<StencilFunc>4</StencilFunc>
+				<StencilPass>Keep</StencilPass>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<ColorOp>Modulate</ColorOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<AlphaOp>Modulate</AlphaOp>
+			</TextureStageState>
+</ShadowSquare>

@@ -1,0 +1,44 @@
+<Stones2>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>One</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>2</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate2x</ColorOp>
+				<ColorArg1>Diffuse</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Clamp</AddressU>
+				<AddressV>Clamp</AddressV>
+				<MipFilter>Linear</MipFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Current</AlphaArg2>
+				<ColorOp>Modulate2x</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Current</ColorArg2>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Clamp</AddressU>
+				<AddressV>Clamp</AddressV>
+				<MipFilter>Linear</MipFilter>
+				<TexCoordIndex>1</TexCoordIndex>
+			</TextureStageState>
+</Stones2>

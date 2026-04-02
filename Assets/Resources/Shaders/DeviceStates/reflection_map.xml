@@ -1,0 +1,35 @@
+<reflection_map>
+	<RenderState>
+		<SrcBlend>SrcAlpha</SrcBlend>
+		<DestBlend>InvSrcAlpha</DestBlend>
+		<AlphaBlendEnable>True</AlphaBlendEnable>
+		<AlphaTestEnable>True</AlphaTestEnable>
+		<AlphaFunc>GreaterEqual</AlphaFunc>
+		<AlphaRef>0x08</AlphaRef>
+		<ColorVertex>True</ColorVertex>
+		<SpecularEnable>False</SpecularEnable>
+		<CullMode>None</CullMode>
+		<Lighting>True</Lighting>
+		<FillMode>Solid</FillMode>
+		<DitherEnable>False</DitherEnable>
+		<ZEnable>False</ZEnable>
+		<ZWriteEnable>False</ZWriteEnable>
+		<ZFunc>LessEqual</ZFunc>
+		<TextureFactor>0x40FFFFFF</TextureFactor>
+		<ClipPlaneEnable>1</ClipPlaneEnable>
+	</RenderState>
+	<TextureStageState Stage="0">
+		<ColorOp>Modulate2x</ColorOp>
+		<ColorArg1>Diffuse</ColorArg1>
+		<ColorArg2>Texture</ColorArg2>
+		<AlphaOp>SelectArg2</AlphaOp>
+		<AlphaArg1>Tfactor</AlphaArg1>
+		<AlphaArg2>Texture</AlphaArg2>
+		<MipFilter>Linear</MipFilter>
+		<MinFilter>Linear</MinFilter>
+		<MagFilter>Linear</MagFilter>
+		<AddressU>Wrap</AddressU>
+		<AddressV>Wrap</AddressV>
+		<TexCoordIndex>PassThru</TexCoordIndex>
+	</TextureStageState>
+</reflection_map>

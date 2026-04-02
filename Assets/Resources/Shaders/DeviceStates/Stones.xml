@@ -1,0 +1,41 @@
+<Stones>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>One</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>0x00000001</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Clamp</AddressU>
+				<AddressV>Clamp</AddressV>
+				<MipFilter>None</MipFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Modulate2x</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Current</ColorArg2>
+				<AlphaArg2>Texture</AlphaArg2>
+				<AlphaOp>SelectArg2</AlphaOp>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Clamp</AddressU>
+				<AddressV>Clamp</AddressV>
+				<MipFilter>None</MipFilter>
+			</TextureStageState>
+</Stones>

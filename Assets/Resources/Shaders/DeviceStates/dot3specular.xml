@@ -1,0 +1,53 @@
+<dot3>
+	<RenderState>
+		<AlphaBlendEnable>True</AlphaBlendEnable>
+		<SrcBlend>SrcAlpha</SrcBlend>
+		<DestBlend>InvSrcAlpha</DestBlend>
+		<AlphaTestEnable>True</AlphaTestEnable>
+		<AlphaFunc>GreaterEqual</AlphaFunc>
+		<AlphaRef>0x00000001</AlphaRef>
+		<ColorVertex>True</ColorVertex>
+		<SpecularEnable>False</SpecularEnable>
+		<ZEnable>True</ZEnable>
+		<ZWriteEnable>True</ZWriteEnable>
+		<Lighting>False</Lighting>
+		<FillMode>Solid</FillMode>
+		<CullMode>None</CullMode>
+		<SpecularMaterialSource>Color2</SpecularMaterialSource>
+		<TextureFactor>0x80808080</TextureFactor>
+	</RenderState>
+	<TextureStageState Stage="0">
+		<ColorOp>DotProduct3</ColorOp>
+		<ColorArg1>Texture</ColorArg1>
+		<ColorArg2>Specular</ColorArg2>
+		<AlphaOp>SelectArg1</AlphaOp>
+		<AlphaArg1>Diffuse</AlphaArg1>
+		<MinFilter>Point</MinFilter>
+		<MagFilter>Linear</MagFilter>
+		<MipFilter>Linear</MipFilter>
+		<AddressU>Wrap</AddressU>
+		<AddressV>Wrap</AddressV>
+	</TextureStageState>
+	<TextureStageState Stage="1">
+		<ColorOp>Modulate2X</ColorOp>
+		<ColorArg1>Texture</ColorArg1>
+		<ColorArg2>Current</ColorArg2>
+		<TexCoordIndex>0</TexCoordIndex>
+		<AlphaOp>SelectArg1</AlphaOp>
+		<AlphaArg1>Current</AlphaArg1>
+		<MinFilter>Point</MinFilter>
+		<MagFilter>Linear</MagFilter>
+		<MipFilter>Linear</MipFilter>
+		<AddressU>Wrap</AddressU>
+		<AddressV>Wrap</AddressV>
+	</TextureStageState>
+	<TextureStageState Stage="2">
+		<ColorOp>Modulate2X</ColorOp>
+		<ColorArg2>Diffuse</ColorArg2>
+		<ColorArg1>Current</ColorArg1>
+		<TexCoordIndex>0</TexCoordIndex>
+		<AlphaOp>SelectArg1</AlphaOp>
+		<AlphaArg1>Diffuse</AlphaArg1>
+		<MipFilter>Linear</MipFilter>
+	</TextureStageState>
+</dot3>

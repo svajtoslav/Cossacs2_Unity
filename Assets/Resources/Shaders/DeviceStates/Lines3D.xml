@@ -1,0 +1,21 @@
+<Lines3D>
+	<RenderState>
+		<AlphaBlendEnable>False</AlphaBlendEnable>
+		<SrcBlend>SrcAlpha</SrcBlend>
+		<DestBlend>InvSrcAlpha</DestBlend>
+		<AlphaTestEnable>False</AlphaTestEnable>
+		<AlphaRef>0x00000000</AlphaRef>
+		<Lighting>False</Lighting>
+		<SpecularEnable>False</SpecularEnable>
+		<ZEnable>True</ZEnable>
+		<ZWriteEnable>True</ZWriteEnable>
+		<ColorVertex>True</ColorVertex>
+		<FillMode>Solid</FillMode>
+		<CullMode>None</CullMode>
+	</RenderState>
+	<TextureStageState Stage="0">
+		<ColorOp>SelectArg1</ColorOp>
+		<ColorArg1>Diffuse</ColorArg1>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+</Lines3D>

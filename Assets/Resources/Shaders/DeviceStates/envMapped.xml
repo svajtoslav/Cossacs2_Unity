@@ -1,0 +1,54 @@
+<envMapped>
+			<RenderState>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<ColorVertex>False</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<NormalizeNormals>True</NormalizeNormals>
+				<CullMode>CW</CullMode>
+				<Lighting>True</Lighting>
+				<FillMode>Solid</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>True</DitherEnable>
+				<Ambient>ambColor</Ambient>
+				<MaterialDiffuse>difColor</MaterialDiffuse>
+				<MaterialAmbient>ambColor</MaterialAmbient>
+				<MaterialSpecular>spColor</MaterialSpecular>
+				<MaterialPower>0.500000</MaterialPower>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<LightType>Directional</LightType>
+				<LightDiffuse>difColor</LightDiffuse>
+				<LightAmbient>ambColor</LightAmbient>
+				<LightSpecular>spColor</LightSpecular>
+				<LightDirection>lightDir</LightDirection>
+				<LightRange>1000</LightRange>
+				<LightEnable>True</LightEnable>
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MipFilter>Linear</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Current</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<TexCoordIndex>CameraSpaceReflectionVector</TexCoordIndex>
+				<MipFilter>Linear</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+			</TextureStageState>
+</envMapped>

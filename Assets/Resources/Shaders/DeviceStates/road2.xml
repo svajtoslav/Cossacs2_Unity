@@ -1,0 +1,44 @@
+<road2>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>DestColor</SrcBlend>
+				<DestBlend>SrcColor</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>16</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+				<TextureFactor>0xFF808080</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Add</ColorOp>
+				<ColorArg1>TFactor</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>SelectArg2</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MinFilter>Anisotropic</MinFilter>
+				<MagFilter>Anisotropic</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Clamp</AddressV>
+				<MipFilter>Linear</MipFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Current</AlphaArg2>
+				<ColorOp>Subtract</ColorOp>
+				<ColorArg2>Texture</ColorArg2>
+				<ColorArg1>Current</ColorArg1>
+				<MinFilter>Anisotropic</MinFilter>
+				<MagFilter>Anisotropic</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Clamp</AddressV>
+				<MipFilter>Linear</MipFilter>
+			</TextureStageState>
+</road2>
