@@ -1,0 +1,363 @@
+//************************************************************************
+// 		Constant Data for Big Map Global Quests
+//************************************************************************
+/ 
+// additional data
+
+ports               16 	 0 1 2 3 4 5 7 8 10 11 12 13 15 18 22 23
+
+// 0 ENGLAND
+// 1 FRANCE
+// 2 AUSTRIA
+// 3 PRUSSIA
+// 4 RUSSIA
+// 5 EGIPET
+
+/
+// AttackNation		N = 5
+
+[QUEST]
+name                AttackNation
+owner               6 	 0 1 2 3 4 5
+recipient           6 	 0 1 2 3 4 5
+probability         10
+turn_limit          15
+gold                10000
+main		    1
+
+[QUEST]
+name                AttackNation
+owner               3 	 0 2 4
+recipient           2 	 0 2
+probability         30
+turn_limit          10
+gold                5000
+main		    1
+
+[QUEST]
+name                AttackNation
+owner               2 	 2 3
+recipient           1 	 4
+probability         30
+turn_limit          10
+gold                5000
+main		    1
+
+[QUEST]
+name                AttackNation
+owner               3 	 1 3 5
+recipient           2 	 1 5
+probability         30
+turn_limit          10
+gold                7000
+main		    1
+
+[QUEST]
+name                AttackNation
+owner               2 	 2 5
+recipient           1 	 3
+probability         30
+turn_limit          10
+gold                10000
+main		    1
+
+/
+// CaptureSector	4	= 9
+
+[QUEST]
+name                CaptureSector
+owner               6 	 0 1 2 3 4 5
+recipient           6 	 0 1 2 3 4 5
+probability         10
+turn_limit          15
+gold                10000
+main		    1
+
+[QUEST]
+name                CaptureSector
+owner               2 	 0 1
+recipient           4 	 0 1 2 3
+probability         30
+turn_limit          10
+gold                7000
+main		    1
+
+[QUEST]
+name                CaptureSector
+owner               2 	 2 3
+recipient           5 	 1 2 3 4 5
+probability         30
+turn_limit          10
+gold                7000
+main		    1
+
+[QUEST]
+name                CaptureSector
+owner               2 	 4 5
+recipient           2 	 2 3
+probability         30
+turn_limit          10
+gold                10000
+main		    1
+
+/
+// DefendSector		1	= 10
+
+[QUEST]
+name                DefendSector
+owner               6 	 0 1 2 3 4 5
+recipient           6 	 0 1 2 3 4 5
+probability         40
+turn_limit          6
+gold                5000
+main		    1
+
+/
+// SellSector		1	= 11
+
+[QUEST]
+name                SellSector
+owner               6 	 0 1 2 3 4 5
+recipient           6 	 0 1 2 3 4 5
+probability         50
+turn_limit          10
+gold                8000
+main		    1
+
+/
+// AddGold		4	= 15
+
+[QUEST]
+name                AddGold
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         30
+turn_limit          3
+gold                2000
+
+[QUEST]
+name                AddGold
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         30
+turn_limit          6
+gold                3000
+
+[QUEST]
+name                AddGold
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         30
+turn_limit          10
+gold                5000
+
+[QUEST]
+name                AddGold
+owner               0
+recipient           3 	 0 3 5
+probability         30
+turn_limit          10
+gold                4000
+
+/
+// DeleteGold		4	= 19
+
+[QUEST]
+name                DeleteGold
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         20
+turn_limit          3
+gold                2000
+
+[QUEST]
+name                DeleteGold
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         15
+turn_limit          6
+gold                4000
+
+[QUEST]
+name                DeleteGold
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         10
+turn_limit          9
+gold                5000
+
+[QUEST]
+name                DeleteGold
+owner               0
+recipient           3 	 1 4 5
+probability         10
+turn_limit          15
+gold                5000
+
+
+/
+// RisePrices		1	
+
+[QUEST]
+name                RisePrices
+recipient           6 	 0 1 2 3 4 5
+probability         30
+turn_limit          6
+main		    1
+
+
+/
+// FallPrices		1	
+
+[QUEST]
+name                FallPrices
+recipient           6 	 0 1 2 3 4 5
+probability         20
+turn_limit          5
+main		    1
+
+
+/
+// AddRecruits		1	= 20
+
+[QUEST]
+name                AddRecruits
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         40
+turn_limit          4
+
+/
+// DeleteRecruits	1	= 21
+
+[QUEST]
+name                DeleteRecruits
+owner               0
+recipient           6 	 0 1 2 3 4 5
+probability         25
+turn_limit          5
+
+/
+// Rebellion		3	= 24
+
+[QUEST]
+name                Rebellion
+recipient           6 	 0 1 2 3 4 5
+probability         20
+turn_limit          5
+gold                10000
+
+[QUEST]
+name                Rebellion
+recipient           3 	 0 1 2
+probability         15
+turn_limit          10
+gold                10000
+
+[QUEST]
+name                Rebellion
+recipient           3 	 3 4 5
+probability         15
+turn_limit          10
+gold                15000
+
+[QUEST]
+name                Rebellion
+recipient           6 	 0 1 2 3 4 5
+probability         20
+turn_limit          5
+gold                5000
+
+/
+// DeleteResources	2	= 26
+
+[QUEST]
+name                DeleteResources
+recipient           6 	 0 1 2 3 4 5
+probability         10
+turn_limit          3
+
+[QUEST]
+name                DeleteResources
+recipient           3 	 0 4 5
+probability         20
+turn_limit          5
+
+/
+// DeleteDefence	2	= 28
+
+[QUEST]
+name                DeleteDefence
+recipient           6 	 0 1 2 3 4 5
+probability         10
+turn_limit          7
+
+[QUEST]
+name                DeleteDefence
+recipient           3 	 1 2 4
+probability         20
+turn_limit          8
+
+[QUEST]
+name                DeleteDefence
+recipient           1 	 0
+probability         20
+turn_limit          6
+
+/
+// AddSquad		4	= 30
+
+[QUEST]
+name                AddSquad
+recipient           6 	 0 1 2 3 4 5
+probability         15
+turn_limit          5
+gold                400
+
+[QUEST]
+name                AddSquad
+recipient           6 	 0 1 2 3 4 5
+probability         15
+turn_limit          7
+gold                200
+
+[QUEST]
+name                AddSquad
+recipient           4 	 1 2 4 5
+probability         10
+turn_limit          7
+gold                100
+
+[QUEST]
+name                AddSquad
+recipient           2 	 4 5
+probability         10
+turn_limit          7
+gold                50
+
+
+
+[END]
+
+// skip line - "enter", "/ " , "// "
+
+
+// functions list  - AttackNation 
+//		   - CaptureSector - DefendSector    - SellSector
+//                 - AddGold       - DeleteGold
+//		   - AddRecruits   - DeleteRecruits
+//		   - Rebellion     - DeleteResources - DeleteDefence 
+//		   - AddSquad 
+
+
+// FUN for ADD :  
+
+//
+//		   (?) - Epidemic - +/- PortEpidemic (?)
+//
+
+
+//1.Nado Ochen' chasto AddRecruits, DeleteRecruits.
+//2.Add Gold i Delete Gold luche zdelat' dovolno redko Turn_limit 8 no po mnogu resursov.
+//3.Max_TurnLimit=15 MinTurnLimit=3 Ogromnii-TurnLimit=10 Normal-TurnLimit=6
+//4.DeleteDefence-zdelat' chashe, DeleteResources

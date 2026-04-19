@@ -6,7 +6,8 @@ Shader "Cossacks2Bridge/Road"
         Tags { "Queue"="Transparent+2" "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" }
         Cull Off
         ZWrite Off
-        ZTest Always
+        Offset -1, -1
+        ZTest LEqual
         Blend One OneMinusSrcAlpha
         Pass
         {

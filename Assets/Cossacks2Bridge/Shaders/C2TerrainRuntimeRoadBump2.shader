@@ -6,7 +6,8 @@ Shader "Cossacks2Bridge/RoadBump2"
         Tags { "Queue"="Transparent+3" "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" }
         Cull Off
         ZWrite Off
-        ZTest Always
+        Offset -1, -1
+        ZTest LEqual
         Blend DstColor SrcColor
         Pass
         {
