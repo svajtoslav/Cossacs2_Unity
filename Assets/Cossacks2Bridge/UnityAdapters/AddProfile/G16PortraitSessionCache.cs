@@ -28,7 +28,7 @@ public static class G16PortraitSessionCache
     public static void ClearSession()
     {
         _spriteCache.Clear();
-        CodecFacade.ClearG16Memory();
+        MelinojaCodecBridge.ClearG16Memory();
     }
 
     // nationCode: "EGs", "FRs", "RSs" и т.п.
@@ -50,13 +50,13 @@ public static class G16PortraitSessionCache
         if (_spriteCache.TryGetValue(key, out sprite))
             return true;
 
-        if (!CodecFacade.LoadG16ToMemory(g16Path, out var err, doubleOverlay))
+        if (!MelinojaCodecBridge.LoadG16ToMemory(g16Path, out var err, doubleOverlay))
         {
             Debug.LogError($"[PortraitCache] LoadG16ToMemory failed: {err}");
             return false;
         }
 
-        if (!CodecFacade.TryGetG16FrameRGBA(g16Path, frameIndex, out int w, out int h, out byte[] rgba, out var err2))
+        if (!MelinojaCodecBridge.TryGetG16FrameRGBA(g16Path, frameIndex, out int w, out int h, out byte[] rgba, out var err2))
         {
             Debug.LogError($"[PortraitCache] GetFrame failed: {err2}");
             return false;

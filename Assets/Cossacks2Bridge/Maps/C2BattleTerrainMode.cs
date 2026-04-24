@@ -1219,89 +1219,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void BuildStrictOldSurfaceWholeMapLikeOriginal(ParsedMap map, Transform parent, out Bounds terrainBounds)
         {
-            if (map.Heights == null || map.Heights.Length == 0)
-                throw new InvalidOperationException("Map has no SURF heights.");
-
-            _terrainMaterial = CreateTerrainMaterialLikeOriginal(map);
-            _terrainBaseMaterial = CreateSurfacePassMaterialLikeAdapted(_terrainMaterial, false);
-            _terrainOverlayMaterial = CreateSurfacePassMaterialLikeAdapted(_terrainMaterial, true);
-            terrainBounds = new Bounds(Vector3.zero, Vector3.zero);
-            bool hasBounds = false;
-
-            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(map);
-            _lastBuiltTerrainKernel = kernel;
-            _hasLastBuiltTerrainKernel = true;
-            int cellsX = Mathf.Max(0, kernel.MaxCellXExclusive - kernel.MinCellX);
-            int stripeWidth = Mathf.Clamp(StripeColumnWidth, 4, 256);
-            int stripeCount = Mathf.Max(1, Mathf.CeilToInt(cellsX / (float)stripeWidth));
-
-            UnityEngine.Debug.Log(
-                $"[C2:REN] kernel=BuildTerrainWholeMapLikeOriginalKernel mode=hybrid-whole-map mpszRect=({kernel.MinCellX},{kernel.MinCellY})->({kernel.MaxCellXExclusive},{kernel.MaxCellYExclusive}) " +
-                $"tQuant={kernel.TQuantWorld:0.##} hQuant={kernel.HQuantWorld:0.##} sQuant={kernel.SQuantWorld:0.##} scShift={kernel.ScShift} " +
-                $"backing=({kernel.BackingStepXWorld:0.##},{kernel.BackingStepZWorld:0.##},{kernel.BackingOddColumnOffsetZWorld:0.##}) hScale={kernel.HeightScale:0.###} yShiftBasis={kernel.YShiftWorldScale:0.###}");
-
-            BeginFactureCoverageAuditLikeAdapted(map, kernel, stripeCount);
-
-            for (int stripe = 0; stripe < stripeCount; stripe++)
-            {
-                int startX = kernel.MinCellX + stripe * stripeWidth;
-                int endX = Mathf.Min(kernel.MaxCellXExclusive, startX + stripeWidth);
-                if (endX <= startX)
-                    continue;
-
-                Mesh mesh = null;
-                Bounds stripeBounds = new Bounds(Vector3.zero, Vector3.zero);
-
-                try
-                {
-                    mesh = BuildStripeMeshFromOriginalKernelLikeOriginal(map, kernel, startX, endX, out stripeBounds);
-                }
-                catch (Exception ex)
-                {
-                    UnityEngine.Debug.LogWarning($"[C2:REN] original-like kernel stripe={stripe} failed, fallback enabled: {ex.GetType().Name}: {ex.Message}");
-                }
-
-                if (mesh == null || mesh.vertexCount == 0)
-                    mesh = BuildStripeMeshFallbackLikeOriginal(map, kernel, startX, endX, out stripeBounds);
-
-                if (mesh == null || mesh.vertexCount == 0)
-                    continue;
-
-                var go = new GameObject($"StrictStripe_{stripe:000}");
-                go.transform.SetParent(parent, false);
-                var mf = go.AddComponent<MeshFilter>();
-                var mr = go.AddComponent<MeshRenderer>();
-                mf.sharedMesh = mesh;
-                if (mesh.subMeshCount > 1)
-                    mr.sharedMaterials = new[] { _terrainBaseMaterial ?? _terrainMaterial, _terrainOverlayMaterial ?? _terrainMaterial };
-                else
-                    mr.sharedMaterial = _terrainBaseMaterial ?? _terrainMaterial;
-
-                try
-                {
-                    BuildFactureStripeLayerLikeAdapted(map, kernel, startX, endX, go.transform, stripe);
-                }
-                catch (Exception ex)
-                {
-                    UnityEngine.Debug.LogWarning($"[C2:REN] facture stripe={stripe} hookup failed: {ex.GetType().Name}: {ex.Message}");
-                }
-
-                if (!hasBounds)
-                {
-                    terrainBounds = stripeBounds;
-                    hasBounds = true;
-                }
-                else
-                {
-                    terrainBounds.Encapsulate(stripeBounds.min);
-                    terrainBounds.Encapsulate(stripeBounds.max);
-                }
-            }
-
-            if (!hasBounds)
-                terrainBounds = new Bounds(Vector3.zero, Vector3.one);
-
-            EndFactureCoverageAuditLikeAdapted();
+            // MIDDLE_PIXEL_ALLTEXTURES_V1:
+            // active path is the pixel-composite renderer from the middle branch,
+            // with all facture triangles passed through the same raster blend function.
+            // Runtime winner polygons / edge masks are not the active terrain path here.
+            BuildStrictOldSurfaceSoftwareBakedChunksLikeOriginal(map, parent, out terrainBounds);
         }
 
         private void BuildStrictNewSurfaceWholeMapLikeOriginal(ParsedMap map, Transform parent, out Bounds terrainBounds)

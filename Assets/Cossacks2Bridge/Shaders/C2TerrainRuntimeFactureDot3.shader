@@ -3,15 +3,10 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
     Properties
     {
         _MainTex("Facture Tex", 2D) = "white" {}
-        _BlendTex("Blend Tex", 2D) = "white" {}
         _NormalTex("Normal Tex", 2D) = "bump" {}
         _FactureTFactor("Facture TFactor", Color) = (0.5,0.5,0.5,0.5)
         _UseDitherLikeOriginal("Use Dither", Float) = 0
         _DitherStrengthLikeOriginal("Dither Strength", Range(0,1)) = 0
-        _PairBlendEnabledLikeAdapted("Pair Blend Enabled", Float) = 0
-        _PairBlendThresholdLikeAdapted("Pair Blend Threshold", Range(0,1)) = 0.18
-        _PairBlendStrengthLikeAdapted("Pair Blend Strength", Range(0,1)) = 0.90
-        _PairBlendGammaLikeAdapted("Pair Blend Gamma", Range(0.25,4)) = 0.85
     }
 
     SubShader
@@ -37,8 +32,6 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
-            TEXTURE2D(_BlendTex);
-            SAMPLER(sampler_BlendTex);
             TEXTURE2D(_NormalTex);
             SAMPLER(sampler_NormalTex);
 
@@ -46,10 +39,6 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
                 half4 _FactureTFactor;
                 half _UseDitherLikeOriginal;
                 half _DitherStrengthLikeOriginal;
-                half _PairBlendEnabledLikeAdapted;
-                half _PairBlendThresholdLikeAdapted;
-                half _PairBlendStrengthLikeAdapted;
-                half _PairBlendGammaLikeAdapted;
             CBUFFER_END
 
             struct Attributes
@@ -57,8 +46,6 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
                 float4 positionOS : POSITION;
                 half4 color      : COLOR;
                 float2 uv0       : TEXCOORD0;
-                float2 uv1       : TEXCOORD1;
-                float2 pairData  : TEXCOORD2;
             };
 
             struct Varyings
@@ -66,8 +53,6 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
                 float4 positionHCS : SV_POSITION;
                 half4 color        : COLOR;
                 float2 uv          : TEXCOORD0;
-                float2 uvBlend     : TEXCOORD1;
-                float2 pairData    : TEXCOORD2;
             };
 
             float OrderedBayer4x4LikeOriginal(float2 pixelPos)
@@ -103,8 +88,6 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
                 o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
                 o.color = v.color;
                 o.uv = v.uv0;
-                o.uvBlend = v.uv1;
-                o.pairData = v.pairData;
                 return o;
             }
 
@@ -112,15 +95,6 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
             {
                 half4 normalTex = SAMPLE_TEXTURE2D(_NormalTex, sampler_NormalTex, i.uv);
                 half4 diffuseTex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
-                if (_PairBlendEnabledLikeAdapted > 0.5h)
-                {
-                    half4 blendTex = SAMPLE_TEXTURE2D(_BlendTex, sampler_BlendTex, i.uvBlend);
-                    half edgeFactor = saturate(i.pairData.x);
-                    half blendMask = smoothstep(_PairBlendThresholdLikeAdapted, 1.0h, edgeFactor);
-                    blendMask = pow(saturate(blendMask), max(_PairBlendGammaLikeAdapted, 0.0001h));
-                    blendMask = saturate(blendMask * _PairBlendStrengthLikeAdapted);
-                    diffuseTex.rgb = lerp(diffuseTex.rgb, blendTex.rgb, blendMask);
-                }
 
                 half3 nm = normalize(normalTex.xyz * 2.0h - 1.0h);
                 half3 diff = normalize(i.color.rgb * 2.0h - 1.0h);

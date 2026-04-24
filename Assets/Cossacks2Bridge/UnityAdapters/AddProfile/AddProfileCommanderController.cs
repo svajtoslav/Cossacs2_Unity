@@ -1014,7 +1014,7 @@ private Sprite[] LoadNationPortraitSprites(string nationId)
             try
             {
                 // Writes into <g16>_frames next to the file.
-                CodecFacade.DecodeG16ToLogAndFrames(g16Path, out var logPath, out var err, doubleOverlay: false);
+                MelinojaCodecBridge.DecodeG16ToLogAndFrames(g16Path, out var logPath, out var err, doubleOverlay: false);
                 Log($"CodecFacade done. log={logPath} err={(string.IsNullOrEmpty(err) ? "<none>" : err)}");
                 if (!string.IsNullOrWhiteSpace(err))
                     LogW("Decode error: " + err);

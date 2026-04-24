@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -26,13 +26,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const float GroundAtlasTileSpanLikeOriginal = 32.0f / GroundAtlasTriScaleLikeOriginal;
         private const float GroundAtlasHalfSpanLikeOriginal = 16.0f / GroundAtlasTriScaleLikeOriginal;
         private const float CrossingUvScaleLikeOriginal = 1.0f / 256.0f;
-        private const bool FactureContactMapDebugLogLikeAdapted = true;
-        private const int FactureContactMapPairLogLimitLikeAdapted = 16;
-        private const bool FactureContactInputDebugLogLikeAdapted = true;
-        private const float FacturePairBlendThresholdLikeAdapted = 0.18f;
-        private const float FacturePairBlendStrengthLikeAdapted = 0.90f;
-        private const float FacturePairBlendGammaLikeAdapted = 0.85f;
-
 
         private static readonly Dictionary<string, TerrainTextureResourcesLikeOriginal> s_surfaceTextureCacheLikeOriginal =
             new Dictionary<string, TerrainTextureResourcesLikeOriginal>(StringComparer.OrdinalIgnoreCase);
@@ -282,15 +275,10 @@ private sealed class FactureBucketMeshDataLikeAdapted
     public readonly List<Color32> Colors;
     public readonly List<int> Triangles;
     public readonly List<Vector2> Uv0;
-    public readonly List<Vector2> Uv1;
-    public readonly List<Vector2> Uv2;
     public Bounds Bounds;
     public bool HasBounds;
     public bool HasContent;
     public bool HasBumpContent;
-    public int BaseTextureId;
-    public int BlendTextureId;
-    public bool PairBlendEnabled;
 
     public FactureBucketMeshDataLikeAdapted(int estimatedTriangles)
     {
@@ -299,14 +287,9 @@ private sealed class FactureBucketMeshDataLikeAdapted
         Colors = new List<Color32>(vertexCapacity);
         Triangles = new List<int>(vertexCapacity);
         Uv0 = new List<Vector2>(vertexCapacity);
-        Uv1 = new List<Vector2>(vertexCapacity);
-        Uv2 = new List<Vector2>(vertexCapacity);
         Bounds = new Bounds(Vector3.zero, Vector3.zero);
         HasBounds = false;
         HasContent = false;
-        BaseTextureId = -1;
-        BlendTextureId = -1;
-        PairBlendEnabled = false;
     }
 }
 
@@ -314,7 +297,6 @@ private struct TriangleWinnerRecordLikeAdapted
 {
     public int CellX;
     public int CellY;
-    public BaseSurfaceTriangleKindLikeOriginal Kind;
     public bool EmitBase;
     public int WinnerRawFactureId;
     public int RenderFactureId;
@@ -326,208 +308,44 @@ private struct TriangleWinnerRecordLikeAdapted
     public Vector2 UvA;
     public Vector2 UvB;
     public Vector2 UvC;
-    public TriangleWinnerContactInputLikeAdapted ContactInput;
 }
 
-
-private struct FactureTriangleSourceRecordLikeAdapted
+private struct EdgeKeyLikeAdapted : IEquatable<EdgeKeyLikeAdapted>
 {
-    public int CellX;
-    public int CellY;
-    public bool EmitBase;
-    public BaseSurfaceTriangleKindLikeOriginal Kind;
-    public CellVertexPayloadLikeOriginal A;
-    public CellVertexPayloadLikeOriginal B;
-    public CellVertexPayloadLikeOriginal C;
-    public FactureTriangleSourceDescriptorLikeAdapted Source;
-}
+    public int A;
+    public int B;
 
-private struct TriangleEdgeKeyLikeAdapted : IEquatable<TriangleEdgeKeyLikeAdapted>
-{
-    public int V0;
-    public int V1;
-
-    public TriangleEdgeKeyLikeAdapted(int a, int b)
+    public EdgeKeyLikeAdapted(int v0, int v1)
     {
-        if (a <= b)
+        if (v0 <= v1)
         {
-            V0 = a;
-            V1 = b;
+            A = v0;
+            B = v1;
         }
         else
         {
-            V0 = b;
-            V1 = a;
+            A = v1;
+            B = v0;
         }
     }
 
-    public bool Equals(TriangleEdgeKeyLikeAdapted other)
+    public bool Equals(EdgeKeyLikeAdapted other)
     {
-        return V0 == other.V0 && V1 == other.V1;
+        return A == other.A && B == other.B;
     }
 
     public override bool Equals(object obj)
     {
-        return obj is TriangleEdgeKeyLikeAdapted other && Equals(other);
+        return obj is EdgeKeyLikeAdapted other && Equals(other);
     }
 
     public override int GetHashCode()
     {
         unchecked
         {
-            return (V0 * 397) ^ V1;
+            return (A * 397) ^ B;
         }
     }
-}
-
-private struct FactureTriangleContactRecordLikeAdapted
-{
-    public TriangleEdgeKeyLikeAdapted Edge;
-    public int LeftRawFactureId;
-    public int RightRawFactureId;
-    public int LeftCellX;
-    public int LeftCellY;
-    public BaseSurfaceTriangleKindLikeOriginal LeftKind;
-    public int RightCellX;
-    public int RightCellY;
-    public BaseSurfaceTriangleKindLikeOriginal RightKind;
-    public int SharedVertexA;
-    public int SharedVertexB;
-}
-
-private struct TriangleWinnerKeyLikeAdapted : IEquatable<TriangleWinnerKeyLikeAdapted>
-{
-    public int CellX;
-    public int CellY;
-    public BaseSurfaceTriangleKindLikeOriginal Kind;
-
-    public TriangleWinnerKeyLikeAdapted(int cellX, int cellY, BaseSurfaceTriangleKindLikeOriginal kind)
-    {
-        CellX = cellX;
-        CellY = cellY;
-        Kind = kind;
-    }
-
-    public bool Equals(TriangleWinnerKeyLikeAdapted other)
-    {
-        return CellX == other.CellX && CellY == other.CellY && Kind == other.Kind;
-    }
-
-    public override bool Equals(object obj)
-    {
-        return obj is TriangleWinnerKeyLikeAdapted other && Equals(other);
-    }
-
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            return ((CellX * 397) ^ CellY) * 397 ^ (int)Kind;
-        }
-    }
-}
-
-private struct TriangleWinnerContactInputLikeAdapted
-{
-    public bool HasContact;
-    public int SharedVertexA;
-    public int SharedVertexB;
-    public int NeighbourRawFactureId;
-    public int ContactCount;
-}
-
-private struct TriangleWinnerContactCandidateLikeAdapted
-{
-    public int WinnerIndex;
-    public int NeighbourRawFactureId;
-    public int SharedVertexA;
-    public int SharedVertexB;
-    public int Score;
-}
-
-private const int FacturePairBucketKeyFlagLikeAdapted = unchecked((int)0x40000000);
-private const int FacturePairBucketKeyBlendShiftLikeAdapted = 8;
-private const int FacturePairBucketKeyBumpFlagLikeAdapted = 1 << 16;
-
-private static int BuildFacturePairBucketKeyLikeAdapted(int baseTextureId, int blendTextureId, bool hasBump)
-{
-    return FacturePairBucketKeyFlagLikeAdapted |
-           (baseTextureId & 0xFF) |
-           ((blendTextureId & 0xFF) << FacturePairBucketKeyBlendShiftLikeAdapted) |
-           (hasBump ? FacturePairBucketKeyBumpFlagLikeAdapted : 0);
-}
-
-private static bool IsFacturePairBucketKeyLikeAdapted(int bucketKey)
-{
-    return (bucketKey & FacturePairBucketKeyFlagLikeAdapted) != 0;
-}
-
-private static int GetFacturePairBucketBaseTextureIdLikeAdapted(int bucketKey)
-{
-    return bucketKey & 0xFF;
-}
-
-private static int GetFacturePairBucketBlendTextureIdLikeAdapted(int bucketKey)
-{
-    return (bucketKey >> FacturePairBucketKeyBlendShiftLikeAdapted) & 0xFF;
-}
-
-private static bool GetFacturePairBucketHasBumpLikeAdapted(int bucketKey)
-{
-    return (bucketKey & FacturePairBucketKeyBumpFlagLikeAdapted) != 0;
-}
-
-private static bool TryGetTriangleWinnerContactPairLikeAdapted(
-    ParsedMap map,
-    TriangleWinnerRecordLikeAdapted record,
-    out int pairBucketKey,
-    out int blendTextureId,
-    out Vector2 blendUvA,
-    out Vector2 blendUvB,
-    out Vector2 blendUvC,
-    out Vector2 pairDataA,
-    out Vector2 pairDataB,
-    out Vector2 pairDataC)
-{
-    pairBucketKey = 0;
-    blendTextureId = -1;
-    blendUvA = Vector2.zero;
-    blendUvB = Vector2.zero;
-    blendUvC = Vector2.zero;
-    pairDataA = Vector2.zero;
-    pairDataB = Vector2.zero;
-    pairDataC = Vector2.zero;
-
-    TriangleWinnerContactInputLikeAdapted input = record.ContactInput;
-    if (!input.HasContact || input.NeighbourRawFactureId < 0)
-        return false;
-
-    int sharedA = input.SharedVertexA;
-    int sharedB = input.SharedVertexB;
-    if (sharedA < 0 || sharedB < 0)
-        return false;
-
-    bool aShared = record.A.Index == sharedA || record.A.Index == sharedB;
-    bool bShared = record.B.Index == sharedA || record.B.Index == sharedB;
-    bool cShared = record.C.Index == sharedA || record.C.Index == sharedB;
-    int sharedCount = (aShared ? 1 : 0) + (bShared ? 1 : 0) + (cShared ? 1 : 0);
-    if (sharedCount != 2)
-        return false;
-
-    blendTextureId = input.NeighbourRawFactureId & 255;
-    if (blendTextureId == record.BucketTextureId || map == null)
-        return false;
-
-    pairBucketKey = BuildFacturePairBucketKeyLikeAdapted(record.BucketTextureId, blendTextureId, record.HasBump);
-
-    GetFactureUvwLikeAdapted(map, record.A.Index, blendTextureId, out blendUvA, out _);
-    GetFactureUvwLikeAdapted(map, record.B.Index, blendTextureId, out blendUvB, out _);
-    GetFactureUvwLikeAdapted(map, record.C.Index, blendTextureId, out blendUvC, out _);
-
-    pairDataA = new Vector2(aShared ? 1.0f : 0.0f, 0.0f);
-    pairDataB = new Vector2(bShared ? 1.0f : 0.0f, 0.0f);
-    pairDataC = new Vector2(cShared ? 1.0f : 0.0f, 0.0f);
-    return true;
 }
 
 
@@ -1746,24 +1564,16 @@ private static void GetFactureUvwLikeAdapted(ParsedMap map, int vertexIndex, int
     uv = new Vector2((uu + du2) * su2, (vv + dv2) * sv2);
 }
 
-private static int ClampFactureCopyVertexWeightLikeAdapted(FactureVertexInfluenceLikeAdapted influence, int copyFactureId, int sampledMaxWeight)
+private static int ClampFactureBatchWeightLikeOriginal(int weight, int sampledMaxWeight)
 {
-    int rawCopyFactureId = copyFactureId & 255;
-    if (influence.RawFactureId != rawCopyFactureId)
+    if (weight <= 0 || sampledMaxWeight <= 0)
         return 0;
-
-    int weight = Mathf.Clamp(influence.Weight, 0, 255);
-    int maxWeight = Mathf.Clamp(sampledMaxWeight, 0, 255);
-    if (maxWeight <= 0)
-        return 0;
-
-    return Mathf.Min(weight, maxWeight);
+    return Mathf.Clamp(Mathf.Min(weight, sampledMaxWeight), 0, 255);
 }
 
 private static int ApplyFactureCoverageDeadZoneLikeAdapted(int weight)
 {
-    // literal facture emission: do not create an artificial dead-zone here;
-    // original batch emission is driven by W > 0, not by an adapted alpha floor.
+    // Keep literal engine semantics: emitted facture batches are driven by W > 0 and max-weight clamping.
     return Mathf.Clamp(weight, 0, 255);
 }
 
@@ -1777,32 +1587,60 @@ private static bool RejectWeakFactureTriangleCopyLikeAdapted(ref FactureTriangle
     return maxWeight <= 0;
 }
 
-private static bool FinalizeFactureTriangleCopyDescriptorLikeAdapted(ParsedMap map, FactureTriangleSourceDescriptorLikeAdapted source, ref FactureTriangleCopyDescriptorLikeAdapted descriptor, int uvSourceFactureId)
+private static bool TryBuildFactureTriangleCopyBatchLikeOriginal(
+    ParsedMap map,
+    FactureTriangleSourceDescriptorLikeAdapted source,
+    int batchIndex,
+    int copyFactureId,
+    int uvSourceFactureId,
+    out FactureTriangleCopyDescriptorLikeAdapted descriptor)
 {
+    descriptor = BuildFactureTriangleCopyDescriptorSkeletonLikeAdapted(source, copyFactureId);
+
     GetFactureUvwLikeAdapted(map, source.VertexA, uvSourceFactureId, out descriptor.UvA, out int maxWeightA);
     GetFactureUvwLikeAdapted(map, source.VertexB, uvSourceFactureId, out descriptor.UvB, out int maxWeightB);
     GetFactureUvwLikeAdapted(map, source.VertexC, uvSourceFactureId, out descriptor.UvC, out int maxWeightC);
 
-    descriptor.WeightA = ClampFactureCopyVertexWeightLikeAdapted(source.InfluenceA, descriptor.CopyFactureId, maxWeightA);
-    descriptor.WeightB = ClampFactureCopyVertexWeightLikeAdapted(source.InfluenceB, descriptor.CopyFactureId, maxWeightB);
-    descriptor.WeightC = ClampFactureCopyVertexWeightLikeAdapted(source.InfluenceC, descriptor.CopyFactureId, maxWeightC);
+    int f1 = source.InfluenceA.RenderFactureId;
+    int f2 = source.InfluenceB.RenderFactureId;
+    int f3 = source.InfluenceC.RenderFactureId;
+
+    int w1 = Mathf.Clamp(source.InfluenceA.Weight, 0, 255);
+    int w2 = Mathf.Clamp(source.InfluenceB.Weight, 0, 255);
+    int w3 = Mathf.Clamp(source.InfluenceC.Weight, 0, 255);
+
+    switch (batchIndex)
+    {
+        case 1:
+            descriptor.WeightA = ClampFactureBatchWeightLikeOriginal(w1, maxWeightA);
+            descriptor.WeightB = f2 == f1 ? ClampFactureBatchWeightLikeOriginal(w2, maxWeightB) : 0;
+            descriptor.WeightC = f3 == f1 ? ClampFactureBatchWeightLikeOriginal(w3, maxWeightC) : 0;
+            break;
+
+        case 2:
+            descriptor.WeightA = 0;
+            descriptor.WeightB = ClampFactureBatchWeightLikeOriginal(w2, maxWeightB);
+            descriptor.WeightC = f3 == f2 ? ClampFactureBatchWeightLikeOriginal(w3, maxWeightC) : 0;
+            break;
+
+        case 3:
+            descriptor.WeightA = 0;
+            descriptor.WeightB = 0;
+            // Retail quirk: batch3 fetches UV/maxWeight from F2 path, but alpha comes only from W3.
+            descriptor.WeightC = ClampFactureBatchWeightLikeOriginal(w3, maxWeightC);
+            break;
+
+        default:
+            descriptor.WeightA = 0;
+            descriptor.WeightB = 0;
+            descriptor.WeightC = 0;
+            break;
+    }
 
     if (RejectWeakFactureTriangleCopyLikeAdapted(ref descriptor))
         return false;
 
     return true;
-}
-
-private static bool TryBuildFactureTriangleCopyLikeAdapted(ParsedMap map, FactureTriangleSourceDescriptorLikeAdapted source, int copyFactureId, out FactureTriangleCopyDescriptorLikeAdapted descriptor)
-{
-    descriptor = BuildFactureTriangleCopyDescriptorSkeletonLikeAdapted(source, copyFactureId);
-    return FinalizeFactureTriangleCopyDescriptorLikeAdapted(map, source, ref descriptor, copyFactureId);
-}
-
-private static bool TryBuildFactureTriangleCopyLikeAdapted(ParsedMap map, FactureTriangleSourceDescriptorLikeAdapted source, int copyFactureId, int uvSourceFactureId, out FactureTriangleCopyDescriptorLikeAdapted descriptor)
-{
-    descriptor = BuildFactureTriangleCopyDescriptorSkeletonLikeAdapted(source, copyFactureId);
-    return FinalizeFactureTriangleCopyDescriptorLikeAdapted(map, source, ref descriptor, uvSourceFactureId);
 }
 
 private static void ExpandFactureTriangleCopiesLikeAdapted(ParsedMap map, FactureTriangleSourceDescriptorLikeAdapted source, List<FactureTriangleCopyDescriptorLikeAdapted> output)
@@ -1814,14 +1652,26 @@ private static void ExpandFactureTriangleCopiesLikeAdapted(ParsedMap map, Factur
     int f2 = source.InfluenceB.RenderFactureId;
     int f3 = source.InfluenceC.RenderFactureId;
 
-    if (source.InfluenceA.Weight > 0 && TryBuildFactureTriangleCopyLikeAdapted(map, source, f1, out FactureTriangleCopyDescriptorLikeAdapted copyA))
+    if (source.InfluenceA.Weight > 0 &&
+        TryBuildFactureTriangleCopyBatchLikeOriginal(map, source, 1, f1, f1, out FactureTriangleCopyDescriptorLikeAdapted copyA))
+    {
         output.Add(copyA);
+    }
 
-    if (source.InfluenceB.Weight > 0 && f2 != f1 && TryBuildFactureTriangleCopyLikeAdapted(map, source, f2, out FactureTriangleCopyDescriptorLikeAdapted copyB))
+    if (source.InfluenceB.Weight > 0 &&
+        f2 != f1 &&
+        TryBuildFactureTriangleCopyBatchLikeOriginal(map, source, 2, f2, f2, out FactureTriangleCopyDescriptorLikeAdapted copyB))
+    {
         output.Add(copyB);
+    }
 
-    if (source.InfluenceC.Weight > 0 && f3 != f1 && f3 != f2 && TryBuildFactureTriangleCopyLikeAdapted(map, source, f3, f2, out FactureTriangleCopyDescriptorLikeAdapted copyC))
+    if (source.InfluenceC.Weight > 0 &&
+        f3 != f1 &&
+        f3 != f2 &&
+        TryBuildFactureTriangleCopyBatchLikeOriginal(map, source, 3, f3, f2, out FactureTriangleCopyDescriptorLikeAdapted copyC))
+    {
         output.Add(copyC);
+    }
 }
 
 private static int ExpandFactureTriangleCopiesLikeAdapted(ParsedMap map, BaseSurfaceTriangleKindLikeOriginal sourceKind, int sourceCellX, int sourceCellY, int vertexA, int vertexB, int vertexC, List<FactureTriangleCopyDescriptorLikeAdapted> output)
@@ -1901,14 +1751,12 @@ private static int ExpandFactureTriangleCopiesLikeAdapted(ParsedMap map, BaseSur
             return a.World;
         }
 
-        private static void AppendFactureVertexToBucketLikeAdapted(FactureBucketMeshDataLikeAdapted bucket, Vector3 position, Color32 color, Vector2 uv0, Vector2 uv1, Vector2 uv2)
+        private static void AppendFactureVertexToBucketLikeAdapted(FactureBucketMeshDataLikeAdapted bucket, Vector3 position, Color32 color, Vector2 uv)
         {
             int index = bucket.Vertices.Count;
             bucket.Vertices.Add(position);
             bucket.Colors.Add(color);
-            bucket.Uv0.Add(uv0);
-            bucket.Uv1.Add(uv1);
-            bucket.Uv2.Add(uv2);
+            bucket.Uv0.Add(uv);
             bucket.Triangles.Add(index);
 
             if (!bucket.HasBounds)
@@ -1948,19 +1796,19 @@ private static int ExpandFactureTriangleCopiesLikeAdapted(ParsedMap map, BaseSur
                 bucket,
                 ResolveFactureVertexWorldLikeAdapted(a, b, c, descriptor.VertexA),
                 descriptor.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, descriptor.VertexA, descriptor.WeightA, descriptor.BucketTextureId) : BuildFactureVertexColorLikeAdapted(descriptor.WeightA),
-                descriptor.UvA, descriptor.UvA, Vector2.zero);
+                descriptor.UvA);
 
             AppendFactureVertexToBucketLikeAdapted(
                 bucket,
                 ResolveFactureVertexWorldLikeAdapted(a, b, c, descriptor.VertexB),
                 descriptor.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, descriptor.VertexB, descriptor.WeightB, descriptor.BucketTextureId) : BuildFactureVertexColorLikeAdapted(descriptor.WeightB),
-                descriptor.UvB, descriptor.UvB, Vector2.zero);
+                descriptor.UvB);
 
             AppendFactureVertexToBucketLikeAdapted(
                 bucket,
                 ResolveFactureVertexWorldLikeAdapted(a, b, c, descriptor.VertexC),
                 descriptor.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, descriptor.VertexC, descriptor.WeightC, descriptor.BucketTextureId) : BuildFactureVertexColorLikeAdapted(descriptor.WeightC),
-                descriptor.UvC, descriptor.UvC, Vector2.zero);
+                descriptor.UvC);
         }
 
         private static int GetCellDominantRawFactureIdLikeAdapted(ParsedMap map, CellVertexPayloadLikeOriginal v0, CellVertexPayloadLikeOriginal v1, CellVertexPayloadLikeOriginal v2, CellVertexPayloadLikeOriginal v3, out int representativeVertexIndex)
@@ -2095,9 +1943,21 @@ private static int ExpandFactureTriangleCopiesLikeAdapted(ParsedMap map, BaseSur
             scratchCopies.Clear();
             ExpandFactureTriangleCopiesLikeAdapted(map, kind, cellX, cellY, a.Index, b.Index, c.Index, scratchCopies);
 
+            bool emittedAny = scratchCopies.Count > 0;
             for (int i = 0; i < scratchCopies.Count; i++)
             {
                 AppendFactureCopyToBucketLikeAdapted(map, buckets, a, b, c, scratchCopies[i]);
+            }
+
+            if (!emittedAny)
+            {
+                TryAppendCellDominantFallbackTriangleLikeAdapted(map, kind, cellX, cellY, a, b, c, fallbackRenderFactureId, buckets);
+                return;
+            }
+
+            if (!HasCompleteTriangleCoverageLikeAdapted(scratchCopies))
+            {
+                TryAppendCellDominantFallbackTriangleLikeAdapted(map, kind, cellX, cellY, a, b, c, fallbackRenderFactureId, buckets);
             }
         }
 
@@ -2166,7 +2026,7 @@ private static bool TryChooseTriangleNeighbourWinnerRawFactureLikeAdapted(
     int bestId = 0;
     int bestRep = -1;
 
-    for (int radius = 1; radius <= 3; radius++)
+    for (int radius = 1; radius <= 12; radius++)
     {
         var totalById = new Dictionary<int, int>();
         var countById = new Dictionary<int, int>();
@@ -2390,30 +2250,23 @@ private static void AppendTriangleWinnerToBucketsLikeAdapted(
         bucket,
         a.World,
         hasBump ? BuildFactureBumpVertexColorLikeAdapted(map, a.Index, 255, bucketTextureId) : BuildFactureVertexColorLikeAdapted(255),
-        uvA,
-        uvA,
-        Vector2.zero);
+        uvA);
 
     AppendFactureVertexToBucketLikeAdapted(
         bucket,
         b.World,
         hasBump ? BuildFactureBumpVertexColorLikeAdapted(map, b.Index, 255, bucketTextureId) : BuildFactureVertexColorLikeAdapted(255),
-        uvB,
-        uvB,
-        Vector2.zero);
+        uvB);
 
     AppendFactureVertexToBucketLikeAdapted(
         bucket,
         c.World,
         hasBump ? BuildFactureBumpVertexColorLikeAdapted(map, c.Index, 255, bucketTextureId) : BuildFactureVertexColorLikeAdapted(255),
-        uvC,
-        uvC,
-        Vector2.zero);
+        uvC);
 }
 
 private static bool TryBuildTriangleWinnerRecordLikeAdapted(
     ParsedMap map,
-    BaseSurfaceTriangleKindLikeOriginal kind,
     int cellX,
     int cellY,
     bool emitBase,
@@ -2438,7 +2291,6 @@ private static bool TryBuildTriangleWinnerRecordLikeAdapted(
     {
         CellX = cellX,
         CellY = cellY,
-        Kind = kind,
         EmitBase = emitBase,
         WinnerRawFactureId = bucketTextureId,
         RenderFactureId = renderFactureId,
@@ -2450,33 +2302,8 @@ private static bool TryBuildTriangleWinnerRecordLikeAdapted(
         UvA = uvA,
         UvB = uvB,
         UvC = uvC,
-        ContactInput = default,
     };
     return true;
-}
-
-private static void InitializeFactureBucketIdentityLikeAdapted(
-    FactureBucketMeshDataLikeAdapted bucket,
-    int bucketKey,
-    bool hasBump)
-{
-    if (bucket == null || bucket.BaseTextureId >= 0)
-        return;
-
-    if (IsFacturePairBucketKeyLikeAdapted(bucketKey))
-    {
-        bucket.BaseTextureId = GetFacturePairBucketBaseTextureIdLikeAdapted(bucketKey);
-        bucket.BlendTextureId = GetFacturePairBucketBlendTextureIdLikeAdapted(bucketKey);
-        bucket.PairBlendEnabled = true;
-        bucket.HasBumpContent = hasBump || GetFacturePairBucketHasBumpLikeAdapted(bucketKey);
-    }
-    else
-    {
-        bucket.BaseTextureId = bucketKey & 255;
-        bucket.BlendTextureId = -1;
-        bucket.PairBlendEnabled = false;
-        bucket.HasBumpContent = hasBump;
-    }
 }
 
 private static void AppendTriangleWinnerRecordToBucketsLikeAdapted(
@@ -2487,68 +2314,31 @@ private static void AppendTriangleWinnerRecordToBucketsLikeAdapted(
     if (map == null || buckets == null)
         return;
 
-    int bucketKey = record.BucketTextureId;
-    int colorTextureId = record.BucketTextureId;
-    Vector2 uv1A = record.UvA;
-    Vector2 uv1B = record.UvB;
-    Vector2 uv1C = record.UvC;
-    Vector2 pairDataA = Vector2.zero;
-    Vector2 pairDataB = Vector2.zero;
-    Vector2 pairDataC = Vector2.zero;
-
-    if (TryGetTriangleWinnerContactPairLikeAdapted(
-            map,
-            record,
-            out int pairBucketKey,
-            out int blendTextureId,
-            out Vector2 blendUvA,
-            out Vector2 blendUvB,
-            out Vector2 blendUvC,
-            out Vector2 edgeDataA,
-            out Vector2 edgeDataB,
-            out Vector2 edgeDataC))
-    {
-        bucketKey = pairBucketKey;
-        uv1A = blendUvA;
-        uv1B = blendUvB;
-        uv1C = blendUvC;
-        pairDataA = edgeDataA;
-        pairDataB = edgeDataB;
-        pairDataC = edgeDataC;
-    }
-
-    if (!buckets.TryGetValue(bucketKey, out FactureBucketMeshDataLikeAdapted bucket))
+    if (!buckets.TryGetValue(record.BucketTextureId, out FactureBucketMeshDataLikeAdapted bucket))
     {
         bucket = new FactureBucketMeshDataLikeAdapted(128);
-        buckets[bucketKey] = bucket;
+        buckets[record.BucketTextureId] = bucket;
     }
 
-    InitializeFactureBucketIdentityLikeAdapted(bucket, bucketKey, record.HasBump);
     bucket.HasBumpContent |= record.HasBump;
 
     AppendFactureVertexToBucketLikeAdapted(
         bucket,
         record.A.World,
-        record.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, record.A.Index, 255, colorTextureId) : BuildFactureVertexColorLikeAdapted(255),
-        record.UvA,
-        uv1A,
-        pairDataA);
+        record.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, record.A.Index, 255, record.BucketTextureId) : BuildFactureVertexColorLikeAdapted(255),
+        record.UvA);
 
     AppendFactureVertexToBucketLikeAdapted(
         bucket,
         record.B.World,
-        record.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, record.B.Index, 255, colorTextureId) : BuildFactureVertexColorLikeAdapted(255),
-        record.UvB,
-        uv1B,
-        pairDataB);
+        record.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, record.B.Index, 255, record.BucketTextureId) : BuildFactureVertexColorLikeAdapted(255),
+        record.UvB);
 
     AppendFactureVertexToBucketLikeAdapted(
         bucket,
         record.C.World,
-        record.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, record.C.Index, 255, colorTextureId) : BuildFactureVertexColorLikeAdapted(255),
-        record.UvC,
-        uv1C,
-        pairDataC);
+        record.HasBump ? BuildFactureBumpVertexColorLikeAdapted(map, record.C.Index, 255, record.BucketTextureId) : BuildFactureVertexColorLikeAdapted(255),
+        record.UvC);
 }
 
 private static CellVertexPayloadLikeOriginal GetTriangleWinnerPayloadByIndexLikeAdapted(TriangleWinnerRecordLikeAdapted record, int vertexIndex)
@@ -2559,415 +2349,210 @@ private static CellVertexPayloadLikeOriginal GetTriangleWinnerPayloadByIndexLike
     return record.A;
 }
 
-
-private static bool TryBuildFactureTriangleSourceRecordLikeAdapted(
-    ParsedMap map,
-    BaseSurfaceTriangleKindLikeOriginal kind,
-    int cellX,
-    int cellY,
-    bool emitBase,
-    CellVertexPayloadLikeOriginal a,
-    CellVertexPayloadLikeOriginal b,
-    CellVertexPayloadLikeOriginal c,
-    out FactureTriangleSourceRecordLikeAdapted record)
+private static bool TryGetSharedEdgeBetweenWinnerTrianglesLikeAdapted(
+    TriangleWinnerRecordLikeAdapted first,
+    TriangleWinnerRecordLikeAdapted second,
+    out CellVertexPayloadLikeOriginal shared0,
+    out CellVertexPayloadLikeOriginal shared1,
+    out CellVertexPayloadLikeOriginal oppositeFirst,
+    out CellVertexPayloadLikeOriginal oppositeSecond)
 {
-    record = default;
-    if (map == null)
-        return false;
+    shared0 = default;
+    shared1 = default;
+    oppositeFirst = default;
+    oppositeSecond = default;
 
-    record = new FactureTriangleSourceRecordLikeAdapted
-    {
-        CellX = cellX,
-        CellY = cellY,
-        EmitBase = emitBase,
-        Kind = kind,
-        A = a,
-        B = b,
-        C = c,
-        Source = BuildFactureTriangleSourceDescriptorLikeAdapted(map, kind, cellX, cellY, a.Index, b.Index, c.Index),
-    };
-    return true;
-}
-
-private static CellVertexPayloadLikeOriginal GetFactureTriangleSourcePayloadByIndexLikeAdapted(FactureTriangleSourceRecordLikeAdapted record, int vertexIndex)
-{
-    if (record.A.Index == vertexIndex) return record.A;
-    if (record.B.Index == vertexIndex) return record.B;
-    if (record.C.Index == vertexIndex) return record.C;
-    return record.A;
-}
-
-private static void AppendTriangleSourceEdgeKeyLikeAdapted(Dictionary<TriangleEdgeKeyLikeAdapted, List<int>> edgeMap, int va, int vb, int sourceIndex)
-{
-    if (edgeMap == null)
-        return;
-
-    TriangleEdgeKeyLikeAdapted key = new TriangleEdgeKeyLikeAdapted(va, vb);
-    if (!edgeMap.TryGetValue(key, out List<int> list))
-    {
-        list = new List<int>(2);
-        edgeMap[key] = list;
-    }
-
-    list.Add(sourceIndex);
-}
-
-private static bool TryGetSharedEdgeVerticesLikeAdapted(
-    FactureTriangleSourceRecordLikeAdapted left,
-    FactureTriangleSourceRecordLikeAdapted right,
-    out int sharedVertexA,
-    out int sharedVertexB)
-{
-    sharedVertexA = -1;
-    sharedVertexB = -1;
-
+    int[] firstIndices = { first.A.Index, first.B.Index, first.C.Index };
+    int[] secondIndices = { second.A.Index, second.B.Index, second.C.Index };
     int matchCount = 0;
-    int[] leftVertices = { left.A.Index, left.B.Index, left.C.Index };
-    int[] rightVertices = { right.A.Index, right.B.Index, right.C.Index };
+    int s0 = -1;
+    int s1 = -1;
 
-    for (int i = 0; i < leftVertices.Length; i++)
+    for (int i = 0; i < firstIndices.Length; i++)
     {
-        int candidate = leftVertices[i];
-        for (int j = 0; j < rightVertices.Length; j++)
+        for (int j = 0; j < secondIndices.Length; j++)
         {
-            if (candidate != rightVertices[j])
-                continue;
-
-            if (matchCount == 0)
-                sharedVertexA = candidate;
-            else if (matchCount == 1)
-                sharedVertexB = candidate;
-            matchCount++;
-            break;
+            if (firstIndices[i] == secondIndices[j])
+            {
+                if (matchCount == 0) s0 = firstIndices[i];
+                else if (matchCount == 1) s1 = firstIndices[i];
+                matchCount++;
+                break;
+            }
         }
     }
 
-    if (matchCount >= 2 && sharedVertexA >= 0 && sharedVertexB >= 0)
-        return true;
-
-    sharedVertexA = -1;
-    sharedVertexB = -1;
-    return false;
-}
-
-private static FactureVertexInfluenceLikeAdapted GetOppositeTriangleInfluenceLikeAdapted(FactureTriangleSourceRecordLikeAdapted record, int sharedVertexA, int sharedVertexB)
-{
-    if (record.A.Index != sharedVertexA && record.A.Index != sharedVertexB) return record.Source.InfluenceA;
-    if (record.B.Index != sharedVertexA && record.B.Index != sharedVertexB) return record.Source.InfluenceB;
-    if (record.C.Index != sharedVertexA && record.C.Index != sharedVertexB) return record.Source.InfluenceC;
-    return record.Source.InfluenceA;
-}
-
-private static bool TryGetTriangleContactRepresentativeRawFactureIdLikeAdapted(
-    FactureTriangleSourceRecordLikeAdapted record,
-    int sharedVertexA,
-    int sharedVertexB,
-    out int rawFactureId)
-{
-    rawFactureId = 0;
-    FactureVertexInfluenceLikeAdapted opposite = GetOppositeTriangleInfluenceLikeAdapted(record, sharedVertexA, sharedVertexB);
-    if (opposite.RawFactureId != 0 && opposite.Weight > 0)
-    {
-        rawFactureId = opposite.RawFactureId & 255;
-        return true;
-    }
-
-    FactureVertexInfluenceLikeAdapted best = default;
-    bool found = false;
-    FactureVertexInfluenceLikeAdapted[] influences =
-    {
-        record.Source.InfluenceA,
-        record.Source.InfluenceB,
-        record.Source.InfluenceC,
-    };
-
-    for (int i = 0; i < influences.Length; i++)
-    {
-        FactureVertexInfluenceLikeAdapted influence = influences[i];
-        int candidateId = influence.RawFactureId & 255;
-        if (candidateId == 0)
-            continue;
-
-        if (!found || influence.Weight > best.Weight)
-        {
-            best = influence;
-            found = true;
-        }
-    }
-
-    if (!found)
+    if (matchCount != 2 || s0 < 0 || s1 < 0)
         return false;
 
-    rawFactureId = best.RawFactureId & 255;
-    return rawFactureId != 0;
-}
+    shared0 = GetTriangleWinnerPayloadByIndexLikeAdapted(first, s0);
+    shared1 = GetTriangleWinnerPayloadByIndexLikeAdapted(first, s1);
 
-private static bool TryBuildFactureTriangleContactLikeAdapted(
-    FactureTriangleSourceRecordLikeAdapted left,
-    FactureTriangleSourceRecordLikeAdapted right,
-    out FactureTriangleContactRecordLikeAdapted contact)
-{
-    contact = default;
+    oppositeFirst = first.A.Index != s0 && first.A.Index != s1 ? first.A
+        : first.B.Index != s0 && first.B.Index != s1 ? first.B
+        : first.C;
 
-    if (!TryGetSharedEdgeVerticesLikeAdapted(left, right, out int sharedVertexA, out int sharedVertexB))
-        return false;
+    oppositeSecond = second.A.Index != s0 && second.A.Index != s1 ? second.A
+        : second.B.Index != s0 && second.B.Index != s1 ? second.B
+        : second.C;
 
-    if (!TryGetTriangleContactRepresentativeRawFactureIdLikeAdapted(left, sharedVertexA, sharedVertexB, out int leftRawFactureId))
-        return false;
-    if (!TryGetTriangleContactRepresentativeRawFactureIdLikeAdapted(right, sharedVertexA, sharedVertexB, out int rightRawFactureId))
-        return false;
-
-    if (leftRawFactureId == 0 || rightRawFactureId == 0 || leftRawFactureId == rightRawFactureId)
-        return false;
-
-    contact = new FactureTriangleContactRecordLikeAdapted
-    {
-        Edge = new TriangleEdgeKeyLikeAdapted(sharedVertexA, sharedVertexB),
-        LeftRawFactureId = leftRawFactureId,
-        RightRawFactureId = rightRawFactureId,
-        LeftCellX = left.CellX,
-        LeftCellY = left.CellY,
-        LeftKind = left.Kind,
-        RightCellX = right.CellX,
-        RightCellY = right.CellY,
-        RightKind = right.Kind,
-        SharedVertexA = sharedVertexA,
-        SharedVertexB = sharedVertexB,
-    };
     return true;
 }
 
-private static List<FactureTriangleContactRecordLikeAdapted> BuildFactureTriangleContactMapLikeAdapted(
-    List<FactureTriangleSourceRecordLikeAdapted> sourceTriangles)
+private static Vector2 InterpolateTriangleWinnerUvLikeAdapted(Vector3 position, TriangleWinnerRecordLikeAdapted record)
 {
-    var contacts = new List<FactureTriangleContactRecordLikeAdapted>();
-    if (sourceTriangles == null || sourceTriangles.Count <= 1)
-        return contacts;
+    Vector2 p = new Vector2(position.x, position.z);
+    Vector2 a = new Vector2(record.A.World.x, record.A.World.z);
+    Vector2 b = new Vector2(record.B.World.x, record.B.World.z);
+    Vector2 c = new Vector2(record.C.World.x, record.C.World.z);
 
-    var edgeMap = new Dictionary<TriangleEdgeKeyLikeAdapted, List<int>>();
+    float denom = ((b.y - c.y) * (a.x - c.x)) + ((c.x - b.x) * (a.y - c.y));
+    if (Mathf.Abs(denom) < 1e-6f)
+        return record.UvA;
 
-    for (int i = 0; i < sourceTriangles.Count; i++)
-    {
-        FactureTriangleSourceRecordLikeAdapted source = sourceTriangles[i];
-        AppendTriangleSourceEdgeKeyLikeAdapted(edgeMap, source.A.Index, source.B.Index, i);
-        AppendTriangleSourceEdgeKeyLikeAdapted(edgeMap, source.B.Index, source.C.Index, i);
-        AppendTriangleSourceEdgeKeyLikeAdapted(edgeMap, source.C.Index, source.A.Index, i);
-    }
+    float wA = (((b.y - c.y) * (p.x - c.x)) + ((c.x - b.x) * (p.y - c.y))) / denom;
+    float wB = (((c.y - a.y) * (p.x - c.x)) + ((a.x - c.x) * (p.y - c.y))) / denom;
+    float wC = 1.0f - wA - wB;
 
-    foreach (KeyValuePair<TriangleEdgeKeyLikeAdapted, List<int>> pair in edgeMap)
-    {
-        List<int> owners = pair.Value;
-        if (owners == null || owners.Count < 2)
-            continue;
-
-        for (int i = 0; i < owners.Count - 1; i++)
-        {
-            FactureTriangleSourceRecordLikeAdapted left = sourceTriangles[owners[i]];
-            for (int j = i + 1; j < owners.Count; j++)
-            {
-                FactureTriangleSourceRecordLikeAdapted right = sourceTriangles[owners[j]];
-                if (!left.EmitBase && !right.EmitBase)
-                    continue;
-
-                if (TryBuildFactureTriangleContactLikeAdapted(left, right, out FactureTriangleContactRecordLikeAdapted contact))
-                    contacts.Add(contact);
-            }
-        }
-    }
-
-    return contacts;
+    return record.UvA * wA + record.UvB * wB + record.UvC * wC;
 }
 
-private static void LogFactureTriangleContactMapLikeAdapted(int stripeIndex, List<FactureTriangleContactRecordLikeAdapted> contacts)
+private static Color32 BuildSeamTriangleVertexColorLikeAdapted(
+    ParsedMap map,
+    TriangleWinnerRecordLikeAdapted record,
+    Vector3 position,
+    int alpha = 255)
 {
-    if (!FactureContactMapDebugLogLikeAdapted)
-        return;
+    if (!record.HasBump || map == null)
+        return BuildFactureVertexColorLikeAdapted(alpha);
 
-    if (contacts == null || contacts.Count == 0)
-    {
-        UnityEngine.Debug.Log($"[C2:FACT:CONTACT] stripe={stripeIndex} contacts=0");
-        return;
-    }
-
-    var pairCounts = new Dictionary<string, int>(StringComparer.Ordinal);
-    for (int i = 0; i < contacts.Count; i++)
-    {
-        FactureTriangleContactRecordLikeAdapted contact = contacts[i];
-        int a = Mathf.Min(contact.LeftRawFactureId, contact.RightRawFactureId);
-        int b = Mathf.Max(contact.LeftRawFactureId, contact.RightRawFactureId);
-        string key = a.ToString(CultureInfo.InvariantCulture) + "-" + b.ToString(CultureInfo.InvariantCulture);
-        if (pairCounts.TryGetValue(key, out int count))
-            pairCounts[key] = count + 1;
-        else
-            pairCounts[key] = 1;
-    }
-
-    var orderedPairs = new List<KeyValuePair<string, int>>(pairCounts);
-    orderedPairs.Sort((x, y) =>
-    {
-        int byCount = y.Value.CompareTo(x.Value);
-        if (byCount != 0)
-            return byCount;
-        return string.CompareOrdinal(x.Key, y.Key);
-    });
-
-    var sb = new StringBuilder(256);
-    int limit = Mathf.Min(FactureContactMapPairLogLimitLikeAdapted, orderedPairs.Count);
-    for (int i = 0; i < limit; i++)
-    {
-        if (i > 0)
-            sb.Append(',');
-        sb.Append(orderedPairs[i].Key);
-        sb.Append(':');
-        sb.Append(orderedPairs[i].Value.ToString(CultureInfo.InvariantCulture));
-    }
-
-    UnityEngine.Debug.Log(
-        $"[C2:FACT:CONTACT] stripe={stripeIndex} contacts={contacts.Count} uniquePairs={orderedPairs.Count} top='{sb}'");
+    float da = (record.A.World - position).sqrMagnitude;
+    float db = (record.B.World - position).sqrMagnitude;
+    float dc = (record.C.World - position).sqrMagnitude;
+    int fallbackIndex = da <= db && da <= dc ? record.A.Index : (db <= dc ? record.B.Index : record.C.Index);
+    return BuildFactureBumpVertexColorLikeAdapted(map, fallbackIndex, alpha, record.BucketTextureId);
 }
 
-private static void AssignTriangleWinnerContactInputsLikeAdapted(int stripeIndex, List<TriangleWinnerRecordLikeAdapted> winnerTriangles, List<FactureTriangleContactRecordLikeAdapted> contactMap)
+private static void AppendOpaqueSeamTriangleLikeAdapted(
+    ParsedMap map,
+    Dictionary<int, FactureBucketMeshDataLikeAdapted> buckets,
+    TriangleWinnerRecordLikeAdapted record,
+    Vector3 p0,
+    Vector3 p1,
+    Vector3 p2)
 {
-    if (winnerTriangles == null || winnerTriangles.Count == 0 || contactMap == null || contactMap.Count == 0)
-    {
-        if (FactureContactInputDebugLogLikeAdapted)
-            UnityEngine.Debug.Log($"[C2:FACT:CONTACT:INPUT] stripe={stripeIndex} winners={(winnerTriangles == null ? 0 : winnerTriangles.Count)} assigned=0 ambiguous=0");
+    Vector3 cross = Vector3.Cross(p1 - p0, p2 - p0);
+    if (cross.sqrMagnitude <= 1e-10f)
         return;
-    }
 
-    var indexByKey = new Dictionary<TriangleWinnerKeyLikeAdapted, int>(winnerTriangles.Count);
-    for (int i = 0; i < winnerTriangles.Count; i++)
+    if (!buckets.TryGetValue(record.BucketTextureId, out FactureBucketMeshDataLikeAdapted bucket))
     {
-        TriangleWinnerRecordLikeAdapted winner = winnerTriangles[i];
-        indexByKey[new TriangleWinnerKeyLikeAdapted(winner.CellX, winner.CellY, winner.Kind)] = i;
+        bucket = new FactureBucketMeshDataLikeAdapted(64);
+        buckets[record.BucketTextureId] = bucket;
     }
 
-    var candidateByKey = new Dictionary<string, TriangleWinnerContactCandidateLikeAdapted>(Mathf.Max(16, contactMap.Count * 2), StringComparer.Ordinal);
+    bucket.HasBumpContent |= record.HasBump;
 
-    for (int i = 0; i < contactMap.Count; i++)
-    {
-        FactureTriangleContactRecordLikeAdapted contact = contactMap[i];
-        AddTriangleWinnerContactCandidateLikeAdapted(
-            winnerTriangles,
-            indexByKey,
-            new TriangleWinnerKeyLikeAdapted(contact.LeftCellX, contact.LeftCellY, contact.LeftKind),
-            contact.LeftRawFactureId,
-            contact.RightRawFactureId,
-            contact.SharedVertexA,
-            contact.SharedVertexB,
-            candidateByKey);
-
-        AddTriangleWinnerContactCandidateLikeAdapted(
-            winnerTriangles,
-            indexByKey,
-            new TriangleWinnerKeyLikeAdapted(contact.RightCellX, contact.RightCellY, contact.RightKind),
-            contact.RightRawFactureId,
-            contact.LeftRawFactureId,
-            contact.SharedVertexA,
-            contact.SharedVertexB,
-            candidateByKey);
-    }
-
-    var bestByWinner = new Dictionary<int, TriangleWinnerContactCandidateLikeAdapted>(winnerTriangles.Count);
-    int ambiguous = 0;
-
-    foreach (TriangleWinnerContactCandidateLikeAdapted candidate in candidateByKey.Values)
-    {
-        if (bestByWinner.TryGetValue(candidate.WinnerIndex, out TriangleWinnerContactCandidateLikeAdapted best))
-        {
-            bool replace = candidate.Score > best.Score;
-            if (!replace && candidate.Score == best.Score)
-            {
-                int candidateMin = Mathf.Min(candidate.SharedVertexA, candidate.SharedVertexB);
-                int candidateMax = Mathf.Max(candidate.SharedVertexA, candidate.SharedVertexB);
-                int bestMin = Mathf.Min(best.SharedVertexA, best.SharedVertexB);
-                int bestMax = Mathf.Max(best.SharedVertexA, best.SharedVertexB);
-                if (candidateMin != bestMin)
-                    replace = candidateMin < bestMin;
-                else if (candidateMax != bestMax)
-                    replace = candidateMax < bestMax;
-                else if (candidate.NeighbourRawFactureId != best.NeighbourRawFactureId)
-                    replace = candidate.NeighbourRawFactureId < best.NeighbourRawFactureId;
-            }
-
-            if (replace)
-            {
-                if (candidate.NeighbourRawFactureId != best.NeighbourRawFactureId || candidate.SharedVertexA != best.SharedVertexA || candidate.SharedVertexB != best.SharedVertexB)
-                    ambiguous++;
-                bestByWinner[candidate.WinnerIndex] = candidate;
-            }
-            else if (candidate.NeighbourRawFactureId != best.NeighbourRawFactureId || candidate.SharedVertexA != best.SharedVertexA || candidate.SharedVertexB != best.SharedVertexB)
-            {
-                ambiguous++;
-            }
-        }
-        else
-        {
-            bestByWinner[candidate.WinnerIndex] = candidate;
-        }
-    }
-
-    foreach (KeyValuePair<int, TriangleWinnerContactCandidateLikeAdapted> pair in bestByWinner)
-    {
-        TriangleWinnerRecordLikeAdapted winner = winnerTriangles[pair.Key];
-        TriangleWinnerContactCandidateLikeAdapted candidate = pair.Value;
-        winner.ContactInput = new TriangleWinnerContactInputLikeAdapted
-        {
-            HasContact = true,
-            SharedVertexA = candidate.SharedVertexA,
-            SharedVertexB = candidate.SharedVertexB,
-            NeighbourRawFactureId = candidate.NeighbourRawFactureId,
-            ContactCount = candidate.Score,
-        };
-        winnerTriangles[pair.Key] = winner;
-    }
-
-    if (FactureContactInputDebugLogLikeAdapted)
-        UnityEngine.Debug.Log($"[C2:FACT:CONTACT:INPUT] stripe={stripeIndex} winners={winnerTriangles.Count} assigned={bestByWinner.Count} ambiguous={ambiguous}");
+    AppendFactureVertexToBucketLikeAdapted(bucket, p0, BuildSeamTriangleVertexColorLikeAdapted(map, record, p0), InterpolateTriangleWinnerUvLikeAdapted(p0, record));
+    AppendFactureVertexToBucketLikeAdapted(bucket, p1, BuildSeamTriangleVertexColorLikeAdapted(map, record, p1), InterpolateTriangleWinnerUvLikeAdapted(p1, record));
+    AppendFactureVertexToBucketLikeAdapted(bucket, p2, BuildSeamTriangleVertexColorLikeAdapted(map, record, p2), InterpolateTriangleWinnerUvLikeAdapted(p2, record));
 }
 
-private static void AddTriangleWinnerContactCandidateLikeAdapted(
-    List<TriangleWinnerRecordLikeAdapted> winnerTriangles,
-    Dictionary<TriangleWinnerKeyLikeAdapted, int> indexByKey,
-    TriangleWinnerKeyLikeAdapted key,
-    int selfRawFactureId,
-    int neighbourRawFactureId,
-    int sharedVertexA,
-    int sharedVertexB,
-    Dictionary<string, TriangleWinnerContactCandidateLikeAdapted> candidateByKey)
+private static void AppendSeamQuadLikeAdapted(
+    ParsedMap map,
+    Dictionary<int, FactureBucketMeshDataLikeAdapted> buckets,
+    TriangleWinnerRecordLikeAdapted record,
+    Vector3 edge0,
+    Vector3 edge1,
+    Vector3 outer0,
+    Vector3 outer1,
+    int alphaAtEdge,
+    int alphaAtOuter)
 {
-    if (winnerTriangles == null || indexByKey == null || candidateByKey == null)
+    if (map == null || buckets == null)
         return;
 
-    if (!indexByKey.TryGetValue(key, out int winnerIndex))
+    Vector3 crossA = Vector3.Cross(edge1 - edge0, outer1 - edge0);
+    Vector3 crossB = Vector3.Cross(outer1 - edge0, outer0 - edge0);
+    if (crossA.sqrMagnitude <= 1e-10f || crossB.sqrMagnitude <= 1e-10f)
         return;
 
-    TriangleWinnerRecordLikeAdapted winner = winnerTriangles[winnerIndex];
-    if (winner.WinnerRawFactureId != (selfRawFactureId & 255))
-        return;
-
-    int orderedA = Mathf.Min(sharedVertexA, sharedVertexB);
-    int orderedB = Mathf.Max(sharedVertexA, sharedVertexB);
-    int neighbour = neighbourRawFactureId & 255;
-    string candidateKey = winnerIndex.ToString() + "|" + neighbour.ToString() + "|" + orderedA.ToString() + "|" + orderedB.ToString();
-
-    if (candidateByKey.TryGetValue(candidateKey, out TriangleWinnerContactCandidateLikeAdapted candidate))
+    if (!buckets.TryGetValue(record.BucketTextureId, out FactureBucketMeshDataLikeAdapted bucket))
     {
-        candidate.Score++;
-        candidateByKey[candidateKey] = candidate;
+        bucket = new FactureBucketMeshDataLikeAdapted(64);
+        buckets[record.BucketTextureId] = bucket;
     }
-    else
+
+    bucket.HasBumpContent |= record.HasBump;
+
+    AppendFactureVertexToBucketLikeAdapted(bucket, edge0, BuildSeamTriangleVertexColorLikeAdapted(map, record, edge0, alphaAtEdge), InterpolateTriangleWinnerUvLikeAdapted(edge0, record));
+    AppendFactureVertexToBucketLikeAdapted(bucket, edge1, BuildSeamTriangleVertexColorLikeAdapted(map, record, edge1, alphaAtEdge), InterpolateTriangleWinnerUvLikeAdapted(edge1, record));
+    AppendFactureVertexToBucketLikeAdapted(bucket, outer1, BuildSeamTriangleVertexColorLikeAdapted(map, record, outer1, alphaAtOuter), InterpolateTriangleWinnerUvLikeAdapted(outer1, record));
+
+    AppendFactureVertexToBucketLikeAdapted(bucket, edge0, BuildSeamTriangleVertexColorLikeAdapted(map, record, edge0, alphaAtEdge), InterpolateTriangleWinnerUvLikeAdapted(edge0, record));
+    AppendFactureVertexToBucketLikeAdapted(bucket, outer1, BuildSeamTriangleVertexColorLikeAdapted(map, record, outer1, alphaAtOuter), InterpolateTriangleWinnerUvLikeAdapted(outer1, record));
+    AppendFactureVertexToBucketLikeAdapted(bucket, outer0, BuildSeamTriangleVertexColorLikeAdapted(map, record, outer0, alphaAtOuter), InterpolateTriangleWinnerUvLikeAdapted(outer0, record));
+}
+
+private static void AppendWinnerEdgePixelExchangeStripLikeAdapted(
+    ParsedMap map,
+    TriangleWinnerRecordLikeAdapted first,
+    TriangleWinnerRecordLikeAdapted second,
+    Dictionary<int, FactureBucketMeshDataLikeAdapted> buckets)
+{
+    if (map == null || buckets == null)
+        return;
+    if (first.BucketTextureId == second.BucketTextureId && first.RenderFactureId == second.RenderFactureId)
+        return;
+    if (!TryGetSharedEdgeBetweenWinnerTrianglesLikeAdapted(first, second, out CellVertexPayloadLikeOriginal shared0, out CellVertexPayloadLikeOriginal shared1, out CellVertexPayloadLikeOriginal oppositeFirst, out CellVertexPayloadLikeOriginal oppositeSecond))
+        return;
+
+    Vector3 p0 = shared0.World;
+    Vector3 p1 = shared1.World;
+    float edgeLength = Vector3.Distance(p0, p1);
+    if (edgeLength <= 1e-5f)
+        return;
+
+    Vector3 bias = new Vector3(0.0f, 0.0035f, 0.0f);
+    Vector3 edgeDir = (p1 - p0).normalized;
+    Vector3 mid = (p0 + p1) * 0.5f;
+
+    Vector3 rawFirstDir = oppositeFirst.World - mid;
+    Vector3 rawSecondDir = oppositeSecond.World - mid;
+    rawFirstDir -= edgeDir * Vector3.Dot(rawFirstDir, edgeDir);
+    rawSecondDir -= edgeDir * Vector3.Dot(rawSecondDir, edgeDir);
+    rawFirstDir.y = 0.0f;
+    rawSecondDir.y = 0.0f;
+
+    if (rawFirstDir.sqrMagnitude <= 1e-8f || rawSecondDir.sqrMagnitude <= 1e-8f)
+        return;
+
+    Vector3 intoFirst = rawFirstDir.normalized;
+    Vector3 intoSecond = rawSecondDir.normalized;
+    float avgDepth = 0.5f * (rawFirstDir.magnitude + rawSecondDir.magnitude);
+    float stripDepth = Mathf.Clamp(avgDepth * 0.33f, 0.08f, 0.22f);
+    int segmentCount = Mathf.Clamp(Mathf.RoundToInt(edgeLength * 6.0f), 10, 28);
+    const int alphaAtEdge = 160;
+    const int alphaAtOuter = 0;
+
+    for (int segment = 0; segment < segmentCount; segment++)
     {
-        candidateByKey[candidateKey] = new TriangleWinnerContactCandidateLikeAdapted
-        {
-            WinnerIndex = winnerIndex,
-            NeighbourRawFactureId = neighbour,
-            SharedVertexA = orderedA,
-            SharedVertexB = orderedB,
-            Score = 1,
-        };
+        float t0 = segment / (float)segmentCount;
+        float t1 = (segment + 1) / (float)segmentCount;
+
+        Vector3 edge0 = Vector3.Lerp(p0, p1, t0) + bias;
+        Vector3 edge1 = Vector3.Lerp(p0, p1, t1) + bias;
+
+        Vector3 firstOuter0 = edge0 + intoFirst * stripDepth;
+        Vector3 firstOuter1 = edge1 + intoFirst * stripDepth;
+        Vector3 secondOuter0 = edge0 + intoSecond * stripDepth;
+        Vector3 secondOuter1 = edge1 + intoSecond * stripDepth;
+
+        AppendSeamQuadLikeAdapted(map, buckets, first, edge0, edge1, secondOuter0, secondOuter1, alphaAtEdge, alphaAtOuter);
+        AppendSeamQuadLikeAdapted(map, buckets, second, edge0, edge1, firstOuter0, firstOuter1, alphaAtEdge, alphaAtOuter);
     }
 }
+
 
         private static Mesh BuildFactureBucketMeshLikeAdapted(FactureBucketMeshDataLikeAdapted bucket, int stripeIndex, int bucketTextureId)
         {
@@ -2997,8 +2582,6 @@ private static void AddTriangleWinnerContactCandidateLikeAdapted(
             var vertices = new List<Vector3>(1024);
             var colors = new List<Color32>(1024);
             var uv0 = new List<Vector2>(1024);
-            var uv1 = new List<Vector2>(1024);
-            var uv2 = new List<Vector2>(1024);
             var submeshTriangles = new List<List<int>>(orderedBucketIds.Count);
 
             for (int bucketOrder = 0; bucketOrder < orderedBucketIds.Count; bucketOrder++)
@@ -3014,8 +2597,6 @@ private static void AddTriangleWinnerContactCandidateLikeAdapted(
                 vertices.AddRange(bucket.Vertices);
                 colors.AddRange(bucket.Colors);
                 uv0.AddRange(bucket.Uv0);
-                uv1.AddRange(bucket.Uv1);
-                uv2.AddRange(bucket.Uv2);
 
                 var tris = new List<int>(bucket.Triangles.Count);
                 for (int i = 0; i < bucket.Triangles.Count; i++)
@@ -3032,8 +2613,6 @@ private static void AddTriangleWinnerContactCandidateLikeAdapted(
             mesh.SetVertices(vertices);
             mesh.SetColors(colors);
             mesh.SetUVs(0, uv0);
-            mesh.SetUVs(1, uv1);
-            mesh.SetUVs(2, uv2);
             mesh.subMeshCount = submeshTriangles.Count;
             for (int sub = 0; sub < submeshTriangles.Count; sub++)
                 mesh.SetTriangles(submeshTriangles[sub], sub, true);
@@ -3254,40 +2833,22 @@ private Texture2D TryBuildFactureNormalMapLikeAdapted(int bucketTextureId, out s
 
 private Material GetFactureMaterialLikeAdapted(int bucketTextureId, bool hasBump)
 {
-    bool pairBlendEnabled = IsFacturePairBucketKeyLikeAdapted(bucketTextureId);
-    int baseTextureId = pairBlendEnabled ? GetFacturePairBucketBaseTextureIdLikeAdapted(bucketTextureId) : (bucketTextureId & 255);
-    int blendTextureId = pairBlendEnabled ? GetFacturePairBucketBlendTextureIdLikeAdapted(bucketTextureId) : -1;
-    bool requestBump = hasBump || (pairBlendEnabled && GetFacturePairBucketHasBumpLikeAdapted(bucketTextureId));
-
     Texture2D bump = null;
     string bumpPath = string.Empty;
     bool useBumpMaterial = false;
-    if (requestBump)
+    if (hasBump)
     {
-        bump = TryBuildFactureNormalMapLikeAdapted(baseTextureId, out bumpPath);
+        bump = TryBuildFactureNormalMapLikeAdapted(bucketTextureId, out bumpPath);
         useBumpMaterial = bump != null;
     }
 
-    Texture2D diffuse = TryLoadFactureTextureLikeAdapted(baseTextureId, useBumpMaterial ? FactureTextureVariantLikeAdapted.Dot3Diffuse : FactureTextureVariantLikeAdapted.PlainDiffuse, out string diffusePath);
-    if (diffuse == null && baseTextureId != 0)
+    Texture2D diffuse = TryLoadFactureTextureLikeAdapted(bucketTextureId, useBumpMaterial ? FactureTextureVariantLikeAdapted.Dot3Diffuse : FactureTextureVariantLikeAdapted.PlainDiffuse, out string diffusePath);
+    if (diffuse == null && bucketTextureId != 0)
         diffuse = TryLoadFactureTextureLikeAdapted(0, useBumpMaterial ? FactureTextureVariantLikeAdapted.Dot3Diffuse : FactureTextureVariantLikeAdapted.PlainDiffuse, out diffusePath);
     if (diffuse == null)
         return null;
 
-    Texture2D blendTex = null;
-    string blendPath = string.Empty;
-    if (pairBlendEnabled)
-    {
-        blendTex = TryLoadFactureTextureLikeAdapted(blendTextureId, useBumpMaterial ? FactureTextureVariantLikeAdapted.Dot3Diffuse : FactureTextureVariantLikeAdapted.PlainDiffuse, out blendPath);
-        if (blendTex == null && blendTextureId != 0)
-            blendTex = TryLoadFactureTextureLikeAdapted(0, useBumpMaterial ? FactureTextureVariantLikeAdapted.Dot3Diffuse : FactureTextureVariantLikeAdapted.PlainDiffuse, out blendPath);
-        if (blendTex == null)
-            return null;
-    }
-
-    string key = pairBlendEnabled
-        ? $"pair|{baseTextureId}|{blendTextureId}|{diffusePath}|{blendPath}|{(useBumpMaterial ? bumpPath : "plain")}|samepass"
-        : $"{baseTextureId}|{diffusePath}|{(useBumpMaterial ? bumpPath : "plain")}";
+    string key = $"{bucketTextureId}|{diffusePath}|{(useBumpMaterial ? bumpPath : "plain")}";
     if (s_factureMaterialCacheLikeAdapted.TryGetValue(key, out Material cached) && cached != null)
         return cached;
 
@@ -3296,18 +2857,14 @@ private Material GetFactureMaterialLikeAdapted(int bucketTextureId, bool hasBump
         shader = Shader.Find("Cossacks2Bridge/TerrainRuntimeFactureDot3");
 
     if (shader == null)
-        shader = Shader.Find("Cossacks2Bridge/TerrainRuntimeFacture3")
-                ?? Shader.Find("Unlit/Texture")
-                ?? Shader.Find("Standard");
+            shader = Shader.Find("Cossacks2Bridge/TerrainRuntimeFacture3")
+                    ?? Shader.Find("Unlit/Texture")
+                    ?? Shader.Find("Standard");
 
     var mat = new Material(shader);
-    mat.name = pairBlendEnabled
-        ? (useBumpMaterial ? $"C2_FactureDot3Pair_{baseTextureId:000}_{blendTextureId:000}" : $"C2_FacturePair_{baseTextureId:000}_{blendTextureId:000}")
-        : (useBumpMaterial ? $"C2_FactureDot3_{baseTextureId:000}" : $"C2_Facture_{baseTextureId:000}");
+    mat.name = useBumpMaterial ? $"C2_FactureDot3_{bucketTextureId:000}" : $"C2_Facture_{bucketTextureId:000}";
     if (mat.HasProperty("_MainTex"))
         mat.SetTexture("_MainTex", diffuse);
-    if (mat.HasProperty("_BlendTex"))
-        mat.SetTexture("_BlendTex", pairBlendEnabled ? blendTex : diffuse);
     if (useBumpMaterial && mat.HasProperty("_NormalTex"))
         mat.SetTexture("_NormalTex", bump);
     if (mat.HasProperty("_Color"))
@@ -3322,14 +2879,7 @@ private Material GetFactureMaterialLikeAdapted(int bucketTextureId, bool hasBump
         mat.SetFloat("_FactureAlphaRefLikeOriginal", FactureAlphaRefByteLikeOriginal / 255.0f);
     if (mat.HasProperty("_FactureCoverageSoftStartLikeAdapted"))
         mat.SetFloat("_FactureCoverageSoftStartLikeAdapted", FactureCoverageSoftStartLikeAdapted);
-    if (mat.HasProperty("_PairBlendEnabledLikeAdapted"))
-        mat.SetFloat("_PairBlendEnabledLikeAdapted", pairBlendEnabled ? 1.0f : 0.0f);
-    if (mat.HasProperty("_PairBlendThresholdLikeAdapted"))
-        mat.SetFloat("_PairBlendThresholdLikeAdapted", FacturePairBlendThresholdLikeAdapted);
-    if (mat.HasProperty("_PairBlendStrengthLikeAdapted"))
-        mat.SetFloat("_PairBlendStrengthLikeAdapted", FacturePairBlendStrengthLikeAdapted);
-    if (mat.HasProperty("_PairBlendGammaLikeAdapted"))
-        mat.SetFloat("_PairBlendGammaLikeAdapted", FacturePairBlendGammaLikeAdapted);
+    // keep facture layer after the base surface and below future roads / stones / object overrides
     mat.renderQueue = FactureOverlayRenderQueueLikeAdapted;
     s_factureMaterialCacheLikeAdapted[key] = mat;
     return mat;
@@ -3368,15 +2918,14 @@ private void BuildFactureStripeLayerLikeAdapted(
         return;
 
     var buckets = new Dictionary<int, FactureBucketMeshDataLikeAdapted>();
-    var scratchCopies = new List<FactureTriangleCopyDescriptorLikeAdapted>(16);
-    int emittedCells = 0;
+    var winnerTriangles = new List<TriangleWinnerRecordLikeAdapted>(Mathf.Max(64, (endCellX - startCellX + 2) * Mathf.Max(1, kernel.MaxCellYExclusive - kernel.MinCellY) * 2));
 
-    int stripeStartX = Mathf.Max(kernel.MinCellX, startCellX);
-    int stripeEndX = Mathf.Min(kernel.MaxCellXExclusive, endCellX);
+    int collectStartX = Mathf.Max(kernel.MinCellX, startCellX - 1);
+    int collectEndX = Mathf.Min(kernel.MaxCellXExclusive, endCellX + 1);
 
     for (int cellY = kernel.MinCellY; cellY < kernel.MaxCellYExclusive; cellY++)
     {
-        for (int cellX = stripeStartX; cellX < stripeEndX; cellX++)
+        for (int cellX = collectStartX; cellX < collectEndX; cellX++)
         {
             OriginalCellTriangulationLikeOriginal cell = BuildCellTriangulationLikeOriginal(map, kernel, cellX, cellY);
 
@@ -3385,20 +2934,71 @@ private void BuildFactureStripeLayerLikeAdapted(
             CellVertexPayloadLikeOriginal v2 = BuildCellVertexPayloadLikeOriginal(map, kernel, cell, cell.V2);
             CellVertexPayloadLikeOriginal v3 = BuildCellVertexPayloadLikeOriginal(map, kernel, cell, cell.V3);
 
-            ExpandFactureCellIntoBucketsLikeAdapted(
-                map,
-                cell,
-                cellX,
-                cellY,
-                v0,
-                v1,
-                v2,
-                v3,
-                buckets,
-                scratchCopies);
+            bool emitBase = cellX >= startCellX && cellX < endCellX;
+            bool isOddCell = cell.FirstA == cell.V0 && cell.FirstB == cell.V1 && cell.FirstC == cell.V2;
 
-            emittedCells++;
+            if (isOddCell)
+            {
+                if (TryBuildTriangleWinnerRecordLikeAdapted(map, cellX, cellY, emitBase, v0, v1, v2, out TriangleWinnerRecordLikeAdapted first))
+                    winnerTriangles.Add(first);
+                if (TryBuildTriangleWinnerRecordLikeAdapted(map, cellX, cellY, emitBase, v2, v1, v3, out TriangleWinnerRecordLikeAdapted second))
+                    winnerTriangles.Add(second);
+            }
+            else
+            {
+                if (TryBuildTriangleWinnerRecordLikeAdapted(map, cellX, cellY, emitBase, v0, v1, v3, out TriangleWinnerRecordLikeAdapted first))
+                    winnerTriangles.Add(first);
+                if (TryBuildTriangleWinnerRecordLikeAdapted(map, cellX, cellY, emitBase, v0, v3, v2, out TriangleWinnerRecordLikeAdapted second))
+                    winnerTriangles.Add(second);
+            }
         }
+    }
+
+    for (int i = 0; i < winnerTriangles.Count; i++)
+    {
+        if (winnerTriangles[i].EmitBase)
+            AppendTriangleWinnerRecordToBucketsLikeAdapted(map, winnerTriangles[i], buckets);
+    }
+
+    var edgeMap = new Dictionary<EdgeKeyLikeAdapted, List<int>>(winnerTriangles.Count * 2);
+    void AddEdge(int a, int b, int triIndex)
+    {
+        EdgeKeyLikeAdapted key = new EdgeKeyLikeAdapted(a, b);
+        if (!edgeMap.TryGetValue(key, out List<int> list))
+        {
+            list = new List<int>(2);
+            edgeMap[key] = list;
+        }
+
+        if (list.Count == 0 || list[list.Count - 1] != triIndex)
+            list.Add(triIndex);
+    }
+
+    for (int i = 0; i < winnerTriangles.Count; i++)
+    {
+        TriangleWinnerRecordLikeAdapted tri = winnerTriangles[i];
+        AddEdge(tri.A.Index, tri.B.Index, i);
+        AddEdge(tri.B.Index, tri.C.Index, i);
+        AddEdge(tri.C.Index, tri.A.Index, i);
+    }
+
+    foreach (KeyValuePair<EdgeKeyLikeAdapted, List<int>> pair in edgeMap)
+    {
+        List<int> linked = pair.Value;
+        if (linked == null || linked.Count != 2)
+            continue;
+
+        TriangleWinnerRecordLikeAdapted first = winnerTriangles[linked[0]];
+        TriangleWinnerRecordLikeAdapted second = winnerTriangles[linked[1]];
+
+        int ownerCellX = Mathf.Min(first.CellX, second.CellX);
+        if (ownerCellX < startCellX || ownerCellX >= endCellX)
+            continue;
+
+        if (first.BucketTextureId == second.BucketTextureId && first.RenderFactureId == second.RenderFactureId)
+            continue;
+
+        AppendWinnerEdgePixelExchangeStripLikeAdapted(map, first, second, buckets);
     }
 
     List<int> orderedBucketIds = new List<int>(buckets.Keys);
@@ -3444,7 +3044,7 @@ private void BuildFactureStripeLayerLikeAdapted(
     if (skipped.Count > 0)
     {
         UnityEngine.Debug.Log(
-            $"[C2:FACT] stripe={stripeIndex} mode='original-batch-emission' emittedCells={emittedCells} rendered={renderableBucketIds.Count} skipped='{string.Join(",", skipped)}'");
+            $"[C2:FACT] stripe={stripeIndex} fix='triangle-winner-smooth-crossfade-strip-v2' rendered={renderableBucketIds.Count} skipped='{string.Join(",", skipped)}'");
     }
 
     var go = new GameObject($"FactureStripe_{stripeIndex:000}");

@@ -218,6 +218,9 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
             if (!showLoad && entries.Count > 0 && !entries.Exists(e => string.Equals(e.Id, selectedId, StringComparison.OrdinalIgnoreCase)))
                 selectedId = entries[0].Id;
 
+            if (!showLoad)
+                MenuActionSink.SingleBattlesSelectedId = selectedId;
+
             var sel = showLoad ? null : entries.Find(e => string.Equals(e.Id, selectedId, StringComparison.OrdinalIgnoreCase));
             int rosterSlots = Mathf.Clamp(sel != null ? GetMissionPlayerCount(fs, sel.Id) : 2, 1, 7);
 
@@ -485,12 +488,12 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
                 foreach (var path in candidates)
                 {
                     if (!File.Exists(path)) continue;
-                    if (!CodecFacade.LoadG16ToMemory(path, out var err))
+                    if (!MelinojaCodecBridge.LoadG16ToMemory(path, out var err, doubleOverlay: false))
                     {
                         Debug.LogWarning($"[MBattles] LoadG16 failed {path}: {err}");
                         continue;
                     }
-                    if (!CodecFacade.TryGetG16FrameRGBA(path, frameIndex, out int w, out int h, out byte[] rgba, out var err2))
+                    if (!MelinojaCodecBridge.TryGetG16FrameRGBA(path, frameIndex, out int w, out int h, out byte[] rgba, out var err2))
                     {
                         Debug.LogWarning($"[MBattles] GetFrame {frameIndex} failed {path}: {err2}");
                         continue;

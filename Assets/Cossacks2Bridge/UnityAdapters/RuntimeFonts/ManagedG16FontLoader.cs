@@ -40,7 +40,7 @@ namespace Cossacks2Bridge.UnityAdapters.RuntimeFonts
             {
                 // decode using Melinoja (package com.temnyless.codec)
                 string logPath, err;
-                bool ok = CodecFacade.DecodeG16ToLogAndFrames(absoluteG16Path, out logPath, out err, doubleOverlay: false);
+                bool ok = MelinojaCodecBridge.DecodeG16ToLogAndFrames(absoluteG16Path, out logPath, out err, doubleOverlay: false);
                 if (!ok)
                     throw new InvalidDataException("Failed to decode G16 via Melinoja: " + err);
             }
