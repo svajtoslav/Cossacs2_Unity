@@ -1,4 +1,4 @@
-Shader "Cossacks2Bridge/TerrainRuntimeFacture3"
+﻿Shader "Cossacks2Bridge/TerrainRuntimeFacture3"
 {
     Properties
     {
@@ -6,8 +6,8 @@ Shader "Cossacks2Bridge/TerrainRuntimeFacture3"
         _FactureTFactor("Facture TFactor", Color) = (0.5, 0.5, 0.5, 0.5)
         _UseDitherLikeOriginal("Use Dither", Float) = 0
         _DitherStrengthLikeOriginal("Dither Strength", Range(0,1)) = 0
-        _FactureAlphaRefLikeOriginal("Alpha Ref", Range(0,1)) = 0.015686275
-        _FactureCoverageSoftStartLikeAdapted("Coverage Soft Start", Range(0,1)) = 0
+        _FactureAlphaRefLikeOriginal("Alpha Ref", Range(0,1)) = 0
+        _FactureCoverageSoftStartLikeAdapted("Coverage Soft Start", Range(0,1)) = 0.10039216
     }
 
     SubShader
@@ -83,11 +83,18 @@ Shader "Cossacks2Bridge/TerrainRuntimeFacture3"
                 return saturate((half3)dithered);
             }
 
+            half SmoothStep01LikeAdapted(half v)
+            {
+                v = saturate(v);
+                return v * v * (3.0h - 2.0h * v);
+            }
+
             half ComputeFactureCoverageAlphaLikeAdapted(half rawAlpha)
             {
-                // Original Facture3.xml contract:
-                // use diffuse alpha directly for coverage after AlphaRef.
-                return saturate(rawAlpha);
+                half a = saturate(rawAlpha);
+                half softStart = max(_FactureCoverageSoftStartLikeAdapted, 0.0001h);
+                half edgeFade = SmoothStep01LikeAdapted(a / softStart);
+                return saturate(a * edgeFade);
             }
 
             Varyings vert(Attributes v)

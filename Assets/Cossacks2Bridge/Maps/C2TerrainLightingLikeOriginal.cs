@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Xml.Linq;
 using UnityEngine;
 
@@ -9,11 +9,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const int StrictSurfaceTriUnitLikeOriginal = 16;
 
         private Color32 _strictSurfaceSunColor = new Color32(128, 128, 128, 255);
-        private Color32 _strictSurfaceShadowColor = new Color32(128, 128, 128, 255);
+        private Color32 _strictSurfaceShadowColor = new Color32(58, 66, 72, 255);
         private byte[] _strictSurfaceLightMap;
         private bool _strictSurfaceLightMapReady;
         private bool _strictSurfaceLightingStateLoaded;
         private string _strictSurfaceLightMapSourceKey = string.Empty;
+        private bool _strictSurfaceLightingDebugLogged;
 
         private void EnsureStrictSurfaceLightingStateLikeOriginal()
         {
@@ -22,7 +23,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             _strictSurfaceLightingStateLoaded = true;
             _strictSurfaceSunColor = new Color32(128, 128, 128, 255);
-            _strictSurfaceShadowColor = new Color32(128, 128, 128, 255);
+            _strictSurfaceShadowColor = new Color32(58, 66, 72, 255);
+
+            if (!C2GlobalLighting.IsInitialized)
+                C2GlobalLighting.SetLightLikeOriginal(0, 20, 30);
 
             var fs = _bootstrap != null ? _bootstrap.Fs : null;
             if (fs == null)
@@ -43,12 +47,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (root == null)
                     return;
 
-                XElement shadowEl = root.Element("ShadowsColor");
-                XElement sunEl = root.Element("SunColor");
-                if (shadowEl != null)
-                    _strictSurfaceShadowColor = ParseArgbColorLikeOriginal(shadowEl.Value, _strictSurfaceShadowColor);
-                if (sunEl != null)
-                    _strictSurfaceSunColor = ParseArgbColorLikeOriginal(sunEl.Value, _strictSurfaceSunColor);
+                _strictSurfaceShadowColor = ReadEngineSettingsColorLikeOriginal(doc, "ShadowsColor", _strictSurfaceShadowColor);
+                _strictSurfaceSunColor = ReadEngineSettingsColorLikeOriginal(doc, "SunColor", _strictSurfaceSunColor);
             }
             catch
             {
@@ -76,6 +76,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _strictSurfaceLightMapSourceKey = mapKey;
             _strictSurfaceLightMapReady = true;
             CreateLightMapLikeOriginal();
+            LogStrictSurfaceLightingDebugV2LikeAdapted(runtimeMapLikeOriginal);
         }
 
         private static string BuildStrictSurfaceLightMapSourceKeyLikeOriginal(ParsedMap map)
@@ -402,6 +403,80 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     return h1 - (((x - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((y - y0) * (h3 - h2)) >> 5);
                 }
             }
+        }
+
+        private void LogStrictSurfaceLightingDebugV2LikeAdapted(ParsedMap map)
+        {
+            if (_strictSurfaceLightingDebugLogged)
+                return;
+
+            _strictSurfaceLightingDebugLogged = true;
+
+            int min = 255;
+            int max = 0;
+            long sum = 0;
+            int count = 0;
+            if (_strictSurfaceLightMap != null)
+            {
+                for (int i = 0; i < _strictSurfaceLightMap.Length; i++)
+                {
+                    int v = _strictSurfaceLightMap[i];
+                    if (v < min) min = v;
+                    if (v > max) max = v;
+                    sum += v;
+                    count++;
+                }
+            }
+
+            float avg = count > 0 ? (float)sum / count : 0.0f;
+            UnityEngine.Debug.Log(
+                $"[C2:STRICT LIGHTING V2] ready. map={map?.VertInLine}x{map?.MaxTH} light=({C2GlobalLighting.LightDX},{C2GlobalLighting.LightDY},{C2GlobalLighting.LightDZ}) " +
+                $"shadowColor=#{_strictSurfaceShadowColor.r:X2}{_strictSurfaceShadowColor.g:X2}{_strictSurfaceShadowColor.b:X2} sunColor=#{_strictSurfaceSunColor.r:X2}{_strictSurfaceSunColor.g:X2}{_strictSurfaceSunColor.b:X2} " +
+                $"lightMapMinMaxAvg={min}/{max}/{avg:F1}");
+        }
+
+        private static Color32 ReadEngineSettingsColorLikeOriginal(XDocument doc, string memberName, Color32 fallback)
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(memberName))
+                return fallback;
+
+            try
+            {
+                foreach (XElement element in doc.Descendants())
+                {
+                    if (!string.Equals(element.Name.LocalName, memberName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    string value = (element.Value ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                        return ParseArgbColorLikeOriginal(value, fallback);
+
+                    foreach (XAttribute attr in element.Attributes())
+                    {
+                        string attrValue = (attr.Value ?? string.Empty).Trim();
+                        if (!string.IsNullOrWhiteSpace(attrValue))
+                            return ParseArgbColorLikeOriginal(attrValue, fallback);
+                    }
+                }
+
+                foreach (XElement element in doc.Descendants())
+                {
+                    foreach (XAttribute attr in element.Attributes())
+                    {
+                        if (!string.Equals(attr.Name.LocalName, memberName, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        string attrValue = (attr.Value ?? string.Empty).Trim();
+                        if (!string.IsNullOrWhiteSpace(attrValue))
+                            return ParseArgbColorLikeOriginal(attrValue, fallback);
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return fallback;
         }
 
         private static Color32 ParseArgbColorLikeOriginal(string hex, Color32 fallback)

@@ -1,4 +1,4 @@
-Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
+﻿Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
 {
     Properties
     {
@@ -7,6 +7,7 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
         _FactureTFactor("Facture TFactor", Color) = (0.5,0.5,0.5,0.5)
         _UseDitherLikeOriginal("Use Dither", Float) = 0
         _DitherStrengthLikeOriginal("Dither Strength", Range(0,1)) = 0
+        _FactureCoverageSoftStartLikeAdapted("Coverage Soft Start", Range(0,1)) = 0.10039216
     }
 
     SubShader
@@ -39,6 +40,7 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
                 half4 _FactureTFactor;
                 half _UseDitherLikeOriginal;
                 half _DitherStrengthLikeOriginal;
+                half _FactureCoverageSoftStartLikeAdapted;
             CBUFFER_END
 
             struct Attributes
@@ -82,6 +84,20 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
                 return saturate((half3)dithered);
             }
 
+            half SmoothStep01LikeAdapted(half v)
+            {
+                v = saturate(v);
+                return v * v * (3.0h - 2.0h * v);
+            }
+
+            half ComputeFactureCoverageAlphaLikeAdapted(half rawAlpha)
+            {
+                half a = saturate(rawAlpha);
+                half softStart = max(_FactureCoverageSoftStartLikeAdapted, 0.0001h);
+                half edgeFade = SmoothStep01LikeAdapted(a / softStart);
+                return saturate(a * edgeFade);
+            }
+
             Varyings vert(Attributes v)
             {
                 Varyings o;
@@ -100,9 +116,10 @@ Shader "Cossacks2Bridge/TerrainRuntimeFactureDot3"
                 half3 diff = normalize(i.color.rgb * 2.0h - 1.0h);
                 half3 dot3Value = saturate(dot(nm, diff)).xxx;
                 half3 modulated = diffuseTex.rgb * dot3Value;
-                half3 finalColor = lerp(_FactureTFactor.rgb, modulated, saturate(i.color.a));
+                half coverageAlpha = ComputeFactureCoverageAlphaLikeAdapted(i.color.a);
+                half3 finalColor = lerp(_FactureTFactor.rgb, modulated, coverageAlpha);
                 finalColor = ApplyFactureDitherLikeOriginal(finalColor, i.positionHCS.xy);
-                return half4(finalColor, saturate(i.color.a));
+                return half4(finalColor, coverageAlpha);
             }
             ENDHLSL
         }

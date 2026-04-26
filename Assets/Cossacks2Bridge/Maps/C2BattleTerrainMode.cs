@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Cossacks2Bridge.UnityAdapters.Maps.InternalBZip2;
 using System.IO;
@@ -319,6 +319,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             BuildStrictWholeMapTerrainLikeOriginal(_map, _terrainRoot.transform, out _terrainBounds);
+            BuildRoadsLayerLikeOriginal(_map, _terrainRoot.transform, ref _terrainBounds);
             sw.Stop();
 
             _terrainBuilt = true;
@@ -458,6 +459,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (WasHomePressed())
                 ResetStrictIsoCameraStateLikeOriginal();
+
 
             bool speedHeld = IsSpeedHeld();
             if (_freeCameraMode)
@@ -1217,15 +1219,180 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        private static readonly int[] V50CandidateTex44MaskTileIdsLikeAdapted = new[] { 3, 7, 9, 10, 20, 21, 44, 55 };
+
         private void BuildStrictOldSurfaceWholeMapLikeOriginal(ParsedMap map, Transform parent, out Bounds terrainBounds)
         {
-            // MIDDLE_PIXEL_ALLTEXTURES_V1:
-            // active path is the pixel-composite renderer from the middle branch,
-            // with all facture triangles passed through the same raster blend function.
-            // Runtime winner polygons / edge masks are not the active terrain path here.
+            // V51: no extra reveal overlay.
+            // Keep one terrain path only: the fast software-baked old-surface base.
+            // Tex44 recovery, if any, must happen inside the bake itself, not as a second mesh/material layer on top.
             BuildStrictOldSurfaceSoftwareBakedChunksLikeOriginal(map, parent, out terrainBounds);
         }
 
+        private void BuildV50CandidateTex44MaskOverlayLikeAdapted(ParsedMap map, Transform parent, ref Bounds terrainBounds)
+        {
+            if (map == null || map.Heights == null || map.Heights.Length == 0 || parent == null)
+                return;
+
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(map);
+            int cellsX = Mathf.Max(0, kernel.MaxCellXExclusive - kernel.MinCellX);
+            int stripeWidth = Mathf.Clamp(StripeColumnWidth, 4, 256);
+            int stripeCount = Mathf.Max(1, Mathf.CeilToInt(cellsX / (float)stripeWidth));
+
+            Material source = CreateTerrainMaterialLikeOriginal(map);
+            Material bridgeBaseMaterial = CreateSurfacePassMaterialLikeAdapted(source, false);
+            Material bridgeOverlayMaterial = CreateSurfacePassMaterialLikeAdapted(source, true);
+            Texture2D tex44 = TryLoadV48BridgeCobbleTex44LikeAdapted();
+            ConfigureV48BridgeTex44RevealMaterialLikeAdapted(bridgeBaseMaterial, false, tex44);
+            ConfigureV48BridgeTex44RevealMaterialLikeAdapted(bridgeOverlayMaterial, true, tex44);
+
+            var overlayRoot = new GameObject("V50_CandidateTex44MaskReveal_StandaloneBMP44");
+            overlayRoot.transform.SetParent(parent, false);
+
+            int builtStripes = 0;
+            int skippedStripes = 0;
+            int totalVertices = 0;
+            Bounds overlayBounds = new Bounds(Vector3.zero, Vector3.zero);
+            bool hasOverlayBounds = false;
+
+            SetV44OldSurfaceTileFilterLikeAdapted(V50CandidateTex44MaskTileIdsLikeAdapted, 0.0f);
+            try
+            {
+                for (int stripe = 0; stripe < stripeCount; stripe++)
+                {
+                    int startX = kernel.MinCellX + stripe * stripeWidth;
+                    int endX = Mathf.Min(kernel.MaxCellXExclusive, startX + stripeWidth);
+                    if (endX <= startX)
+                        continue;
+
+                    Mesh mesh = null;
+                    Bounds stripeBounds = new Bounds(Vector3.zero, Vector3.zero);
+                    try
+                    {
+                        mesh = BuildStripeMeshFromOriginalKernelLikeOriginal(map, kernel, startX, endX, out stripeBounds);
+                    }
+                    catch (Exception ex)
+                    {
+                        UnityEngine.Debug.LogWarning($"[C2:V50 CANDIDATE TEX44 MASK] stripe={stripe} build failed: {ex.GetType().Name}: {ex.Message}");
+                    }
+
+                    if (mesh == null || mesh.vertexCount == 0)
+                    {
+                        skippedStripes++;
+                        continue;
+                    }
+
+                    var go = new GameObject($"V50_CandidateTex44MaskOverlay_{stripe:000}");
+                    go.transform.SetParent(overlayRoot.transform, false);
+                    var mf = go.AddComponent<MeshFilter>();
+                    var mr = go.AddComponent<MeshRenderer>();
+                    mf.sharedMesh = mesh;
+                    if (mesh.subMeshCount > 1)
+                        mr.sharedMaterials = new[] { bridgeBaseMaterial ?? source, bridgeOverlayMaterial ?? bridgeBaseMaterial ?? source };
+                    else
+                        mr.sharedMaterial = bridgeBaseMaterial ?? source;
+
+                    totalVertices += mesh.vertexCount;
+                    builtStripes++;
+                    if (!hasOverlayBounds)
+                    {
+                        overlayBounds = stripeBounds;
+                        hasOverlayBounds = true;
+                    }
+                    else
+                    {
+                        overlayBounds.Encapsulate(stripeBounds.min);
+                        overlayBounds.Encapsulate(stripeBounds.max);
+                    }
+                }
+            }
+            finally
+            {
+                ClearV44OldSurfaceTileFilterLikeAdapted();
+            }
+
+            if (hasOverlayBounds)
+            {
+                terrainBounds.Encapsulate(overlayBounds.min);
+                terrainBounds.Encapsulate(overlayBounds.max);
+            }
+
+            UnityEngine.Debug.Log(
+                $"[C2:V50 CANDIDATE TEX44 MASK] active=fast-software-base-plus-candidate-old-surface-standalone-tex44-overlay " +
+                $"areaMask=candidate_tile_ids sampleSource=standalone_tex44_bmp tex44Loaded={(tex44 != null ? 1 : 0)} candidateIds=3,7,9,10,20,21,44,55 alphaForce=255 materialForceOpaque=1 crossAlpha=off clip=off fullColor=1 brightness=1.20 standaloneLocalUv=frac_atlas8 filter=resolved+vertexSupport tileRemap=enabled yOffset=0 zTest=Always zWrite=Off stageSplit=off queues=3600/3601 stripes={builtStripes}/{stripeCount} skipped={skippedStripes} vertices={totalVertices} {GetV44OldSurfaceTileFilterStatsLikeAdapted()}");
+        }
+
+        private static Texture2D TryLoadV48BridgeCobbleTex44LikeAdapted()
+        {
+            string[] resourcePaths =
+            {
+                "textures/Ground/tex44",
+                "textures/Ground/TEX44",
+                "textures/ground/tex44",
+                "Textures/ground/tex44",
+                "Textures/Ground/tex44"
+            };
+
+            for (int i = 0; i < resourcePaths.Length; i++)
+            {
+                Texture2D tex = Resources.Load<Texture2D>(resourcePaths[i]);
+                if (tex != null)
+                {
+                    Debug.Log($"[C2:V50 CANDIDATE TEX44 MASK] standalone texture loaded via Resources path='{resourcePaths[i]}' size={tex.width}x{tex.height}");
+                    return tex;
+                }
+            }
+
+            Debug.LogWarning("[C2:V50 CANDIDATE TEX44 MASK] standalone tex44.bmp not found via Resources.Load. Overlay will fall back to source GroundTex atlas; check Assets/Resources/textures/Ground/tex44.bmp.");
+            return null;
+        }
+
+        private static void ConfigureV48BridgeTex44RevealMaterialLikeAdapted(Material mat, bool overlayPass, Texture2D tex44)
+        {
+            if (mat == null)
+                return;
+
+            mat.name = overlayPass ? "V49_FullTex44Reveal_OverlayPass" : "V49_FullTex44Reveal_BasePass";
+            mat.renderQueue = overlayPass ? 3601 : 3600;
+            if (mat.HasProperty("_SurfacePassModeLikeAdapted"))
+                mat.SetFloat("_SurfacePassModeLikeAdapted", overlayPass ? 2.0f : 1.0f);
+            if (mat.HasProperty("_V45ForceOpaqueAlphaLikeAdapted"))
+                mat.SetFloat("_V45ForceOpaqueAlphaLikeAdapted", 1.0f);
+            if (mat.HasProperty("_V45DisableCrossAlphaLikeAdapted"))
+                mat.SetFloat("_V45DisableCrossAlphaLikeAdapted", 1.0f);
+            if (mat.HasProperty("_V46ForceFullColorLikeAdapted"))
+                mat.SetFloat("_V46ForceFullColorLikeAdapted", 1.0f);
+            if (mat.HasProperty("_V46OverlayBrightnessLikeAdapted"))
+                mat.SetFloat("_V46OverlayBrightnessLikeAdapted", overlayPass ? 1.20f : 1.16f);
+            if (mat.HasProperty("_V46DisableAlphaClipLikeAdapted"))
+                mat.SetFloat("_V46DisableAlphaClipLikeAdapted", 1.0f);
+            if (mat.HasProperty("_V47ForceVisibleOverlayLikeAdapted"))
+                mat.SetFloat("_V47ForceVisibleOverlayLikeAdapted", 1.0f);
+            if (mat.HasProperty("_V47DisableStageSplitLikeAdapted"))
+                mat.SetFloat("_V47DisableStageSplitLikeAdapted", 1.0f);
+            if (mat.HasProperty("_V47ZTestLikeAdapted"))
+                mat.SetFloat("_V47ZTestLikeAdapted", 8.0f);
+            if (mat.HasProperty("_V47ZWriteLikeAdapted"))
+                mat.SetFloat("_V47ZWriteLikeAdapted", 0.0f);
+            if (tex44 != null && mat.HasProperty("_GroundAtlas"))
+                mat.SetTexture("_GroundAtlas", tex44);
+            if (tex44 != null)
+            {
+                tex44.wrapMode = TextureWrapMode.Repeat;
+                tex44.filterMode = FilterMode.Trilinear;
+                tex44.anisoLevel = Mathf.Max(tex44.anisoLevel, 8);
+            }
+            if (mat.HasProperty("_V48UseStandaloneTileTextureLikeAdapted"))
+                mat.SetFloat("_V48UseStandaloneTileTextureLikeAdapted", tex44 != null ? 1.0f : 0.0f);
+            if (mat.HasProperty("_V48StandaloneTileRepeatLikeAdapted"))
+                mat.SetFloat("_V48StandaloneTileRepeatLikeAdapted", 1.0f);
+            if (mat.HasProperty("_UseCrossLikeOriginal"))
+                mat.SetFloat("_UseCrossLikeOriginal", 0.0f);
+            if (mat.HasProperty("_UseDitherLikeOriginal"))
+                mat.SetFloat("_UseDitherLikeOriginal", 0.0f);
+            if (mat.HasProperty("_Color"))
+                mat.SetColor("_Color", Color.white);
+        }
         private void BuildStrictNewSurfaceWholeMapLikeOriginal(ParsedMap map, Transform parent, out Bounds terrainBounds)
         {
             if (map.MeshSurfaceVertices == null || map.MeshSurfaceVertices.Length == 0)
@@ -1465,6 +1632,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             bool emitted = AppendSurfaceTexturingPayloadForCellLikeOriginal(map, kernel, stripe, cell, v0, v1, v2, v3);
             if (!emitted)
             {
+                if (IsV44OldSurfaceTileFilterActiveLikeAdapted())
+                    return;
+
                 AppendFallbackTriangleLikeOriginal(stripe, v0.World, v1.World, v2.World);
                 if (cell.FirstC == cell.V2)
                     AppendFallbackTriangleLikeOriginal(stripe, v2.World, v1.World, v3.World);
@@ -1933,6 +2103,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
 
                     if (TryParseSurfaceTexturingChunkLikeOriginal(tag, br, map, payloadLen))
+                    {
+                        ms.Position = payloadStart + payloadLen;
+                        continue;
+                    }
+
+                    if (TryParseRoadsChunkLikeOriginal(tag, br, map, payloadLen))
                     {
                         ms.Position = payloadStart + payloadLen;
                         continue;

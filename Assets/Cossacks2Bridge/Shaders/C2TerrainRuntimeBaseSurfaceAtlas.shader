@@ -11,6 +11,17 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
         _UseDitherLikeOriginal("Use Surface.xml dithering", Float) = 0
         _DitherStrengthLikeOriginal("Dither strength", Range(0,1)) = 0
         _SurfacePassModeLikeAdapted("Surface Pass Mode", Float) = 0
+        _V45ForceOpaqueAlphaLikeAdapted("V45 Force Opaque Alpha", Float) = 0
+        _V45DisableCrossAlphaLikeAdapted("V45 Disable Cross Alpha", Float) = 0
+        _V46ForceFullColorLikeAdapted("V46 Force Full Color", Float) = 0
+        _V46OverlayBrightnessLikeAdapted("V46 Overlay Brightness", Range(0.5,2)) = 1
+        _V46DisableAlphaClipLikeAdapted("V46 Disable Alpha Clip", Float) = 0
+        _V47ForceVisibleOverlayLikeAdapted("V47 Force Visible Overlay", Float) = 0
+        _V47DisableStageSplitLikeAdapted("V47 Disable Stage Split", Float) = 0
+        [Enum(UnityEngine.Rendering.CompareFunction)] _V47ZTestLikeAdapted("V47 ZTest", Float) = 4
+        [Enum(Off,0,On,1)] _V47ZWriteLikeAdapted("V47 ZWrite", Float) = 1
+        _V48UseStandaloneTileTextureLikeAdapted("V48 Use Standalone Tile Texture", Float) = 0
+        _V48StandaloneTileRepeatLikeAdapted("V48 Standalone Tile Repeat", Range(0.25,8)) = 1
     }
 
     SubShader
@@ -31,6 +42,17 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
         float _UseDitherLikeOriginal;
         float _DitherStrengthLikeOriginal;
         float _SurfacePassModeLikeAdapted;
+        float _V45ForceOpaqueAlphaLikeAdapted;
+        float _V45DisableCrossAlphaLikeAdapted;
+        float _V46ForceFullColorLikeAdapted;
+        float _V46OverlayBrightnessLikeAdapted;
+        float _V46DisableAlphaClipLikeAdapted;
+        float _V47ForceVisibleOverlayLikeAdapted;
+        float _V47DisableStageSplitLikeAdapted;
+        float _V47ZTestLikeAdapted;
+        float _V47ZWriteLikeAdapted;
+        float _V48UseStandaloneTileTextureLikeAdapted;
+        float _V48StandaloneTileRepeatLikeAdapted;
 
         struct appdata
         {
@@ -76,15 +98,29 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
         fixed3 SampleSurfaceRgbLikeAdapted(v2f i)
         {
             float2 atlasUv = SafeGroundAtlasUvLikeAdapted(i.uv0);
-            fixed4 tileCol = tex2D(_GroundAtlas, atlasUv);
+            float2 sampleUv = atlasUv;
+
+            // V49/V48: when _GroundAtlas is replaced by standalone tex44.bmp, atlas UVs must be
+            // converted back to local tile UV. 8x8 is the original GroundTex atlas layout.
+            if (_V48UseStandaloneTileTextureLikeAdapted > 0.5)
+                sampleUv = frac(atlasUv * 8.0 * max(_V48StandaloneTileRepeatLikeAdapted, 0.0001));
+
+            fixed4 tileCol = tex2D(_GroundAtlas, sampleUv);
+
+            if (_V46ForceFullColorLikeAdapted > 0.5)
+                return saturate(tileCol.rgb * _V46OverlayBrightnessLikeAdapted);
+
             return saturate(tileCol.rgb * i.color.rgb * 2.0);
         }
 
         fixed ComputeOverlayAlphaLikeAdapted(v2f i)
         {
+            if (_V45ForceOpaqueAlphaLikeAdapted > 0.5)
+                return 1.0;
+
             fixed diffuseAlpha = saturate(i.color.a);
 
-            if (_UseCrossLikeOriginal > 0.5 && i.uv1.y > 0.5)
+            if (_UseCrossLikeOriginal > 0.5 && _V45DisableCrossAlphaLikeAdapted <= 0.5 && i.uv1.y > 0.5)
             {
                 fixed4 crossCol = tex2D(_CrossTex, SafeCrossUvLikeAdapted(i.uv2));
                 return saturate(crossCol.a + diffuseAlpha - 0.5);
@@ -106,6 +142,20 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
         bool IsOverlayOnlySurfacePassLikeAdapted()
         {
             return _SurfacePassModeLikeAdapted > 1.5;
+        }
+
+        bool V47SkipBaseStageClipLikeAdapted(v2f i)
+        {
+            if (_V47DisableStageSplitLikeAdapted > 0.5)
+                return false;
+            return IsOverlayOnlySurfacePassLikeAdapted() || IsOverlayStageLikeAdapted(i);
+        }
+
+        bool V47SkipOverlayStageClipLikeAdapted(v2f i)
+        {
+            if (_V47DisableStageSplitLikeAdapted > 0.5)
+                return false;
+            return IsBaseOnlySurfacePassLikeAdapted() || !IsOverlayStageLikeAdapted(i);
         }
         float OrderedBayer4x4LikeOriginal(float2 pixelPos)
         {
@@ -158,8 +208,8 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
 
         Pass
         {
-            ZWrite On
-            ZTest LEqual
+            ZWrite [_V47ZWriteLikeAdapted]
+            ZTest [_V47ZTestLikeAdapted]
             Blend One Zero
 
             CGPROGRAM
@@ -168,11 +218,12 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
 
             fixed4 fragBase(v2f i) : SV_Target
             {
-                if (IsOverlayOnlySurfacePassLikeAdapted() || IsOverlayStageLikeAdapted(i))
+                if (V47SkipBaseStageClipLikeAdapted(i))
                     clip(-1);
 
-                fixed alpha = saturate(i.color.a);
-                clip(alpha - (39.0 / 255.0));
+                fixed alpha = (_V45ForceOpaqueAlphaLikeAdapted > 0.5) ? 1.0 : saturate(i.color.a);
+                if (_V45ForceOpaqueAlphaLikeAdapted <= 0.5 && _V46DisableAlphaClipLikeAdapted <= 0.5)
+                    clip(alpha - (39.0 / 255.0));
 
                 fixed3 rgb = SampleSurfaceRgbLikeAdapted(i);
                 rgb = ApplySurfaceDitherLikeOriginal(rgb, i.pos.xy);
@@ -183,8 +234,8 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
 
         Pass
         {
-            ZWrite Off
-            ZTest LEqual
+            ZWrite [_V47ZWriteLikeAdapted]
+            ZTest [_V47ZTestLikeAdapted]
             Blend SrcAlpha OneMinusSrcAlpha
 
             CGPROGRAM
@@ -193,14 +244,15 @@ Shader "Cossacks2Bridge/TerrainRuntimeSurfaceBlendLikeOriginal"
 
             fixed4 fragOverlay(v2f i) : SV_Target
             {
-                if (IsBaseOnlySurfacePassLikeAdapted() || !IsOverlayStageLikeAdapted(i))
+                if (V47SkipOverlayStageClipLikeAdapted(i))
                     clip(-1);
 
                 fixed3 rgb = SampleSurfaceRgbLikeAdapted(i);
                 rgb = ApplySurfaceDitherLikeOriginal(rgb, i.pos.xy);
                 fixed finalAlpha = ComputeOverlayAlphaLikeAdapted(i);
 
-                clip(finalAlpha - (39.0 / 255.0));
+                if (_V45ForceOpaqueAlphaLikeAdapted <= 0.5 && _V46DisableAlphaClipLikeAdapted <= 0.5)
+                    clip(finalAlpha - (39.0 / 255.0));
 
                 return fixed4(rgb, finalAlpha);
             }

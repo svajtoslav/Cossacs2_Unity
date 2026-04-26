@@ -16,16 +16,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const int VvvLikeOriginal = 28; // #define VVV 28
         private const int SurfaceBaseRenderQueueLikeAdapted = 2000;
         private const int SurfaceOverlayRenderQueueLikeAdapted = 2001;
+        private const bool TerrainQualityFactureLayerDisabledLikeAdapted = false;
         private const int FactureOverlayRenderQueueLikeAdapted = 3000;
         private const int FactureOverlayStripeSortStepLikeAdapted = 512;
-        private const int FactureAlphaRefByteLikeOriginal = 4;
-        private const int FactureWeakCoverageDeadZoneLikeAdapted = FactureAlphaRefByteLikeOriginal;
+        private const int FactureAlphaRefByteLikeOriginal = 0;
+        private const int FactureWeakCoverageDeadZoneLikeAdapted = 0;
         private const int FactureSingleVertexCoverageFloorLikeAdapted = 16;
-        private const float FactureCoverageSoftStartLikeAdapted = 8.0f / 255.0f;
+        private const float FactureCoverageSoftStartLikeAdapted = 25.6f / 255.0f;
         private const float GroundAtlasTriScaleLikeOriginal = TriScaleLikeOriginal;
         private const float GroundAtlasTileSpanLikeOriginal = 32.0f / GroundAtlasTriScaleLikeOriginal;
         private const float GroundAtlasHalfSpanLikeOriginal = 16.0f / GroundAtlasTriScaleLikeOriginal;
         private const float CrossingUvScaleLikeOriginal = 1.0f / 256.0f;
+        private const bool TerrainSoftwareLimitVerticalFactureHeightStretchV1LikeAdapted = true;
+        // 0 = no height-driven V stretch; 1 = old full height-driven V. Keep 0 for test.
+        private const float TerrainSoftwareVerticalFactureHeightUvStrengthV1LikeAdapted = 0.0f;
+        private static bool s_terrainSoftwareVerticalFactureStretchLoggedV1LikeAdapted;
 
         private static readonly Dictionary<string, TerrainTextureResourcesLikeOriginal> s_surfaceTextureCacheLikeOriginal =
             new Dictionary<string, TerrainTextureResourcesLikeOriginal>(StringComparer.OrdinalIgnoreCase);
@@ -35,6 +40,163 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static readonly Dictionary<string, short[]> s_randomTableCacheLikeOriginal =
             new Dictionary<string, short[]>(StringComparer.OrdinalIgnoreCase);
+
+        private static HashSet<int> s_v44OldSurfaceTileFilterLikeAdapted;
+        private static float s_v44OldSurfaceYOffsetLikeAdapted;
+        private static int s_v44OldSurfaceFilterAcceptedLikeAdapted;
+        private static int s_v44OldSurfaceFilterRejectedLikeAdapted;
+        private static int s_v45OldSurfaceFilterResolvedMatchesLikeAdapted;
+        private static int s_v45OldSurfaceFilterVertexMatchesLikeAdapted;
+        private static int s_v45AlphaRepairDescriptorsLikeAdapted;
+        private static int s_v45AlphaRepairVerticesLikeAdapted;
+        private static int s_v45AlphaRepairZeroAlphaVerticesLikeAdapted;
+        private static int s_v45AlphaRepairForcedOpaqueVerticesLikeAdapted;
+        private static int s_v45AlphaRepairCrossDisabledTrianglesLikeAdapted;
+        private static int s_v45AlphaRepairOriginalAlphaMinLikeAdapted;
+        private static int s_v45AlphaRepairOriginalAlphaMaxLikeAdapted;
+        private static long s_v45AlphaRepairOriginalAlphaSumLikeAdapted;
+        private static int s_v46FilteredTileRemapsLikeAdapted;
+
+        private static void SetV44OldSurfaceTileFilterLikeAdapted(IEnumerable<int> tileIds, float yOffset)
+        {
+            if (tileIds == null)
+            {
+                ClearV44OldSurfaceTileFilterLikeAdapted();
+                return;
+            }
+
+            s_v44OldSurfaceTileFilterLikeAdapted = new HashSet<int>();
+            foreach (int id in tileIds)
+                s_v44OldSurfaceTileFilterLikeAdapted.Add(id & 63);
+
+            s_v44OldSurfaceYOffsetLikeAdapted = yOffset;
+            s_v44OldSurfaceFilterAcceptedLikeAdapted = 0;
+            s_v44OldSurfaceFilterRejectedLikeAdapted = 0;
+            s_v45OldSurfaceFilterResolvedMatchesLikeAdapted = 0;
+            s_v45OldSurfaceFilterVertexMatchesLikeAdapted = 0;
+            s_v45AlphaRepairDescriptorsLikeAdapted = 0;
+            s_v45AlphaRepairVerticesLikeAdapted = 0;
+            s_v45AlphaRepairZeroAlphaVerticesLikeAdapted = 0;
+            s_v45AlphaRepairForcedOpaqueVerticesLikeAdapted = 0;
+            s_v45AlphaRepairCrossDisabledTrianglesLikeAdapted = 0;
+            s_v45AlphaRepairOriginalAlphaMinLikeAdapted = 255;
+            s_v45AlphaRepairOriginalAlphaMaxLikeAdapted = 0;
+            s_v45AlphaRepairOriginalAlphaSumLikeAdapted = 0;
+            s_v46FilteredTileRemapsLikeAdapted = 0;
+        }
+
+        private static void ClearV44OldSurfaceTileFilterLikeAdapted()
+        {
+            s_v44OldSurfaceTileFilterLikeAdapted = null;
+            s_v44OldSurfaceYOffsetLikeAdapted = 0.0f;
+        }
+
+        private static bool IsV44OldSurfaceTileFilterActiveLikeAdapted()
+        {
+            return s_v44OldSurfaceTileFilterLikeAdapted != null && s_v44OldSurfaceTileFilterLikeAdapted.Count > 0;
+        }
+
+        private static bool V45TileSetContainsLikeAdapted(int tile)
+        {
+            return s_v44OldSurfaceTileFilterLikeAdapted != null && s_v44OldSurfaceTileFilterLikeAdapted.Contains(tile & 63);
+        }
+
+        private static bool ShouldEmitV44OldSurfaceTileFilteredDescriptorLikeAdapted(BaseSurfaceTriangleDescriptorLikeAdapted descriptor)
+        {
+            if (!IsV44OldSurfaceTileFilterActiveLikeAdapted())
+                return true;
+
+            int resolvedTile = descriptor.ResolvedTile & 63;
+            if (V45TileSetContainsLikeAdapted(resolvedTile))
+            {
+                s_v44OldSurfaceFilterAcceptedLikeAdapted++;
+                s_v45OldSurfaceFilterResolvedMatchesLikeAdapted++;
+                return true;
+            }
+
+            // V45 alpha repair: bridge/cobble can be present as a zero/weak transition copy,
+            // while the resolved render tile already points at the smoothing neighbour.
+            // Keep descriptors whose original triangle support mentions the target tile.
+            if (V45TileSetContainsLikeAdapted(descriptor.BaseTileA) ||
+                V45TileSetContainsLikeAdapted(descriptor.BaseTileB) ||
+                V45TileSetContainsLikeAdapted(descriptor.BaseTileC) ||
+                V45TileSetContainsLikeAdapted(descriptor.ExTileA) ||
+                V45TileSetContainsLikeAdapted(descriptor.ExTileB) ||
+                V45TileSetContainsLikeAdapted(descriptor.ExTileC))
+            {
+                s_v44OldSurfaceFilterAcceptedLikeAdapted++;
+                s_v45OldSurfaceFilterVertexMatchesLikeAdapted++;
+                return true;
+            }
+
+            s_v44OldSurfaceFilterRejectedLikeAdapted++;
+            return false;
+        }
+
+        private static void RecordV45AlphaRepairOriginalAlphaLikeAdapted(int a, int b, int c)
+        {
+            s_v45AlphaRepairDescriptorsLikeAdapted++;
+            s_v45AlphaRepairVerticesLikeAdapted += 3;
+            int[] values = { a, b, c };
+            for (int i = 0; i < values.Length; i++)
+            {
+                int v = Mathf.Clamp(values[i], 0, 255);
+                if (v == 0)
+                    s_v45AlphaRepairZeroAlphaVerticesLikeAdapted++;
+                if (v < s_v45AlphaRepairOriginalAlphaMinLikeAdapted)
+                    s_v45AlphaRepairOriginalAlphaMinLikeAdapted = v;
+                if (v > s_v45AlphaRepairOriginalAlphaMaxLikeAdapted)
+                    s_v45AlphaRepairOriginalAlphaMaxLikeAdapted = v;
+                s_v45AlphaRepairOriginalAlphaSumLikeAdapted += v;
+            }
+            s_v45AlphaRepairForcedOpaqueVerticesLikeAdapted += 3;
+            s_v45AlphaRepairCrossDisabledTrianglesLikeAdapted++;
+        }
+
+
+        private static int ResolveV46FilteredDescriptorTileLikeAdapted(BaseSurfaceTriangleDescriptorLikeAdapted descriptor)
+        {
+            if (!IsV44OldSurfaceTileFilterActiveLikeAdapted())
+                return descriptor.ResolvedTile;
+
+            int resolved = descriptor.ResolvedTile & 63;
+            if (V45TileSetContainsLikeAdapted(resolved))
+                return resolved;
+
+            int authored = descriptor.Tile & 63;
+            if (V45TileSetContainsLikeAdapted(authored))
+                return authored;
+
+            int[] exTiles = { descriptor.ExTileA, descriptor.ExTileB, descriptor.ExTileC };
+            for (int i = 0; i < exTiles.Length; i++)
+            {
+                if (V45TileSetContainsLikeAdapted(exTiles[i]))
+                    return exTiles[i] & 63;
+            }
+
+            int[] baseTiles = { descriptor.BaseTileA, descriptor.BaseTileB, descriptor.BaseTileC };
+            for (int i = 0; i < baseTiles.Length; i++)
+            {
+                if (V45TileSetContainsLikeAdapted(baseTiles[i]))
+                    return baseTiles[i] & 63;
+            }
+
+            return resolved;
+        }
+
+        private static string GetV44OldSurfaceTileFilterStatsLikeAdapted()
+        {
+            float avg = s_v45AlphaRepairVerticesLikeAdapted > 0
+                ? (float)s_v45AlphaRepairOriginalAlphaSumLikeAdapted / s_v45AlphaRepairVerticesLikeAdapted
+                : 0.0f;
+            int min = s_v45AlphaRepairVerticesLikeAdapted > 0 ? s_v45AlphaRepairOriginalAlphaMinLikeAdapted : 0;
+            int max = s_v45AlphaRepairVerticesLikeAdapted > 0 ? s_v45AlphaRepairOriginalAlphaMaxLikeAdapted : 0;
+            return $"filterAccepted={s_v44OldSurfaceFilterAcceptedLikeAdapted} filterRejected={s_v44OldSurfaceFilterRejectedLikeAdapted} " +
+                   $"matchResolved={s_v45OldSurfaceFilterResolvedMatchesLikeAdapted} matchVertexSupport={s_v45OldSurfaceFilterVertexMatchesLikeAdapted} " +
+                   $"v45AlphaRepairDescriptors={s_v45AlphaRepairDescriptorsLikeAdapted} v45AlphaOriginalMinMaxAvg={min}/{max}/{avg:F1} " +
+                   $"v45ZeroAlphaVertices={s_v45AlphaRepairZeroAlphaVerticesLikeAdapted} v45ForcedOpaqueVertices={s_v45AlphaRepairForcedOpaqueVerticesLikeAdapted} " +
+                   $"v45CrossDisabledTriangles={s_v45AlphaRepairCrossDisabledTrianglesLikeAdapted} v46TileRemaps={s_v46FilteredTileRemapsLikeAdapted}";
+        }
 
         private static readonly Dictionary<string, FactureMaterialTablesLikeAdapted> s_factureMaterialTablesCacheLikeAdapted =
             new Dictionary<string, FactureMaterialTablesLikeAdapted>(StringComparer.OrdinalIgnoreCase);
@@ -74,6 +236,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 { 35, @"Textures\ground\tex37.bmp" },
                 { 36, @"Textures\ground\tex38.bmp" },
                 { 39, @"Textures\ground\tex43.bmp" },
+                // V52 proved that cobble was missing because bucket 40 had no diffuse path.
+                // V53 extends the same idea to the other observed "empty but weighted" buckets:
+                // if the map uses bucket N and texN.bmp exists, let the software bake see it.
+                // This is a deliberate visibility experiment inside the bake path, not an overlay.
+                { 40, @"Textures\ground\tex44.bmp" },
+                { 41, @"Textures\ground\tex41.bmp" },
+                { 43, @"Textures\ground\tex43.bmp" },
+                { 44, @"Textures\ground\tex44.bmp" },
+                { 48, @"Textures\ground\tex48.bmp" },
+                { 49, @"Textures\ground\tex49.bmp" },
+                { 50, @"Textures\ground\tex50.bmp" },
+                { 52, @"Textures\ground\tex52.bmp" },
+                { 53, @"Textures\ground\tex53.bmp" },
+                { 58, @"Textures\ground\tex58.bmp" },
+                { 62, @"Textures\ground\tex62.bmp" },
+                { 67, @"Textures\ground\tex67.bmp" },
+                { 68, @"Textures\ground\tex68.bmp" },
+                { 74, @"Textures\ground\tex74.bmp" },
+                { 75, @"Textures\ground\tex75.bmp" },
+                { 76, @"Textures\ground\tex76.bmp" },
+                { 79, @"Textures\ground\tex79.bmp" },
                 { 42, @"Textures\ground\tex46.bmp" },
                 { 46, @"Textures\ground\tex50.bmp" },
                 { 54, @"Textures\ground\tex69.bmp" },
@@ -104,6 +287,32 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static bool s_loggedTexturingBootstrapLikeOriginal;
         private static C2BattleTerrainMode s_activeTexturingContextLikeOriginal;
         private static string s_randomTableDataRootLikeOriginal = string.Empty;
+
+        private static bool IsV55MutedExperimentalFactureBucketLikeAdapted(int factureBucket)
+        {
+            switch (factureBucket)
+            {
+                case 41:
+                case 43:
+                case 44:
+                case 48:
+                case 49:
+                case 50:
+                case 52:
+                case 53:
+                case 58:
+                case 62:
+                case 67:
+                case 68:
+                case 74:
+                case 75:
+                case 76:
+                case 79:
+                    return true;
+                default:
+                    return false;
+            }
+        }
 
         private sealed class TerrainTextureResourcesLikeOriginal
         {
@@ -862,6 +1071,9 @@ private static int ApplyObservedFactureFallbackOverridesLikeAdapted(FactureMater
         if (idx < 0 || idx >= tables.DiffuseTexturePath.Length)
             continue;
 
+        if (IsV55MutedExperimentalFactureBucketLikeAdapted(idx))
+            continue;
+
         string normalizedPath = NormalizeFactureTexturePathLikeAdapted(kv.Value);
         if (string.IsNullOrWhiteSpace(normalizedPath))
             continue;
@@ -871,6 +1083,10 @@ private static int ApplyObservedFactureFallbackOverridesLikeAdapted(FactureMater
         tables.UScale[idx] = Mathf.Approximately(tables.UScale[idx], 0.0f) ? 1.0f : tables.UScale[idx];
         tables.VScale[idx] = Mathf.Approximately(tables.VScale[idx], 0.0f) ? 1.0f : tables.VScale[idx];
         tables.ActiveEntryCount = Mathf.Max(tables.ActiveEntryCount, idx + 1);
+
+        if (idx == 40)
+            Debug.Log($"[C2:V55 FACTURE40 LOCK] fixed mapping applied: factureBucket=40 diffuse='{normalizedPath}' mode=always-on no-f8 muted=41,43,44,48,49,50,52,53,58,62,67,68,74,75,76,79");
+
         applied++;
     }
 
@@ -1533,7 +1749,23 @@ private static void GetFactureUvwLikeAdapted(ParsedMap map, int vertexIndex, int
 
     if (usage == FactureUsageLikeOriginal.Vertical)
     {
-        vv = -h / 180.0f;
+        float heightDrivenV = -h / 180.0f;
+        float footprintDrivenV = ty / 256.0f;
+
+        if (TerrainSoftwareLimitVerticalFactureHeightStretchV1LikeAdapted)
+        {
+            if (!s_terrainSoftwareVerticalFactureStretchLoggedV1LikeAdapted)
+            {
+                s_terrainSoftwareVerticalFactureStretchLoggedV1LikeAdapted = true;
+                UnityEngine.Debug.Log($"[C2:VERTICAL FACTURE V1] limiting height-driven vertical UV stretch. heightStrength={TerrainSoftwareVerticalFactureHeightUvStrengthV1LikeAdapted}");
+            }
+
+            vv = Mathf.Lerp(footprintDrivenV, heightDrivenV, Mathf.Clamp01(TerrainSoftwareVerticalFactureHeightUvStrengthV1LikeAdapted));
+        }
+        else
+        {
+            vv = heightDrivenV;
+        }
     }
     else
     {
@@ -2914,6 +3146,9 @@ private void BuildFactureStripeLayerLikeAdapted(
     Transform parent,
     int stripeIndex)
 {
+    if (TerrainQualityFactureLayerDisabledLikeAdapted)
+        return;
+
     if (map == null || parent == null || !HasFactureLayerDataLikeOriginal(map))
         return;
 
@@ -3961,10 +4196,35 @@ private Material CreateTerrainMaterialCoreLikeOriginal(ParsedMap map)
             float cx, float cz, Vector3 vc,
             BaseSurfaceTriangleDescriptorLikeAdapted descriptor)
         {
-            if (descriptor.AlphaA <= 0.0f && descriptor.AlphaB <= 0.0f && descriptor.AlphaC <= 0.0f)
-                return false;
-            if (!ShouldEmitOverlayDescriptorLikeAdapted(descriptor))
-                return false;
+            bool v45AlphaRepair = IsV44OldSurfaceTileFilterActiveLikeAdapted();
+
+            // In V45 test mode the bridge/cobble old-surface overlay is allowed through the
+            // tile-support filter before alpha rejection, because the bug under test is exactly
+            // that smoothing/cross alpha can reduce the visible cobble to zero.
+            if (v45AlphaRepair)
+            {
+                if (!ShouldEmitV44OldSurfaceTileFilteredDescriptorLikeAdapted(descriptor))
+                    return false;
+            }
+            else
+            {
+                if (descriptor.AlphaA <= 0.0f && descriptor.AlphaB <= 0.0f && descriptor.AlphaC <= 0.0f)
+                    return false;
+                if (!ShouldEmitOverlayDescriptorLikeAdapted(descriptor))
+                    return false;
+                if (!ShouldEmitV44OldSurfaceTileFilteredDescriptorLikeAdapted(descriptor))
+                    return false;
+            }
+
+            if (v45AlphaRepair)
+            {
+                int filteredTile = ResolveV46FilteredDescriptorTileLikeAdapted(descriptor);
+                if ((filteredTile & 63) != (descriptor.ResolvedTile & 63))
+                {
+                    descriptor.ResolvedTile = filteredTile & 63;
+                    s_v46FilteredTileRemapsLikeAdapted++;
+                }
+            }
 
             Vector2 uvA;
             Vector2 uvB;
@@ -3985,6 +4245,16 @@ private Material CreateTerrainMaterialCoreLikeOriginal(ParsedMap map)
             int alphaA = Mathf.Clamp(Mathf.RoundToInt(descriptor.AlphaA * 255.0f), 0, 255);
             int alphaB = Mathf.Clamp(Mathf.RoundToInt(descriptor.AlphaB * 255.0f), 0, 255);
             int alphaC = Mathf.Clamp(Mathf.RoundToInt(descriptor.AlphaC * 255.0f), 0, 255);
+            int originalAlphaA = alphaA;
+            int originalAlphaB = alphaB;
+            int originalAlphaC = alphaC;
+            if (v45AlphaRepair)
+            {
+                RecordV45AlphaRepairOriginalAlphaLikeAdapted(originalAlphaA, originalAlphaB, originalAlphaC);
+                alphaA = 255;
+                alphaB = 255;
+                alphaC = 255;
+            }
 
             Vector2 crossA;
             Vector2 crossB;
@@ -4008,6 +4278,13 @@ private Material CreateTerrainMaterialCoreLikeOriginal(ParsedMap map)
             Color32 colorB = BuildStrictSurfaceVertexColorLikeOriginal(descriptor.VertexB, alphaB);
             Color32 colorC = BuildStrictSurfaceVertexColorLikeOriginal(descriptor.VertexC, alphaC);
 
+            if (IsV44OldSurfaceTileFilterActiveLikeAdapted() && Mathf.Abs(s_v44OldSurfaceYOffsetLikeAdapted) > 0.0001f)
+            {
+                va.y += s_v44OldSurfaceYOffsetLikeAdapted;
+                vb.y += s_v44OldSurfaceYOffsetLikeAdapted;
+                vc.y += s_v44OldSurfaceYOffsetLikeAdapted;
+            }
+
             int triBase = stripe.Vertices.Count;
             stripe.Vertices.Add(va);
             stripe.Vertices.Add(vb);
@@ -4021,7 +4298,7 @@ private Material CreateTerrainMaterialCoreLikeOriginal(ParsedMap map)
             stripe.Uv0.Add(uvC);
 
             float overlayStageFlag = descriptor.IsBaseStage ? 0.0f : 1.0f;
-            bool crossEnabled = !(alphaA > 200 && alphaB > 200 && alphaC > 200 && !descriptor.PlainMode);
+            bool crossEnabled = !v45AlphaRepair && !(alphaA > 200 && alphaB > 200 && alphaC > 200 && !descriptor.PlainMode);
             float overlayCrossFlag = crossEnabled ? 1.0f : 0.0f;
             Vector2 stageDescriptor = new Vector2(overlayStageFlag, overlayCrossFlag);
             stripe.Uv1.Add(stageDescriptor);
