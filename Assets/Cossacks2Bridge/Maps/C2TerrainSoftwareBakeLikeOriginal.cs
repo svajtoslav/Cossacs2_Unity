@@ -38,7 +38,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const bool TerrainSoftwareDisableFactureFallbackV7LikeAdapted = false;
         private const bool TerrainSoftwareSafeHoleOnlyFactureFallbackV8LikeAdapted = true;
         private const int TerrainSoftwareSafeHoleCoverageThresholdV8LikeAdapted = 24;
-        private const string TerrainSoftwarePersistentCacheVersionLikeOriginal = "FINAL_COLOR_POLISH_V4_GPU_COMPILEFIX_FORCE_REBAKE";
+        private const string TerrainSoftwarePersistentCacheVersionLikeOriginal = "FINAL_COLOR_POLISH_V4_GPU_COMPILEFIX_FORCE_REBAKE_TEXTURE_MAPSIDE_CACHE_V1";
+        private const bool TerrainSoftwareMapSideChunkCacheV1LikeOriginal = true;
+        private const int TerrainSoftwareMapSideChunkCacheVersionV1LikeOriginal = 1;
+        private const uint TerrainSoftwareMapSideChunkCacheMagicV1LikeOriginal = 0x314B3243; // C2K1
         private const bool TerrainSoftwareFallbackStructureFeatherV1LikeAdapted = true;
         private const int TerrainSoftwareFallbackStructureFeatherRadiusV1LikeAdapted = 18;
         private const bool TerrainSoftwareFallbackStructureSprayV2LikeAdapted = true;
@@ -208,6 +211,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
+            string mapSideCachePathV1 = GetTerrainSoftwareMapSideChunkCachePathV1LikeOriginal(map);
+            string mapSideCacheKeyV1 = BuildTerrainSoftwarePersistentChunkCacheKeyLikeOriginal(map, kernel);
+            bool loadedAllFromMapSideCacheV1 = TryLoadTerrainSoftwareMapSideChunkCacheV1LikeOriginal(
+                mapSideCachePathV1,
+                mapSideCacheKeyV1,
+                jobs,
+                jobCount,
+                out string mapSideCacheAuditV1);
+
             UnityEngine.Debug.Log(
                 $"[C2:REN][BASE WEIGHTED COMPOSITE V3] enabled={TerrainSoftwareBaseWeightedCompositeV3LikeAdapted} postBlur={TerrainSoftwareBaseSoftBlendEnabledLikeAdapted} " +
                 $"mode=per-pixel-weighted-source-composite overlayStrength={TerrainSoftwareBaseWeightedCompositeOverlayStrengthV3LikeAdapted} minAlpha={TerrainSoftwareBaseWeightedCompositeMinAlphaV3LikeAdapted}. " +
@@ -230,28 +242,36 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var options = new ParallelOptions { MaxDegreeOfParallelism = workerCount };
 
             var parallelSwV11 = global::System.Diagnostics.Stopwatch.StartNew();
-            try
+            if (!loadedAllFromMapSideCacheV1)
             {
-                Parallel.For(0, jobCount, options, i =>
+                try
                 {
-                    TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
-                    try
+                    Parallel.For(0, jobCount, options, i =>
                     {
-                        job.Pixels = BakeTerrainChunkPixelsSoftwareLikeOriginal(map, kernel, job.Region, inputs);
-                        job.Success = job.Pixels != null && job.Pixels.Length == job.Region.WidthPixels * job.Region.HeightPixels;
-                    }
-                    catch (Exception ex)
-                    {
-                        job.Success = false;
-                        job.Error = ex.GetType().Name + ": " + ex.Message;
-                    }
+                        TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
+                        try
+                        {
+                            job.Pixels = BakeTerrainChunkPixelsSoftwareLikeOriginal(map, kernel, job.Region, inputs);
+                            job.Success = job.Pixels != null && job.Pixels.Length == job.Region.WidthPixels * job.Region.HeightPixels;
+                        }
+                        catch (Exception ex)
+                        {
+                            job.Success = false;
+                            job.Error = ex.GetType().Name + ": " + ex.Message;
+                        }
 
-                    jobs[i] = job;
-                });
-            }
-            catch (Exception ex)
-            {
-                UnityEngine.Debug.LogWarning("[C2:REN][MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES] parallel bake failed, continuing with completed jobs where possible: " + ex.Message);
+                        jobs[i] = job;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning("[C2:REN][MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES] parallel bake failed, continuing with completed jobs where possible: " + ex.Message);
+                }
+
+                if (TrySaveTerrainSoftwareMapSideChunkCacheV1LikeOriginal(mapSideCachePathV1, mapSideCacheKeyV1, jobs, jobCount, out string saveAuditV1))
+                    mapSideCacheAuditV1 = string.IsNullOrEmpty(mapSideCacheAuditV1) ? saveAuditV1 : (mapSideCacheAuditV1 + "; " + saveAuditV1);
+                else if (!string.IsNullOrEmpty(saveAuditV1))
+                    mapSideCacheAuditV1 = string.IsNullOrEmpty(mapSideCacheAuditV1) ? saveAuditV1 : (mapSideCacheAuditV1 + "; " + saveAuditV1);
             }
             parallelSwV11.Stop();
 
@@ -333,7 +353,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             UnityEngine.Debug.Log(
                 $"[C2:REN] software baked chunks built={builtChunkCount}/{jobCount} failed={failedChunkCount} " +
-                $"path=MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES cache=disabled png=disabled gapfill=queue raster=scalar upload=SetPixelData textureFilter=trilinear_mip_aniso16_bias-0.75f terrainShadowOverlay=V4_original_cast_only_global finalColorPolish=V4_GPU_SHADER textureSourceAudit=files_and_functions " +
+                $"path=MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES cache={(loadedAllFromMapSideCacheV1 ? "map-side-hit" : "map-side-bake-write")} cacheAudit='{mapSideCacheAuditV1}' png=disabled gapfill=queue raster=scalar upload=SetPixelData textureFilter=trilinear_mip_aniso16_bias-0.75f terrainShadowOverlay=V4_original_cast_only_global finalColorPolish=V4_GPU_SHADER textureSourceAudit=files_and_functions " +
                 $"timingMs prewarm={prewarmSwV11.ElapsedMilliseconds} parallelPixels={parallelSwV11.ElapsedMilliseconds} uploadMeshTexture={uploadSwV11.ElapsedMilliseconds} total={totalSwV11.ElapsedMilliseconds}");
         }
 
@@ -895,6 +915,237 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 UnityEngine.Debug.LogWarning("[C2:TEXTURE SOURCE AUDIT] failed: " + ex.GetType().Name + ": " + ex.Message);
             }
+        }
+
+        private static string GetTerrainSoftwareMapSideChunkCachePathV1LikeOriginal(ParsedMap map)
+        {
+            if (!TerrainSoftwareMapSideChunkCacheV1LikeOriginal || map == null || string.IsNullOrWhiteSpace(map.SourcePath))
+                return string.Empty;
+
+            try
+            {
+                string sourcePath = map.SourcePath;
+                if (!Path.IsPathRooted(sourcePath))
+                {
+                    string root = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                    sourcePath = Path.GetFullPath(Path.Combine(root, sourcePath));
+                }
+                else
+                {
+                    sourcePath = Path.GetFullPath(sourcePath);
+                }
+
+                string directory = Path.GetDirectoryName(sourcePath);
+                string fileName = Path.GetFileNameWithoutExtension(sourcePath);
+                if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
+                    return string.Empty;
+
+                return Path.Combine(directory, fileName + ".кеш");
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static bool TryLoadTerrainSoftwareMapSideChunkCacheV1LikeOriginal(
+            string path,
+            string key,
+            TerrainSoftwareChunkJobLikeOriginal[] jobs,
+            int jobCount,
+            out string audit)
+        {
+            audit = "disabled";
+            if (!TerrainSoftwareMapSideChunkCacheV1LikeOriginal)
+                return false;
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(key) || jobs == null || jobCount <= 0)
+            {
+                audit = "missing_path_or_key";
+                return false;
+            }
+            if (!File.Exists(path))
+            {
+                audit = "miss";
+                return false;
+            }
+
+            try
+            {
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var br = new BinaryReader(fs))
+                {
+                    uint magic = br.ReadUInt32();
+                    int version = br.ReadInt32();
+                    string storedKey = br.ReadString();
+                    int storedJobCount = br.ReadInt32();
+                    if (magic != TerrainSoftwareMapSideChunkCacheMagicV1LikeOriginal ||
+                        version != TerrainSoftwareMapSideChunkCacheVersionV1LikeOriginal ||
+                        !string.Equals(storedKey, key, StringComparison.Ordinal) ||
+                        storedJobCount != jobCount)
+                    {
+                        audit = $"stale magic=0x{magic:X8} version={version} count={storedJobCount}";
+                        return false;
+                    }
+
+                    for (int i = 0; i < jobCount; i++)
+                    {
+                        TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
+                        int chunkX = br.ReadInt32();
+                        int chunkY = br.ReadInt32();
+                        int minX = br.ReadInt32();
+                        int maxX = br.ReadInt32();
+                        int minY = br.ReadInt32();
+                        int maxY = br.ReadInt32();
+                        int width = br.ReadInt32();
+                        int height = br.ReadInt32();
+                        int byteCount = br.ReadInt32();
+
+                        int expectedBytes = width * height * 4;
+                        if (chunkX != job.ChunkX ||
+                            chunkY != job.ChunkY ||
+                            minX != job.Region.MinCellX ||
+                            maxX != job.Region.MaxCellXExclusive ||
+                            minY != job.Region.MinCellY ||
+                            maxY != job.Region.MaxCellYExclusive ||
+                            width != job.Region.WidthPixels ||
+                            height != job.Region.HeightPixels ||
+                            byteCount != expectedBytes ||
+                            byteCount <= 0)
+                        {
+                            audit = $"stale_chunk index={i}";
+                            return false;
+                        }
+
+                        byte[] raw = br.ReadBytes(byteCount);
+                        if (raw.Length != byteCount)
+                        {
+                            audit = $"truncated index={i}";
+                            return false;
+                        }
+
+                        job.Pixels = BytesToColor32ArrayV1LikeOriginal(raw);
+                        job.Success = job.Pixels != null && job.Pixels.Length == width * height;
+                        job.Error = null;
+                        if (!job.Success)
+                        {
+                            audit = $"decode_failed index={i}";
+                            return false;
+                        }
+
+                        jobs[i] = job;
+                    }
+                }
+
+                audit = "hit " + path;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                audit = "load_failed " + ex.GetType().Name + ": " + ex.Message;
+                return false;
+            }
+        }
+
+        private static bool TrySaveTerrainSoftwareMapSideChunkCacheV1LikeOriginal(
+            string path,
+            string key,
+            TerrainSoftwareChunkJobLikeOriginal[] jobs,
+            int jobCount,
+            out string audit)
+        {
+            audit = "disabled";
+            if (!TerrainSoftwareMapSideChunkCacheV1LikeOriginal)
+                return false;
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(key) || jobs == null || jobCount <= 0)
+            {
+                audit = "save_skipped_missing_path_or_key";
+                return false;
+            }
+
+            try
+            {
+                string directory = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+
+                string tmpPath = path + ".tmp";
+                using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var bw = new BinaryWriter(fs))
+                {
+                    bw.Write(TerrainSoftwareMapSideChunkCacheMagicV1LikeOriginal);
+                    bw.Write(TerrainSoftwareMapSideChunkCacheVersionV1LikeOriginal);
+                    bw.Write(key);
+                    bw.Write(jobCount);
+
+                    for (int i = 0; i < jobCount; i++)
+                    {
+                        TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
+                        if (!job.Success || job.Pixels == null || job.Pixels.Length != job.Region.WidthPixels * job.Region.HeightPixels)
+                        {
+                            audit = $"save_skipped_bad_chunk index={i}";
+                            return false;
+                        }
+
+                        byte[] raw = Color32ArrayToBytesV1LikeOriginal(job.Pixels);
+                        bw.Write(job.ChunkX);
+                        bw.Write(job.ChunkY);
+                        bw.Write(job.Region.MinCellX);
+                        bw.Write(job.Region.MaxCellXExclusive);
+                        bw.Write(job.Region.MinCellY);
+                        bw.Write(job.Region.MaxCellYExclusive);
+                        bw.Write(job.Region.WidthPixels);
+                        bw.Write(job.Region.HeightPixels);
+                        bw.Write(raw.Length);
+                        bw.Write(raw);
+                    }
+                }
+
+                if (File.Exists(path))
+                    File.Delete(path);
+                File.Move(tmpPath, path);
+                audit = "saved " + path;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                audit = "save_failed " + ex.GetType().Name + ": " + ex.Message;
+                return false;
+            }
+        }
+
+        private static byte[] Color32ArrayToBytesV1LikeOriginal(Color32[] pixels)
+        {
+            if (pixels == null || pixels.Length == 0)
+                return Array.Empty<byte>();
+
+            var raw = new byte[pixels.Length * 4];
+            int o = 0;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                Color32 c = pixels[i];
+                raw[o++] = c.r;
+                raw[o++] = c.g;
+                raw[o++] = c.b;
+                raw[o++] = c.a;
+            }
+
+            return raw;
+        }
+
+        private static Color32[] BytesToColor32ArrayV1LikeOriginal(byte[] raw)
+        {
+            if (raw == null || raw.Length == 0 || (raw.Length & 3) != 0)
+                return null;
+
+            var pixels = new Color32[raw.Length / 4];
+            int o = 0;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = new Color32(raw[o], raw[o + 1], raw[o + 2], raw[o + 3]);
+                o += 4;
+            }
+
+            return pixels;
         }
 
         private void WriteTextureSourceBmpListLikeAdapted(
