@@ -497,14 +497,29 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mat.SetInt("_ZWrite", 0);
             if (mat.HasProperty("_ZTest"))
                 mat.SetInt("_ZTest", (int)CompareFunction.LessEqual);
+            string roadTex = desc != null ? (desc.TexturePath ?? string.Empty) : string.Empty;
+            bool road6 = roadTex.IndexOf("road6", StringComparison.OrdinalIgnoreCase) >= 0;
+
             bool useTextureAlpha = ShouldUseRoadTextureAlphaV8LikeOriginal(desc);
             bool vFlip = ShouldFlipRoadTextureV8LikeOriginal(desc);
             bool wideRoad = IsWideRoadTextureV8LikeOriginal(desc);
 
+            // V18: road6.tga has weak/uneven alpha on some maps. The old generic wide-road
+            // D3D V-flip can sample the almost-transparent half, so road6 becomes faded,
+            // especially on the left side of Skirmish maps. Keep texture alpha, but disable
+            // road6 V-flip and strengthen the RGB fallback path.
+            if (road6)
+                vFlip = false;
+
+            float roadColorBoost = road6 ? 4.00f : (wideRoad ? 2.65f : 2.00f);
+            float roadAlphaBoost = road6 ? 3.50f : 2.00f;
+            float roadRgbAlphaFallback = road6 ? 0.65f : (wideRoad ? 0.25f : 0.00f);
+            float roadRgbAlphaBoost = road6 ? 2.50f : (wideRoad ? 1.85f : 1.00f);
+
             if (mat.HasProperty("_RoadColorBoost"))
-                mat.SetFloat("_RoadColorBoost", wideRoad ? 2.65f : 2.0f);
+                mat.SetFloat("_RoadColorBoost", roadColorBoost);
             if (mat.HasProperty("_RoadAlphaBoost"))
-                mat.SetFloat("_RoadAlphaBoost", 2.0f);
+                mat.SetFloat("_RoadAlphaBoost", roadAlphaBoost);
             if (mat.HasProperty("_RoadAlphaRef"))
                 mat.SetFloat("_RoadAlphaRef", 16.0f / 255.0f);
             if (mat.HasProperty("_UseTextureAlpha"))
@@ -512,9 +527,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (mat.HasProperty("_RoadVFlip"))
                 mat.SetFloat("_RoadVFlip", vFlip ? 1.0f : 0.0f);
             if (mat.HasProperty("_RoadRgbAlphaFallback"))
-                mat.SetFloat("_RoadRgbAlphaFallback", wideRoad ? 0.25f : 0.0f);
+                mat.SetFloat("_RoadRgbAlphaFallback", roadRgbAlphaFallback);
             if (mat.HasProperty("_RoadRgbAlphaBoost"))
-                mat.SetFloat("_RoadRgbAlphaBoost", wideRoad ? 1.85f : 1.0f);
+                mat.SetFloat("_RoadRgbAlphaBoost", roadRgbAlphaBoost);
             if (mat.HasProperty("_RoadClipDepthPull"))
                 mat.SetFloat("_RoadClipDepthPull", C2RoadScreenDepthPullV17LikeOriginal);
             if (mat.HasProperty("_RoadUseSceneDepth"))
@@ -523,8 +538,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mat.SetFloat("_RoadSceneDepthTolerance", C2RoadSceneDepthToleranceV15LikeOriginal);
 
             UnityEngine.Debug.Log(
-                $"[C2:ROADS MATERIAL V17] type={desc.Type} name='{desc.RoadName}' tex='{resolvedPath}' useTextureAlpha={useTextureAlpha} " +
-                $"vFlip={vFlip} rgbAlphaFallback={(wideRoad ? 0.25f : 0.0f):F2} reason={(wideRoad ? "wide_d3d_v_origin_texture_alpha" : "trail_keep_V5")} zTest=LEqual sceneDepthTolerance=off zWrite=Off depthBias=Offset(-1,-1) lateQueue=3600 screenDepthPull={C2RoadScreenDepthPullV17LikeOriginal:F4} sceneDepthTolerance=0.00 reason=exact_terrain_triangle_height_smallBias_noMountainBleed width={desc.RWidth}");
+                $"[C2:ROADS MATERIAL V18] type={desc.Type} name='{desc.RoadName}' tex='{resolvedPath}' useTextureAlpha={useTextureAlpha} " +
+                $"vFlip={vFlip} road6={road6} colorBoost={roadColorBoost:F2} alphaBoost={roadAlphaBoost:F2} rgbAlphaFallback={roadRgbAlphaFallback:F2} rgbAlphaBoost={roadRgbAlphaBoost:F2} " +
+                $"reason={(road6 ? "road6_no_vflip_rgb_alpha_repair" : (wideRoad ? "wide_d3d_v_origin_texture_alpha" : "trail_keep_V5"))} zTest=LEqual sceneDepthTolerance=off zWrite=Off depthBias=Offset(-1,-1) lateQueue=3600 screenDepthPull={C2RoadScreenDepthPullV17LikeOriginal:F4} sceneDepthTolerance=0.00 reason2=exact_terrain_triangle_height_smallBias_noMountainBleed width={desc.RWidth}");
 
             return mat;
         }

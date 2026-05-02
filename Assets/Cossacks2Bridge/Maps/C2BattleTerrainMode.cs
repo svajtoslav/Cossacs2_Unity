@@ -320,6 +320,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var sw = System.Diagnostics.Stopwatch.StartNew();
             BuildStrictWholeMapTerrainLikeOriginal(_map, _terrainRoot.transform, out _terrainBounds);
             BuildRoadsLayerLikeOriginal(_map, _terrainRoot.transform, ref _terrainBounds);
+            BuildWaterLayerV1LikeOriginal(_map, _terrainRoot.transform, ref _terrainBounds);
             sw.Stop();
 
             _terrainBuilt = true;
@@ -1194,10 +1195,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void UpdateWaterReflectionTarget(bool force)
         {
+            UpdateWaterRuntimeV1LikeOriginal(force);
         }
 
         private void ApplyWaterReflectionParams(bool forceLog)
         {
+            ApplyWaterMaterialParamsV1LikeOriginal(forceLog);
         }
 
         private void BuildStrictWholeMapTerrainLikeOriginal(ParsedMap map, Transform parent, out Bounds terrainBounds)
@@ -2109,6 +2112,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
 
                     if (TryParseRoadsChunkLikeOriginal(tag, br, map, payloadLen))
+                    {
+                        ms.Position = payloadStart + payloadLen;
+                        continue;
+                    }
+
+                    if (TryParseWaterChunkLikeOriginal(tag, br, map, payloadLen))
                     {
                         ms.Position = payloadStart + payloadLen;
                         continue;

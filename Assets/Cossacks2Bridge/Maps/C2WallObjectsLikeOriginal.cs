@@ -1,4 +1,4 @@
-using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -101,7 +101,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // ReCreate is still editor-lines only; saved WL never uses connector-resnap.
         // Bridge/fence now use Matrix4D only after a strict row-vector basis verifier.
         private const bool C2WallObjectsV21UseVerifiedSavedM4ForBridgeLikeOriginal = true;
-        private const bool C2WallObjectsV21UseVerifiedSavedM4ForFenceLikeOriginal = true;
+        private const bool C2WallObjectsV21UseVerifiedSavedM4ForFenceLikeOriginal = true; // V116: use saved M4 for fence orientation/side; clamp Y to terrain after build
         private const bool C2WallObjectsV21FenceVariantFromSavedM4LikeOriginal = true;
         private const bool C2WallObjectsV21SkipModelBackedUntilC2MRendererLikeOriginal = true;
         private const int C2WallObjectsV21MatrixAuditLimitLikeOriginal = 96;
@@ -201,7 +201,120 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const bool C2WallObjectsV34ForceDambaVisibleOverTerrainUntilExtraHeightPipelineLikeOriginal = false;
         private const string C2WallObjectsV34DambaDepthContractLikeOriginal = "DAMBA_C2M_LEqual_no_force_visible";
         private const bool C2WallObjectsV35UseSeparateDambaSideOverlayLikeOriginal = false;
-        private const float C2WallObjectsV35VerticalFenceRaisePixelsLikeOriginal = 6.0f;
+        // V178: user-calibrated WALS2D fence shadow lift. Values are loaded from the same
+        // map-local instruction file as the V93 damba saved poses and can be adjusted in Scene GUI.
+        private const float C2WallObjectsV35VerticalFenceRaisePixelsLikeOriginal = 0.0f; // V178: default only; runtime value is _c2Wals2DVerticalRaisePixelsV178LikeOriginal
+        private const float C2WallObjectsV178DefaultHorizontalFenceRaisePixelsLikeOriginal = 0.0f;
+        private const float C2WallObjectsV178HeightSliderMinLikeOriginal = -48.0f;
+        private const float C2WallObjectsV178HeightSliderMaxLikeOriginal = 48.0f;
+        private const bool C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal = true;
+        private const int C2WallObjectsV118AuditLimitLikeOriginal = 180;
+        private const float C2WallObjectsV118LargeFenceMinDescExtentLikeOriginal = 96.0f;
+        private const float C2WallObjectsV118LargeFenceMinAlignSpanLikeOriginal = 96.0f;
+        private const string C2WallObjectsV118ContractLikeOriginal = "V118_WALLS_2D_AUDIT_AND_LARGE_FENCE_CLASSIFICATION";
+        private const bool C2WallObjectsV119TopOffenderAuditWL2DLikeOriginal = true;
+        private const int C2WallObjectsV119TopOffenderLimitLikeOriginal = 24;
+        private const float C2WallObjectsV119GroundEpsilonWorldLikeOriginal = 0.05f;
+        private const float C2WallObjectsV119OffsetEpsilonOriginalPxLikeOriginal = 16.0f;
+        private const string C2WallObjectsV119ContractLikeOriginal = "V119_WL2D_TOP_OFFENDER_AUDIT_NO_PLACEMENT_CHANGES";
+        private const string C2WallObjectsV120BridgeSideContractLikeOriginal = "V120_W58_W59_bridge_side_saved_M4_basis_saved_WL_XY_terrain_contact";
+        private const string C2WallObjectsV121BridgeSideContractLikeOriginal = "V121_DISABLED_BY_V123_alignpoints_footline_clamp_buried_W58_W59_keep_V120";
+        private const string C2WallObjectsV123BridgeSideContractLikeOriginal = "V123_W58_W59_rollback_to_V120_min_vertex_contact_keep_props_V122";
+        private const bool C2WallObjectsV122FlipVerticalAlignedPropUvLikeOriginal = false; // V124: V122 double-flipped prop UVs; keep base WALLS.g16 top-left -> Unity V conversion only.
+        private const string C2WallObjectsV122VerticalPropContractLikeOriginal = "V122_DISABLED_BY_V124_no_extra_prop_uv_flip";
+        private const bool C2WallObjectsV124UseSavedM4BasisForVerticalPropsLikeOriginal = true;
+        private const bool C2WallObjectsV124ClampSavedM4PropsToTerrainLikeOriginal = false; // V172: original WL path has no Unity post-clamp after DrawWSprite/AddWorldPoint.
+        private const string C2WallObjectsV124PropContractLikeOriginal = "V173_DISABLED_original_WL_no_Unity_post_clamp_no_extra_uv_flip_after_DrawWSprite_AddWorldPoint";
+        // V131: V129 proved the hovering large side fence cards live in DELETED_LEGACY_WALS2D_ROUTE,
+        // while V130 proved W58 is the already-grounded vertical family. Lower only W59.
+        // V132: saved WL fence cards must be assembled as straight object rows, like the already fixed DAMBA rows.
+        // Only real WALLS/WL fence objects are touched. Terrain, roads, trees, buildings, DAMBA C2M and bridge side W58/W59 stay unchanged.
+        // The patch does two safe things per contiguous fence run:
+        //   1) projects every saved WL X/Y anchor onto the detected row direction, removing perpendicular saw-tooth jitter;
+        //   2) reuses one Matrix4D basis for the whole row, removing per-section tilt/slope jitter while keeping each section planted by its own X/Y.
+        private const bool C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal = false; // V172: saved WL/WALS 2D must not be resnapped/straightened; original draws per OneSprite.
+        private const int C2WallObjectsV132FenceMinRunLengthLikeOriginal = 2;
+        private const float C2WallObjectsV132FenceMinStepOriginal = 8.0f;
+        private const float C2WallObjectsV132FenceMaxStepOriginal = 160.0f;
+        private const float C2WallObjectsV132FenceDirectionDotLikeOriginal = 0.82f;
+        private const float C2WallObjectsV132FenceMaxProjectionCorrectionOriginal = 42.0f;
+        private const int C2WallObjectsV132FenceAuditLimitLikeOriginal = 24;
+        private const bool C2WallObjectsV135UseUnifiedFenceSavedXYBasisMeshLikeOriginal = false; // V143: do not force WL fence through unified/explicit card route; preserve original sprite orientation.
+        private const bool C2WallObjectsV139DisableLegacyFencePostPlacementForUnifiedLineLikeOriginal = false; // V143: keep original reanchor/clamp; V139 caused sink/incorrect final placement.
+        private const bool C2WallObjectsV140UseExplicitUnifiedFenceLineCardMeshLikeOriginal = false; // V143: explicit world line card rotated WALLS sprites into wrong sides.
+        private const float C2WallObjectsV142FenceLineMarkerLikeOriginal = 142.0f;
+        private const bool C2WallObjectsV144BuildIdenticalWL2DFenceLineRootsLikeOriginal = false; // V172: remove synthetic WALS2D line-root; original saved WL renders per OneSprite, not one combined mesh.
+        private const float C2WallObjectsV153SideLineMaxPerpErrorLikeOriginal = 54.0f;
+        private const bool C2WallObjectsV157UseOriginalOneWallsSystemPortForWL2DFenceLikeOriginal = true;
+        private const bool C2WallObjectsV157UseSecondSmoothPassLikeOriginal = true;
+        // V158: the saved-WL fence run is now rebuilt through a real in-memory OneWallsSystem graph:
+        // virtual Start/Final OneWallEdge, OneWallLine, Start.Points[0].x_out and Final.Points[0].x_in.
+        // This removes the V157 shortcut where x0/x1 were used directly without edge connector points.
+        private const bool C2WallObjectsV158BuildVirtualOneWallsGraphForSavedWL2DFenceLikeOriginal = true;
+        private const bool C2WallObjectsV158UseEdgeConnectorInOutForLineEndpointsLikeOriginal = true;
+        private const bool C2WallObjectsV158UseOneWallPointMatrixForFenceCardsLikeOriginal = false; // kept off for WALLS.g16 cards; C2M/IMM model path uses Matrix4D separately.
+        // V159: next port step after V158. If the OneWallElement has a real [MODEL] path from walls.rsr,
+        // emit the line root through the already existing C2M/IMM backend and the per-point Matrix4D,
+        // matching original AddExtraHeightObject(x,y,ModelID,&M4) -> IMM->Render(ModelID,&M4).
+        // WALLS.g16 cards are now only a fallback when the catalog element has no ModelID/model path.
+        private const bool C2WallObjectsV159UseModelIDMatrix4DBackendForOneWallsSystemLineRootsLikeOriginal = true; // V170: strict original wall path uses ModelID/Matrix4D backend first.
+        // V160: 3DWalls/OneWallsSystem path must not silently fall back to WALLS.g16 cards.
+        // If an element has no ModelID/model path, it is reported in audit and the old individual saved-WL route remains visible.
+        private const bool C2WallObjectsV159FallbackToWallsG16CardsWhenModelIDMissingLikeOriginal = false; // V172: real 3DWalls path still requires ModelID; saved WL is handled separately by LoadSprites2 path.
+        private const bool C2WallObjectsV160ParseRealWallsListXmlLikeOriginal = true;
+        private const bool C2WallObjectsV160RequireModelIDForOneWallsSystem3DWallsLikeOriginal = true; // V170: ModelID/C2M is required for original 3DWalls path.
+        // V161: Unity-тест делается снаружи. Здесь добиты кодовые недоделы V160:
+        // numeric/ordered ModelID binding, real WT Usage 0/1/2 cycle, robust C2M path resolution,
+        // V162 safety: if the 3DWalls line-root is rejected because real WT/model path is missing,
+        // keep old saved-WL cards visible. Otherwise the map loses fences completely.
+        private const bool C2WallObjectsV161ResolveNumericModelIDThroughWallsRsrOrderLikeOriginal = true;
+        private const bool C2WallObjectsV161UseRealWallTypeElementCycleForOneWallsSystemLikeOriginal = true;
+        private const bool C2WallObjectsV161SuppressRejectedOneWallsSystemWL3DWallsLikeOriginal = false; // V172: never suppress saved WL sprites when 3DWalls/ModelID line-root is rejected.
+        private const bool C2WallObjectsV161ResolveC2MPathCandidatesLikeOriginal = true;
+        // V165: hard cut. Saved WL/WALS 2D fence sprites are allowed only through the new line-root builder.
+        // Legacy individual card routes are not fallback, not suppressed-at-render, but bypassed before route selection.
+        // V171: окончательное разделение путей:
+        //   * настоящие 3DWalls/OneWallsSystem ModelID/C2M остаются для объектов, у которых реально есть ModelID;
+        //   * saved WL/WALS 2D fence frames W58/W59/W70/W74 и пары 0/1/3/4/5/6/7 идут через WALLS.g16 line-root renderer.
+        // Ошибка V170 была в том, что saved WL/WALS 2D кадры заставили пройти WallType->OneWallElement->ModelID,
+        // хотя оригинальный путь для них: TRE2 sign='WL' -> addSpriteAnyway(&WALLS) -> CreateMatrix/AddWorldPoint/DrawWSprite.
+        private const bool C2WallObjectsV165Wals2DFenceOnlyNo3DWallsModelIDBackendLikeOriginal = false; // V172: no synthetic WALS2D line-root backend; W58/W59/W70/W74 render as saved WL OneSprite records.
+        private const bool C2WallObjectsV165HardDeleteLegacySavedWL2DFenceIndividualCardsLikeOriginal = false; // V172: restore original saved WL individual sprite draw path.
+        private const bool C2WallObjectsV170StrictOriginalModelIDMatrix4DWallSystemLikeOriginal = false; // V171: strict 3DWalls ModelID path is wrong for saved WL/WALS 2D WALLS.g16 fences.
+        private const bool C2WallObjectsV170UseRealWallTypeCycleOrRejectLikeOriginal = false; // V171: do not reject WALS2D when WallType->OneWallElement->ModelID cycle is absent.
+        private const bool C2WallObjectsV170UseSavedWLMatrix4DAuditLikeOriginal = true;
+        private string _c2WallObjectsV159LastModelIDAuditLikeOriginal = string.Empty;
+        private int _c2WallObjectsV160ModelIDLineRootsUsedLikeOriginal;
+        private int _c2WallObjectsV160ModelIDLineRootsRejectedLikeOriginal;
+        private int _c2WallObjectsV160SpriteFallbackBlockedLikeOriginal;
+        private int _c2WallObjectsV161NumericModelIDResolvedLikeOriginal;
+        private int _c2WallObjectsV161NumericModelIDUnresolvedLikeOriginal;
+        private int _c2WallObjectsV161Rejected3DWallsSavedWLSuppressedLikeOriginal;
+        private int _c2WallObjectsV161RealWallTypeCycleUsedLikeOriginal;
+        private const string C2WallObjectsV132FenceLineContractLikeOriginal = "V172_DISABLED_synthetic_line_root_original_saved_WL_per_OneSprite_LoadSprites2_DrawWSprite_AddWorldPoint";
+        private const string C2WallObjectsV172OriginalWLSavedSpriteContractLikeOriginal = "V172_original_LoadSprites2_rule_WL_addSpriteAnyway_HaveAligning_ignores_saved_M4_else_DrawWSprite_or_AddWorldPoint";
+        private const string C2WallObjectsV173WLSavedSpriteUvContractLikeOriginal = "V173_WALLS_g16_saved_WL_no_manual_Unity_VFlip_uv_00_10_11_01";
+        private const string C2WallObjectsV174WLSavedSpriteMapXYContractLikeOriginal = "V174_WL_WALLS_g16_MapSprites_linear_XY_no_terrain_hex_odd_column_offset_for_CreateMatrix_DrawWSprite";
+        private const string C2WallObjectsV175WLSavedSpriteSideShadowLiftContractLikeOriginal = "V178_WL_WALLS_g16_user_slider_saved_instruction_vertical_and_horizontal_height_no_hardcoded_lift";
+
+        private sealed class Wals2DHeightAdjustRecordV178LikeOriginal
+        {
+            public Mesh Mesh;
+            public Vector3[] BaseVertices;
+            public int SpriteIndex;
+            public bool VerticalTopBottom;
+            public bool HorizontalLeftRight;
+            public float AppliedRaisePixels;
+        }
+
+        private readonly List<Wals2DHeightAdjustRecordV178LikeOriginal> _c2Wals2DHeightAdjustRecordsV178LikeOriginal = new List<Wals2DHeightAdjustRecordV178LikeOriginal>();
+        private float _c2Wals2DVerticalRaisePixelsV178LikeOriginal = C2WallObjectsV35VerticalFenceRaisePixelsLikeOriginal;
+        private float _c2Wals2DHorizontalRaisePixelsV178LikeOriginal = C2WallObjectsV178DefaultHorizontalFenceRaisePixelsLikeOriginal;
+        private bool _c2Wals2DHeightInstructionLoadedV178LikeOriginal;
+        private string _c2Wals2DHeightInstructionStatusV178LikeOriginal = string.Empty;
+        private float _c2Wals2DHeightInstructionStatusUntilV178LikeOriginal;
+
+        private string _c2WallObjectsV157LastReCreateAuditLikeOriginal = string.Empty;
         private const bool C2WallObjectsV36MakeDambaTextureOpaqueLikeOriginal = false;
         private const bool C2WallObjectsV37UseTemporaryStoneTintForDambaUntilC2MMaterialsLikeOriginal = false;
         private const string C2WallObjectsV35DambaRenderContractLikeOriginal = "DAMBA_C2M_base_stone_tint_waiting_real_C2M_material_parser";
@@ -542,7 +655,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             if (_c2WallObjectsRootV1LikeOriginal != null)
                 SafeDestroy(_c2WallObjectsRootV1LikeOriginal);
 
-            _c2WallObjectsRootV1LikeOriginal = new GameObject("C2_WallObjects_V23_saved_matrix_real_c2m_route_system");
+            _c2WallObjectsRootV1LikeOriginal = new GameObject("C2_WallObjects_V172_original_saved_WL_LoadSprites2_route");
             _c2WallObjectsRootV1LikeOriginal.transform.SetParent(_terrainRoot.transform, false);
 
             int drawnLines = 0;
@@ -562,17 +675,24 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 $"[C2:WALL OBJECTS V27] built separate wall-object layer from real M3D data. map='{_mapRelativePath}' " +
                 $"edges={state.Edges.Count} lines={state.Lines.Count} generatedLinePoints={generatedLinePoints} drawnLines={drawnLines} " +
                 $"mapSpritesWL={state.MapSprites.Count} drawnMapSprites={drawnMapSprites} catalogSprites={catalog.ByName.Count} wallsMost={catalog.MostNamesCount} " +
-                $"contract=2ERT/TRE2_saved_WL_sprites_plus_OneWallsSystem_ReCreate_if_present separate_file=true version=V26_ORIGINAL_ROUTE_SYSTEM_RECREATE_ONLY_FOR_LINES_SAVED_WL_MATRIX_REAL_C2M_IMM_LAYER_C2M_VERTEX_COLOR basis={C2WallObjectsV23BasisContractLikeOriginal}");
+                $"contract=2ERT/TRE2_saved_WL_sprites_plus_OneWallsSystem_ReCreate_if_present separate_file=true version=V172_ORIGINAL_SAVED_WL_LOADSPRITES2_DRAWWSPRITE_ADDWORLDPOINT_NO_SYNTHETIC_WALS2D_LINE_ROOT basis={C2WallObjectsV23BasisContractLikeOriginal}");
         }
 
         private sealed class WallSpriteCatalogV1LikeOriginal
         {
             public readonly Dictionary<string, WallSpriteDescV1LikeOriginal> ByName = new Dictionary<string, WallSpriteDescV1LikeOriginal>(StringComparer.OrdinalIgnoreCase);
             public readonly Dictionary<int, WallSpriteDescV1LikeOriginal> ByIndex = new Dictionary<int, WallSpriteDescV1LikeOriginal>();
+            public readonly List<WallTypeDescriptionXmlV160LikeOriginal> WallTypesV160 = new List<WallTypeDescriptionXmlV160LikeOriginal>();
+            public readonly List<WallSpriteDescV1LikeOriginal> ModelDescsInRsrOrderV161 = new List<WallSpriteDescV1LikeOriginal>();
+            public int NumericModelIDResolvedV161;
+            public int NumericModelIDUnresolvedV161;
+            public int RealWallTypeCycleUsableV161;
             public int ConnectorsCount;
             public int AlignCount;
             public int AutobornCount;
             public int MostNamesCount;
+            public int WallElementsXmlCountV160;
+            public int WallElementsBoundToSpritesV160;
         }
 
         private sealed class WallSpriteDescV1LikeOriginal
@@ -589,7 +709,43 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             public readonly List<string> AutobornChildren = new List<string>();
             public readonly List<Vector2> AutobornOffsets = new List<Vector2>();
             public string ModelPath = string.Empty;
+            public int ModelRsrOrderV161 = -1;
             public float FixHeight;
+            // V160: real OneWallElement data from Dialogs\Walls.WallsList.xml / walls.rsr.
+            public float ElementScaleV160 = 1.0f;
+            public int ElementRotationV160;
+            public int ElementDzV160;
+            public int ElementUsageV160 = -1;
+            public int ElementWallTypeIndexV160 = -1;
+            public int ElementIndexInWallTypeV160 = -1;
+            public bool HasRealOneWallElementV160;
+        }
+
+        private sealed class WallTypeDescriptionXmlV160LikeOriginal
+        {
+            public string Name = string.Empty;
+            public float GlobalScale = 1.0f;
+            public int MinWallLength = 350;
+            public int MaxWallLength = 500;
+            public int MinWallHeight;
+            public readonly List<WallElementXmlV160LikeOriginal> Elements = new List<WallElementXmlV160LikeOriginal>();
+        }
+
+        private sealed class WallElementXmlV160LikeOriginal
+        {
+            public string ModelPath = string.Empty;
+            public string RawModelIDV161 = string.Empty;
+            public int NumericModelIDV161 = -1;
+            public int GlobalElementIndexV161 = -1;
+            public string BindAuditV161 = string.Empty;
+            public WallSpriteDescV1LikeOriginal BoundSpriteDescV161;
+            public float Scale = 1.0f;
+            public int Rotation;
+            public int dz;
+            public int Usage = -1;
+            public int AssociateWithUnit;
+            public readonly List<WallEdgePointV1LikeOriginal> LeftEdges = new List<WallEdgePointV1LikeOriginal>();
+            public readonly List<WallEdgePointV1LikeOriginal> RightEdges = new List<WallEdgePointV1LikeOriginal>();
         }
 
         private struct WallEdgePointV1LikeOriginal
@@ -815,12 +971,15 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             var catalog = new WallSpriteCatalogV1LikeOriginal();
             LoadWallsLstV1LikeOriginal(catalog);
             LoadWallsRsrV1LikeOriginal(catalog);
+            LoadWallsListXmlV160LikeOriginal(catalog);
             LogMostWallCatalogV5LikeOriginal(catalog);
 
             Debug.Log(
-                $"[C2:WALL CATALOG V6] loaded walls.lst/walls.rsr sprites={catalog.ByName.Count} " +
+                $"[C2:WALL CATALOG V161] loaded walls.lst/walls.rsr/Walls.WallsList.xml sprites={catalog.ByName.Count} " +
                 $"connectors={catalog.ConnectorsCount} align={catalog.AlignCount} autoborn={catalog.AutobornCount} most={catalog.MostNamesCount} " +
-                "bridgeCandidates=W48MOST1..W55MOST1 primaryG16=WALLS.g16");
+                $"wallTypesXml={catalog.WallTypesV160.Count} wallElementsXml={catalog.WallElementsXmlCountV160} xmlBoundSprites={catalog.WallElementsBoundToSpritesV160} " +
+                $"modelRsrOrder={catalog.ModelDescsInRsrOrderV161.Count} numericModelIDResolvedV161={catalog.NumericModelIDResolvedV161} numericModelIDUnresolvedV161={catalog.NumericModelIDUnresolvedV161} realWTCycleUsableV161={catalog.RealWallTypeCycleUsableV161} " +
+                "bridgeCandidates=W48MOST1..W55MOST1 primaryG16=WALLS.g16 contract=V161_real_WallTypeDescription_parse_numeric_ModelID_bind_rsr_order_plus_CONNECTOR_fixed");
             return catalog;
         }
 
@@ -901,7 +1060,14 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 else if (section == "AUTOBORN")
                     ParseWallAutobornV1LikeOriginal(desc, p, catalog);
                 else if (section == "MODEL")
+                {
                     ParseWallModelV1LikeOriginal(desc, p);
+                    if (!string.IsNullOrWhiteSpace(desc.ModelPath) && desc.ModelRsrOrderV161 < 0)
+                    {
+                        desc.ModelRsrOrderV161 = catalog.ModelDescsInRsrOrderV161.Count;
+                        catalog.ModelDescsInRsrOrderV161.Add(desc);
+                    }
+                }
                 else if (section == "FIXH" && p.Length >= 2)
                     desc.FixHeight = ParseFloatV1LikeOriginal(p[1]);
             }
@@ -1037,6 +1203,291 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             if (desc == null || p == null || p.Length < 2)
                 return;
             desc.ModelPath = p[1];
+
+            // V160: tolerate extended walls.rsr MODEL rows if present.
+            // Known shipped files usually store only the model path here; real Scale/Rotation/dz are primarily in Walls.WallsList.xml.
+            for (int i = 2; i < p.Length; i++)
+            {
+                string token = p[i] ?? string.Empty;
+                int eq = token.IndexOf('=');
+                string key = eq > 0 ? token.Substring(0, eq).Trim() : string.Empty;
+                string val = eq > 0 ? token.Substring(eq + 1).Trim() : token.Trim();
+                if (key.Equals("scale", StringComparison.OrdinalIgnoreCase) || key.Equals("Scale", StringComparison.Ordinal))
+                    desc.ElementScaleV160 = Mathf.Max(0.0001f, ParseFloatV1LikeOriginal(val));
+                else if (key.Equals("rotation", StringComparison.OrdinalIgnoreCase) || key.Equals("Rotation", StringComparison.Ordinal))
+                    desc.ElementRotationV160 = ParseIntV1LikeOriginal(val);
+                else if (key.Equals("dz", StringComparison.OrdinalIgnoreCase) || key.Equals("dZ", StringComparison.Ordinal))
+                    desc.ElementDzV160 = ParseIntV1LikeOriginal(val);
+            }
+        }
+
+        private void LoadWallsListXmlV160LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog)
+        {
+            if (!C2WallObjectsV160ParseRealWallsListXmlLikeOriginal || catalog == null || _bootstrap == null || _bootstrap.Fs == null)
+                return;
+
+            string[] candidates =
+            {
+                "Dialogs\\Walls.WallsList.xml",
+                "Dialogs/Walls.WallsList.xml",
+                "Walls.WallsList.xml"
+            };
+
+            string path = string.Empty;
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                if (_bootstrap.Fs.Exists(candidates[i]))
+                {
+                    path = candidates[i];
+                    break;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                Debug.LogWarning("[C2:WALL WLIST V160] Dialogs\\Walls.WallsList.xml not found; using walls.rsr descriptors only.");
+                return;
+            }
+
+            string xml = _bootstrap.Fs.ReadAllText(path, Encoding.UTF8);
+            int typeIndex = 0;
+            foreach (string wtdBlock in ExtractXmlBlocksV1LikeOriginal(xml, "WallTypeDescription"))
+            {
+                var wt = new WallTypeDescriptionXmlV160LikeOriginal
+                {
+                    Name = ReadXmlStringV1LikeOriginal(wtdBlock, "Name"),
+                    GlobalScale = ReadXmlFloatV160LikeOriginal(wtdBlock, "GlobalScale", 1.0f),
+                    MinWallLength = ReadXmlIntV1LikeOriginal(wtdBlock, "MinWallLength", 350),
+                    MaxWallLength = ReadXmlIntV1LikeOriginal(wtdBlock, "MaxWallLength", 500),
+                    MinWallHeight = ReadXmlIntV1LikeOriginal(wtdBlock, "MinWallHeight", 0)
+                };
+
+                foreach (string elementBlock in ExtractXmlBlocksV1LikeOriginal(wtdBlock, "OneWallElement"))
+                {
+                    WallElementXmlV160LikeOriginal e = ParseOneWallElementXmlV160LikeOriginal(elementBlock);
+                    e.GlobalElementIndexV161 = catalog.WallElementsXmlCountV160;
+                    wt.Elements.Add(e);
+                    catalog.WallElementsXmlCountV160++;
+                }
+
+                catalog.WallTypesV160.Add(wt);
+                typeIndex++;
+            }
+
+            BindRealWallElementsToSpriteDescriptionsV160LikeOriginal(catalog);
+            Debug.Log("[C2:WALL WLIST V160] path='" + path + "' wallTypes=" + catalog.WallTypesV160.Count.ToString(CultureInfo.InvariantCulture) +
+                      " elements=" + catalog.WallElementsXmlCountV160.ToString(CultureInfo.InvariantCulture) +
+                      " boundSprites=" + catalog.WallElementsBoundToSpritesV160.ToString(CultureInfo.InvariantCulture) +
+                      " mode=real_WallTypeDescription_OneWallElement_parse");
+        }
+
+        private static WallElementXmlV160LikeOriginal ParseOneWallElementXmlV160LikeOriginal(string block)
+        {
+            string rawModelIdV161 = ReadXmlStringV1LikeOriginal(block, "ModelID");
+            int numericModelIdV161;
+            if (!int.TryParse((rawModelIdV161 ?? string.Empty).Trim().Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out numericModelIdV161))
+                numericModelIdV161 = -1;
+            var e = new WallElementXmlV160LikeOriginal
+            {
+                RawModelIDV161 = rawModelIdV161 ?? string.Empty,
+                NumericModelIDV161 = numericModelIdV161,
+                ModelPath = NormalizeWallModelPathFromXmlV160LikeOriginal(rawModelIdV161),
+                Scale = ReadXmlFloatV160LikeOriginal(block, "Scale", 1.0f),
+                Rotation = ReadXmlIntV1LikeOriginal(block, "Rotation", 0),
+                dz = ReadXmlIntV1LikeOriginal(block, "dz", 0),
+                Usage = ParseWallUsageV160LikeOriginal(ReadXmlStringV1LikeOriginal(block, "Usage")),
+                AssociateWithUnit = ReadXmlIntV1LikeOriginal(block, "AssociateWithUnit", 0)
+            };
+
+            ParseOneWallEdgeListXmlV160LikeOriginal(block, "LeftEdges", e.LeftEdges, +1);
+            ParseOneWallEdgeListXmlV160LikeOriginal(block, "RightEdges", e.RightEdges, -1);
+            return e;
+        }
+
+        private static void ParseOneWallEdgeListXmlV160LikeOriginal(string elementBlock, string containerTag, List<WallEdgePointV1LikeOriginal> dst, int id)
+        {
+            if (dst == null)
+                return;
+
+            foreach (string container in ExtractXmlBlocksV1LikeOriginal(elementBlock, containerTag))
+            {
+                foreach (string edgeBlock in ExtractXmlBlocksV1LikeOriginal(container, "OneEdge"))
+                {
+                    float dx = ReadXmlFloatV160LikeOriginal(edgeBlock, "dx", 0.0f);
+                    float dy = ReadXmlFloatV160LikeOriginal(edgeBlock, "dy", 0.0f);
+                    dst.Add(new WallEdgePointV1LikeOriginal(dx, dy, id));
+                }
+            }
+        }
+
+        private void BindRealWallElementsToSpriteDescriptionsV160LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog)
+        {
+            if (catalog == null || catalog.WallTypesV160.Count == 0)
+                return;
+
+            for (int wi = 0; wi < catalog.WallTypesV160.Count; wi++)
+            {
+                WallTypeDescriptionXmlV160LikeOriginal wt = catalog.WallTypesV160[wi];
+                if (wt == null)
+                    continue;
+
+                int usableByUsageMaskV161 = 0;
+                for (int ei = 0; ei < wt.Elements.Count; ei++)
+                {
+                    WallElementXmlV160LikeOriginal e = wt.Elements[ei];
+                    if (e == null)
+                        continue;
+
+                    WallSpriteDescV1LikeOriginal desc = ResolveWallElementSpriteDescV161LikeOriginal(catalog, e, wi, ei, out string bindAuditV161);
+                    e.BindAuditV161 = bindAuditV161 ?? string.Empty;
+                    if (desc == null)
+                    {
+                        if (e.NumericModelIDV161 >= 0)
+                        {
+                            catalog.NumericModelIDUnresolvedV161++;
+                            _c2WallObjectsV161NumericModelIDUnresolvedLikeOriginal++;
+                        }
+                        continue;
+                    }
+
+                    e.BoundSpriteDescV161 = desc;
+                    if (string.IsNullOrWhiteSpace(e.ModelPath) && !string.IsNullOrWhiteSpace(desc.ModelPath))
+                        e.ModelPath = desc.ModelPath;
+                    if (string.IsNullOrWhiteSpace(desc.ModelPath) && !string.IsNullOrWhiteSpace(e.ModelPath))
+                        desc.ModelPath = e.ModelPath;
+
+                    desc.ElementScaleV160 = Mathf.Max(0.0001f, e.Scale);
+                    desc.ElementRotationV160 = e.Rotation;
+                    desc.ElementDzV160 = e.dz;
+                    desc.ElementUsageV160 = e.Usage;
+                    desc.ElementWallTypeIndexV160 = wi;
+                    desc.ElementIndexInWallTypeV160 = ei;
+                    desc.HasRealOneWallElementV160 = true;
+
+                    if (desc.LeftEdges.Count == 0 && e.LeftEdges.Count > 0)
+                        desc.LeftEdges.AddRange(e.LeftEdges);
+                    if (desc.RightEdges.Count == 0 && e.RightEdges.Count > 0)
+                        desc.RightEdges.AddRange(e.RightEdges);
+
+                    if (e.Usage >= 0 && e.Usage <= 2)
+                        usableByUsageMaskV161 |= (1 << e.Usage);
+                    catalog.WallElementsBoundToSpritesV160++;
+                }
+
+                if ((usableByUsageMaskV161 & (1 << 1)) != 0)
+                    catalog.RealWallTypeCycleUsableV161++;
+            }
+        }
+
+        private WallSpriteDescV1LikeOriginal ResolveWallElementSpriteDescV161LikeOriginal(
+            WallSpriteCatalogV1LikeOriginal catalog,
+            WallElementXmlV160LikeOriginal element,
+            int wallTypeIndex,
+            int elementIndex,
+            out string audit)
+        {
+            audit = string.Empty;
+            if (catalog == null || element == null)
+                return null;
+
+            if (!string.IsNullOrWhiteSpace(element.ModelPath))
+            {
+                WallSpriteDescV1LikeOriginal byPath = FindWallSpriteByModelPathV160LikeOriginal(catalog, element.ModelPath);
+                if (byPath != null)
+                {
+                    audit = "path_exact model='" + element.ModelPath + "' -> W" + byPath.SpriteIndex.ToString(CultureInfo.InvariantCulture);
+                    return byPath;
+                }
+            }
+
+            if (C2WallObjectsV161ResolveNumericModelIDThroughWallsRsrOrderLikeOriginal && element.NumericModelIDV161 >= 0)
+            {
+                if (catalog.ByIndex.TryGetValue(element.NumericModelIDV161, out WallSpriteDescV1LikeOriginal bySpriteIndex) &&
+                    bySpriteIndex != null && !string.IsNullOrWhiteSpace(bySpriteIndex.ModelPath))
+                {
+                    catalog.NumericModelIDResolvedV161++;
+                    _c2WallObjectsV161NumericModelIDResolvedLikeOriginal++;
+                    audit = "numeric_ModelID_as_walls_lst_index " + element.NumericModelIDV161.ToString(CultureInfo.InvariantCulture) +
+                            " -> W" + bySpriteIndex.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " model='" + bySpriteIndex.ModelPath + "'";
+                    return bySpriteIndex;
+                }
+
+                int order = element.GlobalElementIndexV161;
+                if (order >= 0 && order < catalog.ModelDescsInRsrOrderV161.Count)
+                {
+                    WallSpriteDescV1LikeOriginal byOrder = catalog.ModelDescsInRsrOrderV161[order];
+                    if (byOrder != null && !string.IsNullOrWhiteSpace(byOrder.ModelPath))
+                    {
+                        catalog.NumericModelIDResolvedV161++;
+                        _c2WallObjectsV161NumericModelIDResolvedLikeOriginal++;
+                        audit = "numeric_ModelID_rsr_global_order raw=" + element.NumericModelIDV161.ToString(CultureInfo.InvariantCulture) +
+                                " globalElement=" + order.ToString(CultureInfo.InvariantCulture) +
+                                " wallType=" + wallTypeIndex.ToString(CultureInfo.InvariantCulture) +
+                                " element=" + elementIndex.ToString(CultureInfo.InvariantCulture) +
+                                " -> W" + byOrder.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " model='" + byOrder.ModelPath + "'";
+                        return byOrder;
+                    }
+                }
+            }
+
+            audit = "unresolved rawModelID='" + (element.RawModelIDV161 ?? string.Empty) + "' modelPath='" +
+                    (element.ModelPath ?? string.Empty) + "' globalElement=" + element.GlobalElementIndexV161.ToString(CultureInfo.InvariantCulture) +
+                    " modelRsrOrderCount=" + (catalog != null ? catalog.ModelDescsInRsrOrderV161.Count.ToString(CultureInfo.InvariantCulture) : "0");
+            return null;
+        }
+
+        private static WallSpriteDescV1LikeOriginal FindWallSpriteByModelPathV160LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, string modelPath)
+        {
+            if (catalog == null || string.IsNullOrWhiteSpace(modelPath))
+                return null;
+
+            string needle = NormalizeModelPathKeyV160LikeOriginal(modelPath);
+            foreach (WallSpriteDescV1LikeOriginal desc in catalog.ByName.Values)
+            {
+                if (desc == null || string.IsNullOrWhiteSpace(desc.ModelPath))
+                    continue;
+                if (NormalizeModelPathKeyV160LikeOriginal(desc.ModelPath) == needle)
+                    return desc;
+            }
+            return null;
+        }
+
+        private static string NormalizeModelPathKeyV160LikeOriginal(string path)
+        {
+            return (path ?? string.Empty).Replace('/', '\\').Trim().Trim('"').ToLowerInvariant();
+        }
+
+        private static string NormalizeWallModelPathFromXmlV160LikeOriginal(string modelId)
+        {
+            if (string.IsNullOrWhiteSpace(modelId))
+                return string.Empty;
+            string v = modelId.Trim().Trim('"');
+            // _ModelID in this XML can be saved by the engine as a resource path or as a numeric id.
+            // Numeric ids cannot be resolved without IMM's runtime registry, so walls.rsr [MODEL] remains the path source.
+            if (Regex.IsMatch(v, @"^\d+$"))
+                return string.Empty;
+            if (v.IndexOf(".c2m", StringComparison.OrdinalIgnoreCase) >= 0)
+                return v;
+            return string.Empty;
+        }
+
+        private static int ParseWallUsageV160LikeOriginal(string v)
+        {
+            if (string.IsNullOrWhiteSpace(v))
+                return -1;
+            if (int.TryParse(v.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int i))
+                return i;
+            string s = v.Trim().ToLowerInvariant();
+            if (s.Contains("left")) return 0;
+            if (s.Contains("line") || s.Contains("center") || s.Contains("main")) return 1;
+            if (s.Contains("right")) return 2;
+            return -1;
+        }
+
+        private static float ReadXmlFloatV160LikeOriginal(string xml, string tag, float fallback)
+        {
+            string v = ReadXmlStringV1LikeOriginal(xml, tag);
+            return string.IsNullOrWhiteSpace(v) ? fallback : ParseFloatV1LikeOriginal(v);
         }
 
         private WallMapStateV1LikeOriginal TryLoadWallMapStateFromCurrentMapV1LikeOriginal()
@@ -3467,6 +3918,1815 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             return result;
         }
 
+        private int BuildSyntheticIdenticalWL2DFenceLineRootsV144LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            WallSpriteCatalogV1LikeOriginal catalog,
+            Transform parent,
+            Material fallbackMaterial,
+            out HashSet<WallSavedMapSpriteV6LikeOriginal> suppressedSprites,
+            out string audit)
+        {
+            suppressedSprites = new HashSet<WallSavedMapSpriteV6LikeOriginal>();
+            audit = string.Empty;
+            if (!C2WallObjectsV144BuildIdenticalWL2DFenceLineRootsLikeOriginal || sprites == null || catalog == null || parent == null)
+                return 0;
+
+            int created = 0;
+            var auditParts = new List<string>(C2WallObjectsV132FenceAuditLimitLikeOriginal);
+
+            int i = 0;
+            while (i < sprites.Count)
+            {
+                WallSavedMapSpriteV6LikeOriginal first = sprites[i];
+                if (!TryGetStraightenableWL2DFenceDescV132LikeOriginal(first, catalog, out WallSpriteDescV1LikeOriginal firstDescV150))
+                {
+                    i++;
+                    continue;
+                }
+
+                int segStart = i;
+                int segEnd = segStart + 1;
+                int familyMaskV152 = GetWallFencePairFamilyMaskV152LikeOriginal(first.SpriteIndex);
+                if (familyMaskV152 == 0)
+                {
+                    i++;
+                    continue;
+                }
+
+                while (segEnd < sprites.Count) // V152: SpriteIndex is not a boundary; pair-family is the boundary.
+                {
+                    WallSavedMapSpriteV6LikeOriginal b = sprites[segEnd];
+                    if (!TryGetStraightenableWL2DFenceDescV132LikeOriginal(b, catalog, out WallSpriteDescV1LikeOriginal bDescV152))
+                        break;
+
+                    int bFamilyMaskV152 = GetWallFencePairFamilyMaskV152LikeOriginal(b.SpriteIndex);
+                    int nextFamilyMaskV152 = familyMaskV152 & bFamilyMaskV152;
+                    if (nextFamilyMaskV152 == 0)
+                        break;
+
+                    if (!CanAppendWallFenceCandidateToSideLineV153LikeOriginal(sprites, segStart, segEnd + 1, nextFamilyMaskV152))
+                        break;
+
+                    familyMaskV152 = nextFamilyMaskV152;
+                    segEnd++;
+                }
+
+                int count = segEnd - segStart;
+                if (count >= C2WallObjectsV132FenceMinRunLengthLikeOriginal)
+                {
+                    WallSavedMapSpriteV6LikeOriginal runFirst = sprites[segStart];
+                    WallSavedMapSpriteV6LikeOriginal runLast = sprites[segEnd - 1];
+                    if (runFirst != null && runLast != null)
+                    {
+                        Material[] materials;
+                        Mesh mesh = BuildSideLineWL2DFenceLineRootMeshV150LikeOriginal(sprites, segStart, segEnd, familyMaskV152, catalog, fallbackMaterial, out materials);
+                        if (mesh != null && materials != null && materials.Length > 0)
+                        {
+                            GameObject go = new GameObject("WallFenceWALS2D_WALLS_g16_LineRootV171_" + segStart.ToString("0000", CultureInfo.InvariantCulture) + "_" + (segEnd - 1).ToString("0000", CultureInfo.InvariantCulture));
+                            go.transform.SetParent(parent, false);
+                            MeshFilter mf = go.AddComponent<MeshFilter>();
+                            MeshRenderer mr = go.AddComponent<MeshRenderer>();
+                            ApplyWallRendererShadowContractV44LikeOriginal(mr);
+                            mf.sharedMesh = mesh;
+                            mr.sharedMaterials = materials;
+                            mr.sortingOrder = Mathf.Clamp(runFirst.Y, -32768, 32767);
+
+                            for (int k = segStart; k < segEnd; k++)
+                            {
+                                if (sprites[k] != null)
+                                    suppressedSprites.Add(sprites[k]);
+                            }
+
+                            created++;
+                            if (auditParts.Count < C2WallObjectsV132FenceAuditLimitLikeOriginal)
+                            {
+                                Vector2 p0 = new Vector2(runFirst.X, runFirst.Y);
+                                Vector2 p1 = new Vector2(runLast.X, runLast.Y);
+                                float len = (p1 - p0).magnitude;
+                                float stepLen = count > 0 ? len / Mathf.Max(1, count) : 0.0f;
+                                string spriteSummary = BuildWallFenceSideLineSpriteSummaryV150LikeOriginal(sprites, segStart, segEnd);
+                                Vector2 originalLineV152 = new Vector2(runLast.X - runFirst.X, runLast.Y - runFirst.Y);
+                                bool topBottomSideV153 = IsWallFenceTopBottomSideV152LikeOriginal(originalLineV152);
+                                int selectedSpriteV153 = SelectDominantWallFencePairSpriteForSideV153LikeOriginal(sprites, segStart, segEnd, familyMaskV152, topBottomSideV153);
+                                auditParts.Add("familySprites=" + spriteSummary +
+                                               " sideLine=" + segStart.ToString(CultureInfo.InvariantCulture) + "-" + (segEnd - 1).ToString(CultureInfo.InvariantCulture) +
+                                               " count=" + count.ToString(CultureInfo.InvariantCulture) +
+                                               " first=(" + runFirst.X.ToString(CultureInfo.InvariantCulture) + "," + runFirst.Y.ToString(CultureInfo.InvariantCulture) + ")" +
+                                               " last=(" + runLast.X.ToString(CultureInfo.InvariantCulture) + "," + runLast.Y.ToString(CultureInfo.InvariantCulture) + ")" +
+                                               " stepLen=" + stepLen.ToString("0.###", CultureInfo.InvariantCulture) +
+                                               " side=" + (topBottomSideV153 ? "TopBottom" : "LeftRight") +
+                                               " pairFamilyMask=0x" + familyMaskV152.ToString("X", CultureInfo.InvariantCulture) +
+                                               " selectedSprite=W" + selectedSpriteV153.ToString(CultureInfo.InvariantCulture) +
+                                               " recreate={" + _c2WallObjectsV157LastReCreateAuditLikeOriginal + "}" +
+                                               " wals2dBackendV171={" + _c2WallObjectsV159LastModelIDAuditLikeOriginal + "}" +
+                                               " OneWallsSystemGraph=True OneWallEdge=True OneWallLine=True StartFinal=True x_out_x_in=True OneWallElement=True WallTypeDescription=True OneWallPoint=True ReCreate=True ne_round_Tdist_div_esize=True hScale=True zBlend=True angleFromLine=True smoothPass=True WALS2DLineRootV171=True ModelIDMatrix4DBackend=False V161_ModelIDRequired=False oldSavedWLIndividualCardsPhysicallyDeleted=True realWTCycle=False syntheticWALS2D=True savedMatrix4DInputAudit=True originalMatrix4DOutput=False pairFamilyOnly=False sideLineByAdjacency=True singleCombinedMesh=True suppressIndividualCards=True meshSections=" + count.ToString(CultureInfo.InvariantCulture) + " markerV152=True");
+                            }
+                        }
+                        else if (C2WallObjectsV161SuppressRejectedOneWallsSystemWL3DWallsLikeOriginal)
+                        {
+                            for (int k = segStart; k < segEnd; k++)
+                            {
+                                if (sprites[k] != null)
+                                {
+                                    suppressedSprites.Add(sprites[k]);
+                                    _c2WallObjectsV161Rejected3DWallsSavedWLSuppressedLikeOriginal++;
+                                }
+                            }
+
+                            if (auditParts.Count < C2WallObjectsV132FenceAuditLimitLikeOriginal)
+                            {
+                                auditParts.Add("REJECTED_HARD_DELETE_OLD_SAVED_WL_FENCE_CARDS_V165 sideLine=" + segStart.ToString(CultureInfo.InvariantCulture) + "-" + (segEnd - 1).ToString(CultureInfo.InvariantCulture) +
+                                               " count=" + count.ToString(CultureInfo.InvariantCulture) +
+                                               " recreate={" + _c2WallObjectsV157LastReCreateAuditLikeOriginal + "}" +
+                                               " modelIDBackend={" + _c2WallObjectsV159LastModelIDAuditLikeOriginal + "}" +
+                                               " action=old_individual_saved_WL_fence_cards_hard_deleted_no_fallback");
+                            }
+                        }
+                    }
+                }
+
+                i = Math.Max(segEnd, segStart + 1);
+            }
+
+            audit = auditParts.Count > 0 ? string.Join(" | ", auditParts.ToArray()) : "none";
+            return created;
+        }
+
+        private static bool CanAppendWallFenceCandidateToSideLineV153LikeOriginal(List<WallSavedMapSpriteV6LikeOriginal> sprites, int start, int nextExclusive, int familyMaskV152)
+        {
+            if (sprites == null || start < 0 || nextExclusive <= start || nextExclusive > sprites.Count || familyMaskV152 == 0)
+                return false;
+            if (nextExclusive - start <= 2)
+            {
+                WallSavedMapSpriteV6LikeOriginal a = sprites[start];
+                WallSavedMapSpriteV6LikeOriginal b = sprites[nextExclusive - 1];
+                if (a == null || b == null)
+                    return false;
+                float d = new Vector2(b.X - a.X, b.Y - a.Y).magnitude;
+                return d >= C2WallObjectsV132FenceMinStepOriginal && d <= C2WallObjectsV132FenceMaxStepOriginal;
+            }
+
+            WallSavedMapSpriteV6LikeOriginal first = sprites[start];
+            WallSavedMapSpriteV6LikeOriginal last = sprites[nextExclusive - 1];
+            if (first == null || last == null)
+                return false;
+
+            Vector2 p0 = new Vector2(first.X, first.Y);
+            Vector2 p1 = new Vector2(last.X, last.Y);
+            Vector2 line = p1 - p0;
+            float len = line.magnitude;
+            if (len < C2WallObjectsV132FenceMinStepOriginal)
+                return false;
+            Vector2 dir = line / Mathf.Max(0.0001f, len);
+
+            float prevT = -9999999.0f;
+            for (int i = start; i < nextExclusive; i++)
+            {
+                WallSavedMapSpriteV6LikeOriginal s = sprites[i];
+                if (s == null)
+                    return false;
+
+                if (i > start)
+                {
+                    WallSavedMapSpriteV6LikeOriginal prev = sprites[i - 1];
+                    float gap = new Vector2(s.X - prev.X, s.Y - prev.Y).magnitude;
+                    if (gap < C2WallObjectsV132FenceMinStepOriginal || gap > C2WallObjectsV132FenceMaxStepOriginal)
+                        return false;
+                }
+
+                Vector2 p = new Vector2(s.X, s.Y);
+                float t = Vector2.Dot(p - p0, dir);
+                Vector2 projected = p0 + dir * t;
+                float perp = (p - projected).magnitude;
+                if (perp > C2WallObjectsV153SideLineMaxPerpErrorLikeOriginal)
+                    return false;
+                if (i > start && t + 8.0f < prevT)
+                    return false;
+                prevT = t;
+            }
+
+            return true;
+        }
+
+        private static bool IsWallFenceTopBottomSideV152LikeOriginal(Vector2 originalLine)
+        {
+            // V152 audit rule: original map-axis slope chooses the already-authored frame pair.
+            // Do not use Unity world X/Z here: terrain mirroring and odd-column offsets can invert the visual side.
+            return (originalLine.x * originalLine.y) >= 0.0f;
+        }
+
+        private static int GetWallFencePairFamilyMaskV152LikeOriginal(int spriteIndex)
+        {
+            int mask = 0;
+            for (int f = 0; f < C2WallObjectsV152FencePairsLikeOriginal.Length; f++)
+            {
+                WallFencePairV152LikeOriginal pair = C2WallObjectsV152FencePairsLikeOriginal[f];
+                if (spriteIndex == pair.TopBottom || spriteIndex == pair.LeftRight)
+                    mask |= (1 << f);
+            }
+            return mask;
+        }
+
+        private static int SelectDominantWallFencePairSpriteForSideV153LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            int start,
+            int end,
+            int familyMaskV152,
+            bool topBottomSide)
+        {
+            if (sprites == null || start < 0 || end <= start || familyMaskV152 == 0)
+                return -1;
+
+            int[] familyVotes = new int[C2WallObjectsV152FencePairsLikeOriginal.Length];
+            for (int i = start; i < end && i < sprites.Count; i++)
+            {
+                WallSavedMapSpriteV6LikeOriginal s = sprites[i];
+                if (s == null)
+                    continue;
+
+                for (int f = 0; f < C2WallObjectsV152FencePairsLikeOriginal.Length; f++)
+                {
+                    if ((familyMaskV152 & (1 << f)) == 0)
+                        continue;
+
+                    WallFencePairV152LikeOriginal pair = C2WallObjectsV152FencePairsLikeOriginal[f];
+                    if (s.SpriteIndex == pair.TopBottom || s.SpriteIndex == pair.LeftRight)
+                        familyVotes[f]++;
+                }
+            }
+
+            int bestFamily = -1;
+            int bestVotes = -1;
+            for (int f = 0; f < familyVotes.Length; f++)
+            {
+                if ((familyMaskV152 & (1 << f)) == 0)
+                    continue;
+                if (familyVotes[f] > bestVotes)
+                {
+                    bestVotes = familyVotes[f];
+                    bestFamily = f;
+                }
+            }
+
+            if (bestFamily < 0)
+                return -1;
+
+            WallFencePairV152LikeOriginal best = C2WallObjectsV152FencePairsLikeOriginal[bestFamily];
+            return topBottomSide ? best.TopBottom : best.LeftRight;
+        }
+
+        private static string BuildWallFenceSideLineSpriteSummaryV150LikeOriginal(List<WallSavedMapSpriteV6LikeOriginal> sprites, int start, int end)
+        {
+            if (sprites == null || start < 0 || end <= start || start >= sprites.Count)
+                return "none";
+
+            var ids = new List<int>();
+            for (int i = start; i < end && i < sprites.Count; i++)
+            {
+                WallSavedMapSpriteV6LikeOriginal s = sprites[i];
+                if (s == null)
+                    continue;
+                if (!ids.Contains(s.SpriteIndex))
+                    ids.Add(s.SpriteIndex);
+            }
+
+            var parts = new List<string>();
+            for (int i = 0; i < ids.Count; i++)
+                parts.Add("W" + ids[i].ToString(CultureInfo.InvariantCulture));
+            return parts.Count > 0 ? string.Join(",", parts.ToArray()) : "none";
+        }
+
+        private Mesh BuildIdenticalWL2DFenceLineRootMeshV144LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            int start,
+            int end,
+            WallSpriteDescV1LikeOriginal desc,
+            Texture2D tex)
+        {
+            Material[] unusedMaterials;
+            int familyMaskV152 = GetWallFencePairFamilyMaskForRunV152LikeOriginal(sprites, start, end);
+            return BuildSideLineWL2DFenceLineRootMeshV150LikeOriginal(sprites, start, end, familyMaskV152, null, null, out unusedMaterials);
+        }
+
+
+        private struct WallFencePairV152LikeOriginal
+        {
+            public int TopBottom;
+            public int LeftRight;
+
+            public WallFencePairV152LikeOriginal(int topBottom, int leftRight)
+            {
+                TopBottom = topBottom;
+                LeftRight = leftRight;
+            }
+        }
+
+        private static readonly WallFencePairV152LikeOriginal[] C2WallObjectsV152FencePairsLikeOriginal =
+        {
+            new WallFencePairV152LikeOriginal(74, 70),
+            new WallFencePairV152LikeOriginal(59, 58),
+            new WallFencePairV152LikeOriginal(1, 0),
+            new WallFencePairV152LikeOriginal(5, 4),
+            new WallFencePairV152LikeOriginal(3, 4),
+            new WallFencePairV152LikeOriginal(7, 6),
+        };
+
+        private static bool TryResolveWallFencePairSpriteV152LikeOriginal(
+            int sourceSpriteIndex,
+            Vector2 line,
+            out int resolvedSpriteIndex,
+            out string orientation)
+        {
+            resolvedSpriteIndex = sourceSpriteIndex;
+            orientation = "none";
+
+            for (int i = 0; i < C2WallObjectsV152FencePairsLikeOriginal.Length; i++)
+            {
+                WallFencePairV152LikeOriginal pair = C2WallObjectsV152FencePairsLikeOriginal[i];
+                if (sourceSpriteIndex != pair.TopBottom && sourceSpriteIndex != pair.LeftRight)
+                    continue;
+
+                // The Python reference that finally matched the user's visual test is:
+                //   top/bottom -> frame_0074, 0059, 0001, 0005, 0003, 0007
+                //   right/left -> frame_0070, 0058, 0000, 0004, 0004, 0006
+                // no flip, no rotation.
+                //
+                // On the original WL map axes these two isometric families appear as two diagonal slopes:
+                //   dx*dy >= 0  => top/bottom family
+                //   dx*dy <  0  => right/left family
+                bool topBottom = (line.x * line.y) >= 0.0f;
+                resolvedSpriteIndex = topBottom ? pair.TopBottom : pair.LeftRight;
+                orientation = topBottom ? "topBottom" : "leftRight";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsKnownWallFencePairSpriteV152LikeOriginal(int spriteIndex)
+        {
+            for (int i = 0; i < C2WallObjectsV152FencePairsLikeOriginal.Length; i++)
+            {
+                WallFencePairV152LikeOriginal pair = C2WallObjectsV152FencePairsLikeOriginal[i];
+                if (spriteIndex == pair.TopBottom || spriteIndex == pair.LeftRight)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static int GetWallFencePairFamilyMaskForRunV152LikeOriginal(List<WallSavedMapSpriteV6LikeOriginal> sprites, int start, int end)
+        {
+            int mask = 0;
+            if (sprites == null || start < 0 || end <= start)
+                return mask;
+
+            for (int i = start; i < end && i < sprites.Count; i++)
+            {
+                WallSavedMapSpriteV6LikeOriginal s = sprites[i];
+                if (s == null)
+                    continue;
+
+                int spriteMask = GetWallFencePairFamilyMaskV152LikeOriginal(s.SpriteIndex);
+                if (spriteMask == 0)
+                    continue;
+
+                mask = mask == 0 ? spriteMask : (mask & spriteMask);
+            }
+
+            return mask;
+        }
+
+        private sealed class WallOriginalEdgeV157LikeOriginal
+        {
+            public float dx;
+            public float dy;
+            public float dz;
+            public float Fi;
+            public float DFi;
+            public int Id;
+        }
+
+        private sealed class OneWallElementV157LikeOriginal
+        {
+            public WallSpriteDescV1LikeOriginal SpriteDesc;
+            public float Scale = 1.0f;
+            public int Rotation;
+            public int dz;
+            public int Usage = 1;
+            public int AssociateWithUnit;
+            public readonly List<WallOriginalEdgeV157LikeOriginal> LeftEdges = new List<WallOriginalEdgeV157LikeOriginal>();
+            public readonly List<WallOriginalEdgeV157LikeOriginal> RightEdges = new List<WallOriginalEdgeV157LikeOriginal>();
+        }
+
+        private sealed class WallTypeDescriptionV157LikeOriginal
+        {
+            public string Name = "WL2D_FENCE_SYNTHETIC_FROM_WALLS_RSR";
+            public float GlobalScale = 1.0f;
+            public int MinWallHeight;
+            public readonly List<OneWallElementV157LikeOriginal> Elements = new List<OneWallElementV157LikeOriginal>();
+        }
+
+        private sealed class OneWallEdgeV158LikeOriginal
+        {
+            public int EdgeID;
+            public int x;
+            public int y;
+            public int z;
+            public bool Dead;
+            public OneWallLineV158LikeOriginal In;
+            public OneWallLineV158LikeOriginal Out;
+            public readonly List<OneWallPointV157LikeOriginal> Points = new List<OneWallPointV157LikeOriginal>();
+        }
+
+        private sealed class OneWallLineV158LikeOriginal
+        {
+            public int StartEdge;
+            public int FinalEdge;
+            public bool Dead;
+            public int WallType;
+            public OneWallEdgeV158LikeOriginal Start;
+            public OneWallEdgeV158LikeOriginal Final;
+            public readonly List<OneWallPointV157LikeOriginal> Points = new List<OneWallPointV157LikeOriginal>();
+        }
+
+        private sealed class OneWallsSystemV158LikeOriginal
+        {
+            public readonly List<OneWallEdgeV158LikeOriginal> Edges = new List<OneWallEdgeV158LikeOriginal>();
+            public readonly List<OneWallLineV158LikeOriginal> Lines = new List<OneWallLineV158LikeOriginal>();
+
+            public void FillTempFieldsLikeOriginal()
+            {
+                for (int i = 0; i < Edges.Count; i++)
+                {
+                    if (Edges[i] == null) continue;
+                    Edges[i].In = null;
+                    Edges[i].Out = null;
+                }
+
+                for (int i = 0; i < Lines.Count; i++)
+                {
+                    OneWallLineV158LikeOriginal line = Lines[i];
+                    if (line == null || line.Dead)
+                        continue;
+                    line.Start = null;
+                    line.Final = null;
+                    for (int j = 0; j < Edges.Count; j++)
+                    {
+                        OneWallEdgeV158LikeOriginal edge = Edges[j];
+                        if (edge == null || edge.Dead)
+                            continue;
+                        if (line.FinalEdge == edge.EdgeID)
+                        {
+                            line.Final = edge;
+                            edge.In = line;
+                        }
+                        if (line.StartEdge == edge.EdgeID)
+                        {
+                            line.Start = edge;
+                            edge.Out = line;
+                        }
+                    }
+                }
+            }
+        }
+
+        private sealed class OneWallPointV157LikeOriginal
+        {
+            public OneWallElementV157LikeOriginal Type;
+            public int SourceSavedIndex;
+            public int ResolvedSpriteIndex;
+            public float x;
+            public float y;
+            public float z;
+            public float x_in;
+            public float y_in;
+            public float x_out;
+            public float y_out;
+            public float ScaleO = 1.0f;
+            public float ScaleP = 1.0f;
+            public float ScaleZ = 1.0f;
+            public float Angle;
+            public Matrix4x4 M4 = Matrix4x4.identity;
+        }
+
+        private static float SqNormaV157LikeOriginal(float x, float y)
+        {
+            return Mathf.Sqrt(x * x + y * y);
+        }
+
+        private static OneWallElementV157LikeOriginal CreateOneWallElementFromSpriteDescV157LikeOriginal(WallSpriteDescV1LikeOriginal desc, int usage)
+        {
+            if (desc == null)
+                return null;
+
+            var e = new OneWallElementV157LikeOriginal
+            {
+                SpriteDesc = desc,
+                Usage = desc.ElementUsageV160 >= 0 ? desc.ElementUsageV160 : usage,
+                Scale = Mathf.Max(0.0001f, desc.ElementScaleV160),
+                Rotation = desc.ElementRotationV160,
+                dz = desc.ElementDzV160,
+                AssociateWithUnit = 0
+            };
+
+            for (int i = 0; i < desc.LeftEdges.Count; i++)
+            {
+                WallEdgePointV1LikeOriginal src = desc.LeftEdges[i];
+                e.LeftEdges.Add(new WallOriginalEdgeV157LikeOriginal { dx = src.X, dy = src.Y, dz = 0.0f, Id = src.Id });
+            }
+
+            for (int i = 0; i < desc.RightEdges.Count; i++)
+            {
+                WallEdgePointV1LikeOriginal src = desc.RightEdges[i];
+                e.RightEdges.Add(new WallOriginalEdgeV157LikeOriginal { dx = src.X, dy = src.Y, dz = 0.0f, Id = src.Id });
+            }
+
+            return e;
+        }
+
+        private static Matrix4x4 BuildOneWallPointMatrixV157LikeOriginal(OneWallPointV157LikeOriginal p, WallTypeDescriptionV157LikeOriginal wt, float slopeSource, bool useXZSlope)
+        {
+            if (p == null || p.Type == null || wt == null)
+                return Matrix4x4.identity;
+
+            // Original Matrix4D is used as a row-vector transform in this file:
+            // x' = x*e00 + y*e10 + z*e20 + e30.
+            // Port the exact 3DWalls.cpp order:
+            //   OWP->M4.scaling(ScaleO,ScaleP,ScaleZ);
+            //   OWP->M4.e02/e12 = local slope;
+            //   M4.srt(Type->Scale*WT->GlobalScale, oZ, Angle, (x,y,z));
+            //   OWP->M4 *= M4;
+            //   OWP->M4 *= GetSkewTM();
+            Matrix4x4 scaleAndSlope = Matrix4x4.identity;
+            scaleAndSlope.m00 = p.ScaleO;
+            scaleAndSlope.m11 = p.ScaleP;
+            scaleAndSlope.m22 = p.ScaleZ;
+            if (useXZSlope)
+                scaleAndSlope.m02 = slopeSource;
+            else
+                scaleAndSlope.m12 = slopeSource;
+
+            float s = p.Type.Scale * wt.GlobalScale;
+            float a = p.Angle * Mathf.PI / 128.0f;
+            float c = Mathf.Cos(a);
+            float sn = Mathf.Sin(a);
+
+            Matrix4x4 srt = Matrix4x4.identity;
+            srt.m00 = c * s;
+            srt.m01 = sn * s;
+            srt.m10 = -sn * s;
+            srt.m11 = c * s;
+            srt.m22 = s;
+            srt.m30 = p.x;
+            srt.m31 = p.y;
+            srt.m32 = p.z;
+
+            Matrix4x4 skew = BuildSkewMatrix4DLikeOriginalV159();
+
+            return MultiplyMatrix4DRowVectorOrderV159LikeOriginal(
+                MultiplyMatrix4DRowVectorOrderV159LikeOriginal(scaleAndSlope, srt),
+                skew);
+        }
+
+        private static Matrix4x4 BuildSkewMatrix4DLikeOriginalV159()
+        {
+            // Scape3D.cpp:
+            // const Matrix4D c_SkewTM( 1,0,0,0, 0,1,0,0, 0,-0.5,cos(pi/6),0, 0,0,0,1 )
+            // SkewPt(x,y,z) = (x, y - 0.5*z, z*cos(pi/6)).
+            Matrix4x4 m = Matrix4x4.identity;
+            m.m20 = 0.0f;
+            m.m21 = -0.5f;
+            m.m22 = 0.8660254037844386f;
+            return m;
+        }
+
+        private static Matrix4x4 MultiplyMatrix4DRowVectorOrderV159LikeOriginal(Matrix4x4 a, Matrix4x4 b)
+        {
+            Matrix4x4 r = new Matrix4x4();
+
+            r.m00 = a.m00 * b.m00 + a.m01 * b.m10 + a.m02 * b.m20 + a.m03 * b.m30;
+            r.m01 = a.m00 * b.m01 + a.m01 * b.m11 + a.m02 * b.m21 + a.m03 * b.m31;
+            r.m02 = a.m00 * b.m02 + a.m01 * b.m12 + a.m02 * b.m22 + a.m03 * b.m32;
+            r.m03 = a.m00 * b.m03 + a.m01 * b.m13 + a.m02 * b.m23 + a.m03 * b.m33;
+
+            r.m10 = a.m10 * b.m00 + a.m11 * b.m10 + a.m12 * b.m20 + a.m13 * b.m30;
+            r.m11 = a.m10 * b.m01 + a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31;
+            r.m12 = a.m10 * b.m02 + a.m11 * b.m12 + a.m12 * b.m22 + a.m13 * b.m32;
+            r.m13 = a.m10 * b.m03 + a.m11 * b.m13 + a.m12 * b.m23 + a.m13 * b.m33;
+
+            r.m20 = a.m20 * b.m00 + a.m21 * b.m10 + a.m22 * b.m20 + a.m23 * b.m30;
+            r.m21 = a.m20 * b.m01 + a.m21 * b.m11 + a.m22 * b.m21 + a.m23 * b.m31;
+            r.m22 = a.m20 * b.m02 + a.m21 * b.m12 + a.m22 * b.m22 + a.m23 * b.m32;
+            r.m23 = a.m20 * b.m03 + a.m21 * b.m13 + a.m22 * b.m23 + a.m23 * b.m33;
+
+            r.m30 = a.m30 * b.m00 + a.m31 * b.m10 + a.m32 * b.m20 + a.m33 * b.m30;
+            r.m31 = a.m30 * b.m01 + a.m31 * b.m11 + a.m32 * b.m21 + a.m33 * b.m31;
+            r.m32 = a.m30 * b.m02 + a.m31 * b.m12 + a.m32 * b.m22 + a.m33 * b.m32;
+            r.m33 = a.m30 * b.m03 + a.m31 * b.m13 + a.m32 * b.m23 + a.m33 * b.m33;
+
+            return r;
+        }
+
+        private static void RotateWallEdgePointV158LikeOriginal(WallOriginalEdgeV157LikeOriginal edge, float angle128, float scale, float globalScale, out float rx, out float ry)
+        {
+            if (edge == null)
+            {
+                rx = 0.0f;
+                ry = 0.0f;
+                return;
+            }
+
+            float lx = edge.dx * scale * globalScale;
+            float ly = edge.dy * scale * globalScale;
+            float a = angle128 * Mathf.PI / 128.0f;
+            float c = Mathf.Cos(a);
+            float s = Mathf.Sin(a);
+            rx = c * lx - s * ly;
+            ry = c * ly + s * lx;
+        }
+
+        private OneWallPointV157LikeOriginal BuildVirtualOneWallEdgePointV158LikeOriginal(
+            OneWallElementV157LikeOriginal type,
+            WallTypeDescriptionV157LikeOriginal wt,
+            Vector2 desiredConnector,
+            bool connectorIsOut,
+            float baseAngle,
+            out string audit)
+        {
+            audit = string.Empty;
+            if (type == null || wt == null)
+                return null;
+
+            WallOriginalEdgeV157LikeOriginal connector = connectorIsOut
+                ? (type.RightEdges.Count > 0 ? type.RightEdges[0] : null)
+                : (type.LeftEdges.Count > 0 ? type.LeftEdges[0] : null);
+
+            RotateWallEdgePointV158LikeOriginal(connector, baseAngle, type.Scale, wt.GlobalScale, out float cx, out float cy);
+            float centerX = desiredConnector.x - cx;
+            float centerY = desiredConnector.y - cy;
+
+            var p = new OneWallPointV157LikeOriginal
+            {
+                Type = type,
+                SourceSavedIndex = -1,
+                ResolvedSpriteIndex = type.SpriteDesc != null ? type.SpriteDesc.SpriteIndex : -1,
+                x = centerX,
+                y = centerY,
+                z = SampleWallHeightOriginalXYV1LikeOriginal(centerX, centerY),
+                ScaleO = 1.0f,
+                ScaleP = 1.0f,
+                ScaleZ = 1.0f,
+                Angle = baseAngle
+            };
+
+            RotateWallEdgePointV158LikeOriginal(type.LeftEdges.Count > 0 ? type.LeftEdges[0] : null, baseAngle, type.Scale, wt.GlobalScale, out float xin, out float yin);
+            RotateWallEdgePointV158LikeOriginal(type.RightEdges.Count > 0 ? type.RightEdges[0] : null, baseAngle, type.Scale, wt.GlobalScale, out float xout, out float yout);
+            p.x_in = p.x + xin;
+            p.y_in = p.y + yin;
+            p.x_out = p.x + xout;
+            p.y_out = p.y + yout;
+
+            p.Angle += type.Rotation;
+            p.z += type.dz;
+            p.M4 = BuildOneWallPointMatrixV157LikeOriginal(p, wt, 0.0f, type.Rotation == 64 || type.Rotation == 64 + 128);
+
+            audit = (connectorIsOut ? "out" : "in") + " desired=(" +
+                    desiredConnector.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                    desiredConnector.y.ToString("0.###", CultureInfo.InvariantCulture) + ") center=(" +
+                    p.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                    p.y.ToString("0.###", CultureInfo.InvariantCulture) + ") actualIn=(" +
+                    p.x_in.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                    p.y_in.ToString("0.###", CultureInfo.InvariantCulture) + ") actualOut=(" +
+                    p.x_out.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                    p.y_out.ToString("0.###", CultureInfo.InvariantCulture) + ")";
+            return p;
+        }
+
+
+        private static OneWallElementV157LikeOriginal ConvertWallElementXmlToOneWallElementV170LikeOriginal(WallElementXmlV160LikeOriginal src)
+        {
+            if (src == null || src.BoundSpriteDescV161 == null)
+                return null;
+
+            OneWallElementV157LikeOriginal e = CreateOneWallElementFromSpriteDescV157LikeOriginal(src.BoundSpriteDescV161, src.Usage);
+            if (e == null)
+                return null;
+
+            e.Scale = Mathf.Max(0.0001f, src.Scale);
+            e.Rotation = src.Rotation;
+            e.dz = src.dz;
+            e.Usage = src.Usage;
+            e.AssociateWithUnit = src.AssociateWithUnit;
+
+            e.LeftEdges.Clear();
+            for (int i = 0; i < src.LeftEdges.Count; i++)
+            {
+                WallEdgePointV1LikeOriginal p = src.LeftEdges[i];
+                e.LeftEdges.Add(new WallOriginalEdgeV157LikeOriginal { dx = p.X, dy = p.Y, dz = 0.0f, Id = p.Id });
+            }
+
+            e.RightEdges.Clear();
+            for (int i = 0; i < src.RightEdges.Count; i++)
+            {
+                WallEdgePointV1LikeOriginal p = src.RightEdges[i];
+                e.RightEdges.Add(new WallOriginalEdgeV157LikeOriginal { dx = p.X, dy = p.Y, dz = 0.0f, Id = p.Id });
+            }
+
+            return e;
+        }
+
+        private static bool IsWallSpriteInFencePairFamilyV170LikeOriginal(int spriteIndex, int familyMaskV152)
+        {
+            if ((familyMaskV152 & 0x2) != 0 && (spriteIndex == 58 || spriteIndex == 59))
+                return true;
+            if ((familyMaskV152 & 0x1) != 0 && (spriteIndex == 70 || spriteIndex == 74))
+                return true;
+            return false;
+        }
+
+        private static bool TryBuildRealWallTypeCycleV170LikeOriginal(
+            WallSpriteCatalogV1LikeOriginal catalog,
+            WallSpriteDescV1LikeOriginal centralDesc,
+            int familyMaskV152,
+            out WallTypeDescriptionV157LikeOriginal wt,
+            out OneWallElementV157LikeOriginal leType,
+            out OneWallElementV157LikeOriginal eType,
+            out OneWallElementV157LikeOriginal reType,
+            out string audit)
+        {
+            wt = null;
+            leType = null;
+            eType = null;
+            reType = null;
+            audit = "no_catalog";
+
+            if (catalog == null || centralDesc == null || catalog.WallTypesV160 == null || catalog.WallTypesV160.Count == 0)
+                return false;
+
+            for (int wi = 0; wi < catalog.WallTypesV160.Count; wi++)
+            {
+                WallTypeDescriptionXmlV160LikeOriginal srcWt = catalog.WallTypesV160[wi];
+                if (srcWt == null || srcWt.Elements == null || srcWt.Elements.Count == 0)
+                    continue;
+
+                WallElementXmlV160LikeOriginal xmlLeft = null;
+                WallElementXmlV160LikeOriginal xmlCenter = null;
+                WallElementXmlV160LikeOriginal xmlRight = null;
+
+                for (int ei = 0; ei < srcWt.Elements.Count; ei++)
+                {
+                    WallElementXmlV160LikeOriginal e = srcWt.Elements[ei];
+                    if (e == null || e.BoundSpriteDescV161 == null)
+                        continue;
+
+                    int si = e.BoundSpriteDescV161.SpriteIndex;
+                    bool familyOk = IsWallSpriteInFencePairFamilyV170LikeOriginal(si, familyMaskV152);
+                    bool centralOk = si == centralDesc.SpriteIndex || familyOk;
+                    if (!centralOk)
+                        continue;
+
+                    if (e.Usage == 0 && xmlLeft == null)
+                        xmlLeft = e;
+                    else if (e.Usage == 1 && xmlCenter == null)
+                        xmlCenter = e;
+                    else if (e.Usage == 2 && xmlRight == null)
+                        xmlRight = e;
+                }
+
+                if (xmlCenter == null)
+                    continue;
+
+                wt = new WallTypeDescriptionV157LikeOriginal
+                {
+                    Name = string.IsNullOrWhiteSpace(srcWt.Name) ? "WallTypeDescription_XML_V170" : srcWt.Name,
+                    GlobalScale = srcWt.GlobalScale,
+                    MinWallHeight = srcWt.MinWallHeight
+                };
+
+                eType = ConvertWallElementXmlToOneWallElementV170LikeOriginal(xmlCenter);
+                leType = ConvertWallElementXmlToOneWallElementV170LikeOriginal(xmlLeft);
+                reType = ConvertWallElementXmlToOneWallElementV170LikeOriginal(xmlRight);
+                if (eType == null)
+                    continue;
+
+                wt.Elements.Add(eType);
+                if (leType != null) wt.Elements.Add(leType);
+                if (reType != null) wt.Elements.Add(reType);
+
+                audit = "V170_REAL_WallType_cycle_USED wt=" + wi.ToString(CultureInfo.InvariantCulture) +
+                        " center=W" + eType.SpriteDesc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                        " left=" + (leType != null && leType.SpriteDesc != null ? "W" + leType.SpriteDesc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "none") +
+                        " right=" + (reType != null && reType.SpriteDesc != null ? "W" + reType.SpriteDesc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "none");
+                return true;
+            }
+
+            audit = "V170_NO_REAL_WallType_cycle central=W" + centralDesc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                    " wallTypes=" + catalog.WallTypesV160.Count.ToString(CultureInfo.InvariantCulture);
+            return false;
+        }
+
+        private OneWallLineV158LikeOriginal BuildVirtualOneWallsSystemGraphFromSavedWLRunV158LikeOriginal(
+            Vector2 desiredX0Y0,
+            Vector2 desiredX1Y1,
+            OneWallElementV157LikeOriginal edgeType,
+            WallTypeDescriptionV157LikeOriginal wt,
+            float baseAngle,
+            out string audit)
+        {
+            audit = string.Empty;
+            if (!C2WallObjectsV158BuildVirtualOneWallsGraphForSavedWL2DFenceLikeOriginal || edgeType == null || wt == null)
+                return null;
+
+            var sys = new OneWallsSystemV158LikeOriginal();
+            var startEdge = new OneWallEdgeV158LikeOriginal { EdgeID = 1, Dead = false };
+            var finalEdge = new OneWallEdgeV158LikeOriginal { EdgeID = 2, Dead = false };
+            var line = new OneWallLineV158LikeOriginal { StartEdge = 1, FinalEdge = 2, Dead = false, WallType = 0 };
+
+            OneWallPointV157LikeOriginal startPoint = BuildVirtualOneWallEdgePointV158LikeOriginal(edgeType, wt, desiredX0Y0, connectorIsOut: true, baseAngle: baseAngle, out string startAudit);
+            OneWallPointV157LikeOriginal finalPoint = BuildVirtualOneWallEdgePointV158LikeOriginal(edgeType, wt, desiredX1Y1, connectorIsOut: false, baseAngle: baseAngle, out string finalAudit);
+            if (startPoint == null || finalPoint == null)
+                return null;
+
+            startEdge.x = Mathf.RoundToInt(startPoint.x);
+            startEdge.y = Mathf.RoundToInt(startPoint.y);
+            startEdge.z = Mathf.RoundToInt(startPoint.z);
+            finalEdge.x = Mathf.RoundToInt(finalPoint.x);
+            finalEdge.y = Mathf.RoundToInt(finalPoint.y);
+            finalEdge.z = Mathf.RoundToInt(finalPoint.z);
+            startEdge.Points.Add(startPoint);
+            finalEdge.Points.Add(finalPoint);
+
+            sys.Edges.Add(startEdge);
+            sys.Edges.Add(finalEdge);
+            sys.Lines.Add(line);
+            sys.FillTempFieldsLikeOriginal();
+
+            audit = "V158_graph edges=2 lines=1 start{" + startAudit + "} final{" + finalAudit + "}";
+            return line.Start != null && line.Final != null ? line : null;
+        }
+
+
+private List<OneWallPointV157LikeOriginal> ReCreateOneWallsSystemLineFromSavedWLRunV157LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            int start,
+            int end,
+            int familyMaskV152,
+            WallSpriteCatalogV1LikeOriginal catalog,
+            out string audit)
+        {
+            audit = string.Empty;
+            var points = new List<OneWallPointV157LikeOriginal>();
+            if (!C2WallObjectsV157UseOriginalOneWallsSystemPortForWL2DFenceLikeOriginal ||
+                sprites == null || catalog == null || start < 0 || end <= start || end > sprites.Count)
+                return points;
+
+            int savedCount = end - start;
+            if (savedCount < 2)
+                return points;
+
+            WallSavedMapSpriteV6LikeOriginal first = sprites[start];
+            WallSavedMapSpriteV6LikeOriginal last = sprites[end - 1];
+            if (first == null || last == null)
+                return points;
+
+            Vector2 firstCenter = new Vector2(first.X, first.Y);
+            Vector2 lastCenter = new Vector2(last.X, last.Y);
+            Vector2 savedCenterLine = lastCenter - firstCenter;
+            float savedCenterLen = savedCenterLine.magnitude;
+            if (savedCenterLen < C2WallObjectsV132FenceMinStepOriginal)
+                return points;
+
+            Vector2 savedStep = savedCenterLine / Mathf.Max(1, savedCount - 1);
+
+            // Saved TRE2/WL carries finished centers, while original ReCreate uses Start->x_out and Final->x_in.
+            // Rebuild the virtual connector endpoints by extending the first/last center by half a saved step.
+            Vector2 x0y0 = firstCenter - savedStep * 0.5f;
+            Vector2 x1y1 = lastCenter + savedStep * 0.5f;
+            Vector2 line = x1y1 - x0y0;
+            float tdist = line.magnitude;
+            if (tdist < C2WallObjectsV132FenceMinStepOriginal)
+                return points;
+
+            bool topBottom = IsWallFenceTopBottomSideV152LikeOriginal(line);
+            int dominantSprite = SelectDominantWallFencePairSpriteForSideV153LikeOriginal(sprites, start, end, familyMaskV152, topBottom);
+            if (dominantSprite < 0)
+                dominantSprite = first.SpriteIndex;
+            if (!TryResolveWallFencePairSpriteV152LikeOriginal(dominantSprite, line, out int centralSpriteIndex, out string centralOrientation))
+                centralSpriteIndex = dominantSprite;
+
+            if (!catalog.ByIndex.TryGetValue(centralSpriteIndex, out WallSpriteDescV1LikeOriginal centralDesc) || centralDesc == null)
+            {
+                if (!catalog.ByIndex.TryGetValue(first.SpriteIndex, out centralDesc) || centralDesc == null)
+                    return points;
+                centralSpriteIndex = centralDesc.SpriteIndex;
+            }
+
+            string realWtAuditV161 = "V171_synthetic_saved_WL_WALS2D_WALLS_g16_no_real_WallType_cycle";
+            OneWallElementV157LikeOriginal leType = null;
+            OneWallElementV157LikeOriginal reType = null;
+            WallTypeDescriptionV157LikeOriginal wt = null;
+            OneWallElementV157LikeOriginal eType = null;
+            bool useRealWallTypeCycleV161 = false;
+
+            if (C2WallObjectsV161UseRealWallTypeElementCycleForOneWallsSystemLikeOriginal)
+            {
+                useRealWallTypeCycleV161 = TryBuildRealWallTypeCycleV170LikeOriginal(catalog, centralDesc, familyMaskV152, out wt, out leType, out eType, out reType, out realWtAuditV161);
+                if (useRealWallTypeCycleV161)
+                    _c2WallObjectsV161RealWallTypeCycleUsedLikeOriginal++;
+            }
+
+            if (!useRealWallTypeCycleV161)
+            {
+                if (C2WallObjectsV170UseRealWallTypeCycleOrRejectLikeOriginal)
+                {
+                    audit = "V170_REJECT_NO_REAL_WallType_cycle central=W" + centralSpriteIndex.ToString(CultureInfo.InvariantCulture) + " realWT={" + realWtAuditV161 + "}";
+                    return points;
+                }
+
+                wt = new WallTypeDescriptionV157LikeOriginal { GlobalScale = 1.0f, MinWallHeight = 0 };
+                eType = CreateOneWallElementFromSpriteDescV157LikeOriginal(centralDesc, 1);
+                if (eType == null)
+                    return points;
+                wt.Elements.Add(eType);
+            }
+
+            if (wt == null || eType == null)
+                return points;
+
+            string graphAuditV158 = "V158_graph_disabled";
+            float baseAngle = Mathf.Atan2((x1y1.y - x0y0.y) / 1000.0f, (x1y1.x - x0y0.x) / 1000.0f) * 128.0f / Mathf.PI - 64.0f;
+            OneWallLineV158LikeOriginal graphLineV158 = BuildVirtualOneWallsSystemGraphFromSavedWLRunV158LikeOriginal(x0y0, x1y1, eType, wt, baseAngle, out graphAuditV158);
+            if (C2WallObjectsV158UseEdgeConnectorInOutForLineEndpointsLikeOriginal &&
+                graphLineV158 != null && graphLineV158.Start != null && graphLineV158.Final != null &&
+                graphLineV158.Start.Points.Count > 0 && graphLineV158.Final.Points.Count > 0)
+            {
+                OneWallPointV157LikeOriginal sp0 = graphLineV158.Start.Points[0];
+                OneWallPointV157LikeOriginal fp0 = graphLineV158.Final.Points[0];
+                x0y0 = new Vector2(sp0.x_out, sp0.y_out);
+                x1y1 = new Vector2(fp0.x_in, fp0.y_in);
+                line = x1y1 - x0y0;
+                tdist = line.magnitude;
+                if (tdist < C2WallObjectsV132FenceMinStepOriginal)
+                    return points;
+                baseAngle = Mathf.Atan2((x1y1.y - x0y0.y) / 1000.0f, (x1y1.x - x0y0.x) / 1000.0f) * 128.0f / Mathf.PI - 64.0f;
+            }
+
+            float ex0 = eType.LeftEdges.Count > 0 ? eType.LeftEdges[0].dx : 0.0f;
+            float ey0 = eType.LeftEdges.Count > 0 ? eType.LeftEdges[0].dy : 0.0f;
+            float ex1 = eType.RightEdges.Count > 0 ? eType.RightEdges[0].dx : Mathf.Max(16.0f, centralDesc.Width * 0.65f);
+            float ey1 = eType.RightEdges.Count > 0 ? eType.RightEdges[0].dy : 0.0f;
+            float esize = SqNormaV157LikeOriginal(ex1 - ex0, ey1 - ey0) * eType.Scale * wt.GlobalScale;
+            if (esize <= 0.0001f)
+                esize = EstimateWallElementLengthV1LikeOriginal(centralDesc);
+            if (esize <= 0.0001f)
+                return points;
+
+            int ne = (int)(tdist / esize + 0.5f);
+            if (ne <= 0)
+                return points;
+
+            float hScale = (tdist / ne / esize) * 1.05f;
+            float z0 = graphLineV158 != null && graphLineV158.Start != null && graphLineV158.Start.Points.Count > 0
+                ? graphLineV158.Start.Points[0].z
+                : SampleWallHeightOriginalXYV1LikeOriginal(x0y0.x, x0y0.y);
+            float z1 = graphLineV158 != null && graphLineV158.Final != null && graphLineV158.Final.Points.Count > 0
+                ? graphLineV158.Final.Points[0].z
+                : SampleWallHeightOriginalXYV1LikeOriginal(x1y1.x, x1y1.y);
+            float slopeDenom = SqNormaV157LikeOriginal(x1y1.x - x0y0.x, x1y1.y - x0y0.y);
+            float wholeLineSlope = slopeDenom > 0.0001f ? (z1 - z0) / slopeDenom : 0.0f;
+
+            for (int j = 0; j < ne; j++)
+            {
+                float t = (j + 0.5f) / ne;
+                Vector2 anchor = x0y0 + line * t;
+                int sourceIndex = Mathf.Clamp(start + Mathf.FloorToInt(t * savedCount), start, end - 1);
+                WallSavedMapSpriteV6LikeOriginal source = sprites[sourceIndex] ?? first;
+
+                int resolvedSpriteIndex;
+                OneWallElementV157LikeOriginal celm = eType;
+                if (useRealWallTypeCycleV161 && leType != null && reType != null)
+                {
+                    switch (j % 3)
+                    {
+                        case 0: celm = leType; break;
+                        case 1: celm = eType; break;
+                        case 2: celm = reType; break;
+                    }
+                    resolvedSpriteIndex = celm != null && celm.SpriteDesc != null ? celm.SpriteDesc.SpriteIndex : centralSpriteIndex;
+                }
+                else
+                {
+                    if (!TryResolveWallFencePairSpriteV152LikeOriginal(source.SpriteIndex, line, out resolvedSpriteIndex, out _))
+                        resolvedSpriteIndex = source.SpriteIndex;
+
+                    if (!catalog.ByIndex.TryGetValue(resolvedSpriteIndex, out WallSpriteDescV1LikeOriginal pointDesc) || pointDesc == null)
+                    {
+                        resolvedSpriteIndex = centralSpriteIndex;
+                        pointDesc = centralDesc;
+                    }
+
+                    celm = CreateOneWallElementFromSpriteDescV157LikeOriginal(pointDesc, 1);
+                }
+
+                if (celm == null)
+                    continue;
+
+                float zs = SampleWallHeightOriginalXYV1LikeOriginal(anchor.x, anchor.y);
+                if (zs < wt.MinWallHeight)
+                    zs = wt.MinWallHeight;
+                float zLine = Mathf.Lerp(z0, z1, t);
+                float z = (zLine * 2.0f + zs) / 3.0f;
+
+                var owp = new OneWallPointV157LikeOriginal
+                {
+                    Type = celm,
+                    SourceSavedIndex = sourceIndex,
+                    ResolvedSpriteIndex = resolvedSpriteIndex,
+                    x = anchor.x,
+                    y = anchor.y,
+                    z = z,
+                    ScaleO = 1.0f,
+                    ScaleP = hScale,
+                    ScaleZ = 1.0f,
+                    Angle = baseAngle
+                };
+
+                if (owp.Type.Rotation == 64 || owp.Type.Rotation == 64 + 128)
+                {
+                    float tmp = owp.ScaleO;
+                    owp.ScaleO = owp.ScaleP;
+                    owp.ScaleP = tmp;
+                }
+
+                if (ne == 1)
+                {
+                    owp.Angle += owp.Type.Rotation;
+                    owp.M4 = BuildOneWallPointMatrixV157LikeOriginal(owp, wt, wholeLineSlope, owp.Type.Rotation == 64 || owp.Type.Rotation == 64 + 128);
+                }
+
+                points.Add(owp);
+            }
+
+            if (C2WallObjectsV157UseSecondSmoothPassLikeOriginal && points.Count > 1)
+            {
+                int n = points.Count;
+                float[] xs = new float[n];
+                float[] ys = new float[n];
+                float[] zs = new float[n];
+                for (int j = 0; j < n; j++)
+                {
+                    OneWallPointV157LikeOriginal c = points[j];
+                    OneWallPointV157LikeOriginal prev = j > 0 ? points[j - 1] : null;
+                    OneWallPointV157LikeOriginal next = j < n - 1 ? points[j + 1] : null;
+                    float xc = c.x;
+                    float yc = c.y;
+                    float zc = c.z;
+                    float xp = prev != null ? prev.x : xc * 2.0f - next.x;
+                    float yp = prev != null ? prev.y : yc * 2.0f - next.y;
+                    float zp = prev != null ? prev.z : zc * 2.0f - next.z;
+                    float xn = next != null ? next.x : xc * 2.0f - xp;
+                    float yn = next != null ? next.y : yc * 2.0f - yp;
+                    float zn = next != null ? next.z : zc * 2.0f - zp;
+                    xs[j] = (xp + xn + xc * 2.0f) / 4.0f;
+                    ys[j] = (yp + yn + yc * 2.0f) / 4.0f;
+                    zs[j] = (zp + zn + zc * 2.0f) / 4.0f;
+                }
+
+                for (int j = 0; j < n; j++)
+                {
+                    OneWallPointV157LikeOriginal p = points[j];
+                    p.x = xs[j];
+                    p.y = ys[j];
+                    p.z = zs[j];
+
+                    OneWallPointV157LikeOriginal prev = j > 0 ? points[j - 1] : null;
+                    OneWallPointV157LikeOriginal next = j < n - 1 ? points[j + 1] : null;
+                    float xp = prev != null ? prev.x : p.x * 2.0f - next.x;
+                    float yp = prev != null ? prev.y : p.y * 2.0f - next.y;
+                    float zp = prev != null ? prev.z : p.z * 2.0f - next.z;
+                    float xn = next != null ? next.x : p.x * 2.0f - xp;
+                    float yn = next != null ? next.y : p.y * 2.0f - yp;
+                    float zn = next != null ? next.z : p.z * 2.0f - zp;
+                    float d = SqNormaV157LikeOriginal(xn - xp, yn - yp);
+                    float localSlope = d > 0.0001f ? (zn - zp) / d : 0.0f;
+
+                    p.Angle = baseAngle + (p.Type != null ? p.Type.Rotation : 0);
+                    if (p.Type != null)
+                        p.z += p.Type.dz;
+                    p.M4 = BuildOneWallPointMatrixV157LikeOriginal(p, wt, localSlope, p.Type != null && (p.Type.Rotation == 64 || p.Type.Rotation == 64 + 128));
+                }
+            }
+
+            audit = "x0=(" + x0y0.x.ToString("0.###", CultureInfo.InvariantCulture) + "," + x0y0.y.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
+                    " x1=(" + x1y1.x.ToString("0.###", CultureInfo.InvariantCulture) + "," + x1y1.y.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
+                    " Tdist=" + tdist.ToString("0.###", CultureInfo.InvariantCulture) +
+                    " esize=" + esize.ToString("0.###", CultureInfo.InvariantCulture) +
+                    " ne=" + ne.ToString(CultureInfo.InvariantCulture) +
+                    " hScale=" + hScale.ToString("0.###", CultureInfo.InvariantCulture) +
+                    " angle=" + baseAngle.ToString("0.###", CultureInfo.InvariantCulture) +
+                    " central=W" + centralSpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                    " orientation=" + centralOrientation +
+                    " smooth=" + C2WallObjectsV157UseSecondSmoothPassLikeOriginal.ToString() +
+                    " realWT={" + realWtAuditV161 + "}" +
+                    " graph={" + graphAuditV158 + "}";
+            return points;
+        }
+
+        private Mesh TryBuildOneWallsSystemModelIDLineRootMeshV159LikeOriginal(
+            List<OneWallPointV157LikeOriginal> points,
+            Material fallbackMaterial,
+            out Material[] materials,
+            out string audit)
+        {
+            materials = null;
+            audit = string.Empty;
+
+            if (!C2WallObjectsV159UseModelIDMatrix4DBackendForOneWallsSystemLineRootsLikeOriginal ||
+                points == null || points.Count == 0)
+            {
+                audit = "disabled_or_empty";
+                return null;
+            }
+
+            int missingModelPath = 0;
+            int c2mLoadFailed = 0;
+            int emittedPoints = 0;
+            int emittedVerts = 0;
+            var verts = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var colors = new List<Color32>();
+            var submeshTris = new List<List<int>>();
+            var mats = new List<Material>();
+            var matByModel = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var loadAudits = new List<string>();
+
+            for (int section = 0; section < points.Count; section++)
+            {
+                OneWallPointV157LikeOriginal point = points[section];
+                if (point == null || point.Type == null || point.Type.SpriteDesc == null)
+                    continue;
+
+                WallSpriteDescV1LikeOriginal desc = point.Type.SpriteDesc;
+                if (string.IsNullOrWhiteSpace(desc.ModelPath))
+                {
+                    missingModelPath++;
+                    continue;
+                }
+
+                WallC2MParsedMeshV23LikeOriginal c2m = TryLoadWallC2MVisualMeshV23LikeOriginal(desc.ModelPath, out string loadAudit);
+                if (c2m == null || c2m.Vertices == null || c2m.Vertices.Length == 0 ||
+                    c2m.Triangles == null || c2m.Triangles.Length < 3)
+                {
+                    c2mLoadFailed++;
+                    if (loadAudits.Count < C2WallObjectsV132FenceAuditLimitLikeOriginal)
+                        loadAudits.Add("W" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " model='" + desc.ModelPath + "' failed={" + (loadAudit ?? string.Empty) + "}");
+                    continue;
+                }
+
+                string matKey = (desc.ModelPath ?? string.Empty) + "|" + (c2m.TextureName ?? string.Empty) + "|" + (c2m.GPObj != null ? c2m.GPObj.FrameIdx.ToString(CultureInfo.InvariantCulture) : "-");
+                int matIndex;
+                if (!matByModel.TryGetValue(matKey, out matIndex))
+                {
+                    Texture2D modelTex = Texture2D.whiteTexture;
+                    string materialSource = "white";
+                    if (C2WallObjectsV42UseGPObjFrameTextureForC2MLikeOriginal && c2m.GPObj != null)
+                    {
+                        List<WallG16SquareV47LikeOriginal> gpSquaresIgnoredV159;
+                        Texture2D gpTex = TryLoadWallC2MGPObjFrameTextureV42LikeOriginal(c2m, out string gpSource, out gpSquaresIgnoredV159);
+                        if (gpTex != null)
+                        {
+                            modelTex = gpTex;
+                            materialSource = "GPObj " + gpSource;
+                        }
+                    }
+
+                    if (modelTex == Texture2D.whiteTexture && !string.IsNullOrWhiteSpace(c2m.TextureName))
+                    {
+                        Texture2D txreTex = TryLoadWallC2MTXRETextureV48LikeOriginal(c2m, out string txreSource);
+                        if (txreTex != null)
+                        {
+                            modelTex = txreTex;
+                            materialSource = "TXRE " + txreSource;
+                        }
+                    }
+
+                    Material mat = CreateWallC2MModelMaterialV26LikeOriginal(modelTex, desc);
+                    if (mat == null)
+                        mat = fallbackMaterial;
+                    if (mat == null)
+                    {
+                        c2mLoadFailed++;
+                        if (loadAudits.Count < C2WallObjectsV132FenceAuditLimitLikeOriginal)
+                            loadAudits.Add("W" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " model='" + desc.ModelPath + "' failed_material source=" + materialSource);
+                        continue;
+                    }
+
+                    matIndex = mats.Count;
+                    matByModel[matKey] = matIndex;
+                    mats.Add(mat);
+                    submeshTris.Add(new List<int>());
+                    if (loadAudits.Count < C2WallObjectsV132FenceAuditLimitLikeOriginal)
+                        loadAudits.Add("W" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " model='" + desc.ModelPath + "' ok v=" +
+                                       c2m.Vertices.Length.ToString(CultureInfo.InvariantCulture) + " i=" +
+                                       c2m.Triangles.Length.ToString(CultureInfo.InvariantCulture) + " mat=" + materialSource);
+                }
+
+                int baseIndex = verts.Count;
+                for (int vi = 0; vi < c2m.Vertices.Length; vi++)
+                {
+                    Vector3 local = c2m.Vertices[vi];
+
+                    // Original: AddExtraHeightObject(OWP->x,OWP->y,OWP->Type->ModelID,&OWP->M4)
+                    // then IMM->Render(Type->ModelID,&M4). This is the same per-vertex application:
+                    // local model vertex -> original Matrix4D -> Unity terrain/world adapter.
+                    Vector3 original = TransformOriginalMatrix4DPointV19LikeOriginal(point.M4, local);
+                    Vector3 world = OriginalWallXYZToWorldV6LikeOriginal(original.x, original.y, original.z + desc.FixHeight);
+                    verts.Add(world);
+
+                    if (c2m.UV != null && c2m.UV.Length == c2m.Vertices.Length)
+                        uvs.Add(c2m.UV[vi]);
+                    else
+                        uvs.Add(Vector2.zero);
+
+                    if (c2m.Colors != null && c2m.Colors.Length == c2m.Vertices.Length)
+                        colors.Add(c2m.Colors[vi]);
+                    else
+                        colors.Add(new Color32(255, 255, 255, 255));
+                }
+
+                List<int> tris = submeshTris[matIndex];
+                for (int ti = 0; ti < c2m.Triangles.Length; ti++)
+                    tris.Add(baseIndex + c2m.Triangles[ti]);
+
+                emittedPoints++;
+                emittedVerts += c2m.Vertices.Length;
+            }
+
+            // This backend is only valid when the whole line can be rendered through ModelID/Matrix4D.
+            // Mixed model/card lines are intentionally rejected so the old card fallback remains visually safe.
+            if (missingModelPath > 0 || c2mLoadFailed > 0 || emittedPoints != points.Count || verts.Count == 0 || mats.Count == 0)
+            {
+                audit = "ModelID_backend_not_used missingModelPath=" + missingModelPath.ToString(CultureInfo.InvariantCulture) +
+                        " c2mLoadFailed=" + c2mLoadFailed.ToString(CultureInfo.InvariantCulture) +
+                        " emittedPoints=" + emittedPoints.ToString(CultureInfo.InvariantCulture) +
+                        "/" + points.Count.ToString(CultureInfo.InvariantCulture) +
+                        " details=" + (loadAudits.Count > 0 ? string.Join(" ; ", loadAudits.ToArray()) : "none");
+                return null;
+            }
+
+            Mesh mesh = new Mesh { name = "C2_WallFence_OneWallsSystem_ModelID_Matrix4D_LineMesh_V161_points" + points.Count.ToString(CultureInfo.InvariantCulture) };
+            if (verts.Count > 65000)
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.vertices = verts.ToArray();
+            mesh.uv = uvs.ToArray();
+            mesh.colors32 = colors.ToArray();
+            mesh.subMeshCount = submeshTris.Count;
+            for (int sm = 0; sm < submeshTris.Count; sm++)
+                mesh.SetTriangles(submeshTris[sm].ToArray(), sm);
+            mesh.RecalculateBounds();
+            try { mesh.RecalculateNormals(); } catch { /* old C2M chunks can be degenerate; original fixed-function path tolerated that. */ }
+
+            materials = mats.ToArray();
+            audit = "ModelID_backend_USED original_AddExtraHeightObject_IMM_Render_semantics=True points=" +
+                    emittedPoints.ToString(CultureInfo.InvariantCulture) +
+                    " verts=" + emittedVerts.ToString(CultureInfo.InvariantCulture) +
+                    " submeshes=" + submeshTris.Count.ToString(CultureInfo.InvariantCulture) +
+                    " details=" + (loadAudits.Count > 0 ? string.Join(" ; ", loadAudits.ToArray()) : "none");
+            return mesh;
+        }
+
+
+        private Mesh BuildSideLineWL2DFenceLineRootMeshV150LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            int start,
+            int end,
+            int familyMaskV152,
+            WallSpriteCatalogV1LikeOriginal catalog,
+            Material fallbackMaterial,
+            out Material[] materials)
+        {
+            materials = null;
+            if (sprites == null || catalog == null || start < 0 || end <= start || end > sprites.Count)
+                return null;
+
+            List<OneWallPointV157LikeOriginal> points = ReCreateOneWallsSystemLineFromSavedWLRunV157LikeOriginal(sprites, start, end, familyMaskV152, catalog, out string recreateAuditV157);
+            _c2WallObjectsV157LastReCreateAuditLikeOriginal = recreateAuditV157;
+            _c2WallObjectsV159LastModelIDAuditLikeOriginal = string.Empty;
+            if (points == null || points.Count == 0)
+                return null;
+
+            if (C2WallObjectsV165Wals2DFenceOnlyNo3DWallsModelIDBackendLikeOriginal)
+            {
+                _c2WallObjectsV159LastModelIDAuditLikeOriginal = "V171_WALS2D_WALLS_g16_backend_for_saved_WL_no_3DWalls_ModelID";
+                _c2WallObjectsV157LastReCreateAuditLikeOriginal = recreateAuditV157 + " backend=V171_saved_WL_WALS2D_WALLS_g16_line_root_no_3DWalls_ModelID";
+            }
+            else if (C2WallObjectsV159UseModelIDMatrix4DBackendForOneWallsSystemLineRootsLikeOriginal)
+            {
+                Material[] modelMaterialsV159;
+                string modelAuditV159;
+                Mesh modelMeshV159 = TryBuildOneWallsSystemModelIDLineRootMeshV159LikeOriginal(points, fallbackMaterial, out modelMaterialsV159, out modelAuditV159);
+                _c2WallObjectsV159LastModelIDAuditLikeOriginal = modelAuditV159 ?? string.Empty;
+                if (modelMeshV159 != null && modelMaterialsV159 != null && modelMaterialsV159.Length > 0)
+                {
+                    materials = modelMaterialsV159;
+                    _c2WallObjectsV160ModelIDLineRootsUsedLikeOriginal++;
+                    _c2WallObjectsV157LastReCreateAuditLikeOriginal =
+                        recreateAuditV157 + " backend=ModelID_Matrix4D_V160 {" + _c2WallObjectsV159LastModelIDAuditLikeOriginal + "}";
+                    return modelMeshV159;
+                }
+
+                if (!C2WallObjectsV159FallbackToWallsG16CardsWhenModelIDMissingLikeOriginal)
+                {
+                    _c2WallObjectsV160ModelIDLineRootsRejectedLikeOriginal++;
+                    _c2WallObjectsV160SpriteFallbackBlockedLikeOriginal++;
+                    _c2WallObjectsV157LastReCreateAuditLikeOriginal =
+                        recreateAuditV157 + " backendRejected=ModelID_required_V160_no_WALLS_G16_fallback {" + _c2WallObjectsV159LastModelIDAuditLikeOriginal + "}";
+                    return null;
+                }
+
+                _c2WallObjectsV157LastReCreateAuditLikeOriginal =
+                    recreateAuditV157 + " backendFallback=WALLS_G16_cards_V159 {" + _c2WallObjectsV159LastModelIDAuditLikeOriginal + "}";
+            }
+
+            var verts = new List<Vector3>(points.Count * 4);
+            var uvs = new List<Vector2>(points.Count * 4);
+            var colors = new List<Color32>(points.Count * 4);
+            var submeshTris = new List<List<int>>();
+            var mats = new List<Material>();
+            var matBySprite = new Dictionary<int, int>();
+
+            WallSavedMapSpriteV6LikeOriginal first = sprites[start];
+            WallSavedMapSpriteV6LikeOriginal last = sprites[end - 1];
+            Vector3 worldLineA = OriginalWallXYZToWorldV6LikeOriginal(first.X, first.Y, SampleWallHeightOriginalXYV1LikeOriginal(first.X, first.Y));
+            Vector3 worldLineB = OriginalWallXYZToWorldV6LikeOriginal(last.X, last.Y, SampleWallHeightOriginalXYV1LikeOriginal(last.X, last.Y));
+            Vector3 worldLineDir = worldLineB - worldLineA;
+            worldLineDir.y = 0.0f;
+            if (worldLineDir.sqrMagnitude <= 0.000001f)
+                worldLineDir = Vector3.right;
+            else
+                worldLineDir.Normalize();
+
+            for (int section = 0; section < points.Count; section++)
+            {
+                OneWallPointV157LikeOriginal point = points[section];
+                if (point == null || point.Type == null || point.Type.SpriteDesc == null)
+                    continue;
+
+                WallSpriteDescV1LikeOriginal desc = point.Type.SpriteDesc;
+                int matKey = point.ResolvedSpriteIndex >= 0 ? point.ResolvedSpriteIndex : desc.SpriteIndex;
+                int matIndex;
+                if (!matBySprite.TryGetValue(matKey, out matIndex))
+                {
+                    Texture2D tex = TryLoadWallSpriteTextureV1LikeOriginal(desc, out string texSourceV157);
+                    if (tex == null)
+                        tex = Texture2D.whiteTexture;
+
+                    Material mat = CreateWallSpriteMaterialV29LikeOriginal(tex, desc, null, fallbackMaterial);
+                    if (mat == null)
+                        mat = fallbackMaterial;
+                    if (mat == null)
+                        continue;
+
+                    matIndex = mats.Count;
+                    matBySprite[matKey] = matIndex;
+                    mats.Add(mat);
+                    submeshTris.Add(new List<int>());
+                }
+
+                Texture2D sectionTex = TryLoadWallSpriteTextureV1LikeOriginal(desc, out string sectionTexSourceV157);
+                float wPx = sectionTex != null && sectionTex != Texture2D.whiteTexture ? Mathf.Max(8.0f, sectionTex.width) : Mathf.Max(8.0f, desc.Width * 2.0f);
+                float hPx = sectionTex != null && sectionTex != Texture2D.whiteTexture ? Mathf.Max(8.0f, sectionTex.height) : Mathf.Max(8.0f, desc.Height * 2.0f);
+
+                int rx = Mathf.RoundToInt(point.x);
+                int ry = Mathf.RoundToInt(point.y);
+                WallSavedMapSpriteV6LikeOriginal recreated = new WallSavedMapSpriteV6LikeOriginal
+                {
+                    Sign = "WL",
+                    X = rx,
+                    Y = ry,
+                    SpriteIndex = desc.SpriteIndex,
+                    NIndex = 0,
+                    Locking = 0,
+                    HasMatrix = false,
+                    Matrix = Matrix4x4.identity
+                };
+
+                Mesh sectionMesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(recreated, desc, wPx, hPx);
+                if (sectionMesh == null)
+                    continue;
+
+                Vector3[] sectionVerts = sectionMesh.vertices;
+                Vector2[] sectionUvs = sectionMesh.uv;
+                Color32[] sectionColors = sectionMesh.colors32;
+                int[] sectionTris = sectionMesh.triangles;
+                if (sectionVerts == null || sectionUvs == null || sectionTris == null || sectionVerts.Length == 0 || sectionUvs.Length != sectionVerts.Length)
+                    continue;
+
+                float roundedTerrain = SampleWallHeightOriginalXYV1LikeOriginal(rx, ry);
+                Vector3 roundedAnchor = OriginalWallXYZToWorldV6LikeOriginal(rx, ry, roundedTerrain + desc.FixHeight);
+                Vector3 recreatedAnchor = OriginalWallXYZToWorldV6LikeOriginal(point.x, point.y, point.z + desc.FixHeight);
+                Vector3 shift = recreatedAnchor - roundedAnchor;
+
+                int baseIndex = verts.Count;
+                for (int vi = 0; vi < sectionVerts.Length; vi++)
+                {
+                    Vector3 v = sectionVerts[vi] + shift;
+                    if (Mathf.Abs(point.ScaleP - 1.0f) > 0.0001f)
+                    {
+                        Vector3 rel = v - recreatedAnchor;
+                        float along = Vector3.Dot(rel, worldLineDir);
+                        v += worldLineDir * (along * (point.ScaleP - 1.0f));
+                    }
+
+                    verts.Add(v);
+
+                    // WALLS.g16 quad helper performs Unity's usual V conversion. For this original wall-port
+                    // combined line we keep the already verified V157 upright correction.
+                    Vector2 uv = sectionUvs[vi];
+                    uv.y = 1.0f - uv.y;
+                    uvs.Add(uv);
+
+                    if (sectionColors != null && sectionColors.Length == sectionVerts.Length)
+                        colors.Add(sectionColors[vi]);
+                    else
+                        colors.Add(new Color32(255, 255, 255, 255));
+                }
+
+                List<int> tris = submeshTris[matIndex];
+                for (int ti = 0; ti < sectionTris.Length; ti++)
+                    tris.Add(baseIndex + sectionTris[ti]);
+            }
+
+            if (verts.Count == 0 || mats.Count == 0)
+                return null;
+
+            Mesh mesh = new Mesh { name = "C2_WallFence_WALS2D_WALLS_g16_LineRoot_V171_points" + points.Count.ToString(CultureInfo.InvariantCulture) };
+            if (verts.Count > 65000)
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.vertices = verts.ToArray();
+            mesh.uv = uvs.ToArray();
+            mesh.colors32 = colors.ToArray();
+            mesh.subMeshCount = submeshTris.Count;
+            for (int sm = 0; sm < submeshTris.Count; sm++)
+                mesh.SetTriangles(submeshTris[sm].ToArray(), sm);
+            mesh.RecalculateBounds();
+
+            materials = mats.ToArray();
+            return mesh;
+        }
+
+
+        private static Vector3 FindWallFenceBottomJointCenterV148LikeOriginal(Vector3[] verts)
+        {
+            if (verts == null || verts.Length == 0)
+                return Vector3.zero;
+
+            float minY = verts[0].y;
+            for (int i = 1; i < verts.Length; i++)
+            {
+                if (verts[i].y < minY)
+                    minY = verts[i].y;
+            }
+
+            Vector3 sum = Vector3.zero;
+            int count = 0;
+            float eps = 0.05f;
+            for (int i = 0; i < verts.Length; i++)
+            {
+                if (Mathf.Abs(verts[i].y - minY) <= eps)
+                {
+                    sum += verts[i];
+                    count++;
+                }
+            }
+
+            if (count == 0)
+                return verts[0];
+            return sum / Mathf.Max(1, count);
+        }
+
+        private Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2> BuildWallFenceLineCenteredAnchorsV132LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            WallSpriteCatalogV1LikeOriginal catalog,
+            out WallConnectorChainInfoV14LikeOriginal info,
+            out Dictionary<WallSavedMapSpriteV6LikeOriginal, Matrix4x4> sharedBasisBySprite)
+        {
+            info = new WallConnectorChainInfoV14LikeOriginal();
+            sharedBasisBySprite = new Dictionary<WallSavedMapSpriteV6LikeOriginal, Matrix4x4>();
+            var result = new Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2>();
+
+            if (!C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal || sprites == null || catalog == null || sprites.Count == 0)
+                return result;
+
+            int i = 0;
+            while (i < sprites.Count)
+            {
+                WallSavedMapSpriteV6LikeOriginal first = sprites[i];
+                if (!TryGetStraightenableWL2DFenceDescV132LikeOriginal(first, catalog, out WallSpriteDescV1LikeOriginal firstDesc))
+                {
+                    i++;
+                    continue;
+                }
+
+                int spriteIndex = first.SpriteIndex;
+                int sameEnd = i + 1;
+                while (sameEnd < sprites.Count &&
+                       sprites[sameEnd] != null &&
+                       sprites[sameEnd].SpriteIndex == spriteIndex &&
+                       TryGetStraightenableWL2DFenceDescV132LikeOriginal(sprites[sameEnd], catalog, out _))
+                {
+                    sameEnd++;
+                }
+
+                int count = sameEnd - i;
+                info.CandidateSprites += count;
+
+                int segStart = i;
+                while (segStart < sameEnd)
+                {
+                    int segEnd = segStart + 1;
+                    Vector2 refDir = Vector2.zero;
+                    bool hasRefDir = false;
+
+                    while (segEnd < sameEnd)
+                    {
+                        WallSavedMapSpriteV6LikeOriginal a = sprites[segEnd - 1];
+                        WallSavedMapSpriteV6LikeOriginal b = sprites[segEnd];
+                        if (a == null || b == null || b.SpriteIndex != spriteIndex)
+                            break;
+
+                        Vector2 step = new Vector2(b.X - a.X, b.Y - a.Y);
+                        float len = step.magnitude;
+                        if (len < C2WallObjectsV132FenceMinStepOriginal || len > C2WallObjectsV132FenceMaxStepOriginal)
+                            break;
+
+                        Vector2 dir = step / Mathf.Max(0.0001f, len);
+                        if (hasRefDir && Vector2.Dot(refDir, dir) < C2WallObjectsV132FenceDirectionDotLikeOriginal)
+                            break;
+
+                        if (!hasRefDir)
+                        {
+                            refDir = dir;
+                            hasRefDir = true;
+                        }
+
+                        segEnd++;
+                    }
+
+                    int segCount = segEnd - segStart;
+                    if (segCount >= C2WallObjectsV132FenceMinRunLengthLikeOriginal && hasRefDir)
+                    {
+                        WallSavedMapSpriteV6LikeOriginal runFirst = sprites[segStart];
+                        WallSavedMapSpriteV6LikeOriginal runLast = sprites[segEnd - 1];
+                        Vector2 p0 = new Vector2(runFirst.X, runFirst.Y);
+                        Vector2 p1 = new Vector2(runLast.X, runLast.Y);
+                        Vector2 wholeLine = p1 - p0;
+                        float wholeLen = wholeLine.magnitude;
+
+                        if (wholeLen >= C2WallObjectsV132FenceMinStepOriginal)
+                        {
+                            Vector2 stepVec = wholeLine / Mathf.Max(1, segCount - 1);
+                            Vector2 along = stepVec.sqrMagnitude > 0.000001f ? stepVec.normalized : wholeLine.normalized;
+                            float stepLen = stepVec.magnitude;
+                            Matrix4x4 sharedBasis;
+                            bool hasSharedBasis = TrySelectWallFenceRunSharedMatrixBasisV142LikeOriginal(sprites, segStart, segEnd, firstDesc, along, stepLen, segCount, out sharedBasis);
+                            float maxCorrection = 0.0f;
+                            int adjusted = 0;
+
+                            for (int k = segStart; k < segEnd; k++)
+                            {
+                                WallSavedMapSpriteV6LikeOriginal sp = sprites[k];
+                                if (sp == null)
+                                    continue;
+
+                                int localIndex = k - segStart;
+                                Vector2 rebuilt = p0 + stepVec * localIndex;
+                                Vector2 original = new Vector2(sp.X, sp.Y);
+                                float correction = (rebuilt - original).magnitude;
+                                if (correction > maxCorrection)
+                                    maxCorrection = correction;
+
+                                result[sp] = rebuilt;
+                                adjusted++;
+                            }
+
+                            // V146: keep the original route/clamp/reanchor, but stop preserving
+                            // every section's own Matrix4D basis. A same-sprite run must use one
+                            // shared template basis, otherwise anchors become straight while the
+                            // visible cards still keep per-section depth/orientation drift.
+                            if (hasSharedBasis)
+                            {
+                                for (int k = segStart; k < segEnd; k++)
+                                {
+                                    WallSavedMapSpriteV6LikeOriginal sp = sprites[k];
+                                    if (sp != null && result.ContainsKey(sp) && sp.HasMatrix)
+                                        sharedBasisBySprite[sp] = sharedBasis;
+                                }
+                            }
+
+                            info.Runs++;
+                            info.AdjustedSprites += adjusted;
+                            info.PreservedSprites += Math.Max(0, segCount - adjusted);
+
+                            if (info.Audit.Count < C2WallObjectsV132FenceAuditLimitLikeOriginal)
+                            {
+                                info.Audit.Add("sprite=W" + spriteIndex.ToString(CultureInfo.InvariantCulture) +
+                                               " run=" + segStart.ToString(CultureInfo.InvariantCulture) + "-" + (segEnd - 1).ToString(CultureInfo.InvariantCulture) +
+                                               " count=" + segCount.ToString(CultureInfo.InvariantCulture) +
+                                               " first=(" + runFirst.X.ToString(CultureInfo.InvariantCulture) + "," + runFirst.Y.ToString(CultureInfo.InvariantCulture) + ")" +
+                                               " last=(" + runLast.X.ToString(CultureInfo.InvariantCulture) + "," + runLast.Y.ToString(CultureInfo.InvariantCulture) + ")" +
+                                               " stepLen=" + stepLen.ToString("0.###", CultureInfo.InvariantCulture) +
+                                               " maxCorrection=" + maxCorrection.ToString("0.###", CultureInfo.InvariantCulture) +
+                                               " sharedM4Basis=" + (hasSharedBasis ? "True" : "False") +
+                                               " identicalObjectsOnly=True adjacentSameSprite=True countedSections=True rebuiltXY=True realJointTarget=True preserveOriginalRoute=True sharedRunBasis=True preserveOriginalClamp=True noExplicitCard=False combinedRunMesh=True suppressIndividualCards=True finalVerticesAudit=True markerV148=True");
+                            }
+                        }
+                        else
+                        {
+                            info.RejectedRuns++;
+                            info.RejectedSprites += segCount;
+                            info.PreservedSprites += segCount;
+                        }
+                    }
+                    else
+                    {
+                        info.RejectedRuns++;
+                        info.RejectedSprites += segCount;
+                        info.PreservedSprites += segCount;
+                    }
+
+                    segStart = Math.Max(segEnd, segStart + 1);
+                }
+
+                i = sameEnd;
+            }
+
+            return result;
+        }
+
+        private static bool TryGetStraightenableWL2DFenceDescV132LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal sprite,
+            WallSpriteCatalogV1LikeOriginal catalog,
+            out WallSpriteDescV1LikeOriginal desc)
+        {
+            desc = null;
+            if (sprite == null || catalog == null)
+                return false;
+            if (!catalog.ByIndex.TryGetValue(sprite.SpriteIndex, out desc) || desc == null)
+                return false;
+            return IsStraightenableWL2DFenceSpriteV132LikeOriginal(desc);
+        }
+
+        private static bool IsStraightenableWL2DFenceSpriteV132LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                return false;
+            if (!string.IsNullOrWhiteSpace(desc.ModelPath))
+                return false;
+
+            // V152: exact WALLS 2D fence frame pairs confirmed from the Python proof:
+            // top/bottom: 74,59,1,5,3,7
+            // right/left: 70,58,0,4,4,6
+            // These must be treated as fence candidates even if the old class table
+            // names some of them as bridge-side/wall-side instead of small/large fence.
+            if (IsKnownWallFencePairSpriteV152LikeOriginal(desc.SpriteIndex))
+                return true;
+            return false;
+        }
+
+        private static bool IsWallFenceLineMarkerV142LikeOriginal(WallSavedMapSpriteV6LikeOriginal s)
+        {
+            return s != null && s.HasMatrix && Mathf.Abs(s.Matrix.m13 - C2WallObjectsV142FenceLineMarkerLikeOriginal) < 0.5f;
+        }
+
+        private static bool TrySelectWallFenceRunSharedMatrixBasisV142LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            int start,
+            int end,
+            WallSpriteDescV1LikeOriginal desc,
+            Vector2 along,
+            float stepOriginalUnits,
+            int sectionCount,
+            out Matrix4x4 basis)
+        {
+            basis = Matrix4x4.identity;
+            if (!TrySelectWallFenceRunTemplateMatrixBasisV132LikeOriginal(sprites, start, end, out Matrix4x4 template))
+                return false;
+
+            // V143: only line positions are rebuilt. Do NOT rotate/scale the 2D WALLS sprite card.
+            // W58/W59/W70/W74 frames already contain their visual side/orientation in the sprite data and old route.
+            // V142/V140 rotated the cards by run direction and therefore put right/top/left/bottom pieces into wrong places.
+            // Keep the original template basis and let the existing route-specific mesh builder + terrain clamp do the final placement.
+            basis = template;
+            return IsFiniteWallM4V21LikeOriginal(basis);
+        }
+
+        private static float GetWallFenceEstimatedSpriteWidthPxV142LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                return 1.0f;
+            if (desc.Width > 0)
+                return Mathf.Max(1.0f, desc.Width * 2.0f);
+            if (desc.AlignPoints != null && desc.AlignPoints.Count >= 2)
+                return Mathf.Max(1.0f, Mathf.Abs(desc.AlignPoints[1].x - desc.AlignPoints[0].x));
+            return 1.0f;
+        }
+
+        private static bool TrySelectWallFenceRunSharedMatrixBasisV132LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            int start,
+            int end,
+            Vector2 along,
+            out Matrix4x4 basis)
+        {
+            basis = Matrix4x4.identity;
+            if (!TrySelectWallFenceRunTemplateMatrixBasisV132LikeOriginal(sprites, start, end, out Matrix4x4 template))
+                return false;
+
+            basis = BuildWallFenceRunSafeLineMatrixBasisV137LikeOriginal(template, along);
+            return IsFiniteWallM4V21LikeOriginal(basis);
+        }
+
+        private static Matrix4x4 BuildWallFenceRunSafeLineMatrixBasisV137LikeOriginal(Matrix4x4 template, Vector2 along)
+        {
+            Matrix4x4 basis = template;
+            Vector2 dir = along.sqrMagnitude > 0.000001f ? along.normalized : Vector2.right;
+
+            Vector2 templateGroundX = new Vector2(template.m00, template.m01);
+            float templateGroundXLen = templateGroundX.magnitude;
+            if (templateGroundXLen < 0.0001f)
+                templateGroundXLen = new Vector3(template.m00, template.m01, template.m02).magnitude;
+            if (templateGroundXLen < 0.0001f)
+                templateGroundXLen = 1.0f;
+
+            if (templateGroundX.sqrMagnitude > 0.000001f)
+            {
+                Vector2 templateGroundXDir = templateGroundX.normalized;
+                if (Vector2.Dot(templateGroundXDir, dir) < 0.0f)
+                    dir = -dir;
+            }
+
+            float templateVerticalLen = new Vector3(template.m10, template.m11, template.m12).magnitude;
+            if (templateVerticalLen < 0.0001f)
+                templateVerticalLen = 1.0f;
+
+            float verticalSign = template.m12 < 0.0f ? -1.0f : 1.0f;
+
+            // V138: final fence geometry must be one real plane:
+            // local X = rebuilt first->last line on map XY;
+            // local Y = pure vertical Z, no map XY drift.
+            // V137 still preserved old m10/m11 horizontal drift, so each section could stand at its own depth
+            // even though the logged anchors were rebuilt correctly.
+            basis.m00 = dir.x * templateGroundXLen;
+            basis.m01 = dir.y * templateGroundXLen;
+            basis.m02 = 0.0f;
+
+            basis.m10 = 0.0f;
+            basis.m11 = 0.0f;
+            basis.m12 = verticalSign * templateVerticalLen;
+
+            // Local Z is unused by the WALLS.g16 quad builder, but keep it orthogonal for safety/debug.
+            float depthLen = new Vector3(template.m20, template.m21, template.m22).magnitude;
+            if (depthLen < 0.0001f)
+                depthLen = Mathf.Max(templateGroundXLen, 1.0f);
+            Vector2 normal = new Vector2(-dir.y, dir.x);
+            basis.m20 = normal.x * depthLen;
+            basis.m21 = normal.y * depthLen;
+            basis.m22 = 0.0f;
+
+            return basis;
+        }
+
+        private static bool TrySelectWallFenceRunTemplateMatrixBasisV132LikeOriginal(
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            int start,
+            int end,
+            out Matrix4x4 basis)
+        {
+            basis = Matrix4x4.identity;
+            if (sprites == null || start < 0 || end <= start || start >= sprites.Count)
+                return false;
+
+            int mid = Mathf.Clamp(start + (end - start) / 2, start, end - 1);
+            for (int pass = 0; pass < 2; pass++)
+            {
+                int begin = pass == 0 ? mid : start;
+                int finish = pass == 0 ? end : mid;
+                for (int i = begin; i < finish && i < sprites.Count; i++)
+                {
+                    WallSavedMapSpriteV6LikeOriginal s = sprites[i];
+                    if (s != null && s.HasMatrix && IsFiniteWallM4V21LikeOriginal(s.Matrix))
+                    {
+                        basis = s.Matrix;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private static bool TryGetWallDambaModelDescV60LikeOriginal(
             WallSavedMapSpriteV6LikeOriginal sprite,
             WallSpriteCatalogV1LikeOriginal catalog,
@@ -3667,9 +5927,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
         private enum WallSavedWLProfileV18LikeOriginal
         {
-            BridgeWallSide,
-            FenceVertical,
-            ModelBackedC2M,
+                        ModelBackedC2M,
             GroundAligned,
             VerticalAligned,
             BillboardFallback
@@ -3677,17 +5935,25 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
         private enum WallDrawRouteV20LikeOriginal
         {
-            SavedBridgeWallSide,
-            SavedFence,
-            SavedAlignedSprite,
+                        SavedAlignedSprite,
             SavedModelC2M,
             DebugFallback
+        }
+
+        private enum WallWL2DClassV118LikeOriginal
+        {
+                        Single2DProp,
+            GroundAligned,
+            VerticalAligned,
+            ModelBackedC2M,
+            UnknownFallback
         }
 
         private sealed class WallSavedWLRouteDecisionV20LikeOriginal
         {
             public WallDrawRouteV20LikeOriginal Route;
             public WallSavedWLProfileV18LikeOriginal Profile;
+            public WallWL2DClassV118LikeOriginal ClassV118 = WallWL2DClassV118LikeOriginal.UnknownFallback;
             public string Path = string.Empty;
             public string Reason = string.Empty;
             public bool Emitted = true;
@@ -3698,6 +5964,29 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             public float SharedRunHeightV59;
             public string MatrixAudit = string.Empty;
             public string Variant = "-";
+        }
+
+        private sealed class WallWL2DPlacementMetricV119LikeOriginal
+        {
+            public int Order;
+            public int SpriteIndex;
+            public string Name = string.Empty;
+            public int X;
+            public int Y;
+            public WallDrawRouteV20LikeOriginal Route;
+            public WallSavedWLProfileV18LikeOriginal Profile;
+            public WallWL2DClassV118LikeOriginal ClassV118;
+            public bool HasMatrix;
+            public bool UseMatrix;
+            public float LowestMinusTerrain;
+            public float CenterOffsetWorld;
+            public float CenterOffsetOriginal;
+            public float BoundsDiagonal;
+            public float BoundsHeight;
+            public float BoundsWidthXZ;
+            public float BoundsCenterY;
+            public string Path = string.Empty;
+            public string TextureSource = string.Empty;
         }
 
         private struct WallSavedM4BasisV21LikeOriginal
@@ -3711,6 +6000,58 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             public float Area;
         }
 
+        private static WallWL2DClassV118LikeOriginal ClassifySavedWL2DObjectV118LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                return WallWL2DClassV118LikeOriginal.UnknownFallback;
+
+            if (!string.IsNullOrWhiteSpace(desc.ModelPath))
+                return WallWL2DClassV118LikeOriginal.ModelBackedC2M;
+
+            // V165: WALS 2D fences are not classified into old individual-card route classes.
+            // They are emitted only by WALS2D line-root before this per-sprite route path.
+            if (IsStraightenableWL2DFenceSpriteV132LikeOriginal(desc))
+                return WallWL2DClassV118LikeOriginal.UnknownFallback;
+
+            if (desc.AlignMode == 'H')
+                return WallWL2DClassV118LikeOriginal.GroundAligned;
+
+            if ((desc.AlignMode == 'V' || desc.AlignMode == 'S') && desc.AlignPoints.Count >= 2)
+                return WallWL2DClassV118LikeOriginal.VerticalAligned;
+
+            if (desc.AlignMode == 'U' || desc.AlignPoints.Count > 0)
+                return WallWL2DClassV118LikeOriginal.Single2DProp;
+
+            return WallWL2DClassV118LikeOriginal.UnknownFallback;
+        }
+
+
+
+
+private static float GetWallDescAlignSpanV118LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null || desc.AlignPoints == null || desc.AlignPoints.Count == 0)
+                return 0.0f;
+
+            float minX = float.PositiveInfinity;
+            float maxX = float.NegativeInfinity;
+            float minY = float.PositiveInfinity;
+            float maxY = float.NegativeInfinity;
+            for (int i = 0; i < desc.AlignPoints.Count; i++)
+            {
+                Vector3 p = desc.AlignPoints[i];
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
+            }
+
+            if (float.IsInfinity(minX) || float.IsInfinity(minY))
+                return 0.0f;
+
+            return Mathf.Max(maxX - minX, maxY - minY);
+        }
+
         private static WallSavedWLProfileV18LikeOriginal GetWallSavedWLProfileV18LikeOriginal(WallSpriteDescV1LikeOriginal desc)
         {
             if (desc == null)
@@ -3719,11 +6060,9 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             if (!string.IsNullOrWhiteSpace(desc.ModelPath))
                 return WallSavedWLProfileV18LikeOriginal.ModelBackedC2M;
 
-            if (desc.SpriteIndex == 58 || desc.SpriteIndex == 59)
-                return WallSavedWLProfileV18LikeOriginal.BridgeWallSide;
-
-            if (desc.SpriteIndex == 70 || desc.SpriteIndex == 74 || desc.Name.IndexOf("ZABOR", StringComparison.OrdinalIgnoreCase) >= 0)
-                return WallSavedWLProfileV18LikeOriginal.FenceVertical;
+            // V165: WALS 2D fences do not enter the legacy per-sprite profile path.
+            if (IsStraightenableWL2DFenceSpriteV132LikeOriginal(desc))
+                return WallSavedWLProfileV18LikeOriginal.BillboardFallback;
 
             if (desc.AlignMode == 'H')
                 return WallSavedWLProfileV18LikeOriginal.GroundAligned;
@@ -3732,6 +6071,83 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 return WallSavedWLProfileV18LikeOriginal.VerticalAligned;
 
             return WallSavedWLProfileV18LikeOriginal.BillboardFallback;
+        }
+
+
+        private static bool ShouldFlipVerticalAlignedPropUvV122LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            if (!C2WallObjectsV122FlipVerticalAlignedPropUvLikeOriginal)
+                return false;
+
+            if (s == null || desc == null || route == null)
+                return false;
+
+            if (route.Route != WallDrawRouteV20LikeOriginal.SavedAlignedSprite)
+                return false;
+
+            int id = desc.SpriteIndex;
+            return id == 68 || id == 69 || id == 72 || id == 73;
+        }
+
+        private static Mesh FlipWallMeshUvVerticalV122LikeOriginal(
+            Mesh source,
+            WallSpriteDescV1LikeOriginal desc,
+            out string audit)
+        {
+            audit = "V122_UV_FLIP skipped";
+
+            if (source == null)
+                return null;
+
+            Vector2[] srcUv = source.uv;
+            if (srcUv == null || srcUv.Length == 0)
+            {
+                audit = "V122_UV_FLIP no_uv";
+                return source;
+            }
+
+            Mesh mesh = UnityEngine.Object.Instantiate(source);
+            mesh.name = (source.name ?? "WallMesh") + "_V122_UvFlipV";
+
+            Vector2[] uv = mesh.uv;
+
+            float minV = float.PositiveInfinity;
+            float maxV = float.NegativeInfinity;
+
+            for (int i = 0; i < uv.Length; i++)
+            {
+                if (uv[i].y < minV) minV = uv[i].y;
+                if (uv[i].y > maxV) maxV = uv[i].y;
+            }
+
+            if (float.IsNaN(minV) || float.IsNaN(maxV) ||
+                float.IsInfinity(minV) || float.IsInfinity(maxV) ||
+                Mathf.Abs(maxV - minV) < 0.000001f)
+            {
+                minV = 0.0f;
+                maxV = 1.0f;
+            }
+
+            float sum = minV + maxV;
+
+            for (int i = 0; i < uv.Length; i++)
+                uv[i].y = sum - uv[i].y;
+
+            mesh.uv = uv;
+            mesh.RecalculateBounds();
+
+            audit =
+                "V122_UV_FLIP sprite=W" +
+                (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
+                " vRange=" +
+                minV.ToString("0.###", CultureInfo.InvariantCulture) +
+                "->" +
+                maxV.ToString("0.###", CultureInfo.InvariantCulture);
+
+            return mesh;
         }
 
         private static bool ShouldDrawSavedWLProfileV18LikeOriginal(WallSpriteDescV1LikeOriginal desc)
@@ -3748,6 +6164,10 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             if (sprites == null || catalog == null || parent == null)
                 return 0;
 
+            EnsureWals2DHeightInstructionLoadedV178LikeOriginal();
+            if (_c2Wals2DHeightAdjustRecordsV178LikeOriginal != null)
+                _c2Wals2DHeightAdjustRecordsV178LikeOriginal.Clear();
+
             Material mat = CreateWallObjectMaterialV1LikeOriginal();
             int drawn = 0;
             int missingTextures = 0;
@@ -3756,6 +6176,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
             int routeBridge = 0;
             int routeFence = 0;
+            int routeLargeFence = 0;
             int routeAligned = 0;
             int routeModel = 0;
             int routeFallback = 0;
@@ -3767,7 +6188,30 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             int profileVertical = 0;
             int profileFallback = 0;
 
+            int wl2dSmallFenceV118 = 0;
+            int wl2dLargeFenceV118 = 0;
+            int wl2dSinglePropV118 = 0;
+            int wl2dGroundV118 = 0;
+            int wl2dVerticalV118 = 0;
+            int wl2dModelV118 = 0;
+            int wl2dBridgeSideV118 = 0;
+            int wl2dUnknownV118 = 0;
+            int wl2dLargeFenceClampV118 = 0;
+            int wl2dBridgeSideClampV120 = 0;
+            int wl2dBridgeSideAlignClampV121 = 0;
+            int wl2dBridgeSideLoweredV131 = 0;
+            int wl2dVerticalPropUvFlipV122 = 0;
+
             var indexAudit = new Dictionary<int, int>();
+            var wl2dAuditV118 = new List<string>(C2WallObjectsV118AuditLimitLikeOriginal);
+            var wl2dMetricsV119 = new List<WallWL2DPlacementMetricV119LikeOriginal>();
+            var wl2dSmallFenceIdsV118 = new Dictionary<int, int>();
+            var wl2dLargeFenceIdsV118 = new Dictionary<int, int>();
+            var wl2dSinglePropIdsV118 = new Dictionary<int, int>();
+            var wl2dGroundIdsV118 = new Dictionary<int, int>();
+            var wl2dVerticalIdsV118 = new Dictionary<int, int>();
+            var wl2dModelIdsV118 = new Dictionary<int, int>();
+            var wl2dUnknownIdsV118 = new Dictionary<int, int>();
             var routeAudit = new List<string>(C2WallObjectsV20RouteAuditLimitLikeOriginal);
             var basisAudit = new List<string>(C2WallObjectsV13DebugCandidateLogLimitLikeOriginal);
             var matrixAudit = new List<string>(C2WallObjectsV21MatrixAuditLimitLikeOriginal);
@@ -3782,6 +6226,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             var gpObjMaterialAudit = new List<string>(C2WallObjectsV42GPObjMaterialAuditLimitLikeOriginal);
             var gpObjMaterialAuditKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var spriteRgbaAudit = new List<string>(C2WallObjectsV29SpriteAuditLimitLikeOriginal);
+            var fenceFinalVertexAuditV145 = new List<string>(C2WallObjectsV132FenceAuditLimitLikeOriginal);
             var dambaAnchorAuditV84 = new List<string>(C2WallObjectsV73DambaAuditLimitLikeOriginal);
             int dambaAnchorObjectsCreatedV84 = 0;
             WallIMMHeightLockLayerV25LikeOriginal immLayer = new WallIMMHeightLockLayerV25LikeOriginal();
@@ -3840,6 +6285,30 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             }
 
             int modelRunHeightAdjustedV59 = 0;
+
+            WallConnectorChainInfoV14LikeOriginal fenceLineInfoV132 = null;
+            Dictionary<WallSavedMapSpriteV6LikeOriginal, Matrix4x4> fenceLineSharedBasisV132 = null;
+            Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2> fenceLineAnchorsV132 =
+                C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal
+                    ? BuildWallFenceLineCenteredAnchorsV132LikeOriginal(sprites, catalog, out fenceLineInfoV132, out fenceLineSharedBasisV132)
+                    : new Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2>();
+            if (fenceLineSharedBasisV132 == null)
+                fenceLineSharedBasisV132 = new Dictionary<WallSavedMapSpriteV6LikeOriginal, Matrix4x4>();
+            int fenceLineAdjustedV132 = 0;
+
+            HashSet<WallSavedMapSpriteV6LikeOriginal> fenceLineSuppressedV144;
+            string fenceLineRootAuditV144;
+            int fenceLineRootsCreatedV144 = BuildSyntheticIdenticalWL2DFenceLineRootsV144LikeOriginal(
+                sprites,
+                catalog,
+                parent,
+                mat,
+                out fenceLineSuppressedV144,
+                out fenceLineRootAuditV144);
+            if (fenceLineSuppressedV144 == null)
+                fenceLineSuppressedV144 = new HashSet<WallSavedMapSpriteV6LikeOriginal>();
+            drawn += fenceLineRootsCreatedV144;
+
             int syntheticDambaRowsV93 = BuildSyntheticDambaMapRowsV93LikeOriginal(
                 sprites,
                 catalog,
@@ -3848,6 +6317,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 out HashSet<WallSavedMapSpriteV6LikeOriginal> syntheticDambaSuppressedV93);
 
             int legacyDambaPieceFallbackSkippedV94 = 0;
+            int legacyWals2DFenceIndividualCardsDeletedV165 = 0;
 
             for (int i = 0; i < sprites.Count; i++)
             {
@@ -3856,6 +6326,13 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                     continue;
 
                 WallSavedMapSpriteV6LikeOriginal sourceSpriteForLog = s;
+                if (C2WallObjectsV144BuildIdenticalWL2DFenceLineRootsLikeOriginal &&
+                    fenceLineSuppressedV144 != null &&
+                    fenceLineSuppressedV144.Contains(sourceSpriteForLog))
+                {
+                    continue;
+                }
+
                 if (chainAnchors.TryGetValue(s, out Vector2 chainAnchor))
                 {
                     s = CopySavedWallSpriteWithAnchorV14LikeOriginal(s, chainAnchor);
@@ -3863,7 +6340,21 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 }
 
                 if (!catalog.ByIndex.TryGetValue(s.SpriteIndex, out WallSpriteDescV1LikeOriginal desc) || desc == null)
+                {
+                    wl2dUnknownV118++;
+                    if (C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal && wl2dAuditV118.Count < C2WallObjectsV118AuditLimitLikeOriginal)
+                        wl2dAuditV118.Add(BuildWallWL2DAuditLineV118LikeOriginal(i, s, sourceSpriteForLog, null, null, null, "missing_catalog"));
                     continue;
+                }
+
+                if (C2WallObjectsV165HardDeleteLegacySavedWL2DFenceIndividualCardsLikeOriginal &&
+                    IsStraightenableWL2DFenceSpriteV132LikeOriginal(desc))
+                {
+                    // V165 hard delete of old individual WALS 2D fence card path.
+                    // Do not call SelectSavedWallRouteV20LikeOriginal, do not build DELETED_LEGACY_WALS2D_ROUTE/DELETED_LEGACY_WALS2D_ROUTE/DELETED_LEGACY_WALS2D_ROUTE mesh.
+                    legacyWals2DFenceIndividualCardsDeletedV165++;
+                    continue;
+                }
 
                 if (C2WallObjectsV94DisableLegacyDambaPieceFallbackLikeOriginal &&
                     IsWallDambaC2MModelV33LikeOriginal(desc))
@@ -3876,6 +6367,19 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                     syntheticDambaSuppressedV93.Contains(sourceSpriteForLog))
                 {
                     continue;
+                }
+
+                if (C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal &&
+                    fenceLineAnchorsV132 != null &&
+                    fenceLineAnchorsV132.TryGetValue(sourceSpriteForLog, out Vector2 fenceLineAnchorV132))
+                {
+                    if (fenceLineSharedBasisV132 != null &&
+                        fenceLineSharedBasisV132.TryGetValue(sourceSpriteForLog, out Matrix4x4 fenceLineBasisV132))
+                        s = CopySavedWallSpriteWithAnchorAndMatrixBasisV81LikeOriginal(sourceSpriteForLog, fenceLineAnchorV132, fenceLineBasisV132);
+                    else
+                        s = CopySavedWallSpriteWithAnchorV14LikeOriginal(sourceSpriteForLog, fenceLineAnchorV132);
+
+                    fenceLineAdjustedV132++;
                 }
 
                 if ((C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal ||
@@ -4010,7 +6514,33 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                         modelRunHeightAdjustedV59++;
                     }
                 }
-                CountWallSavedRouteV20LikeOriginal(route.Route, ref routeBridge, ref routeFence, ref routeAligned, ref routeModel, ref routeFallback);
+                switch (route.ClassV118)
+                {
+                    // V168: legacy WALS2D fence classes are physically removed from enum/runtime routing.
+                    // Fence objects are handled only by WALS2D_LINE_ROOT before this per-sprite route block.
+                    case WallWL2DClassV118LikeOriginal.Single2DProp:
+                        wl2dSinglePropV118++;
+                        IncrementWallIdCountV118LikeOriginal(wl2dSinglePropIdsV118, desc);
+                        break;
+                    case WallWL2DClassV118LikeOriginal.GroundAligned:
+                        wl2dGroundV118++;
+                        IncrementWallIdCountV118LikeOriginal(wl2dGroundIdsV118, desc);
+                        break;
+                    case WallWL2DClassV118LikeOriginal.VerticalAligned:
+                        wl2dVerticalV118++;
+                        IncrementWallIdCountV118LikeOriginal(wl2dVerticalIdsV118, desc);
+                        break;
+                    case WallWL2DClassV118LikeOriginal.ModelBackedC2M:
+                        wl2dModelV118++;
+                        IncrementWallIdCountV118LikeOriginal(wl2dModelIdsV118, desc);
+                        break;
+                    default:
+                        wl2dUnknownV118++;
+                        IncrementWallIdCountV118LikeOriginal(wl2dUnknownIdsV118, desc);
+                        break;
+                }
+
+                CountWallSavedRouteV20LikeOriginal(route.Route, ref routeBridge, ref routeFence, ref routeLargeFence, ref routeAligned, ref routeModel, ref routeFallback);
                 CountWallSavedProfileV20LikeOriginal(route.Profile, ref profileBridge, ref profileFence, ref profileModel, ref profileGround, ref profileVertical, ref profileFallback);
 
                 if (matrixAudit.Count < C2WallObjectsV21MatrixAuditLimitLikeOriginal && s.HasMatrix &&
@@ -4027,6 +6557,8 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
                 if (!route.Emitted)
                 {
+                    if (C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal && wl2dAuditV118.Count < C2WallObjectsV118AuditLimitLikeOriginal)
+                        wl2dAuditV118.Add(BuildWallWL2DAuditLineV118LikeOriginal(i, s, sourceSpriteForLog, desc, route, null, "emitted_false"));
                     if (routeAudit.Count < C2WallObjectsV20RouteAuditLimitLikeOriginal)
                         routeAudit.Add(BuildWallRouteAuditLineV20LikeOriginal(i, s, sourceSpriteForLog, desc, route, null));
                     continue;
@@ -4071,6 +6603,8 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                     if (tex == null)
                     {
                         missingTextures++;
+                        if (C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal && wl2dAuditV118.Count < C2WallObjectsV118AuditLimitLikeOriginal)
+                            wl2dAuditV118.Add(BuildWallWL2DAuditLineV118LikeOriginal(i, s, sourceSpriteForLog, desc, route, null, "missing_texture " + (source ?? string.Empty)));
                         if (!C2WallObjectsV1DrawDebugPlaceholdersLikeOriginal)
                             continue;
                         tex = Texture2D.whiteTexture;
@@ -4119,6 +6653,8 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 }
                 if (mesh == null)
                 {
+                    if (C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal && wl2dAuditV118.Count < C2WallObjectsV118AuditLimitLikeOriginal)
+                        wl2dAuditV118.Add(BuildWallWL2DAuditLineV118LikeOriginal(i, s, sourceSpriteForLog, desc, route, null, source + " mesh_builder_returned_null"));
                     if (routeAudit.Count < C2WallObjectsV20RouteAuditLimitLikeOriginal)
                     {
                         route.Reason = string.IsNullOrEmpty(route.Reason) ? "mesh_builder_returned_null" : route.Reason + "; mesh_builder_returned_null";
@@ -4127,9 +6663,90 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                     SafeDestroy(go);
                     continue;
                 }
+                string wl2dClampAudit = string.Empty;
+if (ShouldClampSavedM4Prop2DToTerrainV124LikeOriginal(s, desc, route))
+                {
+                    mesh = ClampWall2DMeshMinVertexToTerrainV124LikeOriginal(mesh, s, desc, out string propClampAuditV124);
+                    wl2dClampAudit = string.IsNullOrWhiteSpace(wl2dClampAudit) ? propClampAuditV124 : wl2dClampAudit + " " + propClampAuditV124;
+                    route.MatrixAudit = (route.MatrixAudit ?? string.Empty) + " " + propClampAuditV124;
+                }
+if (ShouldFlipVerticalAlignedPropUvV122LikeOriginal(s, desc, route))
+                {
+                    mesh = FlipWallMeshUvVerticalV122LikeOriginal(mesh, desc, out string propUvAuditV122);
+                    wl2dVerticalPropUvFlipV122++;
+                    wl2dClampAudit = string.IsNullOrWhiteSpace(wl2dClampAudit) ? propUvAuditV122 : wl2dClampAudit + " " + propUvAuditV122;
+                    route.MatrixAudit = (route.MatrixAudit ?? string.Empty) + " " + propUvAuditV122;
+                }
 
-                if (NeedsFenceVerticalRaiseV35LikeOriginal(s, desc, route))
-                    mesh = OffsetWallMeshWorldYV35LikeOriginal(mesh, C2WallObjectsV35VerticalFenceRaisePixelsLikeOriginal);
+                if (C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal &&
+                    fenceLineAnchorsV132 != null &&
+                    sourceSpriteForLog != null &&
+                    fenceLineAnchorsV132.TryGetValue(sourceSpriteForLog, out Vector2 fenceRealJointTargetV147))
+                {
+                    mesh = AlignWallFenceMeshBottomJointToRebuiltLineTargetV147LikeOriginal(
+                        mesh,
+                        s,
+                        desc,
+                        fenceRealJointTargetV147,
+                        out string realJointAuditV147);
+                    wl2dClampAudit = string.IsNullOrWhiteSpace(wl2dClampAudit) ? realJointAuditV147 : wl2dClampAudit + " " + realJointAuditV147;
+                    route.MatrixAudit = (route.MatrixAudit ?? string.Empty) + " " + realJointAuditV147;
+                }
+
+                if (C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal &&
+                    fenceLineAnchorsV132 != null &&
+                    sourceSpriteForLog != null &&
+                    fenceLineAnchorsV132.ContainsKey(sourceSpriteForLog) &&
+                    fenceFinalVertexAuditV145.Count < C2WallObjectsV132FenceAuditLimitLikeOriginal)
+                {
+                    Vector3[] finalVertsV145 = mesh != null ? mesh.vertices : null;
+                    float minYV145 = float.PositiveInfinity;
+                    float maxYV145 = float.NegativeInfinity;
+                    float minXV145 = float.PositiveInfinity;
+                    float maxXV145 = float.NegativeInfinity;
+                    float minZV145 = float.PositiveInfinity;
+                    float maxZV145 = float.NegativeInfinity;
+                    int vertCountV145 = finalVertsV145 != null ? finalVertsV145.Length : 0;
+                    if (finalVertsV145 != null)
+                    {
+                        for (int fv = 0; fv < finalVertsV145.Length; fv++)
+                        {
+                            Vector3 vtx = finalVertsV145[fv];
+                            if (vtx.x < minXV145) minXV145 = vtx.x;
+                            if (vtx.x > maxXV145) maxXV145 = vtx.x;
+                            if (vtx.y < minYV145) minYV145 = vtx.y;
+                            if (vtx.y > maxYV145) maxYV145 = vtx.y;
+                            if (vtx.z < minZV145) minZV145 = vtx.z;
+                            if (vtx.z > maxZV145) maxZV145 = vtx.z;
+                        }
+                    }
+
+                    Vector2 anchorV145 = fenceLineAnchorsV132[sourceSpriteForLog];
+                    fenceFinalVertexAuditV145.Add("order=" + i.ToString(CultureInfo.InvariantCulture) +
+                                                  " sprite=W" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                                                  " route=" + route.Route +
+                                                  " anchorOnlyXY=(" + s.X.ToString(CultureInfo.InvariantCulture) + "," + s.Y.ToString(CultureInfo.InvariantCulture) + ")" +
+                                                  " rebuiltXY=(" + Mathf.RoundToInt(anchorV145.x).ToString(CultureInfo.InvariantCulture) + "," + Mathf.RoundToInt(anchorV145.y).ToString(CultureInfo.InvariantCulture) + ")" +
+                                                  " hasM4=" + (s.HasMatrix ? "True" : "False") +
+                                                  " realJointAlign=True markerV148=True" +
+                                                  " sharedRunBasis=" + ((fenceLineSharedBasisV132 != null && sourceSpriteForLog != null && fenceLineSharedBasisV132.ContainsKey(sourceSpriteForLog)) ? "True" : "False") + "" +
+                                                  " finalVerts=" + vertCountV145.ToString(CultureInfo.InvariantCulture) +
+                                                  " boundsXYZ=(" + minXV145.ToString("0.###", CultureInfo.InvariantCulture) + ".." + maxXV145.ToString("0.###", CultureInfo.InvariantCulture) +
+                                                  "," + minYV145.ToString("0.###", CultureInfo.InvariantCulture) + ".." + maxYV145.ToString("0.###", CultureInfo.InvariantCulture) +
+                                                  "," + minZV145.ToString("0.###", CultureInfo.InvariantCulture) + ".." + maxZV145.ToString("0.###", CultureInfo.InvariantCulture) + ")");
+                }
+
+                if (C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal && wl2dAuditV118.Count < C2WallObjectsV118AuditLimitLikeOriginal)
+                    wl2dAuditV118.Add(BuildWallWL2DAuditLineV118LikeOriginal(i, s, sourceSpriteForLog, desc, route, mesh, source + " " + wl2dClampAudit));
+
+                if (C2WallObjectsV119TopOffenderAuditWL2DLikeOriginal)
+                {
+                    WallWL2DPlacementMetricV119LikeOriginal metricV119 = BuildWallWL2DPlacementMetricV119LikeOriginal(i, s, desc, route, mesh, source + " " + wl2dClampAudit);
+                    if (metricV119 != null)
+                        wl2dMetricsV119.Add(metricV119);
+                }
+
+                RegisterWals2DHeightAdjustableMeshV178LikeOriginal(mesh, desc);
 
                 mf.sharedMesh = mesh;
 
@@ -4282,6 +6899,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                       " missingTextures=" + missingTextures +
                       " routes=bridge:" + routeBridge +
                       ",fence:" + routeFence +
+                      ",largeFence:" + routeLargeFence +
                       ",aligned:" + routeAligned +
                       ",model:" + routeModel +
                       ",fallback:" + routeFallback +
@@ -4311,13 +6929,14 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                       " modelRunHeightAdjustedV60=" + modelRunHeightAdjustedV59.ToString(CultureInfo.InvariantCulture) +
                       " syntheticDambaRowsV93=" + syntheticDambaRowsV93.ToString(CultureInfo.InvariantCulture) +
                       " legacyDambaPieceFallbackSkippedV94=" + legacyDambaPieceFallbackSkippedV94.ToString(CultureInfo.InvariantCulture) +
+                      " legacyWals2DFenceIndividualCardsDeletedV165=" + legacyWals2DFenceIndividualCardsDeletedV165.ToString(CultureInfo.InvariantCulture) +
                       " dambaPlacementV94=" + C2WallObjectsV94DambaPlacementContractLikeOriginal +
                       " placementV60=" + C2WallObjectsV59PlacementContractLikeOriginal +
                       " modelRunAnchorAdjustedV61=" + modelRunAnchorAdjustedV61.ToString(CultureInfo.InvariantCulture) +
                       " placementV61=" + C2WallObjectsV61PlacementContractLikeOriginal +
                       " placementV62=" + C2WallObjectsV62PlacementContractLikeOriginal +
                       " placementV64=" + C2WallObjectsV64PlacementContractLikeOriginal +
-                      " c2mRender=" + C2WallObjectsV26RenderContractLikeOriginal + " panplane_LEqual_Offset spriteRender=" + C2WallObjectsV29SpriteRenderContractLikeOriginal + " bridgeSpriteV31=" + C2WallObjectsV31SpriteRenderContractLikeOriginal + " dambaBase=" + C2WallObjectsV33DambaRenderContractLikeOriginal + " dambaDepth=" + C2WallObjectsV34DambaDepthContractLikeOriginal + " dambaMaterialV36=" + C2WallObjectsV35DambaRenderContractLikeOriginal + " chunkRenderV41=" + C2WallObjectsV41ChunkRenderContractLikeOriginal + " gpObjMaterialV42=" + C2WallObjectsV42MaterialContractLikeOriginal + " uvFitV43=" + C2WallObjectsV43UvFitContractLikeOriginal + " shadowV44=" + C2WallObjectsV44ShadowContractLikeOriginal + " dambaGPObjV46=" + C2WallObjectsV46DambaGPObjContractLikeOriginal + " gpObjSquaresV47=" + C2WallObjectsV47GPObjSquareContractLikeOriginal + " drawWChunkV50=" + C2WallObjectsV50DrawWChunkContractLikeOriginal + " dambaTextureV56=TemnyLess_GPObj_G16_DrawWChunk_textured_no_white_fill drawWChunkV57=" + C2WallObjectsV57DrawWChunkContractLikeOriginal + " partialOverlayV35=disabled fenceRaisePx=" + C2WallObjectsV35VerticalFenceRaisePixelsLikeOriginal.ToString(CultureInfo.InvariantCulture));
+                      " c2mRender=" + C2WallObjectsV26RenderContractLikeOriginal + " panplane_LEqual_Offset spriteRender=" + C2WallObjectsV29SpriteRenderContractLikeOriginal + " bridgeSpriteV31=" + C2WallObjectsV31SpriteRenderContractLikeOriginal + " dambaBase=" + C2WallObjectsV33DambaRenderContractLikeOriginal + " dambaDepth=" + C2WallObjectsV34DambaDepthContractLikeOriginal + " dambaMaterialV36=" + C2WallObjectsV35DambaRenderContractLikeOriginal + " chunkRenderV41=" + C2WallObjectsV41ChunkRenderContractLikeOriginal + " gpObjMaterialV42=" + C2WallObjectsV42MaterialContractLikeOriginal + " uvFitV43=" + C2WallObjectsV43UvFitContractLikeOriginal + " shadowV44=" + C2WallObjectsV44ShadowContractLikeOriginal + " dambaGPObjV46=" + C2WallObjectsV46DambaGPObjContractLikeOriginal + " gpObjSquaresV47=" + C2WallObjectsV47GPObjSquareContractLikeOriginal + " drawWChunkV50=" + C2WallObjectsV50DrawWChunkContractLikeOriginal + " dambaTextureV56=TemnyLess_GPObj_G16_DrawWChunk_textured_no_white_fill drawWChunkV57=" + C2WallObjectsV57DrawWChunkContractLikeOriginal + " partialOverlayV35=disabled fenceRaiseVerticalPx=" + _c2Wals2DVerticalRaisePixelsV178LikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + " fenceRaiseHorizontalPx=" + _c2Wals2DHorizontalRaisePixelsV178LikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + " wl2dV115=fence_no_saved_M4_no_raise_terrain_aligned" + " wl2dV116=" + C2WallObjectsV116FenceContractLikeOriginal + " wl2dV117=" + C2WallObjectsV117FenceContractLikeOriginal + " wl2dV118=" + C2WallObjectsV118ContractLikeOriginal + " wl2dV119=" + C2WallObjectsV119ContractLikeOriginal + " wl2dPropsV122=" + C2WallObjectsV122VerticalPropContractLikeOriginal + " wl2dPropsV124=" + C2WallObjectsV124PropContractLikeOriginal + " bridgeLoweredV131=" + wl2dBridgeSideLoweredV131.ToString(CultureInfo.InvariantCulture) + " fenceLineV171=" + C2WallObjectsV132FenceLineContractLikeOriginal + " wals2dOriginalV172=" + C2WallObjectsV172OriginalWLSavedSpriteContractLikeOriginal + " wals2dUvV173=" + C2WallObjectsV173WLSavedSpriteUvContractLikeOriginal + " wals2dMapXYV174=" + C2WallObjectsV174WLSavedSpriteMapXYContractLikeOriginal + " wals2dShadowLiftV178=" + C2WallObjectsV175WLSavedSpriteSideShadowLiftContractLikeOriginal + " fenceLineAdjustedV132=" + fenceLineAdjustedV132.ToString(CultureInfo.InvariantCulture));
 
             _c2WallObjectsV25LastIMMLayerLikeOriginal = immLayer;
 
@@ -4357,6 +6976,36 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                           " preserved=" + modelRunAnchorInfoV61.PreservedSprites.ToString(CultureInfo.InvariantCulture) +
                           " audit=" + (modelRunAnchorInfoV61.Audit.Count > 0 ? string.Join(" | ", modelRunAnchorInfoV61.Audit.ToArray()) : "none"));
 
+            if (fenceLineInfoV132 != null)
+                Debug.Log("[C2:WALL FENCE LINE V132] enabled=" + C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal +
+                          " contract=" + C2WallObjectsV132FenceLineContractLikeOriginal +
+                          " lineRootsV159=" + fenceLineRootsCreatedV144.ToString(CultureInfo.InvariantCulture) +
+                          " suppressedV159=" + (fenceLineSuppressedV144 != null ? fenceLineSuppressedV144.Count.ToString(CultureInfo.InvariantCulture) : "0") +
+                          " adjustedSprites=" + fenceLineAdjustedV132.ToString(CultureInfo.InvariantCulture) +
+                          " runs=" + fenceLineInfoV132.Runs.ToString(CultureInfo.InvariantCulture) +
+                          " candidates=" + fenceLineInfoV132.CandidateSprites.ToString(CultureInfo.InvariantCulture) +
+                          " preserved=" + fenceLineInfoV132.PreservedSprites.ToString(CultureInfo.InvariantCulture) +
+                          " rejectedRuns=" + fenceLineInfoV132.RejectedRuns.ToString(CultureInfo.InvariantCulture) +
+                          " rejectedSprites=" + fenceLineInfoV132.RejectedSprites.ToString(CultureInfo.InvariantCulture) +
+                          " audit=" + (fenceLineInfoV132.Audit.Count > 0 ? string.Join(" | ", fenceLineInfoV132.Audit.ToArray()) : "none"));
+
+            if (C2WallObjectsV144BuildIdenticalWL2DFenceLineRootsLikeOriginal)
+                Debug.Log("[C2:WALL FENCE ORIGINAL 3DWALLS MODELID MATRIX4D V170] created=" + fenceLineRootsCreatedV144.ToString(CultureInfo.InvariantCulture) +
+                          " suppressed=" + (fenceLineSuppressedV144 != null ? fenceLineSuppressedV144.Count.ToString(CultureInfo.InvariantCulture) : "0") +
+                          " modelIDLineRootsUsed=" + _c2WallObjectsV160ModelIDLineRootsUsedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " modelIDLineRootsRejected=" + _c2WallObjectsV160ModelIDLineRootsRejectedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " spriteFallbackBlocked=" + _c2WallObjectsV160SpriteFallbackBlockedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " numericModelIDResolvedV161=" + _c2WallObjectsV161NumericModelIDResolvedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " numericModelIDUnresolvedV161=" + _c2WallObjectsV161NumericModelIDUnresolvedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " rejectedSavedWLSuppressedV161=" + _c2WallObjectsV161Rejected3DWallsSavedWLSuppressedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " realWTCycleUsedV161=" + _c2WallObjectsV161RealWallTypeCycleUsedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " contract=" + C2WallObjectsV132FenceLineContractLikeOriginal +
+                          " audit=" + (string.IsNullOrWhiteSpace(fenceLineRootAuditV144) ? "none" : fenceLineRootAuditV144));
+
+            if (fenceFinalVertexAuditV145.Count > 0)
+                Debug.Log("[C2:WALL FENCE FINAL VERTICES V152] contract=" + C2WallObjectsV132FenceLineContractLikeOriginal +
+                          " samples=" + string.Join(" | ", fenceFinalVertexAuditV145.ToArray()));
+
             if (routeAudit.Count > 0)
                 Debug.Log("[C2:WALL ROUTE V27] " + string.Join(" | ", routeAudit.ToArray()));
             if (basisAudit.Count > 0)
@@ -4383,6 +7032,35 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 Debug.Log("[C2:C2M GPOBJ MATERIAL V42] contract=" + C2WallObjectsV42MaterialContractLikeOriginal + " " + string.Join(" | ", gpObjMaterialAudit.ToArray()));
             if (spriteRgbaAudit.Count > 0)
                 Debug.Log("[C2:WALL SPRITE RGBA V29] contract=" + C2WallObjectsV29SpriteRenderContractLikeOriginal + " " + string.Join(" | ", spriteRgbaAudit.ToArray()));
+            if (C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal)
+            {
+                Debug.Log("[C2:WL2D V118 SUMMARY] wl2dV118=" + C2WallObjectsV118ContractLikeOriginal +
+                          " classes=smallFence:" + wl2dSmallFenceV118.ToString(CultureInfo.InvariantCulture) +
+                          ",largeFence:" + wl2dLargeFenceV118.ToString(CultureInfo.InvariantCulture) +
+                          ",singleProp:" + wl2dSinglePropV118.ToString(CultureInfo.InvariantCulture) +
+                          ",ground:" + wl2dGroundV118.ToString(CultureInfo.InvariantCulture) +
+                          ",vertical:" + wl2dVerticalV118.ToString(CultureInfo.InvariantCulture) +
+                          ",modelC2M:" + wl2dModelV118.ToString(CultureInfo.InvariantCulture) +
+                          ",bridgeSide:" + wl2dBridgeSideV118.ToString(CultureInfo.InvariantCulture) +
+                          ",unknown:" + wl2dUnknownV118.ToString(CultureInfo.InvariantCulture) +
+                          " largeFenceClampV118=" + wl2dLargeFenceClampV118.ToString(CultureInfo.InvariantCulture) +
+                          " bridgeSideClampV120=" + wl2dBridgeSideClampV120.ToString(CultureInfo.InvariantCulture) +
+                          " bridgeSideAlignClampV121=" + wl2dBridgeSideAlignClampV121.ToString(CultureInfo.InvariantCulture) +
+                          " verticalPropUvFlipV122=" + wl2dVerticalPropUvFlipV122.ToString(CultureInfo.InvariantCulture) +
+                          " smallFenceIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dSmallFenceIdsV118) +
+                          " largeFenceIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dLargeFenceIdsV118) +
+                          " singlePropIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dSinglePropIdsV118) +
+                          " groundIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dGroundIdsV118) +
+                          " verticalIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dVerticalIdsV118) +
+                          " modelIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dModelIdsV118) +
+                          " unknownIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dUnknownIdsV118));
+                if (wl2dAuditV118.Count > 0)
+                    Debug.Log("[C2:WL2D V118 AUDIT] " + string.Join(" | ", wl2dAuditV118.ToArray()));
+            }
+            if (C2WallObjectsV119TopOffenderAuditWL2DLikeOriginal)
+            {
+                LogWallWL2DTopOffendersV119LikeOriginal(wl2dMetricsV119);
+            }
             Debug.Log(BuildWallC2MImmLayerSummaryV25LikeOriginal(immLayer));
 
             var sb = new StringBuilder(512);
@@ -4418,10 +7096,9 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 int missingCatalog = 0;
                 int usedModelIds = 0;
                 int usedG16Ids = 0;
-                int usedBridge = 0;
-                int usedFence = 0;
                 int usedAligned = 0;
                 int usedFallback = 0;
+
                 if (sprites != null && catalog != null)
                 {
                     for (int i = 0; i < sprites.Count; i++)
@@ -4429,18 +7106,24 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                         WallSavedMapSpriteV6LikeOriginal sp = sprites[i];
                         if (sp == null)
                             continue;
+
                         if (!catalog.ByIndex.TryGetValue(sp.SpriteIndex, out WallSpriteDescV1LikeOriginal desc) || desc == null)
                         {
                             missingCatalog++;
                             continue;
                         }
+
                         WallSavedWLProfileV18LikeOriginal profile = GetWallSavedWLProfileV18LikeOriginal(desc);
-                        if (!string.IsNullOrWhiteSpace(desc.ModelPath)) usedModelIds++;
-                        else usedG16Ids++;
-                        if (profile == WallSavedWLProfileV18LikeOriginal.BridgeWallSide) usedBridge++;
-                        else if (profile == WallSavedWLProfileV18LikeOriginal.FenceVertical) usedFence++;
-                        else if (profile == WallSavedWLProfileV18LikeOriginal.GroundAligned || profile == WallSavedWLProfileV18LikeOriginal.VerticalAligned) usedAligned++;
-                        else usedFallback++;
+                        if (!string.IsNullOrWhiteSpace(desc.ModelPath))
+                            usedModelIds++;
+                        else
+                            usedG16Ids++;
+
+                        if (profile == WallSavedWLProfileV18LikeOriginal.GroundAligned ||
+                            profile == WallSavedWLProfileV18LikeOriginal.VerticalAligned)
+                            usedAligned++;
+                        else
+                            usedFallback++;
                     }
                 }
 
@@ -4450,17 +7133,28 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 int catalogConnectors = 0;
                 int catalogAlign = 0;
                 int catalogAutoborn = 0;
+
                 if (catalog != null)
                 {
                     foreach (WallSpriteDescV1LikeOriginal d in catalog.ByIndex.Values)
                     {
                         if (d == null)
                             continue;
-                        if (!string.IsNullOrWhiteSpace(d.ModelPath)) catalogModels++;
-                        else catalogG16++;
-                        if ((d.LeftEdges != null && d.LeftEdges.Count > 0) || (d.RightEdges != null && d.RightEdges.Count > 0)) catalogConnectors++;
-                        if (d.AlignMode != '\0' || (d.AlignPoints != null && d.AlignPoints.Count > 0)) catalogAlign++;
-                        if (d.AutobornChildren != null && d.AutobornChildren.Count > 0) catalogAutoborn++;
+
+                        if (!string.IsNullOrWhiteSpace(d.ModelPath))
+                            catalogModels++;
+                        else
+                            catalogG16++;
+
+                        if ((d.LeftEdges != null && d.LeftEdges.Count > 0) ||
+                            (d.RightEdges != null && d.RightEdges.Count > 0))
+                            catalogConnectors++;
+
+                        if (d.AlignMode != '\0' || (d.AlignPoints != null && d.AlignPoints.Count > 0))
+                            catalogAlign++;
+
+                        if (d.AutobornChildren != null && d.AutobornChildren.Count > 0)
+                            catalogAutoborn++;
                     }
                 }
 
@@ -4471,9 +7165,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                           " missingCatalog=" + missingCatalog.ToString(CultureInfo.InvariantCulture) +
                           " usedG16Instances=" + usedG16Ids.ToString(CultureInfo.InvariantCulture) +
                           " usedModelInstances=" + usedModelIds.ToString(CultureInfo.InvariantCulture) +
-                          " usedProfile=bridge:" + usedBridge.ToString(CultureInfo.InvariantCulture) +
-                          ",fence:" + usedFence.ToString(CultureInfo.InvariantCulture) +
-                          ",aligned:" + usedAligned.ToString(CultureInfo.InvariantCulture) +
+                          " usedProfile=aligned:" + usedAligned.ToString(CultureInfo.InvariantCulture) +
                           ",fallback:" + usedFallback.ToString(CultureInfo.InvariantCulture) +
                           " catalogSprites=" + catalogSprites.ToString(CultureInfo.InvariantCulture) +
                           " catalogG16=" + catalogG16.ToString(CultureInfo.InvariantCulture) +
@@ -4483,11 +7175,11 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                           " catalogWithAutoborn=" + catalogAutoborn.ToString(CultureInfo.InvariantCulture) +
                           " immHeightCells=" + (immLayer != null ? immLayer.HeightCells : 0).ToString(CultureInfo.InvariantCulture) +
                           " immLockCells=" + (immLayer != null ? immLayer.LockCells : 0).ToString(CultureInfo.InvariantCulture) +
-                          " note='TRE2 non-WL buckets are summarized by [C2:WALL SPRITES V6]; WL renderer must not claim OC/TS/complex object coverage'");
+                          " note='V166 compile fix: old individual WALS 2D fence routes are physically absent; coverage audit no longer references removed fence/bridge profiles'");
 
                 Debug.Log("[C2:WALL WLID COVERAGE V27] " + BuildWallUsedIdCoverageLineV27LikeOriginal(catalog, wlIndexAudit));
                 Debug.Log("[C2:WALL MODEL COVERAGE V27] " + BuildWallModelCoverageLineV27LikeOriginal(catalog, wlIndexAudit));
-                Debug.Log("[C2:WALL OBJECT-SYSTEM BOUNDARY V27] WL_saved_renderer=covered_by_this_file; STONES_TS_and_COMPLEX_OC=not_covered_by_OneWallsSystem; wheat_or_field_should_be_expected_only_if_W113_or_other_field_MODEL_is_used_in_WL_or_if_OC_pipeline_places_it; current_WL_model_usage=" + BuildWallUsedModelNameListV27LikeOriginal(catalog, wlIndexAudit));
+                Debug.Log("[C2:WALL OBJECT-SYSTEM BOUNDARY V27] WL_saved_renderer=covered_by_this_file; STONES_TS_and_COMPLEX_OC=not_covered_by_OneWallsSystem; current_WL_model_usage=" + BuildWallUsedModelNameListV27LikeOriginal(catalog, wlIndexAudit));
             }
             catch (Exception ex)
             {
@@ -4495,1035 +7187,2529 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             }
         }
 
-        private string BuildWallUsedIdCoverageLineV27LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> wlIndexAudit)
+        private Mesh BuildSavedMapWallSpriteUnifiedFence2DMeshV135LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            float wPx,
+            float hPx,
+            bool flipLocalY,
+            string path)
         {
-            if (catalog == null || wlIndexAudit == null || wlIndexAudit.Count == 0)
-                return "empty";
+            if (s == null || desc == null || !s.HasMatrix)
+                return null;
 
-            var parts = new List<string>();
-            foreach (var kv in wlIndexAudit)
+            if (C2WallObjectsV140UseExplicitUnifiedFenceLineCardMeshLikeOriginal)
+                return BuildSavedMapWallSpriteExplicitFenceLineCardMeshV140LikeOriginal(s, desc, wPx, hPx, path);
+
+            // V135 legacy fallback kept only for A/B rollback.
+            Vector2 pivot = GetWallUnifiedFencePivotPxV135LikeOriginal(desc, wPx, hPx);
+
+            Vector3[] local;
+            if (flipLocalY)
             {
-                if (parts.Count >= C2WallObjectsV27MapSignIndexLimitLikeOriginal)
-                    break;
-                if (catalog.ByIndex.TryGetValue(kv.Key, out WallSpriteDescV1LikeOriginal d) && d != null)
+                local = new[]
                 {
-                    string kind = string.IsNullOrWhiteSpace(d.ModelPath) ? "G16" : "MODEL:" + d.ModelPath.Replace('\\', '/');
-                    WallSavedWLProfileV18LikeOriginal profile = GetWallSavedWLProfileV18LikeOriginal(d);
-                    parts.Add("W" + kv.Key.ToString(CultureInfo.InvariantCulture) + " name=" + d.Name + " count=" + kv.Value.ToString(CultureInfo.InvariantCulture) + " kind=" + kind + " profile=" + profile + " align=" + (d.AlignMode == '\0' ? "-" : d.AlignMode.ToString()) + " L=" + (d.LeftEdges != null ? d.LeftEdges.Count : 0).ToString(CultureInfo.InvariantCulture) + " R=" + (d.RightEdges != null ? d.RightEdges.Count : 0).ToString(CultureInfo.InvariantCulture));
-                }
-                else
+                    new Vector3(0.0f - pivot.x,  pivot.y - 0.0f, 0.0f),
+                    new Vector3(wPx  - pivot.x,  pivot.y - 0.0f, 0.0f),
+                    new Vector3(wPx  - pivot.x,  pivot.y - hPx,  0.0f),
+                    new Vector3(0.0f - pivot.x,  pivot.y - hPx,  0.0f)
+                };
+            }
+            else
+            {
+                local = new[]
                 {
-                    parts.Add("W" + kv.Key.ToString(CultureInfo.InvariantCulture) + " count=" + kv.Value.ToString(CultureInfo.InvariantCulture) + " missing_catalog");
-                }
+                    new Vector3(0.0f - pivot.x,  0.0f - pivot.y, 0.0f),
+                    new Vector3(wPx  - pivot.x,  0.0f - pivot.y, 0.0f),
+                    new Vector3(wPx  - pivot.x,  hPx  - pivot.y, 0.0f),
+                    new Vector3(0.0f - pivot.x,  hPx  - pivot.y, 0.0f)
+                };
             }
-            return string.Join(" | ", parts.ToArray());
+
+            Matrix4x4 basis = s.Matrix;
+            basis.m30 = s.X;
+            basis.m31 = s.Y;
+            basis.m32 = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
+
+            Vector3[] verts = new Vector3[4];
+            for (int i = 0; i < 4; i++)
+            {
+                Vector3 p = TransformOriginalMatrix4DPointV19LikeOriginal(basis, local[i]);
+                verts[i] = OriginalWallXYZToWorldV6LikeOriginal(p.x, p.y, p.z + desc.FixHeight);
+            }
+
+            string safePath = string.IsNullOrWhiteSpace(path) ? "UnifiedFence2D_V139" : path;
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V139_" + safePath + "_" + desc.Name, verts);
         }
 
-        private string BuildWallUsedModelNameListV27LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> wlIndexAudit)
+        private Mesh BuildSavedMapWallSpriteExplicitFenceLineCardMeshV140LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            float wPx,
+            float hPx,
+            string path)
         {
-            if (catalog == null || wlIndexAudit == null || wlIndexAudit.Count == 0)
-                return "none";
-            var parts = new List<string>();
-            foreach (var kv in wlIndexAudit)
+            if (s == null || desc == null || !s.HasMatrix)
+                return null;
+
+            // V140: do not use Matrix4D as a full transform for WL fences.
+            // Previous patches rebuilt anchors correctly, but final vertices still inherited Matrix4D drift/tilt.
+            // This builder constructs the final quad directly in world space:
+            //   bottom center = rebuilt saved WL X/Y on terrain;
+            //   horizontal axis = run line stored in Matrix4D ground-X;
+            //   vertical axis = pure Unity up;
+            //   bottom edge is terrain-anchored, so small fences cannot fall through the ground.
+            Vector2 originalDir = new Vector2(s.Matrix.m00, s.Matrix.m01);
+            if (originalDir.sqrMagnitude <= 0.000001f)
+                originalDir = Vector2.right;
+            originalDir.Normalize();
+
+            float originalUnitsPerPixel = new Vector2(s.Matrix.m00, s.Matrix.m01).magnitude;
+            if (originalUnitsPerPixel < 0.0001f)
+                originalUnitsPerPixel = WallOriginalXYUnitToWorldScaleV8LikeOriginal() > 0.0001f ? 1.0f : 1.0f;
+
+            float explicitStepOriginalUnits = Mathf.Abs(s.Matrix.m03);
+            float originalHalfWidth = explicitStepOriginalUnits > 0.0001f
+                ? explicitStepOriginalUnits * 0.5f
+                : Mathf.Max(1.0f, wPx * originalUnitsPerPixel * 0.5f);
+
+            Vector3 bottomCenter = WallOriginalXYToWorldV1LikeOriginal(s.X, s.Y, desc.FixHeight);
+            Vector3 lineSample = WallOriginalXYToWorldV1LikeOriginal(
+                s.X + originalDir.x * 32.0f,
+                s.Y + originalDir.y * 32.0f,
+                desc.FixHeight);
+
+            Vector3 lineWorld = lineSample - bottomCenter;
+            lineWorld.y = 0.0f;
+            if (lineWorld.sqrMagnitude <= 0.000001f)
+                lineWorld = Vector3.right;
+            lineWorld.Normalize();
+
+            float widthWorld = Mathf.Max(0.01f, originalHalfWidth * 2.0f * WallOriginalXYUnitToWorldScaleV8LikeOriginal());
+
+            float verticalOriginalUnitsPerPixel = Mathf.Abs(s.Matrix.m12);
+            if (verticalOriginalUnitsPerPixel < 0.0001f)
             {
-                if (!catalog.ByIndex.TryGetValue(kv.Key, out WallSpriteDescV1LikeOriginal d) || d == null || string.IsNullOrWhiteSpace(d.ModelPath))
-                    continue;
-                parts.Add("W" + kv.Key.ToString(CultureInfo.InvariantCulture) + "=" + d.ModelPath.Replace('\\', '/') + "x" + kv.Value.ToString(CultureInfo.InvariantCulture));
-            }
-            return parts.Count > 0 ? string.Join(",", parts.ToArray()) : "none";
-        }
-
-        private string BuildWallModelCoverageLineV27LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> wlIndexAudit)
-        {
-            if (catalog == null)
-                return "catalog_null";
-
-            var parts = new List<string>();
-            foreach (WallSpriteDescV1LikeOriginal d in catalog.ByIndex.Values)
-            {
-                if (d == null || string.IsNullOrWhiteSpace(d.ModelPath))
-                    continue;
-                if (parts.Count >= C2WallObjectsV27ModelCoverageLimitLikeOriginal)
-                    break;
-
-                int used = 0;
-                if (wlIndexAudit != null)
-                    wlIndexAudit.TryGetValue(d.SpriteIndex, out used);
-
-                WallC2MParsedMeshV23LikeOriginal c2m = TryLoadWallC2MVisualMeshV23LikeOriginal(d.ModelPath, out string audit);
-                string status;
-                if (c2m == null)
-                {
-                    status = "missing_or_unparsed audit='" + audit + "'";
-                }
-                else
-                {
-                    status = "ok carcassV=" + (c2m.Vertices != null ? c2m.Vertices.Length : 0).ToString(CultureInfo.InvariantCulture) +
-                             " carcassI=" + (c2m.Triangles != null ? c2m.Triangles.Length : 0).ToString(CultureInfo.InvariantCulture) +
-                             " colors=" + (c2m.Colors != null ? c2m.Colors.Length : 0).ToString(CultureInfo.InvariantCulture) +
-                             " nav=" + FormatWallC2MNodeCoverageV27LikeOriginal(c2m.Navimesh) +
-                             " lock=" + FormatWallC2MNodeCoverageV27LikeOriginal(c2m.Lockmesh) +
-                             " audit='" + c2m.Audit + "'";
-                }
-
-                string fieldFlag = (d.SpriteIndex == 113 || d.Name.IndexOf("FIELD", StringComparison.OrdinalIgnoreCase) >= 0 || d.ModelPath.IndexOf("field", StringComparison.OrdinalIgnoreCase) >= 0)
-                    ? " field_or_wheat_candidate=yes"
-                    : string.Empty;
-                parts.Add("W" + d.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " " + d.Name + " model=" + d.ModelPath.Replace('\\', '/') + " usedWL=" + used.ToString(CultureInfo.InvariantCulture) + fieldFlag + " " + status);
-            }
-            return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : "no_MODEL_entries_in_catalog";
-        }
-
-        private static string FormatWallC2MNodeCoverageV27LikeOriginal(WallC2MParsedMeshV23LikeOriginal mesh)
-        {
-            if (mesh == null)
-                return "none";
-            return "v" + (mesh.Vertices != null ? mesh.Vertices.Length : 0).ToString(CultureInfo.InvariantCulture) +
-                   "/i" + (mesh.Triangles != null ? mesh.Triangles.Length : 0).ToString(CultureInfo.InvariantCulture);
-        }
-
-        private static void CountWallSavedRouteV20LikeOriginal(
-            WallDrawRouteV20LikeOriginal route,
-            ref int bridge,
-            ref int fence,
-            ref int aligned,
-            ref int model,
-            ref int fallback)
-        {
-            if (route == WallDrawRouteV20LikeOriginal.SavedBridgeWallSide) bridge++;
-            else if (route == WallDrawRouteV20LikeOriginal.SavedFence) fence++;
-            else if (route == WallDrawRouteV20LikeOriginal.SavedAlignedSprite) aligned++;
-            else if (route == WallDrawRouteV20LikeOriginal.SavedModelC2M) model++;
-            else fallback++;
-        }
-
-        private static void CountWallSavedProfileV20LikeOriginal(
-            WallSavedWLProfileV18LikeOriginal profile,
-            ref int bridge,
-            ref int fence,
-            ref int model,
-            ref int ground,
-            ref int vertical,
-            ref int fallback)
-        {
-            if (profile == WallSavedWLProfileV18LikeOriginal.BridgeWallSide) bridge++;
-            else if (profile == WallSavedWLProfileV18LikeOriginal.FenceVertical) fence++;
-            else if (profile == WallSavedWLProfileV18LikeOriginal.ModelBackedC2M) model++;
-            else if (profile == WallSavedWLProfileV18LikeOriginal.GroundAligned) ground++;
-            else if (profile == WallSavedWLProfileV18LikeOriginal.VerticalAligned) vertical++;
-            else fallback++;
-        }
-
-        private WallSavedWLRouteDecisionV20LikeOriginal SelectSavedWallRouteV20LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc)
-        {
-            var d = new WallSavedWLRouteDecisionV20LikeOriginal();
-            d.Profile = GetWallSavedWLProfileV18LikeOriginal(desc);
-
-            if (desc == null)
-            {
-                d.Route = WallDrawRouteV20LikeOriginal.DebugFallback;
-                d.Path = "DEBUG_FALLBACK_missing_desc";
-                d.Reason = "missing catalog desc";
-                return d;
+                verticalOriginalUnitsPerPixel = new Vector3(s.Matrix.m10, s.Matrix.m11, s.Matrix.m12).magnitude;
+                if (verticalOriginalUnitsPerPixel < 0.0001f)
+                    verticalOriginalUnitsPerPixel = originalUnitsPerPixel;
             }
 
-            WallSavedM4BasisV21LikeOriginal m4 = AnalyzeSavedMatrix4DBasisV21LikeOriginal(s, desc);
+            float heightWorld = Mathf.Max(0.01f, hPx * verticalOriginalUnitsPerPixel * WallOriginalZUnitToWorldScaleV8LikeOriginal());
 
-            if (!string.IsNullOrWhiteSpace(desc.ModelPath))
+            Vector3 half = lineWorld * (widthWorld * 0.5f);
+            Vector3 up = Vector3.up * heightWorld;
+
+            Vector3[] verts =
             {
-                d.Route = WallDrawRouteV20LikeOriginal.SavedModelC2M;
-                d.MatrixVerified = m4.Valid;
-                d.MatrixAudit = m4.Reason;
-                d.Variant = m4.Valid ? "MODEL_M4" : "MODEL_ANCHOR";
-                d.UseSavedM4 = m4.Valid;
-                d.FlipLocalY = true;
-                d.Emitted = C2WallObjectsV22EmitModelBackedSavedWLLikeOriginal;
-                d.Path = m4.Valid ? "MODEL_C2M_IMM_V23_real_Carcass_Matrix4D_no_fake_G16_card" : "MODEL_C2M_IMM_V23_real_Carcass_anchor_no_fake_G16_card";
-                d.Reason = m4.Valid
-                    ? "MODEL-backed WL emitted through V23 real C2M Carcass parser using verified saved Matrix4D; no fake WALLS.g16 card"
-                    : "MODEL-backed WL emitted through V23 real C2M Carcass parser using saved anchor; Matrix4D rejected: " + m4.Reason;
-                return d;
-            }
-
-            if (desc.SpriteIndex == 58 || desc.SpriteIndex == 59)
-            {
-                d.Route = WallDrawRouteV20LikeOriginal.SavedBridgeWallSide;
-                d.MatrixVerified = m4.Valid;
-                d.MatrixAudit = m4.Reason;
-                d.Variant = m4.Variant;
-                d.UseSavedM4 = C2WallObjectsV21UseVerifiedSavedM4ForBridgeLikeOriginal && m4.Valid;
-                d.FlipLocalY = d.UseSavedM4 ? m4.FlipLocalY : true;
-                d.Path = d.UseSavedM4 ? "BridgeWallSide_SavedMatrix4D_verified_row_vector" : "BridgeWallSide_AlignedFallback_unverified_M4";
-                d.Reason = d.UseSavedM4
-                    ? "W58/W59 saved bridge side uses verified original Matrix4D; no ReCreate, no connector resnap"
-                    : "W58/W59 saved bridge side fallback; Matrix4D rejected: " + m4.Reason;
-                return d;
-            }
-
-            if (desc.SpriteIndex == 70 || desc.SpriteIndex == 74 || desc.Name.IndexOf("ZABOR", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                d.Route = WallDrawRouteV20LikeOriginal.SavedFence;
-                d.MatrixVerified = m4.Valid;
-                d.MatrixAudit = m4.Reason;
-                d.Variant = C2WallObjectsV21FenceVariantFromSavedM4LikeOriginal ? m4.Variant : "FenceLegacy";
-                d.UseSavedM4 = C2WallObjectsV21UseVerifiedSavedM4ForFenceLikeOriginal && m4.Valid;
-                d.FlipLocalY = d.UseSavedM4 ? m4.FlipLocalY : ShouldFlipSavedFenceLocalYV20LikeOriginal(s, desc);
-                d.Path = d.UseSavedM4 ? "Fence_SavedMatrix4D_verified_" + d.Variant : "Fence_AlignedFallback_unverified_M4";
-                d.Reason = d.UseSavedM4
-                    ? "fence route uses verified saved Matrix4D and variant from M4 signs; not bridge builder"
-                    : "fence fallback; Matrix4D rejected: " + m4.Reason;
-                return d;
-            }
-
-            if (desc.AlignMode == 'H' ||
-                desc.AlignMode == 'U' ||
-                ((desc.AlignMode == 'V' || desc.AlignMode == 'S') && desc.AlignPoints.Count >= 2))
-            {
-                d.Route = WallDrawRouteV20LikeOriginal.SavedAlignedSprite;
-                d.Path = "SavedWL_Align_" + (desc.AlignMode == '\0' ? "None" : desc.AlignMode.ToString());
-                d.Reason = "saved WL aligned sprite; use catalog ALIGNING only";
-                d.MatrixVerified = m4.Valid;
-                d.MatrixAudit = m4.Reason;
-                d.Variant = m4.Variant;
-                return d;
-            }
-
-            d.Route = WallDrawRouteV20LikeOriginal.DebugFallback;
-            d.Path = "DEBUG_FALLBACK_BillboardAligned";
-            d.Reason = "no model and no usable ALIGNING block";
-            d.MatrixVerified = m4.Valid;
-            d.MatrixAudit = m4.Reason;
-            d.Variant = m4.Variant;
-            return d;
-        }
-
-        private static WallSavedM4BasisV21LikeOriginal AnalyzeSavedMatrix4DBasisV21LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc)
-        {
-            WallSavedM4BasisV21LikeOriginal r = new WallSavedM4BasisV21LikeOriginal
-            {
-                Valid = false,
-                Reason = "no_matrix",
-                Variant = "M4None",
-                FlipLocalY = true,
-                XLen = 0.0f,
-                YLen = 0.0f,
-                Area = 0.0f
+                bottomCenter - half + up,
+                bottomCenter + half + up,
+                bottomCenter + half,
+                bottomCenter - half
             };
 
+            string safePath = string.IsNullOrWhiteSpace(path) ? "UnifiedFence2D_V142_IdenticalJointToJointLineCard" : path;
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V142_" + safePath + "_" + desc.Name, verts);
+        }
+
+        private static Vector2 GetWallUnifiedFencePivotPxV135LikeOriginal(WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (desc == null)
+                return new Vector2(wPx * 0.5f, hPx * 0.5f);
+
+            return new Vector2(GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx), GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx));
+        }
+
+
+
+private static Vector2 GetWallLargeFencePivotPxV118LikeOriginal(WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (desc == null)
+                return new Vector2(wPx * 0.5f, hPx);
+
+            if (desc.Width > 0 || desc.Height > 0)
+                return new Vector2(GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx), GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx));
+
+            if (desc.AlignPoints != null && desc.AlignPoints.Count > 0)
+                return new Vector2(desc.AlignPoints[0].x, desc.AlignPoints[0].y);
+
+            return new Vector2(wPx * 0.5f, hPx);
+        }
+
+        private Mesh BuildSavedMapWallSpriteSavedXYBasisMeshV124LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            float wPx,
+            float hPx,
+            bool flipLocalY,
+            string path)
+        {
             if (s == null || desc == null || !s.HasMatrix)
-                return r;
+                return null;
 
-            Matrix4x4 m = s.Matrix;
-            if (!IsFiniteWallM4V21LikeOriginal(m))
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+
+            Vector3[] local;
+            if (flipLocalY)
             {
-                r.Reason = "non_finite_matrix";
-                r.Variant = "M4Bad";
-                return r;
+                local = new[]
+                {
+                    new Vector3(0.0f - cx,  cy - 0.0f, 0.0f),
+                    new Vector3(wPx  - cx,  cy - 0.0f, 0.0f),
+                    new Vector3(wPx  - cx,  cy - hPx,  0.0f),
+                    new Vector3(0.0f - cx,  cy - hPx,  0.0f)
+                };
+            }
+            else
+            {
+                local = new[]
+                {
+                    new Vector3(0.0f - cx,  0.0f - cy, 0.0f),
+                    new Vector3(wPx  - cx,  0.0f - cy, 0.0f),
+                    new Vector3(wPx  - cx,  hPx  - cy, 0.0f),
+                    new Vector3(0.0f - cx,  hPx  - cy, 0.0f)
+                };
             }
 
-            Vector3 xAxis = new Vector3(m.m00, m.m01, m.m02);
-            Vector3 yAxis = new Vector3(m.m10, m.m11, m.m12);
-            Vector3 zAxis = new Vector3(m.m20, m.m21, m.m22);
-            r.XLen = xAxis.magnitude;
-            r.YLen = yAxis.magnitude;
-            r.Area = Vector3.Cross(xAxis, yAxis).magnitude;
+            Matrix4x4 basis = s.Matrix;
+            basis.m30 = s.X;
+            basis.m31 = s.Y;
+            basis.m32 = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
 
-            if (r.XLen < C2WallObjectsV21MatrixMinAxisLenLikeOriginal || r.YLen < C2WallObjectsV21MatrixMinAxisLenLikeOriginal)
+            Vector3[] verts = new Vector3[4];
+            for (int i = 0; i < 4; i++)
             {
-                r.Reason = "axis_too_small x=" + r.XLen.ToString("0.###", CultureInfo.InvariantCulture) + " y=" + r.YLen.ToString("0.###", CultureInfo.InvariantCulture);
-                r.Variant = "M4Flat";
-                return r;
+                Vector3 p = TransformOriginalMatrix4DPointV19LikeOriginal(basis, local[i]);
+                verts[i] = OriginalWallXYZToWorldV6LikeOriginal(p.x, p.y, p.z + desc.FixHeight);
             }
 
-            if (r.XLen > C2WallObjectsV21MatrixMaxAxisLenLikeOriginal || r.YLen > C2WallObjectsV21MatrixMaxAxisLenLikeOriginal)
-            {
-                r.Reason = "axis_too_large x=" + r.XLen.ToString("0.###", CultureInfo.InvariantCulture) + " y=" + r.YLen.ToString("0.###", CultureInfo.InvariantCulture);
-                r.Variant = "M4Huge";
-                return r;
-            }
-
-            if (r.Area < C2WallObjectsV21MatrixMinAreaLikeOriginal)
-            {
-                r.Reason = "basis_area_too_small area=" + r.Area.ToString("0.###", CultureInfo.InvariantCulture);
-                r.Variant = "M4Degenerate";
-                return r;
-            }
-
-            // Sprite pixels are top-left / Y-down. The saved Matrix4D object basis is used as a row-vector,
-            // so texture Y is converted to object Y-up once here. W70/W74 are no longer hardcoded flips.
-            r.FlipLocalY = true;
-            r.Variant = DetectSavedFenceVariantFromMatrixV21LikeOriginal(m);
-            r.Valid = true;
-            r.Reason = "verified row-vector Matrix4D xLen=" + r.XLen.ToString("0.###", CultureInfo.InvariantCulture) +
-                       " yLen=" + r.YLen.ToString("0.###", CultureInfo.InvariantCulture) +
-                       " area=" + r.Area.ToString("0.###", CultureInfo.InvariantCulture) +
-                       " zLen=" + zAxis.magnitude.ToString("0.###", CultureInfo.InvariantCulture);
-            return r;
+            string safePath = string.IsNullOrWhiteSpace(path) ? "SavedXYBasisProp_V124" : path;
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V124_" + safePath + "_" + desc.Name, verts);
         }
 
-        private static bool IsFiniteWallM4V21LikeOriginal(Matrix4x4 m)
+        private Mesh BuildSavedMapWallSpriteSavedM4MeshV21LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx, bool flipLocalY, string path)
         {
-            return IsFiniteWallFloatV21LikeOriginal(m.m00) && IsFiniteWallFloatV21LikeOriginal(m.m01) && IsFiniteWallFloatV21LikeOriginal(m.m02) && IsFiniteWallFloatV21LikeOriginal(m.m03) &&
-                   IsFiniteWallFloatV21LikeOriginal(m.m10) && IsFiniteWallFloatV21LikeOriginal(m.m11) && IsFiniteWallFloatV21LikeOriginal(m.m12) && IsFiniteWallFloatV21LikeOriginal(m.m13) &&
-                   IsFiniteWallFloatV21LikeOriginal(m.m20) && IsFiniteWallFloatV21LikeOriginal(m.m21) && IsFiniteWallFloatV21LikeOriginal(m.m22) && IsFiniteWallFloatV21LikeOriginal(m.m23) &&
-                   IsFiniteWallFloatV21LikeOriginal(m.m30) && IsFiniteWallFloatV21LikeOriginal(m.m31) && IsFiniteWallFloatV21LikeOriginal(m.m32) && IsFiniteWallFloatV21LikeOriginal(m.m33);
+            Mesh mesh = BuildSavedMapWallSpriteSavedM4MeshV19LikeOriginal(s, desc, wPx, hPx, flipLocalY);
+            if (mesh != null)
+                mesh.name = "C2_SavedMapWallSprite_V21_" + (string.IsNullOrWhiteSpace(path) ? "SavedM4" : path) + "_" + desc.Name;
+            return mesh;
         }
 
-        private static bool IsFiniteWallFloatV21LikeOriginal(float v)
+        private Mesh BuildSavedMapWallSpriteSavedM4MeshV19LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx, bool flipLocalY)
         {
-            return !float.IsNaN(v) && !float.IsInfinity(v);
+            if (s == null || desc == null || !s.HasMatrix)
+                return null;
+
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+
+            Vector3[] local;
+            if (flipLocalY)
+            {
+                // Cossacks sprite frame space is top-left; saved Matrix4D object space is Y-up.
+                // This path is for fence/prop-like saved WL only: no camera billboard and no affine V/H warp.
+                local = new[]
+                {
+                    new Vector3(0.0f - cx,  cy - 0.0f, 0.0f),
+                    new Vector3(wPx  - cx,  cy - 0.0f, 0.0f),
+                    new Vector3(wPx  - cx,  cy - hPx,  0.0f),
+                    new Vector3(0.0f - cx,  cy - hPx,  0.0f)
+                };
+            }
+            else
+            {
+                local = new[]
+                {
+                    new Vector3(0.0f - cx,  0.0f - cy, 0.0f),
+                    new Vector3(wPx  - cx,  0.0f - cy, 0.0f),
+                    new Vector3(wPx  - cx,  hPx  - cy, 0.0f),
+                    new Vector3(0.0f - cx,  hPx  - cy, 0.0f)
+                };
+            }
+
+            Vector3[] verts = new Vector3[4];
+            for (int i = 0; i < 4; i++)
+            {
+                Vector3 p = TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local[i]);
+                verts[i] = OriginalWallXYZToWorldV6LikeOriginal(p.x, p.y, p.z + desc.FixHeight);
+            }
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V19_SavedM4_" + desc.Name, verts);
         }
 
-        private static string DetectSavedFenceVariantFromMatrixV21LikeOriginal(Matrix4x4 m)
+        private static Vector3 TransformOriginalMatrix4DPointV19LikeOriginal(Matrix4x4 m, Vector3 p)
         {
-            bool xPositive = m.m00 >= 0.0f;
-            bool yPositive = m.m01 >= 0.0f;
-            if (xPositive && yPositive) return "FenceDiagNE";
-            if (!xPositive && yPositive) return "FenceDiagNW";
-            if (xPositive && !yPositive) return "FenceDiagSE";
-            return "FenceDiagSW";
+            // Original Matrix4D translation is e30/e31/e32. Row-vector convention:
+            // x' = x*e00 + y*e10 + z*e20 + e30, etc.
+            return new Vector3(
+                p.x * m.m00 + p.y * m.m10 + p.z * m.m20 + m.m30,
+                p.x * m.m01 + p.y * m.m11 + p.z * m.m21 + m.m31,
+                p.x * m.m02 + p.y * m.m12 + p.z * m.m22 + m.m32
+            );
         }
 
-        private string BuildWallMatrixAuditLineV21LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
+        private Mesh AlignWallFenceMeshBottomJointToRebuiltLineTargetV147LikeOriginal(
+            Mesh source,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            Vector2 rebuiltOriginalXY,
+            out string audit)
+        {
+            audit = "V147_REAL_JOINT_ALIGN skipped";
+            if (source == null || s == null || desc == null)
+                return source;
+
+            Vector3[] verts = source.vertices;
+            if (verts == null || verts.Length == 0)
+            {
+                audit = "V147_REAL_JOINT_ALIGN no_vertices";
+                return source;
+            }
+
+            float minY = float.PositiveInfinity;
+            float maxY = float.NegativeInfinity;
+            for (int i = 0; i < verts.Length; i++)
+            {
+                if (verts[i].y < minY) minY = verts[i].y;
+                if (verts[i].y > maxY) maxY = verts[i].y;
+            }
+
+            if (!float.IsFinite(minY) || !float.IsFinite(maxY))
+            {
+                audit = "V147_REAL_JOINT_ALIGN invalid_bounds";
+                return source;
+            }
+
+            // Real visible joint = bottom edge/line of the already-built WALLS mesh,
+            // not the saved WL anchor. Previous patches aligned the anchor and left
+            // the actual visible bottom/joint offset untouched.
+            float yBand = Mathf.Max(0.01f, Mathf.Min(1.0f, (maxY - minY) * 0.015f));
+            Vector3 jointSum = Vector3.zero;
+            int jointCount = 0;
+            for (int i = 0; i < verts.Length; i++)
+            {
+                if (verts[i].y <= minY + yBand)
+                {
+                    jointSum += verts[i];
+                    jointCount++;
+                }
+            }
+
+            if (jointCount == 0)
+            {
+                audit = "V147_REAL_JOINT_ALIGN no_bottom_joint";
+                return source;
+            }
+
+            Vector3 bottomJoint = jointSum / Mathf.Max(1, jointCount);
+            float targetOriginalZ = SampleWallHeightOriginalXYV1LikeOriginal(rebuiltOriginalXY.x, rebuiltOriginalXY.y) + desc.FixHeight;
+            Vector3 targetWorld = OriginalWallXYZToWorldV6LikeOriginal(rebuiltOriginalXY.x, rebuiltOriginalXY.y, targetOriginalZ);
+
+            // Only move in map plane. Keep vertical result from original route/clamp/sink,
+            // so small fences do not fall through terrain again.
+            Vector3 delta = new Vector3(targetWorld.x - bottomJoint.x, 0.0f, targetWorld.z - bottomJoint.z);
+            if (delta.sqrMagnitude < 0.000001f)
+            {
+                audit = "V147_REAL_JOINT_ALIGN dxz=0 yPreserved=True";
+                return source;
+            }
+
+            Mesh mesh = UnityEngine.Object.Instantiate(source);
+            mesh.name = (source.name ?? "WallMesh") + "_V147_real_bottom_joint_aligned";
+            Vector3[] moved = mesh.vertices;
+            for (int i = 0; i < moved.Length; i++)
+                moved[i] += delta;
+
+            mesh.vertices = moved;
+            mesh.uv = source.uv;
+            mesh.colors32 = source.colors32;
+            mesh.triangles = source.triangles;
+            mesh.RecalculateBounds();
+
+            audit =
+                "V147_REAL_JOINT_ALIGN realBottomJoint=(" +
+                bottomJoint.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                bottomJoint.z.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
+                " targetWorldXZ=(" +
+                targetWorld.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                targetWorld.z.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
+                " deltaXZ=(" +
+                delta.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                delta.z.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
+                " jointVerts=" + jointCount.ToString(CultureInfo.InvariantCulture) +
+                " yPreserved=True realJointAlign=True markerV148=True";
+
+            return mesh;
+        }
+
+        private Mesh ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(Mesh source, WallSpriteDescV1LikeOriginal desc, WallSavedWLProfileV18LikeOriginal profile)
+        {
+            // V165: no legacy bridge/fence per-card embed. WALS 2D fences are emitted only by line-root.
+            return source;
+        }
+
+        private Mesh BuildSavedMapWallSpriteMeshV6LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, Texture2D tex)
         {
             if (s == null || desc == null)
-                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " missing";
+                return null;
 
-            string m4 = s.HasMatrix
-                ? " tr=(" + s.Matrix.m30.ToString("0.###", CultureInfo.InvariantCulture) + "," + s.Matrix.m31.ToString("0.###", CultureInfo.InvariantCulture) + "," + s.Matrix.m32.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                  " x=(" + s.Matrix.m00.ToString("0.###", CultureInfo.InvariantCulture) + "," + s.Matrix.m01.ToString("0.###", CultureInfo.InvariantCulture) + "," + s.Matrix.m02.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                  " y=(" + s.Matrix.m10.ToString("0.###", CultureInfo.InvariantCulture) + "," + s.Matrix.m11.ToString("0.###", CultureInfo.InvariantCulture) + "," + s.Matrix.m12.ToString("0.###", CultureInfo.InvariantCulture) + ")"
-                : " no_matrix";
+            // V13:
+            // Camera/terrain/roads are not suspects here. The variable under test is only the WL sprite basis.
+            // Default V12Aligned keeps the current best aligned result. F2 cycles alternative bases without touching camera.
+            float wPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.width) : Mathf.Max(8.0f, desc.Width * 2.0f);
+            float hPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.height) : Mathf.Max(8.0f, desc.Height * 2.0f);
 
-            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
-                   " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                   " name=" + desc.Name +
-                   " route=" + (route != null ? route.Route.ToString() : "-") +
-                   " path=" + (route != null ? route.Path : "-") +
-                   " m4ok=" + (route != null && route.MatrixVerified) +
-                   " variant=" + (route != null ? route.Variant : "-") +
-                   " flipLocalY=" + (route != null && route.FlipLocalY) +
-                   " emitted=" + (route != null && route.Emitted) +
-                   " xy=(" + s.X.ToString(CultureInfo.InvariantCulture) + "," + s.Y.ToString(CultureInfo.InvariantCulture) + ")" +
-                   m4 +
-                   " audit='" + (route != null ? route.MatrixAudit : string.Empty) + "'";
+            if (C2WallObjectsV16UseRigidSavedWLSpriteCardsLikeOriginal)
+            {
+                Mesh rigid = BuildSavedMapWallSpriteRigidFrozenCameraCardV16LikeOriginal(s, desc, wPx, hPx);
+                if (rigid != null)
+                    return rigid;
+            }
+
+            Mesh mesh = null;
+            if (C2WallObjectsV11UseUniversalDepthlessCardForSavedWL)
+                mesh = BuildSavedMapWallSpriteUniversalDepthlessCardV11LikeOriginal(s, desc, wPx, hPx);
+
+            if (mesh == null && C2WallObjectsV10UseAdaptedBuilderForMapSpritesLikeOriginal)
+            {
+                if ((desc.AlignMode == 'V' || desc.AlignMode == 'S') && desc.AlignPoints.Count >= 2)
+                    mesh = BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
+
+                if (mesh == null && desc.AlignMode == 'H')
+                    mesh = BuildSavedMapWallSpriteGroundAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
+
+                if (mesh == null && desc.AlignMode == 'U' && desc.AlignPoints.Count >= 3)
+                    mesh = BuildSavedMapWallSpriteUniversalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
+
+                if (mesh == null)
+                    mesh = BuildSavedMapWallSpriteBillboardAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
+            }
+
+            if (mesh == null)
+                mesh = BuildSavedMapWallSpriteBillboardAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
+
+            Mesh basisMesh = ApplyWallSpriteBasisV13LikeOriginal(mesh, s, desc, wPx, hPx);
+            return ApplyWallSavedSpriteEmbedV15LikeOriginal(basisMesh, desc);
         }
 
-        private string BuildWallModelAuditLineV22LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
-        {
-            if (s == null || desc == null)
-                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " missing_model";
 
-            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
-                   " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                   " name=" + desc.Name +
-                   " model=" + (string.IsNullOrWhiteSpace(desc.ModelPath) ? "-" : desc.ModelPath) +
-                   " emitted=" + (route != null && route.Emitted) +
-                   " path=" + (route != null ? route.Path : "-") +
-                   " useM4=" + (route != null && route.UseSavedM4) +
-                   " m4ok=" + (route != null && route.MatrixVerified) +
-                   " xy=(" + s.X.ToString(CultureInfo.InvariantCulture) + "," + s.Y.ToString(CultureInfo.InvariantCulture) + ")" +
-                   " reason='" + (route != null ? route.Reason : string.Empty) + "'";
+
+        private void EnsureWallObjectsV16FrozenCameraBasisLikeOriginal()
+        {
+            if (_c2WallObjectsV16FrozenCameraBasisReadyLikeOriginal)
+                return;
+
+            Camera cam = Camera.main;
+            if (cam != null)
+            {
+                _c2WallObjectsV16FrozenCameraRightLikeOriginal = cam.transform.right;
+                _c2WallObjectsV16FrozenCameraUpLikeOriginal = cam.transform.up;
+            }
+            else
+            {
+                _c2WallObjectsV16FrozenCameraRightLikeOriginal = Vector3.right;
+                _c2WallObjectsV16FrozenCameraUpLikeOriginal = Vector3.up;
+            }
+
+            if (_c2WallObjectsV16FrozenCameraRightLikeOriginal.sqrMagnitude < 0.001f)
+                _c2WallObjectsV16FrozenCameraRightLikeOriginal = Vector3.right;
+            if (_c2WallObjectsV16FrozenCameraUpLikeOriginal.sqrMagnitude < 0.001f)
+                _c2WallObjectsV16FrozenCameraUpLikeOriginal = Vector3.up;
+
+            _c2WallObjectsV16FrozenCameraRightLikeOriginal.Normalize();
+            _c2WallObjectsV16FrozenCameraUpLikeOriginal.Normalize();
+            _c2WallObjectsV16FrozenCameraBasisReadyLikeOriginal = true;
         }
 
-        private string BuildWallIMMRouteAuditLineV24LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
+        private Mesh BuildSavedMapWallSpriteRigidFrozenCameraCardV16LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
         {
             if (s == null || desc == null)
-                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " missing_imm_model";
+                return null;
+
+            EnsureWallObjectsV16FrozenCameraBasisLikeOriginal();
+
+            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal() * C2WallObjectsV16SavedWLExtraScaleLikeOriginal;
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+
+            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
+            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, terrain + desc.FixHeight);
+
+            float embedPx = GetWallSavedSpriteEmbedScreenPixelsV16LikeOriginal(desc);
+            if (embedPx > 0.001f)
+                anchor -= _c2WallObjectsV16FrozenCameraUpLikeOriginal * (embedPx * xyUnitToWorld);
+
+            Vector3 right = _c2WallObjectsV16FrozenCameraRightLikeOriginal;
+            Vector3 up = _c2WallObjectsV16FrozenCameraUpLikeOriginal;
+
+            // Exact decoded G16 pixel rectangle. No affine V/H/U warp, no shear, no non-uniform matrix.
+            // Original data supplies anchor/pivot/frame; Unity only turns it into one rigid camera-plane card.
+            Vector3[] verts =
+            {
+                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
+                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
+                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld),
+                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld)
+            };
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V16_RigidFrozenCameraCard_" + desc.Name, verts);
+        }
+
+        private static float GetWallSavedSpriteEmbedScreenPixelsV16LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                return 0.0f;
+
+            if (desc.SpriteIndex == 58 || desc.SpriteIndex == 59 || desc.SpriteIndex == 60 || desc.SpriteIndex == 63)
+                return C2WallObjectsV16BridgeEmbedScreenPixelsLikeOriginal;
+
+            if (desc.SpriteIndex == 70 || desc.SpriteIndex == 74)
+                return C2WallObjectsV16MinorEmbedScreenPixelsLikeOriginal;
+
+            return 0.0f;
+        }
+
+        private Mesh ApplyWallSavedSpriteEmbedV15LikeOriginal(Mesh source, WallSpriteDescV1LikeOriginal desc)
+        {
+            if (source == null || desc == null)
+                return source;
+
+            float embedPx = GetWallSavedSpriteEmbedPixelsV15LikeOriginal(desc);
+            if (embedPx <= 0.001f)
+                return source;
+
+            Vector3[] verts = source.vertices;
+            if (verts == null || verts.Length == 0)
+                return source;
+
+            float worldEmbed = embedPx * WallOriginalXYUnitToWorldScaleV8LikeOriginal();
+            for (int i = 0; i < verts.Length; i++)
+                verts[i].y -= worldEmbed;
+
+            Mesh mesh = new Mesh { name = source.name + "_V15_embed" };
+            mesh.vertices = verts;
+            mesh.uv = source.uv;
+            mesh.colors32 = source.colors32;
+            mesh.triangles = source.triangles;
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static float GetWallSavedSpriteEmbedPixelsV15LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                return 0.0f;
+
+            // Bridge/stair edge WL pieces. This is an adapted Unity placement offset:
+            // original formulas choose the line and connectors; Unity uses a small visual sink
+            // so the edge sits into the panplane instead of floating over it.
+            if (desc.SpriteIndex == 58 || desc.SpriteIndex == 59)
+                return C2WallObjectsV15BridgeEmbedPixelsLikeOriginal;
+
+            // Smaller fence/ground objects need less lowering.
+            if (desc.SpriteIndex == 60 || desc.SpriteIndex == 63 || desc.SpriteIndex == 70 || desc.SpriteIndex == 74)
+                return C2WallObjectsV15MinorEmbedPixelsLikeOriginal;
+
+            return 0.0f;
+        }
+
+
+        private Mesh ApplyWallSpriteBasisV13LikeOriginal(Mesh source, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (source == null || s == null || desc == null)
+                return source;
+
+            WallSpriteBasisV13LikeOriginal mode = _c2WallObjectsV13BasisModeLikeOriginal;
+            if (mode == WallSpriteBasisV13LikeOriginal.V12Aligned)
+                return source;
+
+            if (mode == WallSpriteBasisV13LikeOriginal.CameraPlaneCenterPivot || mode == WallSpriteBasisV13LikeOriginal.CameraPlaneBottomPivot)
+            {
+                Mesh cameraMesh = BuildSavedMapWallSpriteCameraPlaneBasisV13LikeOriginal(s, desc, wPx, hPx, mode == WallSpriteBasisV13LikeOriginal.CameraPlaneBottomPivot);
+                if (cameraMesh != null)
+                    return cameraMesh;
+                return source;
+            }
+
+            Vector3[] verts = source.vertices;
+            if (verts == null || verts.Length == 0)
+                return source;
+
+            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y) + desc.FixHeight);
+            for (int i = 0; i < verts.Length; i++)
+            {
+                Vector3 r = verts[i] - anchor;
+                if (mode == WallSpriteBasisV13LikeOriginal.FlipVertical)
+                {
+                    r.y = -r.y;
+                }
+                else if (mode == WallSpriteBasisV13LikeOriginal.FlipForward)
+                {
+                    r.z = -r.z;
+                }
+                else if (mode == WallSpriteBasisV13LikeOriginal.SwapVerticalForward)
+                {
+                    float oldY = r.y;
+                    r.y = r.z;
+                    r.z = oldY;
+                }
+                verts[i] = anchor + r;
+            }
+
+            Mesh mesh = new Mesh { name = source.name + "_V13_" + mode };
+            mesh.vertices = verts;
+            Vector2[] uv = source.uv;
+            mesh.uv = (uv != null && uv.Length == verts.Length) ? uv : GetWallSpriteQuadUvV8LikeOriginal();
+            Color32[] colors = source.colors32;
+            mesh.colors32 = (colors != null && colors.Length == verts.Length)
+                ? colors
+                : new[] { new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255) };
+            mesh.triangles = source.triangles;
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private Mesh BuildSavedMapWallSpriteCameraPlaneBasisV13LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx, bool bottomPivot)
+        {
+            if (s == null || desc == null)
+                return null;
+
+            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = bottomPivot ? hPx : GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+
+            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
+            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, terrain + desc.FixHeight);
+
+            Camera cam = Camera.main;
+            Vector3 right = Vector3.right;
+            Vector3 up = Vector3.up;
+            if (cam != null)
+            {
+                right = cam.transform.right;
+                up = cam.transform.up;
+            }
+
+            right.Normalize();
+            up.Normalize();
+
+            // Original frames are authored as camera-facing art. This mode tests that idea explicitly:
+            // local pixel X -> camera right, local pixel Y -> camera up, with Y inverted from top-left image coordinates.
+            Vector3[] verts =
+            {
+                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
+                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
+                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld),
+                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld)
+            };
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V13_CameraPlane_" + (bottomPivot ? "Bottom_" : "Center_") + desc.Name, verts);
+        }
+
+        private string DescribeWallSpriteBasisVectorsV13LikeOriginal(Mesh mesh)
+        {
+            if (mesh == null || mesh.vertices == null || mesh.vertices.Length < 4)
+                return "basisVectors=missing";
+            Vector3[] v = mesh.vertices;
+            Vector3 right = v[1] - v[0];
+            Vector3 down = v[3] - v[0];
+            Vector3 up = -down;
+
+            string screen = string.Empty;
+            Camera cam = Camera.main;
+            if (cam != null)
+            {
+                Vector3 s0 = cam.WorldToScreenPoint(v[0]);
+                Vector3 sr = cam.WorldToScreenPoint(v[1]) - s0;
+                Vector3 su = cam.WorldToScreenPoint(v[3]) - s0;
+                screen = " screenRight=(" + sr.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                                           sr.y.ToString("0.###", CultureInfo.InvariantCulture) + ") " +
+                         "screenDown=(" + su.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                                          su.y.ToString("0.###", CultureInfo.InvariantCulture) + ")";
+            }
+
+            return "right=(" + right.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                              right.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                              right.z.ToString("0.###", CultureInfo.InvariantCulture) + ") " +
+                   "up=(" + up.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                           up.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                           up.z.ToString("0.###", CultureInfo.InvariantCulture) + ")" + screen;
+        }
+
+        private string DescribeWallSpriteCornersV13LikeOriginal(Mesh mesh)
+        {
+            if (mesh == null || mesh.vertices == null || mesh.vertices.Length < 4)
+                return "corners=missing";
+            Vector3[] v = mesh.vertices;
+            return "corners=[" +
+                   FormatWallVectorV13LikeOriginal(v[0]) + "][" +
+                   FormatWallVectorV13LikeOriginal(v[1]) + "][" +
+                   FormatWallVectorV13LikeOriginal(v[2]) + "][" +
+                   FormatWallVectorV13LikeOriginal(v[3]) + "]";
+        }
+
+        private static string FormatWallVectorV13LikeOriginal(Vector3 v)
+        {
+            return v.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                   v.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                   v.z.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+
+        private static string GetSavedWallSpriteAdaptedDrawPathV10LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (C2WallObjectsV16UseRigidSavedWLSpriteCardsLikeOriginal)
+                return "RIGID_SAVED_WL_CARD_V16";
+            if (C2WallObjectsV11UseUniversalDepthlessCardForSavedWL)
+                return "UNIVERSAL_CARD_DEPTHLESS";
+            if (desc == null)
+                return "ADAPTED_BILLBOARD";
+            if ((desc.AlignMode == 'V' || desc.AlignMode == 'S') && desc.AlignPoints.Count >= 2)
+                return "ADAPTED_ALIGN_V";
+            if (desc.AlignMode == 'H')
+                return "ADAPTED_ALIGN_H";
+            if (desc.AlignMode == 'U' && desc.AlignPoints.Count >= 3)
+                return "ADAPTED_ALIGN_U";
+            return "ADAPTED_BILLBOARD";
+        }
+
+        private Mesh BuildSavedMapWallSpriteUniversalDepthlessCardV11LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (s == null || desc == null)
+                return null;
+
+            // V11 universal rule:
+            // Saved WL records from M3D are already chosen/ordered by the original map.
+            // For Unity we do NOT rebuild them as terrain-cut 3D quads and do NOT apply raw DirectX Matrix4D.
+            // We use the original data as formulas only:
+            //   sprite frame + original pivot/center + terrain anchor + 2.5D upright sprite card.
+            // ZTest Always is handled by WallObjectSpriteV7 so terrain cannot eat/slice these cards.
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
+
+            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
+            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, terrain + desc.FixHeight);
+
+            Vector3 right = Vector3.right * xyUnitToWorld;
+            Vector3 up = Vector3.up * xyUnitToWorld;
+
+            // Sprite local coordinates are top-left. Pivot is CenterX/CenterY from walls.lst.
+            // World vertical must be cy - pixelY; otherwise fences/bridge pieces/huts appear upside-down.
+            Vector3[] verts =
+            {
+                anchor + right * (0.0f - cx)   + up * (cy - 0.0f),
+                anchor + right * (wPx - cx)    + up * (cy - 0.0f),
+                anchor + right * (wPx - cx)    + up * (cy - hPx),
+                anchor + right * (0.0f - cx)   + up * (cy - hPx)
+            };
+
+            // Keep the full visible sprite above the terrain anchor. Alpha pixels still form the real silhouette.
+            float minY = verts[0].y;
+            for (int i = 1; i < verts.Length; i++)
+                minY = Mathf.Min(minY, verts[i].y);
+
+            float allowedBelow = Mathf.Max(0.0f, C2WallObjectsV11AllowedBelowGroundPixels) * xyUnitToWorld;
+            float floorY = anchor.y - allowedBelow;
+            if (minY < floorY)
+            {
+                Vector3 lift = Vector3.up * (floorY - minY);
+                for (int i = 0; i < verts.Length; i++)
+                    verts[i] += lift;
+            }
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V11_UniversalCard_DisabledByV12_" + desc.Name, verts);
+        }
+
+        private Mesh BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (s == null || desc == null || desc.AlignPoints.Count < 2)
+                return null;
+
+            // V174: literal MapSprites/Scape3D vertical ALIGNING path.
+            // Original:
+            //   *M4 = GetAlignLineTransformWithScape(Vector3D(x,y,0),
+            //       Vector3D(OC->CenterX,OC->CenterY,0), va_x1,va_y1,va_x2,va_y2);
+            //
+            // The important fix is coordinate space:
+            // original MapSprites/SkewPt uses linear map X/Y directly. It does NOT add the terrain
+            // mesh odd-column backing offset. The previous Unity port routed these WL cards through
+            // OriginalWallXYZToWorldV6LikeOriginal(), which adds the terrain backing odd-column offset
+            // and makes long saved WL fence chains visibly zig-zag/warp.
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+
+            float x1 = desc.AlignPoints[0].x;
+            float y1 = desc.AlignPoints[0].y;
+            float x2 = desc.AlignPoints[1].x;
+            float y2 = desc.AlignPoints[1].y;
+
+            float mapX1 = s.X + x1 - cx;
+            float mapY1 = s.Y + 2.0f * (y1 - cy);
+            float mapX2 = s.X + x2 - cx;
+            float mapY2 = s.Y + 2.0f * (y2 - cy);
+
+            // Original z1/z2 are raw GetHeight samples. FixHeight/OS.z are not added in
+            // OneSprite::CreateMatrix for atVertical.
+            float z1 = SampleWallHeightOriginalXYV1LikeOriginal(mapX1, mapY1);
+            float z2 = SampleWallHeightOriginalXYV1LikeOriginal(mapX2, mapY2);
+
+            const float dz = 128.0f;
+            float bias = 0.2f;
+            if (y1 < y2)
+                bias = -bias;
+
+            Vector2 s1 = new Vector2(x1, y1);
+            Vector2 s2 = new Vector2(x2, y2);
+            Vector2 s3 = new Vector2((x1 + x2) * 0.5f, (y1 + y2) * 0.5f - dz);
+
+            // Original:
+            //   BV=(0,-bias,bias/2)
+            //   W1=SkewPt(mapX1,mapY1,z1)+BV
+            //   W2=SkewPt(mapX2,mapY2,z2)-BV
+            //   W3=SkewPt(Center.x,Center.y,(z1+z2)/2+dz)
+            // Unity keeps the same semantic points but converts MapSprites linear X/Y to Unity world
+            // without terrain-geometry odd-column offset.
+            Vector3 w1 = OriginalWallMapSpriteXYZToWorldV174LikeOriginal(mapX1, mapY1 - bias, z1 + bias * 0.5f);
+            Vector3 w2 = OriginalWallMapSpriteXYZToWorldV174LikeOriginal(mapX2, mapY2 + bias, z2 - bias * 0.5f);
+            Vector3 w3 = OriginalWallMapSpriteXYZToWorldV174LikeOriginal(s.X, s.Y, (z1 + z2) * 0.5f + dz);
+
+            Vector3[] verts =
+            {
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), s1, s2, s3, w1, w2, w3)
+            };
+
+            ApplyWLSavedSpriteSideShadowLiftV175LikeOriginal(desc, verts);
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V175_VAlignLinearMapXYSideShadowLift_" + desc.Name, verts);
+        }
+
+        private static bool IsWallFenceVerticalTopBottomFrameV178LikeOriginal(int spriteIndex)
+        {
+            for (int i = 0; i < C2WallObjectsV152FencePairsLikeOriginal.Length; i++)
+            {
+                if (spriteIndex == C2WallObjectsV152FencePairsLikeOriginal[i].TopBottom)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsWallFenceHorizontalLeftRightFrameV178LikeOriginal(int spriteIndex)
+        {
+            for (int i = 0; i < C2WallObjectsV152FencePairsLikeOriginal.Length; i++)
+            {
+                if (spriteIndex == C2WallObjectsV152FencePairsLikeOriginal[i].LeftRight)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private float ResolveWals2DHeightRaisePixelsV178LikeOriginal(int spriteIndex)
+        {
+            EnsureWals2DHeightInstructionLoadedV178LikeOriginal();
+            if (IsWallFenceVerticalTopBottomFrameV178LikeOriginal(spriteIndex))
+                return _c2Wals2DVerticalRaisePixelsV178LikeOriginal;
+            if (IsWallFenceHorizontalLeftRightFrameV178LikeOriginal(spriteIndex))
+                return _c2Wals2DHorizontalRaisePixelsV178LikeOriginal;
+            return 0.0f;
+        }
+
+        private void ApplyWLSavedSpriteSideShadowLiftV175LikeOriginal(WallSpriteDescV1LikeOriginal desc, Vector3[] verts)
+        {
+            if (desc == null || verts == null || verts.Length == 0)
+                return;
+
+            float raisePx = ResolveWals2DHeightRaisePixelsV178LikeOriginal(desc.SpriteIndex);
+            if (Mathf.Abs(raisePx) <= 0.0001f)
+                return;
+
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            Vector3 lift = Vector3.up * (raisePx * kernel.HeightScale);
+            for (int i = 0; i < verts.Length; i++)
+                verts[i] += lift;
+        }
+
+        private void RegisterWals2DHeightAdjustableMeshV178LikeOriginal(Mesh mesh, WallSpriteDescV1LikeOriginal desc)
+        {
+            if (mesh == null || desc == null)
+                return;
+
+            bool vertical = IsWallFenceVerticalTopBottomFrameV178LikeOriginal(desc.SpriteIndex);
+            bool horizontal = IsWallFenceHorizontalLeftRightFrameV178LikeOriginal(desc.SpriteIndex);
+            if (!vertical && !horizontal)
+                return;
+
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            float appliedRaise = vertical ? _c2Wals2DVerticalRaisePixelsV178LikeOriginal : _c2Wals2DHorizontalRaisePixelsV178LikeOriginal;
+            Vector3 appliedLift = Vector3.up * (appliedRaise * kernel.HeightScale);
+            Vector3[] verts = mesh.vertices;
+            Vector3[] baseVerts = verts != null ? (Vector3[])verts.Clone() : null;
+            if (baseVerts == null || baseVerts.Length == 0)
+                return;
+
+            if (Mathf.Abs(appliedRaise) > 0.0001f)
+            {
+                for (int i = 0; i < baseVerts.Length; i++)
+                    baseVerts[i] -= appliedLift;
+            }
+
+            _c2Wals2DHeightAdjustRecordsV178LikeOriginal.Add(new Wals2DHeightAdjustRecordV178LikeOriginal
+            {
+                Mesh = mesh,
+                BaseVertices = baseVerts,
+                SpriteIndex = desc.SpriteIndex,
+                VerticalTopBottom = vertical,
+                HorizontalLeftRight = horizontal,
+                AppliedRaisePixels = appliedRaise
+            });
+        }
+
+        private void ApplyWals2DHeightSlidersToLiveMeshesV178LikeOriginal()
+        {
+            if (_c2Wals2DHeightAdjustRecordsV178LikeOriginal == null || _c2Wals2DHeightAdjustRecordsV178LikeOriginal.Count == 0)
+                return;
+
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            for (int r = _c2Wals2DHeightAdjustRecordsV178LikeOriginal.Count - 1; r >= 0; r--)
+            {
+                Wals2DHeightAdjustRecordV178LikeOriginal rec = _c2Wals2DHeightAdjustRecordsV178LikeOriginal[r];
+                if (rec == null || rec.Mesh == null || rec.BaseVertices == null || rec.BaseVertices.Length == 0)
+                {
+                    _c2Wals2DHeightAdjustRecordsV178LikeOriginal.RemoveAt(r);
+                    continue;
+                }
+
+                float raisePx = rec.VerticalTopBottom ? _c2Wals2DVerticalRaisePixelsV178LikeOriginal : _c2Wals2DHorizontalRaisePixelsV178LikeOriginal;
+                Vector3 lift = Vector3.up * (raisePx * kernel.HeightScale);
+                Vector3[] verts = new Vector3[rec.BaseVertices.Length];
+                for (int i = 0; i < verts.Length; i++)
+                    verts[i] = rec.BaseVertices[i] + lift;
+
+                rec.Mesh.vertices = verts;
+                rec.Mesh.RecalculateBounds();
+                rec.AppliedRaisePixels = raisePx;
+            }
+        }
+
+        private Mesh BuildSavedMapWallSpriteGroundAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (s == null || desc == null)
+                return null;
+
+            // Original OneSprite::CreateMatrix atGround builds three support points around CenterX/CenterY
+            // and samples terrain. Unity version keeps the same three-point plane idea.
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+
+            const float tbias = -16.0f;
+            const float cos30 = 0.866025f;
+            float tbiasY = tbias * cos30;
+            float tbiasZ = tbias * 0.5f;
+            float bias = 0.0f;
+
+            Vector2 p1 = new Vector2(cx - 20.0f, cy - 5.0f);
+            Vector2 p2 = new Vector2(cx + 20.0f, cy - 5.0f);
+            Vector2 p3 = new Vector2(cx,        cy + 10.0f);
+
+            float wx1 = -20.0f;
+            float wy1 = -10.0f - tbiasY;
+            float wz1 = bias - tbiasZ;
+
+            float wx2 = 20.0f;
+            float wy2 = -10.0f - tbiasY;
+            float wz2 = bias - tbiasZ;
+
+            float wx3 = 0.0f;
+            float wy3 = 20.0f - tbiasY;
+            float wz3 = bias - tbiasZ;
+
+            float ox1 = s.X + wx1;
+            float oy1 = s.Y + wy1;
+            float ox2 = s.X + wx2;
+            float oy2 = s.Y + wy2;
+            float ox3 = s.X + wx3;
+            float oy3 = s.Y + wy3;
+
+            float h1 = SampleWallHeightOriginalXYV1LikeOriginal(ox1, oy1);
+            float h2 = SampleWallHeightOriginalXYV1LikeOriginal(ox2, oy2);
+            float h3 = SampleWallHeightOriginalXYV1LikeOriginal(ox3, oy3);
+
+            Vector3 w1 = OriginalWallMapSpriteXYZToWorldV174LikeOriginal(ox1, oy1, h1 + wz1 + desc.FixHeight);
+            Vector3 w2 = OriginalWallMapSpriteXYZToWorldV174LikeOriginal(ox2, oy2, h2 + wz2 + desc.FixHeight);
+            Vector3 w3 = OriginalWallMapSpriteXYZToWorldV174LikeOriginal(ox3, oy3, h3 + wz3 + desc.FixHeight);
+
+            Vector3[] verts =
+            {
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), p1, p2, p3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), p1, p2, p3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), p1, p2, p3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), p1, p2, p3, w1, w2, w3)
+            };
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V10_HAlign_" + desc.Name, verts);
+        }
+
+        private Mesh BuildSavedMapWallSpriteUniversalAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (s == null || desc == null || desc.AlignPoints.Count < 3)
+                return null;
+
+            // U-align in the active original parser is not a runtime Matrix4D path, but the data is useful:
+            // three local sprite support points form a semantic plane. Use it as an adapted Unity plane.
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+
+            Vector3 a = desc.AlignPoints[0];
+            Vector3 b = desc.AlignPoints[1];
+            Vector3 c = desc.AlignPoints[2];
+
+            Vector2 s1 = new Vector2(a.x, a.y);
+            Vector2 s2 = new Vector2(b.x, b.y);
+            Vector2 s3 = new Vector2(c.x, c.y);
+
+            Vector3 w1 = BuildWallWorldPointFromLocalUAlignV10LikeOriginal(s, desc, cx, cy, a);
+            Vector3 w2 = BuildWallWorldPointFromLocalUAlignV10LikeOriginal(s, desc, cx, cy, b);
+            Vector3 w3 = BuildWallWorldPointFromLocalUAlignV10LikeOriginal(s, desc, cx, cy, c);
+
+            Vector3[] verts =
+            {
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), s1, s2, s3, w1, w2, w3)
+            };
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V10_UAlign_" + desc.Name, verts);
+        }
+
+        private Vector3 BuildWallWorldPointFromLocalUAlignV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float cx, float cy, Vector3 local)
+        {
+            float ox = s.X + (local.x - cx);
+            float oy = s.Y + 2.0f * (local.y - cy);
+            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(ox, oy);
+            return OriginalWallXYZToWorldV6LikeOriginal(ox, oy, terrain + local.z + desc.FixHeight);
+        }
+
+        private Mesh BuildSavedMapWallSpriteBillboardAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (s == null || desc == null)
+                return null;
+
+            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
+            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
+            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
+
+            Vector3 center = WallOriginalXYToWorldV1LikeOriginal(s.X, s.Y, desc.FixHeight);
+            Vector3 right = Vector3.right;
+            Vector3 up = Vector3.up;
+
+            Vector3[] verts =
+            {
+                center + right * ((0.0f - cx) * xyUnitToWorld) + up * ((0.0f - cy) * xyUnitToWorld),
+                center + right * ((wPx - cx) * xyUnitToWorld) + up * ((0.0f - cy) * xyUnitToWorld),
+                center + right * ((wPx - cx) * xyUnitToWorld) + up * ((hPx - cy) * xyUnitToWorld),
+                center + right * ((0.0f - cx) * xyUnitToWorld) + up * ((hPx - cy) * xyUnitToWorld)
+            };
+
+            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V10_Billboard_" + desc.Name, verts);
+        }
+
+        private static float GetWallSpriteCenterXPxV10LikeOriginal(WallSpriteDescV1LikeOriginal desc, float wPx)
+        {
+            return desc != null && desc.Width > 0 ? desc.Width : wPx * 0.5f;
+        }
+
+        private static float GetWallSpriteCenterYPxV10LikeOriginal(WallSpriteDescV1LikeOriginal desc, float hPx)
+        {
+            return desc != null && desc.Height > 0 ? desc.Height : hPx * 0.5f;
+        }
+
+        private static Mesh CreateWallQuadMeshV10AdaptedLikeOriginal(string name, Vector3[] verts)
+        {
+            var mesh = new Mesh { name = name };
+            mesh.vertices = verts;
+            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
+            mesh.colors32 = new[]
+            {
+                new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255)
+            };
+            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        
+
+        private Mesh BuildSavedMapWallSpriteUAlignMeshV8LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (s == null || desc == null || desc.AlignPoints.Count < 3)
+                return null;
+
+            Vector3 center = WallOriginalXYToWorldV1LikeOriginal(s.X, s.Y, desc.FixHeight);
+            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
+            float zUnitToWorld = WallOriginalZUnitToWorldScaleV8LikeOriginal();
+            Vector2 pivot = GetWallSpritePivotPxV8LikeOriginal(desc, wPx, hPx);
+            float pivotPlaneZ = EvaluateWallUAlignPlaneZV4LikeOriginal(desc, pivot.x, pivot.y);
+
+            Vector2[] px =
+            {
+                new Vector2(0.0f, 0.0f),
+                new Vector2(wPx, 0.0f),
+                new Vector2(wPx, hPx),
+                new Vector2(0.0f, hPx)
+            };
+
+            Vector3 rightDir = Vector3.right;
+            Vector3 forwardDir = new Vector3(0.0f, 0.0f, WorldZSign);
+
+            Vector3[] verts = new Vector3[4];
+            for (int i = 0; i < 4; i++)
+            {
+                float dx = (px[i].x - pivot.x) * xyUnitToWorld;
+                float dy = (px[i].y - pivot.y) * xyUnitToWorld;
+                float dz = (EvaluateWallUAlignPlaneZV4LikeOriginal(desc, px[i].x, px[i].y) - pivotPlaneZ) * zUnitToWorld;
+                verts[i] = center + rightDir * dx + forwardDir * dy + Vector3.up * dz;
+            }
+
+            var mesh = new Mesh { name = "C2_SavedMapWallSprite_V8_UAlign_" + desc.Name };
+            mesh.vertices = verts;
+            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
+            mesh.colors32 = new[] { new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255) };
+            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private Mesh BuildSavedMapWallSpriteVAlignMeshV7LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (s == null || desc == null || desc.AlignPoints.Count < 2)
+                return null;
+
+            Vector2 pivot = new Vector2(desc.AlignPoints[0].x, desc.AlignPoints[0].y);
+            Vector2 p1 = new Vector2(desc.AlignPoints[0].x, desc.AlignPoints[0].y);
+            Vector2 p2 = new Vector2(desc.AlignPoints[1].x, desc.AlignPoints[1].y);
+
+            float dx = (p2.y - p1.y) * 0.5f;
+            float dy = (p2.x - p1.x);
+            float dz = Mathf.Sqrt(dx * dx + dy * dy);
+            if (dz < 0.001f)
+                return null;
+
+            float ox1 = s.X + (p1.x - pivot.x);
+            float oy1 = s.Y + 2.0f * (p1.y - pivot.y);
+            float ox2 = s.X + (p2.x - pivot.x);
+            float oy2 = s.Y + 2.0f * (p2.y - pivot.y);
+
+            float z1 = SampleWallHeightOriginalXYV1LikeOriginal(ox1, oy1) + desc.FixHeight;
+            float z2 = SampleWallHeightOriginalXYV1LikeOriginal(ox2, oy2) + desc.FixHeight;
+            float zc = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y) + desc.FixHeight;
+            float topAbsZ = (z1 + z2) * 0.5f + dz;
+
+            Vector3 w1 = WallOriginalXYToWorldV1LikeOriginal(ox1, oy1, z1 - SampleWallHeightOriginalXYV1LikeOriginal(ox1, oy1));
+            Vector3 w2 = WallOriginalXYToWorldV1LikeOriginal(ox2, oy2, z2 - SampleWallHeightOriginalXYV1LikeOriginal(ox2, oy2));
+            Vector3 w3 = WallOriginalXYToWorldV1LikeOriginal(s.X, s.Y, topAbsZ - SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y));
+
+            Vector2 s1 = p1;
+            Vector2 s2 = p2;
+            Vector2 s3 = new Vector2((p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f - dz);
+
+            Vector3[] verts =
+            {
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), s1, s2, s3, w1, w2, w3),
+                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), s1, s2, s3, w1, w2, w3)
+            };
+
+            var mesh = new Mesh { name = "C2_SavedMapWallSprite_V7_VAlign_" + desc.Name };
+            mesh.vertices = verts;
+            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
+            mesh.colors32 = new[] { new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255) };
+            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Vector3 AffineMapWallSpritePointV7LikeOriginal(Vector2 p, Vector2 s1, Vector2 s2, Vector2 s3, Vector3 w1, Vector3 w2, Vector3 w3)
+        {
+            Vector2 e1 = s2 - s1;
+            Vector2 e2 = s3 - s1;
+            float det = e1.x * e2.y - e1.y * e2.x;
+            if (Mathf.Abs(det) < 0.0001f)
+                return w1;
+
+            Vector2 r = p - s1;
+            float a = (r.x * e2.y - r.y * e2.x) / det;
+            float b = (e1.x * r.y - e1.y * r.x) / det;
+            return w1 + (w2 - w1) * a + (w3 - w1) * b;
+        }
+
+        private Vector3 OriginalWallXYZToWorldV6LikeOriginal(float x, float y, float z)
+        {
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            float gx = x / 32.0f;
+            float gy = y / 32.0f;
+            float rawX = gx * kernel.BackingStepXWorld;
+            int ix = Mathf.FloorToInt(gx);
+            float rawZ = gy * kernel.BackingStepZWorld + (((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
+            float worldX = rawX - kernel.CenterX;
+            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
+            float worldY = z * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
+            return new Vector3(worldX, worldY, worldZ);
+        }
+
+        // V174b compile hotfix:
+        // Saved WL/WALLS.g16 MapSprites alignment uses linear map X/Y.
+        // This is intentionally the same scale/center/height convention as
+        // OriginalWallXYZToWorldV6LikeOriginal, but WITHOUT terrain odd-column
+        // backing offset. The odd-column offset belongs to terrain backing mesh,
+        // not to MapSprites CreateMatrix / DrawWSprite / AddWorldPoint.
+        private Vector3 OriginalWallMapSpriteXYZToWorldV174LikeOriginal(float x, float y, float z)
+        {
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            float gx = x / 32.0f;
+            float gy = y / 32.0f;
+            float rawX = gx * kernel.BackingStepXWorld;
+            float rawZ = gy * kernel.BackingStepZWorld;
+            float worldX = rawX - kernel.CenterX;
+            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
+            float worldY = z * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
+            return new Vector3(worldX, worldY, worldZ);
+        }
+
+        private bool TryWorldXZToOriginalXYV118LikeOriginal(Vector3 world, out Vector2 original)
+        {
+            original = Vector2.zero;
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            if (Mathf.Abs(kernel.BackingStepXWorld) <= 0.000001f ||
+                Mathf.Abs(kernel.BackingStepZWorld) <= 0.000001f ||
+                Mathf.Abs(WorldZSign) <= 0.000001f)
+                return false;
+
+            float gx = (world.x + kernel.CenterX) / kernel.BackingStepXWorld;
+            int ix = Mathf.FloorToInt(gx);
+            float rawZ = world.z / WorldZSign + kernel.CenterZ;
+            float offsetZ = ((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f;
+            float gy = (rawZ - offsetZ) / kernel.BackingStepZWorld;
+            original = new Vector2(gx * 32.0f, gy * 32.0f);
+            return IsFiniteWallFloatV21LikeOriginal(original.x) && IsFiniteWallFloatV21LikeOriginal(original.y);
+        }
+
+        private Mesh BuildWallSpriteQuadMeshV1LikeOriginal(WallVisualPointV1LikeOriginal p, WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                desc = new WallSpriteDescV1LikeOriginal { Name = "NULL_DESC", Width = 64, Height = 64 };
+
+            Vector3 center = WallOriginalXYToWorldV1LikeOriginal(p.X, p.Y, p.Z + desc.FixHeight);
+            float wPx = Mathf.Max(8.0f, desc.Width);
+            float hPx = Mathf.Max(8.0f, desc.Height);
+
+            float a = p.Angle * Mathf.PI / 128.0f;
+            Vector3 rightDir = new Vector3(Mathf.Cos(a), 0.0f, -Mathf.Sin(a));
+            Vector3 forwardDir = new Vector3(Mathf.Sin(a), 0.0f, Mathf.Cos(a));
+
+            var mesh = new Mesh { name = "C2_WallObjectSpriteMesh_V6_" + desc.Name };
+
+            Vector3[] verts;
+            bool useUAlign = desc.AlignMode == 'U' && desc.AlignPoints.Count >= 3;
+
+            if (useUAlign)
+            {
+                // V4 fix:
+                // W48MOST1-W55MOST1 are ALIGNING U elements. They are not upright menu-like
+                // billboards. Original code uses three local support points with Z. Here we
+                // build a sloped local plane from those points and place the texture on that
+                // plane. This is the first Unity-side equivalent of original GetSkewTM().
+                Vector2[] px =
+                {
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(wPx, 0.0f),
+                    new Vector2(wPx, hPx),
+                    new Vector2(0.0f, hPx)
+                };
+
+                float scaleX = WallOriginalXYUnitToWorldScaleV8LikeOriginal() * Mathf.Max(0.001f, p.ScaleP);
+                float scaleY = WallOriginalXYUnitToWorldScaleV8LikeOriginal() * Mathf.Max(0.001f, p.ScaleO);
+                float scaleZ = WallOriginalZUnitToWorldScaleV8LikeOriginal() * Mathf.Max(0.001f, p.ScaleZ);
+
+                Vector2 pivot = GetWallSpritePivotPxV8LikeOriginal(desc, wPx, hPx);
+                float cx = pivot.x;
+                float cy = pivot.y;
+                float centerPlaneZ = EvaluateWallUAlignPlaneZV4LikeOriginal(desc, cx, cy);
+
+                verts = new Vector3[4];
+                for (int i = 0; i < 4; i++)
+                {
+                    float dx = (px[i].x - cx) * scaleX;
+                    float dy = (px[i].y - cy) * scaleY;
+                    float dz = (EvaluateWallUAlignPlaneZV4LikeOriginal(desc, px[i].x, px[i].y) - centerPlaneZ) * scaleZ;
+
+                    verts[i] = center + rightDir * dx + forwardDir * dy + Vector3.up * dz;
+                }
+            }
+            else
+            {
+                // Non-U elements remain old upright/quasi-sprite path until their original
+                // ALIGNING modes are ported separately.
+                float w = wPx * WallOriginalXYUnitToWorldScaleV8LikeOriginal() * p.ScaleP;
+                float h = hPx * WallOriginalXYUnitToWorldScaleV8LikeOriginal() * p.ScaleO;
+                Vector3 right = rightDir * (w * 0.5f);
+                Vector3 up = Vector3.up * h;
+
+                verts = new[]
+                {
+                    center - right,
+                    center + right,
+                    center + right + up,
+                    center - right + up
+                };
+            }
+
+            mesh.vertices = verts;
+            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
+            mesh.colors32 = new[]
+            {
+                new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255)
+            };
+            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private float WallOriginalXYUnitToWorldScaleV8LikeOriginal()
+        {
+            if (_map == null)
+                return C2WallObjectsV1SpriteWorldScaleLikeOriginal;
+
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            return kernel.BackingStepXWorld / 32.0f;
+        }
+
+        private float WallOriginalZUnitToWorldScaleV8LikeOriginal()
+        {
+            if (_map == null)
+                return 1.0f;
+
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            return kernel.HeightScale;
+        }
+
+        private static Vector2 GetWallSpritePivotPxV8LikeOriginal(WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
+        {
+            if (desc != null && desc.AlignPoints.Count > 0)
+                return new Vector2(desc.AlignPoints[0].x, desc.AlignPoints[0].y);
+
+            return new Vector2(wPx * 0.5f, hPx * 0.5f);
+        }
+
+        private static Vector2[] GetWallSpriteQuadUvV8LikeOriginal()
+        {
+            // V173: WALLS.g16 frames are already decoded into Unity Texture2D orientation.
+            // Original DrawWSprite/AddWorldPoint does not add a second manual V flip here.
+            return new[]
+            {
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                new Vector2(1, 1),
+                new Vector2(0, 1)
+            };
+        }
+
+        private static float EvaluateWallUAlignPlaneZV4LikeOriginal(WallSpriteDescV1LikeOriginal desc, float x, float y)
+        {
+            if (desc == null || desc.AlignPoints.Count < 3)
+                return 0.0f;
+
+            Vector3 a = desc.AlignPoints[0];
+            Vector3 b = desc.AlignPoints[1];
+            Vector3 c = desc.AlignPoints[2];
+
+            float det = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+            if (Mathf.Abs(det) < 0.0001f)
+                return (a.z + b.z + c.z) / 3.0f;
+
+            float u = ((x - a.x) * (c.y - a.y) - (c.x - a.x) * (y - a.y)) / det;
+            float v = ((b.x - a.x) * (y - a.y) - (x - a.x) * (b.y - a.y)) / det;
+            return a.z + u * (b.z - a.z) + v * (c.z - a.z);
+        }
+
+        private Vector3 WallOriginalXYToWorldV1LikeOriginal(float x, float y, float extraZ)
+        {
+            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            float gx = x / 32.0f;
+            float gy = y / 32.0f;
+            float rawX = gx * kernel.BackingStepXWorld;
+            int ix = Mathf.FloorToInt(gx);
+            float rawZ = gy * kernel.BackingStepZWorld + (((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
+            float worldX = rawX - kernel.CenterX;
+            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
+            float worldY = SampleWallHeightOriginalXYV1LikeOriginal(x, y) * kernel.HeightScale + extraZ * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
+            return new Vector3(worldX, worldY, worldZ);
+        }
+
+        private float SampleWallHeightOriginalXYV1LikeOriginal(float x, float y)
+        {
+            if (_map == null || _map.Heights == null || _map.Heights.Length == 0 || _map.VertInLine <= 1 || _map.MaxTH <= 1)
+                return 0.0f;
+
+            // Original MapSprites::GetHeight samples the Cossacks hex/triangle height cell,
+            // not a Unity-style bilinear grid. WALLS CreateMatrix/AddExtraHeightObject depend on this.
+            int ix = Mathf.FloorToInt(x);
+            int iy = Mathf.FloorToInt(y);
+            int maxX = Mathf.Max(0, (_map.VertInLine - 2) * 32);
+            int maxY = Mathf.Max(32, (_map.MaxTH - 2) * 32);
+            if (ix < 0) ix = 0;
+            if (iy < 32) iy = 32;
+            if (ix > maxX) ix = maxX;
+            if (iy > maxY) iy = maxY;
+
+            int nx = ix >> 5;
+            int vert1;
+            int vert2;
+            int vert3;
+            int x0;
+            int y0;
+
+            if ((nx & 1) != 0)
+            {
+                int dd = ix & 31;
+                int dy = dd >> 1;
+                int oy = 15 - dy;
+                int y1 = (iy + oy) >> 5;
+                int dy1 = (iy + oy) & 31;
+                y1 = Mathf.Clamp(y1, 0, _map.MaxTH - 2);
+
+                if (dy1 > 32 - dd)
+                {
+                    vert2 = nx + y1 * _map.VertInLine + 1;
+                    vert3 = vert2 + _map.VertInLine;
+                    vert1 = vert3 - 1;
+                    x0 = nx << 5;
+                    y0 = (y1 << 5) + 16;
+                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
+                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
+                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
+                    return h1 + (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
+                }
+                else
+                {
+                    vert2 = nx + y1 * _map.VertInLine;
+                    vert3 = vert2 + _map.VertInLine;
+                    vert1 = vert2 + 1;
+                    x0 = (nx << 5) + 32;
+                    y0 = y1 << 5;
+                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
+                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
+                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
+                    return h1 - (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
+                }
+            }
+            else
+            {
+                int dd = ix & 31;
+                int dy = dd >> 1;
+                int y1 = (iy + dy) >> 5;
+                int dy1 = (iy + dy) & 31;
+                y1 = Mathf.Clamp(y1, 0, _map.MaxTH - 2);
+
+                if (dy1 < dd)
+                {
+                    vert1 = nx + y1 * _map.VertInLine;
+                    vert2 = vert1 + 1;
+                    vert3 = vert2 + _map.VertInLine;
+                    x0 = nx << 5;
+                    y0 = y1 << 5;
+                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
+                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
+                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
+                    return h1 + (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
+                }
+                else
+                {
+                    vert2 = nx + y1 * _map.VertInLine;
+                    vert3 = vert2 + _map.VertInLine;
+                    vert1 = vert3 + 1;
+                    x0 = (nx << 5) + 32;
+                    y0 = (y1 << 5) + 16;
+                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
+                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
+                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
+                    return h1 - (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
+                }
+            }
+        }
+
+        private int ReadWallTHMapHeightV45LikeOriginal(int vertexIndex)
+        {
+            if (_map == null || _map.Heights == null || _map.Heights.Length == 0)
+                return 0;
+
+            int safeIndex = Mathf.Clamp(vertexIndex, 0, _map.Heights.Length - 1);
+            return Mathf.RoundToInt(_map.Heights[safeIndex]);
+        }
+
+        private void AccumulateWallC2MImmHeightLockLayerV25LikeOriginal(
+            WallIMMHeightLockLayerV25LikeOriginal layer,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallC2MParsedMeshV23LikeOriginal c2m,
+            string loadAudit,
+            int order)
+        {
+            if (!C2WallObjectsV25ApplyIMMHeightLockLayerLikeOriginal || layer == null)
+                return;
+            if (s == null || desc == null || c2m == null)
+            {
+                if (layer.Audit.Count < C2WallObjectsV25ImmLayerAuditLimitLikeOriginal)
+                    layer.Audit.Add("order=" + order.ToString(CultureInfo.InvariantCulture) + " missing_c2m load=" + (loadAudit ?? string.Empty));
+                return;
+            }
+
+            if (c2m.Navimesh != null)
+                ScanWallC2MGeomIntoIMMLayerV25LikeOriginal(layer, s, desc, c2m.Navimesh, true, order);
+            else
+                layer.MissingNavimesh++;
+
+            if (c2m.Lockmesh != null)
+                ScanWallC2MGeomIntoIMMLayerV25LikeOriginal(layer, s, desc, c2m.Lockmesh, false, order);
+            else
+                layer.MissingLockmesh++;
+        }
+
+        private void ScanWallC2MGeomIntoIMMLayerV25LikeOriginal(
+            WallIMMHeightLockLayerV25LikeOriginal layer,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallC2MParsedMeshV23LikeOriginal geom,
+            bool heightLayer,
+            int order)
+        {
+            if (layer == null || s == null || desc == null || geom == null || geom.Vertices == null || geom.Vertices.Length == 0)
+                return;
+
+            int beforeCells = heightLayer ? layer.HeightByCell.Count : layer.LockedCells.Count;
+            int beforeSamples = heightLayer ? layer.HeightSamples : layer.LockSamples;
+            int step = Mathf.Max(1, C2WallObjectsV25ScanCellSizeOriginalPixelsLikeOriginal);
+
+            for (int i = 0; i < geom.Vertices.Length; i++)
+            {
+                Vector3 local = geom.Vertices[i];
+                Vector3 original = s.HasMatrix
+                    ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local)
+                    : new Vector3(s.X + local.x, s.Y + local.y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + local.x, s.Y + local.y) + local.z);
+
+                int cx = Mathf.FloorToInt(original.x / step);
+                int cy = Mathf.FloorToInt(original.y / step);
+                long key = PackWallIMMCellKeyV25LikeOriginal(cx, cy);
+
+                if (heightLayer)
+                {
+                    float terrain = SampleWallHeightOriginalXYV1LikeOriginal(original.x, original.y);
+                    float delta = original.z - terrain;
+                    if (!layer.HeightByCell.TryGetValue(key, out float oldDelta) || delta > oldDelta)
+                        layer.HeightByCell[key] = delta;
+                    if (delta < layer.MinDelta) layer.MinDelta = delta;
+                    if (delta > layer.MaxDelta) layer.MaxDelta = delta;
+                    layer.HeightSamples++;
+                }
+                else
+                {
+                    layer.LockedCells.Add(key);
+                    layer.LockSamples++;
+                }
+            }
+
+            layer.HeightCells = layer.HeightByCell.Count;
+            layer.LockCells = layer.LockedCells.Count;
+
+            if (layer.Audit.Count < C2WallObjectsV25ImmLayerAuditLimitLikeOriginal)
+            {
+                int afterCells = heightLayer ? layer.HeightByCell.Count : layer.LockedCells.Count;
+                int afterSamples = heightLayer ? layer.HeightSamples : layer.LockSamples;
+                layer.Audit.Add("order=" + order.ToString(CultureInfo.InvariantCulture) +
+                                " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                                " name=" + desc.Name +
+                                " model=" + (string.IsNullOrWhiteSpace(desc.ModelPath) ? "-" : desc.ModelPath) +
+                                " layer=" + (heightLayer ? "NavimeshHeight" : "LockmeshLock") +
+                                " node=" + geom.NodeName +
+                                " samples+=" + (afterSamples - beforeSamples).ToString(CultureInfo.InvariantCulture) +
+                                " cells+=" + (afterCells - beforeCells).ToString(CultureInfo.InvariantCulture));
+            }
+        }
+
+        private static long PackWallIMMCellKeyV25LikeOriginal(int x, int y)
+        {
+            unchecked
+            {
+                return ((long)x << 32) ^ (uint)y;
+            }
+        }
+
+        private string BuildWallC2MImmLayerSummaryV25LikeOriginal(WallIMMHeightLockLayerV25LikeOriginal layer)
+        {
+            if (layer == null)
+                return "[C2:WALL IMM LAYER V26] missing";
+            string delta = (layer.HeightSamples > 0 && !float.IsInfinity(layer.MinDelta) && !float.IsInfinity(layer.MaxDelta))
+                ? layer.MinDelta.ToString("0.###", CultureInfo.InvariantCulture) + ".." + layer.MaxDelta.ToString("0.###", CultureInfo.InvariantCulture)
+                : "none";
+            string audit = layer.Audit.Count > 0 ? string.Join(" | ", layer.Audit.ToArray()) : "none";
+            return "[C2:WALL IMM LAYER V26] contract=" + C2WallObjectsV25IMMContractLikeOriginal +
+                   " heightSamples=" + layer.HeightSamples.ToString(CultureInfo.InvariantCulture) +
+                   " heightCells=" + layer.HeightCells.ToString(CultureInfo.InvariantCulture) +
+                   " lockSamples=" + layer.LockSamples.ToString(CultureInfo.InvariantCulture) +
+                   " lockCells=" + layer.LockCells.ToString(CultureInfo.InvariantCulture) +
+                   " missingNav=" + layer.MissingNavimesh.ToString(CultureInfo.InvariantCulture) +
+                   " missingLock=" + layer.MissingLockmesh.ToString(CultureInfo.InvariantCulture) +
+                   " delta=" + delta +
+                   " audit=" + audit;
+        }
+
+        private void AddWallC2MLockMeshColliderV25LikeOriginal(GameObject go, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallC2MParsedMeshV23LikeOriginal lockMesh, WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            if (go == null || s == null || desc == null || lockMesh == null || lockMesh.Vertices == null || lockMesh.Vertices.Length == 0 || lockMesh.Triangles == null || lockMesh.Triangles.Length < 3)
+                return;
+
+            try
+            {
+                Vector3[] verts = new Vector3[lockMesh.Vertices.Length];
+                for (int i = 0; i < lockMesh.Vertices.Length; i++)
+                {
+                    Vector3 local = lockMesh.Vertices[i];
+                    Vector3 original = s.HasMatrix && route != null && route.UseSavedM4
+                        ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local)
+                        : new Vector3(s.X + local.x, s.Y + local.y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + local.x, s.Y + local.y) + local.z);
+                    verts[i] = OriginalWallXYZToWorldV6LikeOriginal(original.x, original.y, original.z + desc.FixHeight + C2WallObjectsV25LockColliderYOffsetPixelsLikeOriginal);
+                }
+
+                var colliderMesh = new Mesh { name = "C2_WallLockmeshCollider_V25_" + desc.Name };
+                if (verts.Length > 65000)
+                    colliderMesh.indexFormat = IndexFormat.UInt32;
+                colliderMesh.vertices = verts;
+                colliderMesh.triangles = lockMesh.Triangles;
+                colliderMesh.RecalculateBounds();
+
+                MeshCollider col = go.AddComponent<MeshCollider>();
+                col.sharedMesh = colliderMesh;
+                col.convex = false;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[C2:WALL IMM LAYER V26] failed to create lock collider for " + desc.Name + ": " + ex.Message);
+            }
+        }
+
+        private string BuildWallC2MImmScanAuditV24LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallC2MParsedMeshV23LikeOriginal c2m)
+        {
+            if (!C2WallObjectsV24AuditIMMHeightLockScanLikeOriginal)
+                return "imm_scan=disabled";
+            if (s == null || desc == null || c2m == null)
+                return "imm_scan=missing_input";
+
+            string nav = BuildWallC2MGeomScanPartV24LikeOriginal("Navimesh", s, desc, c2m.Navimesh);
+            string lockMesh = BuildWallC2MGeomScanPartV24LikeOriginal("Lockmesh", s, desc, c2m.Lockmesh);
+            string visual = c2m.HasLocalBounds
+                ? "carcassBounds=(" + FormatVector3V24LikeOriginal(c2m.LocalBoundsMin) + ")->(" + FormatVector3V24LikeOriginal(c2m.LocalBoundsMax) + ")"
+                : "carcassBounds=none";
+            return C2WallObjectsV24IMMContractLikeOriginal + " " + visual + " " + nav + " " + lockMesh;
+        }
+
+        private string BuildWallC2MGeomScanPartV24LikeOriginal(string label, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallC2MParsedMeshV23LikeOriginal geom)
+        {
+            if (geom == null || geom.Vertices == null || geom.Vertices.Length == 0)
+                return label + "=missing";
+
+            int samples = Mathf.Min(geom.Vertices.Length, 32);
+            float minDelta = float.PositiveInfinity;
+            float maxDelta = float.NegativeInfinity;
+            float minX = float.PositiveInfinity;
+            float maxX = float.NegativeInfinity;
+            float minY = float.PositiveInfinity;
+            float maxY = float.NegativeInfinity;
+
+            int step = Mathf.Max(1, geom.Vertices.Length / samples);
+            int used = 0;
+            for (int i = 0; i < geom.Vertices.Length && used < samples; i += step)
+            {
+                Vector3 local = geom.Vertices[i];
+                Vector3 original = s.HasMatrix
+                    ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local)
+                    : new Vector3(s.X + local.x, s.Y + local.y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + local.x, s.Y + local.y) + local.z);
+
+                float terrain = SampleWallHeightOriginalXYV1LikeOriginal(original.x, original.y);
+                float delta = original.z - terrain;
+                if (delta < minDelta) minDelta = delta;
+                if (delta > maxDelta) maxDelta = delta;
+                if (original.x < minX) minX = original.x;
+                if (original.x > maxX) maxX = original.x;
+                if (original.y < minY) minY = original.y;
+                if (original.y > maxY) maxY = original.y;
+                used++;
+            }
+
+            if (used == 0)
+                return label + "=empty";
+
+            return label +
+                   "(v=" + geom.Vertices.Length.ToString(CultureInfo.InvariantCulture) +
+                   ",i=" + (geom.Triangles != null ? geom.Triangles.Length : 0).ToString(CultureInfo.InvariantCulture) +
+                   ",scan=" + used.ToString(CultureInfo.InvariantCulture) +
+                   ",xy=(" + minX.ToString("0.#", CultureInfo.InvariantCulture) + "," + minY.ToString("0.#", CultureInfo.InvariantCulture) +
+                   ")->(" + maxX.ToString("0.#", CultureInfo.InvariantCulture) + "," + maxY.ToString("0.#", CultureInfo.InvariantCulture) + ")" +
+                   ",zMinusTerrain=" + minDelta.ToString("0.###", CultureInfo.InvariantCulture) +
+                   ".." + maxDelta.ToString("0.###", CultureInfo.InvariantCulture) + ")";
+        }
+
+        private static string FormatVector3V24LikeOriginal(Vector3 v)
+        {
+            return v.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                   v.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                   v.z.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        private string BuildWallC2MRenderMaterialAuditLineV26LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            if (desc == null)
+                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " missing_desc";
 
             WallC2MParsedMeshV23LikeOriginal c2m = TryLoadWallC2MVisualMeshV23LikeOriginal(desc.ModelPath, out string audit);
-            string imm = c2m != null ? BuildWallC2MImmScanAuditV24LikeOriginal(s, desc, c2m) : "c2m_not_loaded audit=" + audit;
-
+            string colorStats = c2m != null ? BuildWallC2MVertexColorStatsV26LikeOriginal(c2m) : "c2m_not_loaded audit=" + audit;
             return "order=" + order.ToString(CultureInfo.InvariantCulture) +
                    " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
                    " name=" + desc.Name +
                    " model=" + (string.IsNullOrWhiteSpace(desc.ModelPath) ? "-" : desc.ModelPath) +
-                   " emitted=" + (route != null && route.Emitted) +
-                   " path=" + (route != null ? route.Path : "-") +
-                   " imm='" + imm + "'";
+                   " shader=Cossacks2Bridge/WallC2MVertexColorV26" +
+                   " queue=" + C2WallObjectsV24ModelRenderQueueLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                   " zWrite=On zTest=LEqual cull=Off offset=-1,-1" +
+                   " contract=" + C2WallObjectsV26RenderContractLikeOriginal +
+                   " " + colorStats;
         }
 
-        private static bool ShouldFlipSavedFenceLocalYV20LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc)
+        private static string BuildWallC2MVertexColorStatsV26LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m)
+        {
+            if (c2m == null || c2m.Colors == null || c2m.Colors.Length == 0)
+                return "vertexColors=missing";
+
+            int minR = 255, minG = 255, minB = 255, minA = 255;
+            int maxR = 0, maxG = 0, maxB = 0, maxA = 0;
+            long sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+            for (int i = 0; i < c2m.Colors.Length; i++)
+            {
+                Color32 c = c2m.Colors[i];
+                minR = Mathf.Min(minR, c.r); minG = Mathf.Min(minG, c.g); minB = Mathf.Min(minB, c.b); minA = Mathf.Min(minA, c.a);
+                maxR = Mathf.Max(maxR, c.r); maxG = Mathf.Max(maxG, c.g); maxB = Mathf.Max(maxB, c.b); maxA = Mathf.Max(maxA, c.a);
+                sumR += c.r; sumG += c.g; sumB += c.b; sumA += c.a;
+            }
+            float inv = 1.0f / Mathf.Max(1, c2m.Colors.Length);
+            return "vertexColors=count=" + c2m.Colors.Length.ToString(CultureInfo.InvariantCulture) +
+                   " min=(" + minR.ToString(CultureInfo.InvariantCulture) + "," + minG.ToString(CultureInfo.InvariantCulture) + "," + minB.ToString(CultureInfo.InvariantCulture) + "," + minA.ToString(CultureInfo.InvariantCulture) + ")" +
+                   " max=(" + maxR.ToString(CultureInfo.InvariantCulture) + "," + maxG.ToString(CultureInfo.InvariantCulture) + "," + maxB.ToString(CultureInfo.InvariantCulture) + "," + maxA.ToString(CultureInfo.InvariantCulture) + ")" +
+                   " avg=(" + (sumR * inv).ToString("0.#", CultureInfo.InvariantCulture) + "," + (sumG * inv).ToString("0.#", CultureInfo.InvariantCulture) + "," + (sumB * inv).ToString("0.#", CultureInfo.InvariantCulture) + "," + (sumA * inv).ToString("0.#", CultureInfo.InvariantCulture) + ")";
+        }
+
+        private static bool IsWallDambaC2MModelV33LikeOriginal(WallSpriteDescV1LikeOriginal desc)
         {
             if (desc == null)
-                return true;
-
-            // W70 and W74 are opposite fence families in Skirmish2. V19 used one flip for both,
-            // which is why one diagonal family could look correct while the opposite one was inverted.
-            if (desc.SpriteIndex == 70)
-                return true;
-            if (desc.SpriteIndex == 74)
                 return false;
 
-            if (s != null && s.HasMatrix)
-                return s.Matrix.m01 < 0.0f;
-
-            return true;
-        }
-
-        private string BuildWallRouteAuditLineV20LikeOriginal(
-            int order,
-            WallSavedMapSpriteV6LikeOriginal s,
-            WallSavedMapSpriteV6LikeOriginal source,
-            WallSpriteDescV1LikeOriginal desc,
-            WallSavedWLRouteDecisionV20LikeOriginal route,
-            string textureSource)
-        {
-            string matrixInfo = s != null && s.HasMatrix
-                ? " m4tr=(" + s.Matrix.m30.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                              s.Matrix.m31.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                              s.Matrix.m32.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                  " m4x=(" + s.Matrix.m00.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                            s.Matrix.m01.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                            s.Matrix.m02.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                  " m4y=(" + s.Matrix.m10.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                            s.Matrix.m11.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                            s.Matrix.m12.ToString("0.###", CultureInfo.InvariantCulture) + ")"
-                : " m4=no";
-
-            string chain = source != null && s != null && (source.X != s.X || source.Y != s.Y)
-                ? " chainFrom=(" + source.X.ToString(CultureInfo.InvariantCulture) + "," + source.Y.ToString(CultureInfo.InvariantCulture) + ")"
-                : string.Empty;
-
-            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
-                   " id=" + (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
-                   " name=" + (desc != null ? desc.Name : "<null>") +
-                   " route=" + (route != null ? route.Route.ToString() : "<null>") +
-                   " profile=" + (route != null ? route.Profile.ToString() : "<null>") +
-                   " path=" + (route != null ? route.Path : "<null>") +
-                   " emitted=" + (route != null && route.Emitted) +
-                   " useM4=" + (route != null && route.UseSavedM4) +
-                   " m4ok=" + (route != null && route.MatrixVerified) +
-                   " variant=" + (route != null ? route.Variant : "-") +
-                   " flipLocalY=" + (route != null && route.FlipLocalY) +
-                   " align=" + (desc != null && desc.AlignMode != '\0' ? desc.AlignMode.ToString() : "-") +
-                   " model=" + (desc != null && !string.IsNullOrWhiteSpace(desc.ModelPath) ? desc.ModelPath : "-") +
-                   " xy=(" + (s != null ? s.X.ToString(CultureInfo.InvariantCulture) : "-") + "," +
-                              (s != null ? s.Y.ToString(CultureInfo.InvariantCulture) : "-") + ")" +
-                   chain +
-                   matrixInfo +
-                   " reason='" + (route != null ? route.Reason : string.Empty) + "'" +
-                   " m4audit='" + (route != null ? route.MatrixAudit : string.Empty) + "'" +
-                   (string.IsNullOrWhiteSpace(textureSource) ? string.Empty : " tex=" + textureSource);
-        }
-
-
-        public sealed class WallSceneOnlyAnchorGizmoV84LikeOriginal : MonoBehaviour
-        {
-            public string Label = string.Empty;
-            public Color AnchorColor = Color.white;
-            public float Radius = 7.5f;
-
-            private void OnDrawGizmos()
-            {
-                Gizmos.color = AnchorColor;
-                Gizmos.DrawSphere(transform.position, Radius);
-                Gizmos.DrawWireSphere(transform.position, Radius * 1.75f);
-            }
-        }
-
-        private static Color GetWallAnchorColorV84LikeOriginal(string anchorName)
-        {
-            if (string.IsNullOrWhiteSpace(anchorName))
-                return Color.white;
-            if (anchorName.IndexOf("RED", StringComparison.OrdinalIgnoreCase) >= 0)
-                return Color.red;
-            if (anchorName.IndexOf("GREEN", StringComparison.OrdinalIgnoreCase) >= 0)
-                return Color.green;
-            if (anchorName.IndexOf("BLUE", StringComparison.OrdinalIgnoreCase) >= 0)
-                return Color.blue;
-            if (anchorName.IndexOf("YELLOW", StringComparison.OrdinalIgnoreCase) >= 0)
-                return Color.yellow;
-            return Color.white;
-        }
-
-        private bool TryTransformWallDambaAnchorLocalToScenePointV84LikeOriginal(
-            WallSavedMapSpriteV6LikeOriginal s,
-            WallSpriteDescV1LikeOriginal desc,
-            WallSavedWLRouteDecisionV20LikeOriginal route,
-            WallC2MParsedMeshV23LikeOriginal c2m,
-            Vector3 localOriginal,
-            out Vector3 scenePoint)
-        {
-            scenePoint = Vector3.zero;
-            if (s == null || desc == null || route == null || c2m == null || !IsWallDambaC2MModelV33LikeOriginal(desc))
-                return false;
-
-            bool useV53WhiteConnectorChain =
-                route.Route == WallDrawRouteV20LikeOriginal.SavedModelC2M &&
-                C2WallObjectsV53UseWhiteModelConnectorChainLikeOriginal &&
-                !route.UseSavedM4;
-
-            bool useRigidSavedM4V66 =
-                route.Route == WallDrawRouteV20LikeOriginal.SavedModelC2M &&
-                route.UseSavedM4 &&
-                s.HasMatrix &&
-                IsWallDambaC2MModelV33LikeOriginal(desc);
-
-            if (useV53WhiteConnectorChain)
-            {
-                Vector3 localMin = c2m.HasLocalBounds ? c2m.LocalBoundsMin : (c2m.Vertices != null && c2m.Vertices.Length > 0 ? c2m.Vertices[0] : Vector3.zero);
-                Vector3 localMax = c2m.HasLocalBounds ? c2m.LocalBoundsMax : localMin;
-                if (!c2m.HasLocalBounds && c2m.Vertices != null)
-                {
-                    for (int i = 1; i < c2m.Vertices.Length; i++)
-                    {
-                        localMin = Vector3.Min(localMin, c2m.Vertices[i]);
-                        localMax = Vector3.Max(localMax, c2m.Vertices[i]);
-                    }
-                }
-
-                Vector3 localCenter = (localMin + localMax) * 0.5f;
-                float anchorTerrain =
-                    route.HasSharedRunHeightV59
-                        ? route.SharedRunHeightV59
-                        : SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
-
-                OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-                float sx = kernel.BackingStepXWorld / 32.0f;
-                float sz = kernel.BackingStepZWorld * WorldZSign / 32.0f;
-                float sy = kernel.HeightScale;
-
-                bool useSharedBridgeDeckAnchor = route.HasSharedRunHeightV59;
-                Vector3 anchorWorld = OriginalWallXYZToWorldV6LikeOriginal(
-                    s.X,
-                    s.Y,
-                    anchorTerrain +
-                    (useSharedBridgeDeckAnchor
-                        ? C2WallObjectsV60BridgeVerticalOffsetOriginal
-                        : C2WallObjectsV53ModelBottomHeightAboveGroundLikeOriginal) +
-                    desc.FixHeight);
-
-                float localAnchorZ =
-                    route.HasSharedRunHeightV59
-                        ? Mathf.Lerp(localMin.z, localMax.z, C2WallObjectsV60BridgeDeckAnchorLocalZFraction)
-                        : localMin.z;
-
-                scenePoint = new Vector3(
-                    anchorWorld.x + (localOriginal.x - localCenter.x) * sx,
-                    anchorWorld.y + (localOriginal.z - localAnchorZ) * sy,
-                    anchorWorld.z + (localOriginal.y - localCenter.y) * sz);
+            int id = desc.SpriteIndex;
+            if (id >= 60 && id <= 67)
                 return true;
-            }
 
-            if (useRigidSavedM4V66)
-            {
-                OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-                float sx = kernel.BackingStepXWorld / 32.0f;
-                float sz = kernel.BackingStepZWorld * WorldZSign / 32.0f;
-                float sy = kernel.HeightScale;
-
-                Vector3 savedM4LocalPivot = GetWallDambaC2MLocalPivotV70LikeOriginal(desc, c2m);
-                Vector3 savedM4DeltaOrigin = TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, savedM4LocalPivot);
-
-                float savedM4AnchorOriginalZ = savedM4DeltaOrigin.z;
-                if (C2WallObjectsV82ForceFlatSharedHeightForUniversalSavedM4DambaRowsLikeOriginal &&
-                    route.HasSharedRunHeightV59 &&
-                    C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal &&
-                    IsWallDambaC2MModelV33LikeOriginal(desc))
-                {
-                    Vector3 localMin = c2m.HasLocalBounds ? c2m.LocalBoundsMin : (c2m.Vertices != null && c2m.Vertices.Length > 0 ? c2m.Vertices[0] : Vector3.zero);
-                    Vector3 localMax = c2m.HasLocalBounds ? c2m.LocalBoundsMax : localMin;
-                    if (!c2m.HasLocalBounds && c2m.Vertices != null)
-                    {
-                        for (int i = 1; i < c2m.Vertices.Length; i++)
-                        {
-                            localMin = Vector3.Min(localMin, c2m.Vertices[i]);
-                            localMax = Vector3.Max(localMax, c2m.Vertices[i]);
-                        }
-                    }
-
-                    Vector3 localDeckAnchor = savedM4LocalPivot;
-                    localDeckAnchor.z = Mathf.Lerp(localMin.z, localMax.z, C2WallObjectsV60BridgeDeckAnchorLocalZFraction);
-                    Vector3 savedM4DeckAnchor = TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, localDeckAnchor);
-                    float pivotToDeckOriginalZ = savedM4DeckAnchor.z - savedM4DeltaOrigin.z;
-
-                    savedM4AnchorOriginalZ =
-                        route.SharedRunHeightV59 +
-                        C2WallObjectsV60BridgeVerticalOffsetOriginal -
-                        pivotToDeckOriginalZ;
-                }
-
-                Vector3 savedM4WorldAnchorOriginal =
-                    (C2WallObjectsV70AnchorDambaC2MPivotToSavedWLPointLikeOriginal ||
-                     C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal ||
-                     C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal ||
-                     C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal ||
-                     C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal)
-                        ? new Vector3(s.X, s.Y, savedM4AnchorOriginalZ)
-                        : new Vector3(savedM4DeltaOrigin.x, savedM4DeltaOrigin.y, savedM4AnchorOriginalZ);
-
-                savedM4WorldAnchorOriginal = ApplyWallDambaAnchorNudgeV71LikeOriginal(desc, savedM4WorldAnchorOriginal);
-                Vector3 savedM4OriginWorld = OriginalWallXYZToWorldV6LikeOriginal(
-                    savedM4WorldAnchorOriginal.x,
-                    savedM4WorldAnchorOriginal.y,
-                    savedM4WorldAnchorOriginal.z + desc.FixHeight);
-
-                Vector3 originalRigid = TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, localOriginal);
-                Vector3 deltaOriginal = originalRigid - savedM4DeltaOrigin;
-
-                scenePoint = new Vector3(
-                    savedM4OriginWorld.x + deltaOriginal.x * sx,
-                    savedM4OriginWorld.y + deltaOriginal.z * sy,
-                    savedM4OriginWorld.z + deltaOriginal.y * sz);
-                return true;
-            }
-
-            Vector3 original = s.HasMatrix && route.UseSavedM4
-                ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, localOriginal)
-                : new Vector3(
-                    s.X + localOriginal.x,
-                    s.Y + localOriginal.y,
-                    SampleWallHeightOriginalXYV1LikeOriginal(s.X + localOriginal.x, s.Y + localOriginal.y) + localOriginal.z);
-
-            scenePoint = OriginalWallXYZToWorldV6LikeOriginal(original.x, original.y, original.z + desc.FixHeight);
-            return true;
+            string model = desc.ModelPath ?? string.Empty;
+            return model.IndexOf("dam", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   model.IndexOf("cmost", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private int AddWallDambaSceneOnlyAnchorObjectsV84LikeOriginal(
-            GameObject owner,
-            WallSavedMapSpriteV6LikeOriginal s,
-            WallSpriteDescV1LikeOriginal desc,
-            WallSavedWLRouteDecisionV20LikeOriginal route,
-            WallC2MParsedMeshV23LikeOriginal c2m,
+        private static string BuildWallDambaChainAuditLineV33LikeOriginal(
             int order,
-            List<string> audit)
-        {
-            if (!C2WallObjectsV84CreateSceneOnlyAnchorObjectsOnRuntimeDambaLikeOriginal ||
-                owner == null ||
-                s == null ||
-                desc == null ||
-                route == null ||
-                c2m == null ||
-                !IsWallDambaC2MModelV33LikeOriginal(desc))
-                return 0;
-
-            WallUniversalAnchorLineCalibrationV73LikeOriginal calibration =
-                C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal
-                    ? LoadWallUniversalAnchorLineCalibrationV73LikeOriginal()
-                    : null;
-
-            if (calibration == null ||
-                !calibration.Loaded ||
-                !calibration.HasConnectorAnchorsV83 ||
-                (calibration.SpriteIndex >= 0 && calibration.SpriteIndex != desc.SpriteIndex))
-                return 0;
-
-            string[] names =
-            {
-                "P0_LEFT_RED",
-                "P1_RIGHT_GREEN",
-                "P2_BACK_BLUE",
-                "P3_FRONT_YELLOW"
-            };
-
-            Vector3[] localOriginal =
-            {
-                calibration.ConnectorP0OriginalV83,
-                calibration.ConnectorP1OriginalV83,
-                calibration.ConnectorP2OriginalV83,
-                calibration.ConnectorP3OriginalV83
-            };
-
-            int created = 0;
-            var pointAudit = new StringBuilder();
-
-            for (int i = 0; i < names.Length; i++)
-            {
-                if (!TryTransformWallDambaAnchorLocalToScenePointV84LikeOriginal(
-                        s,
-                        desc,
-                        route,
-                        c2m,
-                        localOriginal[i],
-                        out Vector3 scenePoint))
-                    continue;
-
-                GameObject anchor = new GameObject("__ANCHOR_" + names[i]);
-                anchor.transform.SetParent(owner.transform, false);
-                anchor.transform.localPosition = scenePoint;
-
-                WallSceneOnlyAnchorGizmoV84LikeOriginal gizmo = anchor.AddComponent<WallSceneOnlyAnchorGizmoV84LikeOriginal>();
-                gizmo.Label = names[i];
-                gizmo.AnchorColor = GetWallAnchorColorV84LikeOriginal(names[i]);
-                gizmo.Radius = C2WallObjectsV84SceneAnchorGizmoRadiusLikeOriginal;
-
-                created++;
-
-                if (pointAudit.Length > 0)
-                    pointAudit.Append("; ");
-                pointAudit.Append(names[i]);
-                pointAudit.Append(" localModel=(");
-                pointAudit.Append(localOriginal[i].x.ToString("0.###", CultureInfo.InvariantCulture));
-                pointAudit.Append(",");
-                pointAudit.Append(localOriginal[i].y.ToString("0.###", CultureInfo.InvariantCulture));
-                pointAudit.Append(",");
-                pointAudit.Append(localOriginal[i].z.ToString("0.###", CultureInfo.InvariantCulture));
-                pointAudit.Append(") scene=(");
-                pointAudit.Append(scenePoint.x.ToString("0.###", CultureInfo.InvariantCulture));
-                pointAudit.Append(",");
-                pointAudit.Append(scenePoint.y.ToString("0.###", CultureInfo.InvariantCulture));
-                pointAudit.Append(",");
-                pointAudit.Append(scenePoint.z.ToString("0.###", CultureInfo.InvariantCulture));
-                pointAudit.Append(")");
-            }
-
-            if (created > 0 && audit != null && audit.Count < C2WallObjectsV73DambaAuditLimitLikeOriginal)
-            {
-                audit.Add("V84_SCENE_ONLY_ANCHORS order=" + order.ToString(CultureInfo.InvariantCulture) +
-                          " sprite=W" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                          " name=" + desc.Name +
-                          " created=" + created.ToString(CultureInfo.InvariantCulture) +
-                          " contract=" + C2WallObjectsV84DambaAnchorContractLikeOriginal +
-                          " " + pointAudit.ToString());
-            }
-
-            return created;
-        }
-
-        private Mesh BuildSavedMapWallSpriteRouteMeshV20LikeOriginal(
-            WallSavedMapSpriteV6LikeOriginal s,
             WallSpriteDescV1LikeOriginal desc,
             Texture2D tex,
+            string textureSource,
+            WallC2MParsedMeshV23LikeOriginal c2m,
+            string loadAudit,
             WallSavedWLRouteDecisionV20LikeOriginal route)
         {
+            if (desc == null)
+                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " desc=null";
+
+            string section = (desc.SpriteIndex >= 60 && desc.SpriteIndex <= 65) ? "#DAMBA" :
+                             (desc.SpriteIndex == 66 || desc.SpriteIndex == 67) ? "#OLDMOST" : "#MODEL";
+            bool texReal = tex != null && tex != Texture2D.whiteTexture;
+            string texInfo = texReal
+                ? tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture)
+                : "white_or_missing";
+
+            int v = c2m != null && c2m.Vertices != null ? c2m.Vertices.Length : 0;
+            int tri = c2m != null && c2m.Triangles != null ? c2m.Triangles.Length / 3 : 0;
+            int uv = c2m != null && c2m.UV != null ? c2m.UV.Length : 0;
+            int col = c2m != null && c2m.Colors != null ? c2m.Colors.Length : 0;
+            bool allWhite = c2m != null && AreWallC2MColorsAllWhiteV33LikeOriginal(c2m.Colors);
+            string nav = c2m != null && c2m.Navimesh != null ? "nav=yes" : "nav=no";
+            string lockm = c2m != null && c2m.Lockmesh != null ? "lock=yes" : "lock=no";
+
+            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
+                   " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                   " name=" + desc.Name +
+                   " section=" + section +
+                   " model='" + (desc.ModelPath ?? string.Empty) + "'" +
+                   " route=" + (route != null ? route.Route.ToString() : "-") +
+                   " path='" + (route != null ? route.Path : string.Empty) + "'" +
+                   " texture=WALLS.g16#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                   " textureReal=" + texReal +
+                   " texSize=" + texInfo +
+                   " uv=" + uv.ToString(CultureInfo.InvariantCulture) +
+                   " verts=" + v.ToString(CultureInfo.InvariantCulture) +
+                   " tris=" + tri.ToString(CultureInfo.InvariantCulture) +
+                   " colors=" + col.ToString(CultureInfo.InvariantCulture) +
+                   " colorsAllWhite=" + allWhite +
+                   " gpobj=" + FormatWallC2MGPObjBriefV40LikeOriginal(c2m != null ? c2m.GPObj : null) +
+                   " alphaMode=" + (IsWallDambaC2MModelV33LikeOriginal(desc) && !C2WallObjectsV33UseWallSpriteTextureForDambaC2MLikeOriginal ? "C2M_base_no_WALLS_fullUV" : (C2WallObjectsV36MakeDambaTextureOpaqueLikeOriginal ? "opaqueTexture_fullC2M" : (C2WallObjectsV35UseSeparateDambaSideOverlayLikeOriginal ? "baseOpaque_plus_sideOverlay" : (C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal ? "solidRGB_no_sprite_alpha" : "spriteAlphaCutout")))) +
+                   " zTest=" + (C2WallObjectsV34ForceDambaVisibleOverTerrainUntilExtraHeightPipelineLikeOriginal ? "Always_until_extraheight" : "LEqual") +
+                   " " + nav + " " + lockm +
+                   " source='" + (textureSource ?? string.Empty) + "'" +
+                   " loadAudit='" + (loadAudit ?? string.Empty) + "'";
+        }
+
+        private static bool AreWallC2MColorsAllWhiteV33LikeOriginal(Color32[] colors)
+        {
+            if (colors == null || colors.Length == 0)
+                return false;
+            for (int i = 0; i < colors.Length; i++)
+            {
+                Color32 c = colors[i];
+                if (c.r != 255 || c.g != 255 || c.b != 255)
+                    return false;
+            }
+            return true;
+        }
+
+        private static Texture2D MakeDambaTextureOpaqueV36LikeOriginal(Texture2D src, WallSpriteDescV1LikeOriginal desc, out string audit)
+        {
+            audit = "opaque=noop";
+            if (src == null || ReferenceEquals(src, Texture2D.whiteTexture))
+                return src;
+
+            try
+            {
+                Color32[] px = src.GetPixels32();
+                if (px == null || px.Length == 0)
+                    return src;
+
+                long sr = 0, sg = 0, sb = 0;
+                int visible = 0;
+                for (int i = 0; i < px.Length; i++)
+                {
+                    Color32 c = px[i];
+                    if (c.a > 8)
+                    {
+                        sr += c.r;
+                        sg += c.g;
+                        sb += c.b;
+                        visible++;
+                    }
+                }
+
+                byte ar = visible > 0 ? (byte)Mathf.Clamp(Mathf.RoundToInt(sr / (float)visible), 0, 255) : (byte)128;
+                byte ag = visible > 0 ? (byte)Mathf.Clamp(Mathf.RoundToInt(sg / (float)visible), 0, 255) : (byte)128;
+                byte ab = visible > 0 ? (byte)Mathf.Clamp(Mathf.RoundToInt(sb / (float)visible), 0, 255) : (byte)128;
+                Color32 fill = new Color32(ar, ag, ab, 255);
+
+                int transparent = 0;
+                for (int i = 0; i < px.Length; i++)
+                {
+                    if (px[i].a <= 8)
+                    {
+                        px[i] = fill;
+                        transparent++;
+                    }
+                    else
+                    {
+                        Color32 c = px[i];
+                        c.a = 255;
+                        px[i] = c;
+                    }
+                }
+
+                var outTex = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false, false)
+                {
+                    name = "C2_DAMBA_V36_Opaque_" + (desc != null ? desc.Name : src.name),
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp
+                };
+                outTex.SetPixels32(px);
+                outTex.Apply(false, false);
+                audit = "opaque=yes visible=" + visible.ToString(CultureInfo.InvariantCulture) +
+                        " transparentFilled=" + transparent.ToString(CultureInfo.InvariantCulture) +
+                        " fill=(" + ar.ToString(CultureInfo.InvariantCulture) + "," +
+                                   ag.ToString(CultureInfo.InvariantCulture) + "," +
+                                   ab.ToString(CultureInfo.InvariantCulture) + ")";
+                return outTex;
+            }
+            catch (Exception ex)
+            {
+                audit = "opaque=failed " + ex.GetType().Name + ":" + ex.Message;
+                return src;
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+private static bool ShouldClampSavedM4Prop2DToTerrainV124LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            if (!C2WallObjectsV124ClampSavedM4PropsToTerrainLikeOriginal)
+                return false;
             if (s == null || desc == null || route == null)
+                return false;
+            if (route.Route != WallDrawRouteV20LikeOriginal.SavedAlignedSprite)
+                return false;
+            if (!route.UseSavedM4 || !s.HasMatrix)
+                return false;
+
+            return route.ClassV118 == WallWL2DClassV118LikeOriginal.VerticalAligned ||
+                   route.ClassV118 == WallWL2DClassV118LikeOriginal.GroundAligned ||
+                   route.ClassV118 == WallWL2DClassV118LikeOriginal.Single2DProp;
+        }
+
+        private Mesh ClampWall2DMeshMinVertexToTerrainV124LikeOriginal(
+            Mesh source,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            out string audit)
+        {
+            audit = "V124_propClamp=skip";
+            if (source == null || s == null || desc == null)
+                return source;
+
+            Vector3[] verts = source.vertices;
+            if (verts == null || verts.Length == 0)
+                return source;
+
+            float minY = float.PositiveInfinity;
+            int minIndex = -1;
+            for (int i = 0; i < verts.Length; i++)
+            {
+                if (verts[i].y < minY)
+                {
+                    minY = verts[i].y;
+                    minIndex = i;
+                }
+            }
+
+            if (minIndex < 0 || float.IsInfinity(minY))
+                return source;
+
+            Vector2 contactOriginal;
+            bool contactFromVertex = TryWorldXZToOriginalXYV118LikeOriginal(verts[minIndex], out contactOriginal);
+            if (!contactFromVertex)
+                contactOriginal = new Vector2(s.X, s.Y);
+
+            float targetY = WallOriginalXYToWorldV1LikeOriginal(contactOriginal.x, contactOriginal.y, desc.FixHeight).y;
+            float delta = targetY - minY;
+            if (!IsFiniteWallFloatV21LikeOriginal(delta))
+                return source;
+
+            if (Mathf.Abs(delta) <= 0.00001f)
+            {
+                audit = "V124_propClamp=alreadyGrounded minIndex=" + minIndex.ToString(CultureInfo.InvariantCulture) +
+                        " contact=" + (contactFromVertex ? "minVertex" : "savedXY") +
+                        " contactXY=(" + FormatWallFloatV118LikeOriginal(contactOriginal.x) + "," + FormatWallFloatV118LikeOriginal(contactOriginal.y) + ")";
+                return source;
+            }
+
+            for (int i = 0; i < verts.Length; i++)
+                verts[i].y += delta;
+
+            Mesh mesh = new Mesh { name = source.name + "_V124_prop_min_vertex_terrain_contact" };
+            mesh.vertices = verts;
+            mesh.uv = source.uv;
+            mesh.colors32 = source.colors32;
+            mesh.triangles = source.triangles;
+            mesh.RecalculateBounds();
+
+            audit = "V124_propClamp=minVertexTerrain" +
+                    " minIndex=" + minIndex.ToString(CultureInfo.InvariantCulture) +
+                    " contact=" + (contactFromVertex ? "minVertex" : "savedXY") +
+                    " contactXY=(" + FormatWallFloatV118LikeOriginal(contactOriginal.x) + "," + FormatWallFloatV118LikeOriginal(contactOriginal.y) + ")" +
+                    " deltaY=" + FormatWallFloatV118LikeOriginal(delta);
+            return mesh;
+        }
+
+
+
+
+
+
+private Mesh OffsetWallMeshWorldYV35LikeOriginal(Mesh source, float pixels)
+        {
+            if (source == null || Mathf.Abs(pixels) <= 0.001f)
+                return source;
+
+            Vector3[] verts = source.vertices;
+            if (verts == null || verts.Length == 0)
+                return source;
+
+            float dy = pixels * WallOriginalXYUnitToWorldScaleV8LikeOriginal();
+            Vector3[] shifted = new Vector3[verts.Length];
+            for (int i = 0; i < verts.Length; i++)
+            {
+                shifted[i] = verts[i];
+                shifted[i].y += dy;
+            }
+
+            Mesh mesh = new Mesh { name = source.name + "_V35_raise" };
+            mesh.vertices = shifted;
+            mesh.uv = source.uv;
+            mesh.colors32 = source.colors32;
+            mesh.triangles = source.triangles;
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private bool TryAttachDambaSideOverlayV35LikeOriginal(GameObject owner, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route, Material fallbackBase, out string audit)
+        {
+            audit = string.Empty;
+            if (owner == null || s == null || desc == null || route == null)
+            {
+                audit = "bad_args";
+                return false;
+            }
+            if (!IsWallDambaC2MModelV33LikeOriginal(desc))
+            {
+                audit = "not_damba";
+                return false;
+            }
+
+            Texture2D tex = TryLoadWallSpriteTextureV1LikeOriginal(desc, out string source);
+            if (tex == null)
+            {
+                audit = "overlay_missing_texture after " + (source ?? string.Empty);
+                return false;
+            }
+
+            Mesh overlayMesh = BuildDambaSideOverlayMeshV35LikeOriginal(s, desc, tex, route);
+            if (overlayMesh == null)
+            {
+                audit = "overlay_mesh_null source='" + (source ?? string.Empty) + "'";
+                return false;
+            }
+
+            GameObject child = new GameObject("DambaSideOverlayV35_" + desc.Name);
+            child.transform.SetParent(owner.transform, false);
+            MeshFilter mf = child.AddComponent<MeshFilter>();
+            MeshRenderer mr = child.AddComponent<MeshRenderer>();
+            ApplyWallRendererShadowContractV44LikeOriginal(mr);
+            mf.sharedMesh = overlayMesh;
+            mr.sharedMaterial = CreateWallSpriteMaterialV29LikeOriginal(tex, desc, null, fallbackBase);
+            mr.sortingOrder = Mathf.Clamp(s.Y, -32768, 32767);
+            audit = "overlay=attached id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                    " name=" + desc.Name +
+                    " source='" + (source ?? string.Empty) +
+                    "' contract='" + C2WallObjectsV35DambaRenderContractLikeOriginal + "'";
+            return true;
+        }
+
+        private Mesh BuildDambaSideOverlayMeshV35LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, Texture2D tex, WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            if (s == null || desc == null)
                 return null;
 
             float wPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.width) : Mathf.Max(8.0f, desc.Width * 2.0f);
             float hPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.height) : Mathf.Max(8.0f, desc.Height * 2.0f);
 
             Mesh mesh = null;
+            if (route.UseSavedM4 && s.HasMatrix)
+                mesh = BuildSavedMapWallSpriteSavedM4MeshV21LikeOriginal(s, desc, wPx, hPx, route.FlipLocalY, "DambaSideOverlayV35_SavedM4");
 
-            if (route.Route == WallDrawRouteV20LikeOriginal.SavedBridgeWallSide)
+            if (mesh == null)
             {
-                if (route.UseSavedM4)
-                    mesh = BuildSavedMapWallSpriteSavedM4MeshV21LikeOriginal(s, desc, wPx, hPx, route.FlipLocalY, route.Path);
-
+                mesh = BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
                 if (mesh == null)
+                    mesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
+            }
+
+            return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(mesh, desc, WallSavedWLProfileV18LikeOriginal.VerticalAligned);
+        }
+
+        private static Color GetDambaC2MBaseTintV37LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (C2WallObjectsV37UseTemporaryStoneTintForDambaUntilC2MMaterialsLikeOriginal &&
+                IsWallDambaC2MModelV33LikeOriginal(desc))
+            {
+                return new Color(0.62f, 0.58f, 0.50f, 1.0f);
+            }
+
+            return Color.white;
+        }
+
+        private static Color GetDambaC2MBaseTintV39LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            // V50: real DrawWChunk GPObj texture/UV path is active, so the temporary stone tint must not color the decoded DAMBA frame.
+            return Color.white;
+        }
+
+        private Material CreateWallC2MModelMaterialV26LikeOriginal(Texture2D tex, WallSpriteDescV1LikeOriginal desc)
+        {
+            bool damba = IsWallDambaC2MModelV33LikeOriginal(desc);
+            Shader shader = null;
+
+            // V56: DAMBA/CMOST diagnostic chain already has correct rigid geometry.
+            // Do not use the old vertex-color/white-fill material for it.  Use a simple
+            // textured alpha-cut material, matching TemnyLess viewer logic:
+            // texture = GPObj/G16 frame, UV = baked DrawWChunk square rects, alpha = cutout.
+            if (damba && !C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal)
+                shader = Shader.Find("Universal Render Pipeline/Unlit") ??
+                         Shader.Find("Sprites/Default") ??
+                         Shader.Find("Unlit/Transparent");
+
+            if (shader == null && damba && C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal)
+                shader = Shader.Find("Cossacks2Bridge/WallC2MDambaSolidRGBV34");
+            if (shader == null && damba && C2WallObjectsV33UseDedicatedDambaC2MShaderLikeOriginal)
+                shader = Shader.Find("Cossacks2Bridge/WallC2MDambaTexturedV33");
+            if (shader == null && C2WallObjectsV26UseC2MVertexColorMaterialLikeOriginal)
+                shader = Shader.Find("Cossacks2Bridge/WallC2MVertexColorV26");
+            shader = shader ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Transparent") ?? Shader.Find("Standard");
+
+            Texture2D safeTex = tex != null ? tex : Texture2D.whiteTexture;
+            var mat = new Material(shader)
+            {
+                name = (damba ? "C2_DAMBA_C2M_TemnyLessTextured_V56_" : "C2_WallC2MModelMat_V26_") + (desc != null ? desc.Name : "Model"),
+                mainTexture = safeTex,
+                renderQueue = C2WallObjectsV24ModelRenderQueueLikeOriginal
+            };
+
+            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", safeTex);
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", safeTex);
+
+            Color tint = GetDambaC2MBaseTintV39LikeOriginal(desc);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", tint);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);
+
+            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 1);
+            if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", damba && C2WallObjectsV34ForceDambaVisibleOverTerrainUntilExtraHeightPipelineLikeOriginal ? (int)CompareFunction.Always : (int)CompareFunction.LessEqual);
+            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)CullMode.Off);
+
+            float cutoff = damba && C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal ? 0.0f : (damba ? 0.015f : 0.01f);
+            if (mat.HasProperty("_AlphaCutoff")) mat.SetFloat("_AlphaCutoff", cutoff);
+            if (mat.HasProperty("_Cutoff")) mat.SetFloat("_Cutoff", cutoff);
+            if (mat.HasProperty("_AlphaClip")) mat.SetFloat("_AlphaClip", damba ? 1.0f : 0.0f);
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 0.0f); // Opaque + alpha clip, not transparent blend.
+
+            if (damba)
+            {
+                mat.SetOverrideTag("RenderType", "TransparentCutout");
+                mat.EnableKeyword("_ALPHATEST_ON");
+                mat.DisableKeyword("_ALPHABLEND_ON");
+                mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+
+                // Make sure decoded damba.g16 RGB is not multiplied by old C2M vertex colors.
+                if (mat.HasProperty("_UseVertexColor"))
+                    mat.SetFloat("_UseVertexColor", 0.0f);
+            }
+            return mat;
+        }
+
+
+        private sealed class WallSpriteRgbaStatsV29LikeOriginal
+        {
+            public int Width;
+            public int Height;
+            public int Total;
+            public int Visible;
+            public int WhiteVisible;
+            public byte MinR = 255;
+            public byte MinG = 255;
+            public byte MinB = 255;
+            public byte MinA = 255;
+            public byte MaxR;
+            public byte MaxG;
+            public byte MaxB;
+            public byte MaxA;
+            public float AvgR;
+            public float AvgG;
+            public float AvgB;
+            public float AvgA;
+            public bool Readable;
+            public bool Placeholder;
+            public string Error;
+
+            public float WhiteVisibleFraction => Visible > 0 ? WhiteVisible / (float)Visible : 0.0f;
+        }
+
+        private static bool IsWallSpriteRgbaAuditTargetV29LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                return false;
+            int id = desc.SpriteIndex;
+            return id == 58 || id == 59 || id == 70 || id == 74 || id == 68 || id == 72 || id == 73 || id == 80 || id == 82 || id == 69;
+        }
+
+        private static WallSpriteRgbaStatsV29LikeOriginal AnalyzeWallSpriteRgbaV29LikeOriginal(Texture2D tex, WallSpriteDescV1LikeOriginal desc)
+        {
+            var st = new WallSpriteRgbaStatsV29LikeOriginal();
+            if (tex == null)
+            {
+                st.Error = "null_texture";
+                return st;
+            }
+
+            st.Width = tex.width;
+            st.Height = tex.height;
+            st.Total = Mathf.Max(0, tex.width * tex.height);
+            st.Placeholder = ReferenceEquals(tex, Texture2D.whiteTexture);
+            try
+            {
+                Color32[] px = tex.GetPixels32();
+                st.Readable = true;
+                long sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+                for (int i = 0; i < px.Length; i++)
                 {
-                    mesh = BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-                    if (mesh == null)
-                        mesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
+                    Color32 c = px[i];
+                    if (c.r < st.MinR) st.MinR = c.r;
+                    if (c.g < st.MinG) st.MinG = c.g;
+                    if (c.b < st.MinB) st.MinB = c.b;
+                    if (c.a < st.MinA) st.MinA = c.a;
+                    if (c.r > st.MaxR) st.MaxR = c.r;
+                    if (c.g > st.MaxG) st.MaxG = c.g;
+                    if (c.b > st.MaxB) st.MaxB = c.b;
+                    if (c.a > st.MaxA) st.MaxA = c.a;
+                    sumR += c.r;
+                    sumG += c.g;
+                    sumB += c.b;
+                    sumA += c.a;
+                    if (c.a > 8)
+                    {
+                        st.Visible++;
+                        if (c.r >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal &&
+                            c.g >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal &&
+                            c.b >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal)
+                            st.WhiteVisible++;
+                    }
                 }
 
-                return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(mesh, desc, WallSavedWLProfileV18LikeOriginal.BridgeWallSide);
+                float inv = px.Length > 0 ? 1.0f / px.Length : 0.0f;
+                st.AvgR = sumR * inv;
+                st.AvgG = sumG * inv;
+                st.AvgB = sumB * inv;
+                st.AvgA = sumA * inv;
             }
-
-            if (route.Route == WallDrawRouteV20LikeOriginal.SavedFence)
+            catch (Exception ex)
             {
-                if (route.UseSavedM4)
-                    mesh = BuildSavedMapWallSpriteSavedM4MeshV21LikeOriginal(s, desc, wPx, hPx, route.FlipLocalY, route.Path);
-
-                if (mesh == null)
-                    mesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
-
-                return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(mesh, desc, WallSavedWLProfileV18LikeOriginal.FenceVertical);
+                st.Readable = false;
+                st.Error = ex.GetType().Name + ":" + ex.Message;
             }
+            return st;
+        }
 
-            if (route.Route == WallDrawRouteV20LikeOriginal.SavedAlignedSprite)
+        private static bool IsWallSpriteWhiteBridgeMaskV29LikeOriginal(WallSpriteDescV1LikeOriginal desc, WallSpriteRgbaStatsV29LikeOriginal st)
+        {
+            if (!C2WallObjectsV29RepairWhiteBridgeAlphaMaskLikeOriginal || desc == null || st == null || !st.Readable || st.Placeholder)
+                return false;
+            if (desc.SpriteIndex != 58 && desc.SpriteIndex != 59)
+                return false;
+            if (st.Visible <= 0)
+                return false;
+            return st.WhiteVisibleFraction >= C2WallObjectsV29WhiteMaskFractionLikeOriginal &&
+                   st.AvgR >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal - 10.0f &&
+                   st.AvgG >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal - 10.0f &&
+                   st.AvgB >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal - 10.0f;
+        }
+
+        private static Color GetWallSpriteRepairColorV29LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc != null && (desc.SpriteIndex == 58 || desc.SpriteIndex == 59))
+                return new Color(0.46f, 0.43f, 0.35f, 1.0f);
+            return Color.white;
+        }
+
+        private static string BuildWallSpriteRgbaAuditLineV29LikeOriginal(int order, WallSpriteDescV1LikeOriginal desc, string source, WallSpriteRgbaStatsV29LikeOriginal st)
+        {
+            if (desc == null)
+                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " desc=null";
+            if (st == null)
+                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " stats=null source='" + (source ?? string.Empty) + "'";
+
+            bool repair = IsWallSpriteWhiteBridgeMaskV29LikeOriginal(desc, st);
+            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
+                   " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
+                   " name=" + desc.Name +
+                   " size=" + st.Width.ToString(CultureInfo.InvariantCulture) + "x" + st.Height.ToString(CultureInfo.InvariantCulture) +
+                   " readable=" + st.Readable +
+                   " placeholder=" + st.Placeholder +
+                   " visible=" + st.Visible.ToString(CultureInfo.InvariantCulture) +
+                   " whiteVisible=" + st.WhiteVisible.ToString(CultureInfo.InvariantCulture) +
+                   " whiteFrac=" + st.WhiteVisibleFraction.ToString("0.###", CultureInfo.InvariantCulture) +
+                   " min=" + st.MinR.ToString(CultureInfo.InvariantCulture) + "," + st.MinG.ToString(CultureInfo.InvariantCulture) + "," + st.MinB.ToString(CultureInfo.InvariantCulture) + "," + st.MinA.ToString(CultureInfo.InvariantCulture) +
+                   " max=" + st.MaxR.ToString(CultureInfo.InvariantCulture) + "," + st.MaxG.ToString(CultureInfo.InvariantCulture) + "," + st.MaxB.ToString(CultureInfo.InvariantCulture) + "," + st.MaxA.ToString(CultureInfo.InvariantCulture) +
+                   " avg=" + st.AvgR.ToString("0.#", CultureInfo.InvariantCulture) + "," + st.AvgG.ToString("0.#", CultureInfo.InvariantCulture) + "," + st.AvgB.ToString("0.#", CultureInfo.InvariantCulture) + "," + st.AvgA.ToString("0.#", CultureInfo.InvariantCulture) +
+                   " repairWhiteBridgeMask=" + repair +
+                   (string.IsNullOrEmpty(st.Error) ? string.Empty : " err='" + st.Error + "'") +
+                   " source='" + (source ?? string.Empty) + "'";
+        }
+
+        private Material CreateWallSpriteMaterialV29LikeOriginal(Texture2D tex, WallSpriteDescV1LikeOriginal desc, WallSpriteRgbaStatsV29LikeOriginal st, Material fallbackBase)
+        {
+            bool bridgeSprite = desc != null && (desc.SpriteIndex == 58 || desc.SpriteIndex == 59);
+            Shader shader = null;
+            if (C2WallObjectsV31UseExactBridgeSpriteCutoutLikeOriginal && bridgeSprite)
+                shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV31ExactCutout");
+            if (shader == null && C2WallObjectsV29UseDedicatedWallSpriteShaderLikeOriginal)
+                shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV29");
+            shader = shader ?? (fallbackBase != null ? fallbackBase.shader : null) ?? Shader.Find("Unlit/Transparent") ?? Shader.Find("Sprites/Default");
+
+            bool repairWhiteMask = !bridgeSprite && IsWallSpriteWhiteBridgeMaskV29LikeOriginal(desc, st);
+            var inst = new Material(shader)
             {
-                mesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
-                return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(mesh, desc, route.Profile);
-            }
+                name = "C2_WallMapSpriteMat_V31_" + (desc != null ? desc.Name : "Wall"),
+                mainTexture = tex != null ? tex : Texture2D.whiteTexture,
+                renderQueue = C2WallObjectsV18RenderQueueLikeOriginal
+            };
+            if (inst.HasProperty("_MainTex")) inst.SetTexture("_MainTex", tex != null ? tex : Texture2D.whiteTexture);
+            if (inst.HasProperty("_Color")) inst.SetColor("_Color", Color.white);
+            if (inst.HasProperty("_RepairAlphaMask")) inst.SetFloat("_RepairAlphaMask", repairWhiteMask ? 1.0f : 0.0f);
+            if (inst.HasProperty("_RepairColor")) inst.SetColor("_RepairColor", GetWallSpriteRepairColorV29LikeOriginal(desc));
+            if (inst.HasProperty("_AlphaCutoff")) inst.SetFloat("_AlphaCutoff", C2WallObjectsV29AlphaCutoffLikeOriginal);
+            if (inst.HasProperty("_ZWrite")) inst.SetInt("_ZWrite", 0);
+            if (inst.HasProperty("_ZTest")) inst.SetInt("_ZTest", (int)CompareFunction.LessEqual);
+            if (inst.HasProperty("_Cull")) inst.SetInt("_Cull", (int)CullMode.Off);
+            return inst;
+        }
 
-            if (route.Route == WallDrawRouteV20LikeOriginal.SavedModelC2M)
+        private Material CreateWallObjectMaterialV1LikeOriginal()
+        {
+            Shader shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV31ExactCutout") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV29") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV7") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV6") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV5") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV4") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV3") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV2") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV1") ?? Shader.Find("Unlit/Transparent") ?? Shader.Find("Sprites/Default");
+            var mat = new Material(shader)
             {
-                mesh = BuildSavedModelBackedC2MRealMeshV23LikeOriginal(s, desc, route);
-                if (mesh == null && C2WallObjectsV23AllowC2MProxyFallbackWhenRendererFailsLikeOriginal)
-                    mesh = BuildSavedModelBackedC2MProxyMeshV22LikeOriginal(s, desc, route);
-                if (mesh == null)
-                    mesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
-                return mesh;
-            }
+                name = "C2_WallObjectSprite_V29_like_original",
+                renderQueue = C2WallObjectsV18RenderQueueLikeOriginal
+            };
+            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+            if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", (int)CompareFunction.LessEqual);
+            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)CullMode.Off);
+            if (mat.HasProperty("_AlphaCutoff")) mat.SetFloat("_AlphaCutoff", C2WallObjectsV29AlphaCutoffLikeOriginal);
+            if (mat.HasProperty("_RepairAlphaMask")) mat.SetFloat("_RepairAlphaMask", 0.0f);
+            return mat;
+        }
 
-            if (route.Route == WallDrawRouteV20LikeOriginal.DebugFallback)
+        private static void ApplyWallRendererShadowContractV44LikeOriginal(Renderer renderer)
+        {
+            if (renderer == null || !C2WallObjectsV44DisableUnityShadowCastingForWallObjectsLikeOriginal)
+                return;
+
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private static Vector4 ChooseWallC2MGPObjTextureUvTransformV43LikeOriginal(Texture2D tex, WallC2MParsedMeshV23LikeOriginal c2m, out string audit)
+        {
+            audit = string.Empty;
+            if (tex == null || c2m == null || c2m.UV == null || c2m.UV.Length == 0)
             {
-                mesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
-                return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(mesh, desc, route.Profile);
+                audit = "no_tex_or_uv";
+                return new Vector4(1.0f, 1.0f, 0.0f, 0.0f);
             }
 
+            string[] names = { "normal", "flipV", "flipU", "flipUV" };
+            Vector4[] transforms =
+            {
+                new Vector4(1.0f, 1.0f, 0.0f, 0.0f),
+                new Vector4(1.0f, -1.0f, 0.0f, 1.0f),
+                new Vector4(-1.0f, 1.0f, 1.0f, 0.0f),
+                new Vector4(-1.0f, -1.0f, 1.0f, 1.0f)
+            };
+
+            int total = Mathf.Min(C2WallObjectsV43UvFitSampleLimitLikeOriginal, c2m.UV.Length);
+            int step = Mathf.Max(1, c2m.UV.Length / Mathf.Max(1, total));
+            int best = 0;
+            int bestHits = -1;
+            float bestAlpha = -1.0f;
+            var parts = new List<string>(names.Length);
+
+            for (int m = 0; m < transforms.Length; m++)
+            {
+                int hits = 0;
+                int samples = 0;
+                float alphaSum = 0.0f;
+                Vector4 tr = transforms[m];
+
+                try
+                {
+                    for (int i = 0; i < c2m.UV.Length && samples < total; i += step)
+                    {
+                        Vector2 uv = c2m.UV[i];
+                        float u = uv.x * tr.x + tr.z;
+                        float v = uv.y * tr.y + tr.w;
+                        Color c = tex.GetPixelBilinear(u, v);
+                        float a = c.a;
+                        alphaSum += a;
+                        if (a > 0.03f)
+                            hits++;
+                        samples++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    parts.Add(names[m] + ":error=" + ex.GetType().Name);
+                    continue;
+                }
+
+                float avg = samples > 0 ? alphaSum / samples : 0.0f;
+                parts.Add(names[m] + ":hits=" + hits.ToString(CultureInfo.InvariantCulture) +
+                          "/" + samples.ToString(CultureInfo.InvariantCulture) +
+                          ",avgA=" + avg.ToString("0.000", CultureInfo.InvariantCulture));
+
+                if (hits > bestHits || (hits == bestHits && avg > bestAlpha))
+                {
+                    best = m;
+                    bestHits = hits;
+                    bestAlpha = avg;
+                }
+            }
+
+            audit = "chosen=" + names[best] +
+                    " scale=(" + transforms[best].x.ToString(CultureInfo.InvariantCulture) +
+                    "," + transforms[best].y.ToString(CultureInfo.InvariantCulture) + ")" +
+                    " offset=(" + transforms[best].z.ToString(CultureInfo.InvariantCulture) +
+                    "," + transforms[best].w.ToString(CultureInfo.InvariantCulture) + ")" +
+                    " scores=[" + string.Join(";", parts.ToArray()) + "]";
+            return transforms[best];
+        }
+
+        private static string BuildWallC2MGPObjMaterialAuditLineV42LikeOriginal(
+            WallSpriteDescV1LikeOriginal desc,
+            WallC2MParsedMeshV23LikeOriginal c2m,
+            Texture2D tex,
+            bool bound,
+            string source)
+        {
+            WallC2MGPObjInfoV40LikeOriginal gp = c2m != null ? c2m.GPObj : null;
+            return "id=" + (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
+                   " name=" + (desc != null ? desc.Name : string.Empty) +
+                   " model='" + (desc != null ? (desc.ModelPath ?? string.Empty) : string.Empty) + "'" +
+                   " gpName='" + (gp != null ? (gp.GPName ?? string.Empty) : string.Empty) + "'" +
+                   " frameIdx=" + (gp != null ? gp.FrameIdx.ToString(CultureInfo.InvariantCulture) : "-") +
+                   " bound=" + bound +
+                   " tex=" + (tex != null ? tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture) : "null") +
+                   " source='" + (source ?? string.Empty) + "'";
+        }
+
+
+        private Texture2D TryLoadWallC2MTXRETextureV48LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m, out string source)
+        {
+            source = string.Empty;
+            if (c2m == null || string.IsNullOrWhiteSpace(c2m.TextureName) || _bootstrap == null || _bootstrap.Fs == null)
+                return null;
+
+            string textureName = c2m.TextureName.Trim().Replace('/', '\\');
+            var candidates = new List<string>();
+            candidates.Add(textureName);
+            candidates.Add(Path.GetFileName(textureName));
+            candidates.Add("textures\\" + Path.GetFileName(textureName));
+            candidates.Add("Textures\\" + Path.GetFileName(textureName));
+
+            Texture2D tex = C2OriginalTextureService.TryLoadTextureByCandidates(
+                _bootstrap.Fs,
+                candidates.ToArray(),
+                "C2M_TXRE_" + Path.GetFileNameWithoutExtension(textureName),
+                C2OriginalTexturePolicy.WorldTextureLikeOriginal,
+                out string resolved);
+
+            if (tex != null)
+                source = "TXRE='" + textureName + "' resolved='" + resolved + "'";
+            else
+                source = "TXRE_missing '" + textureName + "'";
+
+            return tex;
+        }
+
+        private Texture2D TryLoadWallC2MGPObjFrameTextureV42LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m, out string source, out List<WallG16SquareV47LikeOriginal> squares)
+        {
+            source = string.Empty;
+            squares = null;
+            if (c2m == null || c2m.GPObj == null)
+            {
+                source = "no_gpobj";
+                return null;
+            }
+
+            string gpName = c2m.GPObj.GPName ?? string.Empty;
+            int frameIdx = SelectWallC2MGPObjFrameIndexV46LikeOriginal(c2m, gpName, c2m.GPObj.FrameIdx, out string frameAudit);
+            if (string.IsNullOrWhiteSpace(gpName))
+            {
+                source = "empty_gpName";
+                return null;
+            }
+
+            List<string> candidates = BuildWallC2MGPObjG16CandidatePathsV42LikeOriginal(gpName);
+            var checkedPaths = new List<string>(Mathf.Min(candidates.Count, 8));
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                string path = candidates[i];
+                if (checkedPaths.Count < 8)
+                    checkedPaths.Add(path);
+
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                    continue;
+
+                Texture2D tex = TryLoadG16FrameViaMelinojaV42LikeOriginal(path, frameIdx, out string loadSource);
+                if (tex != null)
+                {
+                    string squareAudit;
+                    squares = TryParseWallG16FrameSquaresV47LikeOriginal(path, frameIdx, out squareAudit);
+                    source = "gpName='" + gpName + "' frameIdx=" + frameIdx.ToString(CultureInfo.InvariantCulture) + " " + frameAudit + " " + loadSource + " squares='" + squareAudit + "'";
+                    return tex;
+                }
+
+                source = "found_path_but_load_failed gpName='" + gpName + "' frameIdx=" + frameIdx.ToString(CultureInfo.InvariantCulture) + " " + frameAudit + " " + loadSource;
+            }
+
+            source = "missing_gp_g16 gpName='" + gpName + "' frameIdx=" + frameIdx.ToString(CultureInfo.InvariantCulture) +
+                     " " + frameAudit + " checked=[" + string.Join(";", checkedPaths.ToArray()) + "]";
             return null;
         }
 
-        private Mesh BuildSavedModelBackedC2MRealMeshV23LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
+        private static int SelectWallC2MGPObjFrameIndexV46LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m, string gpName, int parsedFrameIdx, out string audit)
         {
-            if (s == null || desc == null || string.IsNullOrWhiteSpace(desc.ModelPath) ||
-                !C2WallObjectsV23UseRealC2MRendererForModelBackedWLLikeOriginal)
-                return null;
+            audit = "parsedFrameIdx=" + parsedFrameIdx.ToString(CultureInfo.InvariantCulture);
+            if (!C2WallObjectsV46UseDrawWChunkDambaFrameLikeOriginal ||
+                !string.Equals((gpName ?? string.Empty).Trim(), "damba", StringComparison.OrdinalIgnoreCase))
+                return parsedFrameIdx;
 
-            WallC2MParsedMeshV23LikeOriginal c2m = TryLoadWallC2MVisualMeshV23LikeOriginal(desc.ModelPath, out string loadAudit);
-            if (c2m == null || c2m.Vertices == null || c2m.Vertices.Length == 0 || c2m.Triangles == null || c2m.Triangles.Length < 3)
+            string model = c2m != null ? (c2m.ModelPath ?? string.Empty) : string.Empty;
+            if (model.IndexOf("dam_bottom", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                if (route != null)
-                {
-                    route.Path = "ModelC2M_REAL_FAILED_proxy_fallback";
-                    route.Reason = "C2M real parser failed; " + loadAudit;
-                }
-                return null;
+                audit += " drawWChunkFrame=0 model=dam_bottom";
+                return 0;
             }
 
-            string immAudit = BuildWallC2MImmScanAuditV24LikeOriginal(s, desc, c2m);
-
-            Vector3[] verts = new Vector3[c2m.Vertices.Length];
-            bool useV53WhiteConnectorChain = C2WallObjectsV53UseWhiteModelConnectorChainLikeOriginal &&
-                                             route != null &&
-                                             route.Route == WallDrawRouteV20LikeOriginal.SavedModelC2M &&
-                                             !(s.HasMatrix && route.UseSavedM4);
-
-            Vector3 localCenterV53 = Vector3.zero;
-            float localMinZV53 = 0.0f;
-            float localMaxZV59 = 0.0f;
-            float anchorTerrainV54 = 0.0f;
-            Vector3 anchorWorldV55 = Vector3.zero;
-            float originalToWorldXScaleV55 = 1.0f;
-            float originalToWorldZScaleV55 = 1.0f;
-            float originalToWorldYScaleV55 = 1.0f;
-            bool useRigidSavedM4V66 =
-                C2WallObjectsV66UseRigidSavedMatrixForDambaC2MLikeOriginal &&
-                route != null &&
-                route.Route == WallDrawRouteV20LikeOriginal.SavedModelC2M &&
-                route.UseSavedM4 &&
-                s.HasMatrix &&
-                IsWallDambaC2MModelV33LikeOriginal(desc);
-            Vector3 savedM4DeltaOriginOriginalV66 = Vector3.zero;
-            Vector3 savedM4OriginWorldV66 = Vector3.zero;
-            Vector3 savedM4LocalPivotOriginalV70 = Vector3.zero;
-            if (useV53WhiteConnectorChain)
+            if (model.IndexOf("dam_top", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                Vector3 min = c2m.HasLocalBounds ? c2m.LocalBoundsMin : c2m.Vertices[0];
-                Vector3 max = c2m.HasLocalBounds ? c2m.LocalBoundsMax : c2m.Vertices[0];
-                if (!c2m.HasLocalBounds)
-                {
-                    for (int bi = 1; bi < c2m.Vertices.Length; bi++)
-                    {
-                        Vector3 v = c2m.Vertices[bi];
-                        min = Vector3.Min(min, v);
-                        max = Vector3.Max(max, v);
-                    }
-                }
-                localCenterV53 = (min + max) * 0.5f;
-                localMinZV53 = min.z;
-                localMaxZV59 = max.z;
-
-                // V54 sampled terrain only at the anchor, but still converted every vertex through
-                // OriginalWallXYZToWorldV6LikeOriginal(). That function contains the terrain-grid
-                // odd-column Z offset and is intentionally NON-LINEAR. Using it per C2M vertex bends
-                // rigid geometry: long railings/upper beams start to wobble and look camera-skewed.
-                //
-                // V55 keeps the C2M as a true rigid mesh:
-                //   1) sample terrain once at the chain anchor;
-                //   2) convert that anchor once;
-                //   3) add local C2M deltas with constant world scale.
-                // No per-vertex terrain-grid/odd-column remap is allowed in this diagnostic mode.
-                anchorTerrainV54 = route != null && route.HasSharedRunHeightV59
-                    ? route.SharedRunHeightV59
-                    : SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
-                OriginalTerrainKernelConfig kernelV55 = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-                originalToWorldXScaleV55 = kernelV55.BackingStepXWorld / 32.0f;
-                originalToWorldZScaleV55 = kernelV55.BackingStepZWorld * WorldZSign / 32.0f;
-                originalToWorldYScaleV55 = kernelV55.HeightScale;
-                bool useSharedBridgeDeckAnchorV60 = route != null && route.HasSharedRunHeightV59;
-                anchorWorldV55 = OriginalWallXYZToWorldV6LikeOriginal(
-                    s.X,
-                    s.Y,
-                    anchorTerrainV54 +
-                    (useSharedBridgeDeckAnchorV60
-                        ? C2WallObjectsV60BridgeVerticalOffsetOriginal
-                        : C2WallObjectsV53ModelBottomHeightAboveGroundLikeOriginal) +
-                    desc.FixHeight);
-            }
-            else if (useRigidSavedM4V66)
-            {
-                OriginalTerrainKernelConfig kernelV66 = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-                originalToWorldXScaleV55 = kernelV66.BackingStepXWorld / 32.0f;
-                originalToWorldZScaleV55 = kernelV66.BackingStepZWorld * WorldZSign / 32.0f;
-                originalToWorldYScaleV55 = kernelV66.HeightScale;
-
-                savedM4LocalPivotOriginalV70 = GetWallDambaC2MLocalPivotV70LikeOriginal(desc, c2m);
-                savedM4DeltaOriginOriginalV66 = TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, savedM4LocalPivotOriginalV70);
-
-                float savedM4AnchorOriginalZV82 = savedM4DeltaOriginOriginalV66.z;
-                if (C2WallObjectsV82ForceFlatSharedHeightForUniversalSavedM4DambaRowsLikeOriginal &&
-                    route != null &&
-                    route.HasSharedRunHeightV59 &&
-                    C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal &&
-                    IsWallDambaC2MModelV33LikeOriginal(desc))
-                {
-                    Vector3 localMinV82 = c2m.HasLocalBounds ? c2m.LocalBoundsMin : c2m.Vertices[0];
-                    Vector3 localMaxV82 = c2m.HasLocalBounds ? c2m.LocalBoundsMax : c2m.Vertices[0];
-                    if (!c2m.HasLocalBounds)
-                    {
-                        for (int bi = 1; bi < c2m.Vertices.Length; bi++)
-                        {
-                            Vector3 bv = c2m.Vertices[bi];
-                            localMinV82 = Vector3.Min(localMinV82, bv);
-                            localMaxV82 = Vector3.Max(localMaxV82, bv);
-                        }
-                    }
-
-                    Vector3 localDeckAnchorV82 = savedM4LocalPivotOriginalV70;
-                    localDeckAnchorV82.z = Mathf.Lerp(
-                        localMinV82.z,
-                        localMaxV82.z,
-                        C2WallObjectsV60BridgeDeckAnchorLocalZFraction);
-
-                    Vector3 savedM4DeckAnchorOriginalV82 =
-                        TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, localDeckAnchorV82);
-                    float pivotToDeckOriginalZV82 =
-                        savedM4DeckAnchorOriginalV82.z - savedM4DeltaOriginOriginalV66.z;
-
-                    savedM4AnchorOriginalZV82 =
-                        route.SharedRunHeightV59 +
-                        C2WallObjectsV60BridgeVerticalOffsetOriginal -
-                        pivotToDeckOriginalZV82;
-                }
-
-                Vector3 savedM4WorldAnchorOriginalV66 =
-                    (C2WallObjectsV70AnchorDambaC2MPivotToSavedWLPointLikeOriginal ||
-                     ((C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal ||
-                       C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal) &&
-                      IsWallDambaW60CalibrationTargetV90LikeOriginal(desc)) ||
-                     C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal ||
-                     C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal ||
-                     C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal)
-                    ? new Vector3(s.X, s.Y, savedM4AnchorOriginalZV82)
-                    : new Vector3(savedM4DeltaOriginOriginalV66.x, savedM4DeltaOriginOriginalV66.y, savedM4AnchorOriginalZV82);
-                savedM4WorldAnchorOriginalV66 = ApplyWallDambaAnchorNudgeV71LikeOriginal(desc, savedM4WorldAnchorOriginalV66);
-                savedM4OriginWorldV66 = OriginalWallXYZToWorldV6LikeOriginal(
-                    savedM4WorldAnchorOriginalV66.x,
-                    savedM4WorldAnchorOriginalV66.y,
-                    savedM4WorldAnchorOriginalV66.z + desc.FixHeight);
+                audit += " drawWChunkFrame=3 model=dam_top";
+                return 3;
             }
 
-            for (int i = 0; i < c2m.Vertices.Length; i++)
-            {
-                Vector3 local = c2m.Vertices[i];
-
-                if (useV53WhiteConnectorChain)
-                {
-                    float localAnchorZV59 = route != null && route.HasSharedRunHeightV59
-                        ? Mathf.Lerp(localMinZV53, localMaxZV59, C2WallObjectsV60BridgeDeckAnchorLocalZFraction)
-                        : localMinZV53;
-                    verts[i] = new Vector3(
-                        anchorWorldV55.x + (local.x - localCenterV53.x) * originalToWorldXScaleV55,
-                        anchorWorldV55.y + (local.z - localAnchorZV59) * originalToWorldYScaleV55,
-                        anchorWorldV55.z + (local.y - localCenterV53.y) * originalToWorldZScaleV55);
-                    continue;
-                }
-
-                if (useRigidSavedM4V66)
-                {
-                    Vector3 originalRigid = TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local);
-                    Vector3 deltaOriginal = originalRigid - savedM4DeltaOriginOriginalV66;
-                    verts[i] = new Vector3(
-                        savedM4OriginWorldV66.x + deltaOriginal.x * originalToWorldXScaleV55,
-                        savedM4OriginWorldV66.y + deltaOriginal.z * originalToWorldYScaleV55,
-                        savedM4OriginWorldV66.z + deltaOriginal.y * originalToWorldZScaleV55);
-                    continue;
-                }
-
-                Vector3 original;
-                // Original path passes Matrix4D to IMM/AddExtraHeightObject.
-                // The map stores e30/e31/e32 translation and row-vector basis; use the same convention
-                // already verified for saved WL Matrix4D in V21.
-                original = s.HasMatrix && route != null && route.UseSavedM4
-                    ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local)
-                    : new Vector3(s.X + local.x, s.Y + local.y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + local.x, s.Y + local.y) + local.z);
-
-                verts[i] = OriginalWallXYZToWorldV6LikeOriginal(original.x, original.y, original.z + desc.FixHeight);
-            }
-
-            string gpObjRenderAudit = string.Empty;
-            string drawWChunkBakeAudit = string.Empty;
-            Mesh mesh = TryBuildWallC2MGPObjDrawWChunkBakedMeshV50LikeOriginal(c2m, verts, desc, out drawWChunkBakeAudit);
-            bool drawWChunkBakedV50 = mesh != null;
-
-            if (!drawWChunkBakedV50)
-            {
-                mesh = new Mesh { name = "C2_SavedModelBackedWL_V23_REAL_C2M_" + desc.Name + "_" + Path.GetFileNameWithoutExtension(desc.ModelPath) };
-                if (verts.Length > 65000)
-                    mesh.indexFormat = IndexFormat.UInt32;
-
-                mesh.vertices = verts;
-                if (!ApplyWallC2MGPObjChunkSubmeshesV41LikeOriginal(mesh, c2m, out gpObjRenderAudit))
-                    mesh.triangles = c2m.Triangles;
-                if (c2m.UV != null && c2m.UV.Length == verts.Length)
-                    mesh.uv = c2m.UV;
-                if (c2m.Colors != null && c2m.Colors.Length == verts.Length)
-                    mesh.colors32 = c2m.Colors;
-
-                mesh.RecalculateBounds();
-                try { mesh.RecalculateNormals(); } catch { /* Unity can throw on degenerate old meshes; original had fixed-function normals. */ }
-            }
-            else
-            {
-                gpObjRenderAudit = "V50_baked_drawWChunk_UV_single_material; " + drawWChunkBakeAudit;
-            }
-
-            if (useV53WhiteConnectorChain && C2WallObjectsV53ModelChainForceWhiteFillLikeOriginal && mesh != null)
-            {
-                Color32[] white = new Color32[verts.Length];
-                for (int wi = 0; wi < white.Length; wi++)
-                    white[wi] = new Color32(255, 255, 255, 255);
-                mesh.colors32 = white;
-            }
-
-            if (route != null)
-            {
-                route.Path = useV53WhiteConnectorChain
-                    ? (route != null && route.HasSharedRunHeightV59
-                        ? (C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal &&
-                           C2WallObjectsV75DisableSavedMatrix4DForUniversalDambaAnchorsLikeOriginal &&
-                           IsWallDambaC2MModelV33LikeOriginal(desc)
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V77_stage2_point_pose_no_saved_Matrix4D_flat_group_height_DrawWChunk"
-                            : (C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal
-                                ? "ModelC2M_REAL_Carcass_GEOM_IMM_V61_map_saved_XY_straight_row_flat_group_height_deck_anchor_textured_DrawWChunk"
-                                : "ModelC2M_REAL_Carcass_GEOM_IMM_V60_map_saved_XY_flat_group_height_deck_anchor_textured_DrawWChunk"))
-                        : (C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V58_map_saved_anchor_textured_DrawWChunk_centered_bottom_plus5"
-                            : "ModelC2M_REAL_Carcass_GEOM_IMM_V56_connector_chain_textured_DrawWChunk_centered_bottom_plus5"))
-                    : (useRigidSavedM4V66
-                        ? (C2WallObjectsV70AnchorDambaC2MPivotToSavedWLPointLikeOriginal
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V70_saved_Matrix4D_rigid_local_pivot_to_saved_WL_DrawWChunk"
-                            : C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V69_saved_Matrix4D_rigid_connector_line_project_perp_DrawWChunk"
-                            : C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V89_stage2_full_3D_relative_transform_shared_Matrix4D_basis_translation_height_DrawWChunk"
-                            : C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V72_saved_Matrix4D_rigid_pair_calibrated_chain_DrawWChunk"
-                            : C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V68_saved_Matrix4D_rigid_section_row_endpoints_DrawWChunk"
-                            : C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V67_saved_Matrix4D_rigid_world_delta_straight_run_anchor_DrawWChunk"
-                            : "ModelC2M_REAL_Carcass_GEOM_IMM_V66_saved_Matrix4D_rigid_world_delta_no_grid_warp_DrawWChunk")
-                        : (drawWChunkBakedV50
-                            ? "ModelC2M_REAL_Carcass_GEOM_IMM_V50_DrawWChunk_baked_UV_saved_Matrix4D_height_lock"
-                            : "ModelC2M_REAL_Carcass_GEOM_IMM_V41_saved_Matrix4D_height_lock_gpobj_chunks"));
-                route.Reason = "model-backed WL rendered through real C2M Carcass mesh + IMM GEOM height/lock layer + vertex-color render contract; " + c2m.Audit + " gpObjRender=" + gpObjRenderAudit + " drawWChunkV50=" + drawWChunkBakeAudit + " imm=" + immAudit +
-                               (useV53WhiteConnectorChain
-                                   ? (route != null && route.HasSharedRunHeightV59
-                                       ? " V61=map_saved_XY_straight_row_no_forward_back_no_gaps_flat_group_height_DECK_anchor_no_connector_resnap_rigid_linear_no_grid_warp_textured_like_TemnyLess_DrawWChunk_GPObj"
-                                       : (C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal
-                                           ? " V58=map_saved_WL_anchor_no_connector_resnap_rigid_linear_anchor_no_grid_warp_bottom_plus5_textured_like_TemnyLess_DrawWChunk_GPObj"
-                                           : " V56=rigid_linear_anchor_no_grid_warp_bottom_plus5_textured_like_TemnyLess_DrawWChunk_GPObj"))
-                                   : (useRigidSavedM4V66
-                                       ? " V66=saved_Matrix4D_existingM4_rigid_world_delta_no_per_vertex_terrain_grid_warp_textured_like_original_RenderModels_Add" +
-                                         (C2WallObjectsV70AnchorDambaC2MPivotToSavedWLPointLikeOriginal ? " V70=local_C2M_XY_pivot_to_saved_WL_point" : string.Empty) +
-                                         (C2WallObjectsV71UseDambaSavedWLAnchorNudgeLikeOriginal ? " V71=small_saved_WL_anchor_nudge" : string.Empty) +
-                                         (C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal ? " V83=model_anchor_connector_chain_FIRST_MAP_OBJECT_map_only_direction_no_delta_no_explicit_single_point_link" : string.Empty) +
-                                         (C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal ? " V72=W60_pair_calibrated_chain_delta=(" + C2WallObjectsV72DambaW60PairDeltaPixelsLikeOriginal.x.ToString("0.###", CultureInfo.InvariantCulture) + "," + C2WallObjectsV72DambaW60PairDeltaPixelsLikeOriginal.y.ToString("0.###", CultureInfo.InvariantCulture) + ")" : string.Empty) +
-                                         (C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal ? " V68=section_rows_resampled_between_first_last" : string.Empty) +
-                                         (C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal ? " V69=section_rows_project_perpendicular_keep_native_along_spacing" : string.Empty) +
-                                         (C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal ? " V67=straightened_run_anchor_as_world_origin" : string.Empty)
-                                       : string.Empty));
-                route.UseSavedM4 = useV53WhiteConnectorChain ? false : (s.HasMatrix && route.UseSavedM4);
-                route.MatrixAudit = (route.MatrixAudit ?? string.Empty) + " c2m='" + loadAudit + "' imm='" + immAudit + "' drawWChunkV50='" + drawWChunkBakeAudit + "'";
-            }
-
-            return mesh;
+            audit += " drawWChunkFrame=unforced";
+            return parsedFrameIdx;
         }
 
+
+        // V167 COMPILE RESTORE: C2M loader/helpers were physically cut in V165,
+        // but DAMBA/model/calibrator code still depends on them. These are not old WALS2D fence routes.
         private WallC2MParsedMeshV23LikeOriginal TryLoadWallC2MVisualMeshV23LikeOriginal(string modelPath, out string audit)
         {
             audit = string.Empty;
@@ -5533,10 +9719,13 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 return null;
             }
 
-            string key = modelPath.Replace('/', '\\').Trim();
-            if (_c2WallObjectsV23C2MCacheLikeOriginal.TryGetValue(key, out WallC2MParsedMeshV23LikeOriginal cached))
+            string requestKey = modelPath.Replace('/', '\\').Trim();
+            string resolveAuditV161;
+            string key = ResolveWallC2MModelPathV161LikeOriginal(requestKey, out resolveAuditV161);
+            string cacheKey = string.IsNullOrWhiteSpace(key) ? requestKey : key;
+            if (_c2WallObjectsV23C2MCacheLikeOriginal.TryGetValue(cacheKey, out WallC2MParsedMeshV23LikeOriginal cached))
             {
-                audit = cached != null ? "cache_hit " + cached.Audit : "cache_hit_null";
+                audit = cached != null ? "cache_hit " + resolveAuditV161 + " " + cached.Audit : "cache_hit_null " + resolveAuditV161;
                 return cached;
             }
 
@@ -5545,26 +9734,28 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 if (_bootstrap == null || _bootstrap.Fs == null)
                 {
                     audit = "fs_not_ready";
-                    _c2WallObjectsV23C2MCacheLikeOriginal[key] = null;
+                    _c2WallObjectsV23C2MCacheLikeOriginal[cacheKey] = null;
                     return null;
                 }
 
-                if (!_bootstrap.Fs.Exists(key))
+                if (string.IsNullOrWhiteSpace(key) || !_bootstrap.Fs.Exists(key))
                 {
-                    audit = "missing_model_file " + key;
-                    _c2WallObjectsV23C2MCacheLikeOriginal[key] = null;
+                    audit = "missing_model_file " + key + " " + resolveAuditV161;
+                    _c2WallObjectsV23C2MCacheLikeOriginal[cacheKey] = null;
                     return null;
                 }
 
                 byte[] data = _bootstrap.Fs.ReadAllBytes(key);
                 WallC2MParsedMeshV23LikeOriginal mesh = ParseWallC2MVisualMeshV23LikeOriginal(key, data, out audit);
-                _c2WallObjectsV23C2MCacheLikeOriginal[key] = mesh;
+                audit = resolveAuditV161 + " " + audit;
+                if (mesh != null) mesh.Audit = audit;
+                _c2WallObjectsV23C2MCacheLikeOriginal[cacheKey] = mesh;
                 return mesh;
             }
             catch (Exception ex)
             {
                 audit = "exception " + ex.GetType().Name + ": " + ex.Message;
-                _c2WallObjectsV23C2MCacheLikeOriginal[key] = null;
+                _c2WallObjectsV23C2MCacheLikeOriginal[cacheKey] = null;
                 return null;
             }
         }
@@ -7187,59 +11378,8 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             return !float.IsNaN(v) && !float.IsInfinity(v);
         }
 
-        private Mesh BuildSavedModelBackedC2MProxyMeshV22LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
-        {
-            if (s == null || desc == null || !C2WallObjectsV23AllowC2MProxyFallbackWhenRendererFailsLikeOriginal)
-                return null;
 
-            float sx = Mathf.Max(C2WallObjectsV22ModelProxyMinFootprintPixelsLikeOriginal, desc.Width > 0 ? desc.Width : 48.0f);
-            float sy = Mathf.Max(C2WallObjectsV22ModelProxyMinFootprintPixelsLikeOriginal, desc.Radius > 0 ? desc.Radius * 2.0f : (desc.Height > 0 ? desc.Height * 0.45f : 48.0f));
-            float sz = Mathf.Max(C2WallObjectsV22ModelProxyMinFootprintPixelsLikeOriginal, desc.Height > 0 ? Mathf.Min(desc.Height, C2WallObjectsV22ModelProxyHeightPixelsLikeOriginal) : C2WallObjectsV22ModelProxyHeightPixelsLikeOriginal);
-
-            Vector3[] baseLocal =
-            {
-                new Vector3(-sx * 0.5f, -sy * 0.5f, 0.0f),
-                new Vector3( sx * 0.5f, -sy * 0.5f, 0.0f),
-                new Vector3( sx * 0.5f,  sy * 0.5f, 0.0f),
-                new Vector3(-sx * 0.5f,  sy * 0.5f, 0.0f)
-            };
-
-            Vector3[] verts = new Vector3[8];
-            for (int i = 0; i < 4; i++)
-            {
-                Vector3 p = s.HasMatrix && route != null && route.UseSavedM4
-                    ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, baseLocal[i])
-                    : new Vector3(s.X + baseLocal[i].x, s.Y + baseLocal[i].y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + baseLocal[i].x, s.Y + baseLocal[i].y));
-
-                verts[i] = OriginalWallXYZToWorldV6LikeOriginal(p.x, p.y, p.z + desc.FixHeight);
-                verts[i + 4] = OriginalWallXYZToWorldV6LikeOriginal(p.x, p.y, p.z + desc.FixHeight + sz);
-            }
-
-            var mesh = new Mesh { name = "C2_SavedModelBackedWL_V22_C2MProxy_" + desc.Name };
-            mesh.vertices = verts;
-            mesh.uv = new[]
-            {
-                new Vector2(0,0), new Vector2(1,0), new Vector2(1,1), new Vector2(0,1),
-                new Vector2(0,0), new Vector2(1,0), new Vector2(1,1), new Vector2(0,1)
-            };
-            mesh.colors32 = new[]
-            {
-                new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255),
-                new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255)
-            };
-            mesh.triangles = new[]
-            {
-                0,1,2, 0,2,3,
-                4,6,5, 4,7,6,
-                0,4,5, 0,5,1,
-                1,5,6, 1,6,2,
-                2,6,7, 2,7,3,
-                3,7,4, 3,4,0
-            };
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
+        // V167 COMPILE RESTORE: generic aligned mesh helper used by non-fence overlay fallback.
         private Mesh BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
         {
             Mesh mesh = null;
@@ -7257,2063 +11397,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 mesh = BuildSavedMapWallSpriteBillboardAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
 
             return mesh;
-        }
-
-        private Mesh BuildSavedMapWallSpriteProfileMeshV19LikeOriginal(
-            WallSavedMapSpriteV6LikeOriginal s,
-            WallSpriteDescV1LikeOriginal desc,
-            Texture2D tex,
-            WallSavedWLProfileV18LikeOriginal profile,
-            ref int bridgeV12,
-            ref int fenceSavedM4,
-            ref int propSavedM4,
-            ref int fallbackAligned)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            if (!C2WallObjectsV19UseProfileMeshBuildersLikeOriginal)
-            {
-                fallbackAligned++;
-                return BuildSavedMapWallSpriteMeshV6LikeOriginal(s, desc, tex);
-            }
-
-            float wPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.width) : Mathf.Max(8.0f, desc.Width * 2.0f);
-            float hPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.height) : Mathf.Max(8.0f, desc.Height * 2.0f);
-
-            if (profile == WallSavedWLProfileV18LikeOriginal.BridgeWallSide && C2WallObjectsV19BridgeUseV12AlignedOnlyLikeOriginal)
-            {
-                bridgeV12++;
-                Mesh m = BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-                if (m == null)
-                    m = BuildSavedMapWallSpriteMeshV6LikeOriginal(s, desc, tex);
-                return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(m, desc, profile);
-            }
-
-            if (profile == WallSavedWLProfileV18LikeOriginal.FenceVertical &&
-                C2WallObjectsV19UseSavedM4ForFenceAndPropsLikeOriginal && s.HasMatrix)
-            {
-                Mesh m = BuildSavedMapWallSpriteSavedM4MeshV19LikeOriginal(s, desc, wPx, hPx, flipLocalY: true);
-                if (m != null)
-                {
-                    fenceSavedM4++;
-                    return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(m, desc, profile);
-                }
-            }
-
-            if ((profile == WallSavedWLProfileV18LikeOriginal.VerticalAligned || profile == WallSavedWLProfileV18LikeOriginal.GroundAligned) &&
-                C2WallObjectsV19UseSavedM4ForFenceAndPropsLikeOriginal && s.HasMatrix)
-            {
-                Mesh m = BuildSavedMapWallSpriteSavedM4MeshV19LikeOriginal(s, desc, wPx, hPx, flipLocalY: true);
-                if (m != null)
-                {
-                    propSavedM4++;
-                    return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(m, desc, profile);
-                }
-            }
-
-            fallbackAligned++;
-            return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(BuildSavedMapWallSpriteMeshV6LikeOriginal(s, desc, tex), desc, profile);
-        }
-
-        private Mesh BuildSavedMapWallSpriteSavedM4MeshV21LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx, bool flipLocalY, string path)
-        {
-            Mesh mesh = BuildSavedMapWallSpriteSavedM4MeshV19LikeOriginal(s, desc, wPx, hPx, flipLocalY);
-            if (mesh != null)
-                mesh.name = "C2_SavedMapWallSprite_V21_" + (string.IsNullOrWhiteSpace(path) ? "SavedM4" : path) + "_" + desc.Name;
-            return mesh;
-        }
-
-        private Mesh BuildSavedMapWallSpriteSavedM4MeshV19LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx, bool flipLocalY)
-        {
-            if (s == null || desc == null || !s.HasMatrix)
-                return null;
-
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-
-            Vector3[] local;
-            if (flipLocalY)
-            {
-                // Cossacks sprite frame space is top-left; saved Matrix4D object space is Y-up.
-                // This path is for fence/prop-like saved WL only: no camera billboard and no affine V/H warp.
-                local = new[]
-                {
-                    new Vector3(0.0f - cx,  cy - 0.0f, 0.0f),
-                    new Vector3(wPx  - cx,  cy - 0.0f, 0.0f),
-                    new Vector3(wPx  - cx,  cy - hPx,  0.0f),
-                    new Vector3(0.0f - cx,  cy - hPx,  0.0f)
-                };
-            }
-            else
-            {
-                local = new[]
-                {
-                    new Vector3(0.0f - cx,  0.0f - cy, 0.0f),
-                    new Vector3(wPx  - cx,  0.0f - cy, 0.0f),
-                    new Vector3(wPx  - cx,  hPx  - cy, 0.0f),
-                    new Vector3(0.0f - cx,  hPx  - cy, 0.0f)
-                };
-            }
-
-            Vector3[] verts = new Vector3[4];
-            for (int i = 0; i < 4; i++)
-            {
-                Vector3 p = TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local[i]);
-                verts[i] = OriginalWallXYZToWorldV6LikeOriginal(p.x, p.y, p.z + desc.FixHeight);
-            }
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V19_SavedM4_" + desc.Name, verts);
-        }
-
-        private static Vector3 TransformOriginalMatrix4DPointV19LikeOriginal(Matrix4x4 m, Vector3 p)
-        {
-            // Original Matrix4D translation is e30/e31/e32. Row-vector convention:
-            // x' = x*e00 + y*e10 + z*e20 + e30, etc.
-            return new Vector3(
-                p.x * m.m00 + p.y * m.m10 + p.z * m.m20 + m.m30,
-                p.x * m.m01 + p.y * m.m11 + p.z * m.m21 + m.m31,
-                p.x * m.m02 + p.y * m.m12 + p.z * m.m22 + m.m32
-            );
-        }
-
-        private Mesh ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(Mesh source, WallSpriteDescV1LikeOriginal desc, WallSavedWLProfileV18LikeOriginal profile)
-        {
-            if (source == null || desc == null)
-                return source;
-
-            float embedPx = 0.0f;
-            if (profile == WallSavedWLProfileV18LikeOriginal.BridgeWallSide)
-                embedPx = C2WallObjectsV19BridgeEmbedPixelsLikeOriginal;
-            else if (profile == WallSavedWLProfileV18LikeOriginal.FenceVertical)
-                embedPx = C2WallObjectsV19FenceEmbedPixelsLikeOriginal;
-
-            if (embedPx <= 0.001f)
-                return source;
-
-            Vector3[] verts = source.vertices;
-            if (verts == null || verts.Length == 0)
-                return source;
-
-            float worldEmbed = embedPx * WallOriginalXYUnitToWorldScaleV8LikeOriginal();
-            for (int i = 0; i < verts.Length; i++)
-                verts[i].y -= worldEmbed;
-
-            Mesh mesh = new Mesh { name = source.name + "_V19_profile_embed" };
-            mesh.vertices = verts;
-            mesh.uv = source.uv;
-            mesh.colors32 = source.colors32;
-            mesh.triangles = source.triangles;
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        private Mesh BuildSavedMapWallSpriteMeshV6LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, Texture2D tex)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            // V13:
-            // Camera/terrain/roads are not suspects here. The variable under test is only the WL sprite basis.
-            // Default V12Aligned keeps the current best aligned result. F2 cycles alternative bases without touching camera.
-            float wPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.width) : Mathf.Max(8.0f, desc.Width * 2.0f);
-            float hPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.height) : Mathf.Max(8.0f, desc.Height * 2.0f);
-
-            if (C2WallObjectsV16UseRigidSavedWLSpriteCardsLikeOriginal)
-            {
-                Mesh rigid = BuildSavedMapWallSpriteRigidFrozenCameraCardV16LikeOriginal(s, desc, wPx, hPx);
-                if (rigid != null)
-                    return rigid;
-            }
-
-            Mesh mesh = null;
-            if (C2WallObjectsV11UseUniversalDepthlessCardForSavedWL)
-                mesh = BuildSavedMapWallSpriteUniversalDepthlessCardV11LikeOriginal(s, desc, wPx, hPx);
-
-            if (mesh == null && C2WallObjectsV10UseAdaptedBuilderForMapSpritesLikeOriginal)
-            {
-                if ((desc.AlignMode == 'V' || desc.AlignMode == 'S') && desc.AlignPoints.Count >= 2)
-                    mesh = BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-
-                if (mesh == null && desc.AlignMode == 'H')
-                    mesh = BuildSavedMapWallSpriteGroundAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-
-                if (mesh == null && desc.AlignMode == 'U' && desc.AlignPoints.Count >= 3)
-                    mesh = BuildSavedMapWallSpriteUniversalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-
-                if (mesh == null)
-                    mesh = BuildSavedMapWallSpriteBillboardAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-            }
-
-            if (mesh == null)
-                mesh = BuildSavedMapWallSpriteBillboardAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-
-            Mesh basisMesh = ApplyWallSpriteBasisV13LikeOriginal(mesh, s, desc, wPx, hPx);
-            return ApplyWallSavedSpriteEmbedV15LikeOriginal(basisMesh, desc);
-        }
-
-
-
-        private void EnsureWallObjectsV16FrozenCameraBasisLikeOriginal()
-        {
-            if (_c2WallObjectsV16FrozenCameraBasisReadyLikeOriginal)
-                return;
-
-            Camera cam = Camera.main;
-            if (cam != null)
-            {
-                _c2WallObjectsV16FrozenCameraRightLikeOriginal = cam.transform.right;
-                _c2WallObjectsV16FrozenCameraUpLikeOriginal = cam.transform.up;
-            }
-            else
-            {
-                _c2WallObjectsV16FrozenCameraRightLikeOriginal = Vector3.right;
-                _c2WallObjectsV16FrozenCameraUpLikeOriginal = Vector3.up;
-            }
-
-            if (_c2WallObjectsV16FrozenCameraRightLikeOriginal.sqrMagnitude < 0.001f)
-                _c2WallObjectsV16FrozenCameraRightLikeOriginal = Vector3.right;
-            if (_c2WallObjectsV16FrozenCameraUpLikeOriginal.sqrMagnitude < 0.001f)
-                _c2WallObjectsV16FrozenCameraUpLikeOriginal = Vector3.up;
-
-            _c2WallObjectsV16FrozenCameraRightLikeOriginal.Normalize();
-            _c2WallObjectsV16FrozenCameraUpLikeOriginal.Normalize();
-            _c2WallObjectsV16FrozenCameraBasisReadyLikeOriginal = true;
-        }
-
-        private Mesh BuildSavedMapWallSpriteRigidFrozenCameraCardV16LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            EnsureWallObjectsV16FrozenCameraBasisLikeOriginal();
-
-            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal() * C2WallObjectsV16SavedWLExtraScaleLikeOriginal;
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-
-            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
-            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, terrain + desc.FixHeight);
-
-            float embedPx = GetWallSavedSpriteEmbedScreenPixelsV16LikeOriginal(desc);
-            if (embedPx > 0.001f)
-                anchor -= _c2WallObjectsV16FrozenCameraUpLikeOriginal * (embedPx * xyUnitToWorld);
-
-            Vector3 right = _c2WallObjectsV16FrozenCameraRightLikeOriginal;
-            Vector3 up = _c2WallObjectsV16FrozenCameraUpLikeOriginal;
-
-            // Exact decoded G16 pixel rectangle. No affine V/H/U warp, no shear, no non-uniform matrix.
-            // Original data supplies anchor/pivot/frame; Unity only turns it into one rigid camera-plane card.
-            Vector3[] verts =
-            {
-                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
-                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
-                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld),
-                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld)
-            };
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V16_RigidFrozenCameraCard_" + desc.Name, verts);
-        }
-
-        private static float GetWallSavedSpriteEmbedScreenPixelsV16LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            if (desc == null)
-                return 0.0f;
-
-            if (desc.SpriteIndex == 58 || desc.SpriteIndex == 59 || desc.SpriteIndex == 60 || desc.SpriteIndex == 63)
-                return C2WallObjectsV16BridgeEmbedScreenPixelsLikeOriginal;
-
-            if (desc.SpriteIndex == 70 || desc.SpriteIndex == 74)
-                return C2WallObjectsV16MinorEmbedScreenPixelsLikeOriginal;
-
-            return 0.0f;
-        }
-
-        private Mesh ApplyWallSavedSpriteEmbedV15LikeOriginal(Mesh source, WallSpriteDescV1LikeOriginal desc)
-        {
-            if (source == null || desc == null)
-                return source;
-
-            float embedPx = GetWallSavedSpriteEmbedPixelsV15LikeOriginal(desc);
-            if (embedPx <= 0.001f)
-                return source;
-
-            Vector3[] verts = source.vertices;
-            if (verts == null || verts.Length == 0)
-                return source;
-
-            float worldEmbed = embedPx * WallOriginalXYUnitToWorldScaleV8LikeOriginal();
-            for (int i = 0; i < verts.Length; i++)
-                verts[i].y -= worldEmbed;
-
-            Mesh mesh = new Mesh { name = source.name + "_V15_embed" };
-            mesh.vertices = verts;
-            mesh.uv = source.uv;
-            mesh.colors32 = source.colors32;
-            mesh.triangles = source.triangles;
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        private static float GetWallSavedSpriteEmbedPixelsV15LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            if (desc == null)
-                return 0.0f;
-
-            // Bridge/stair edge WL pieces. This is an adapted Unity placement offset:
-            // original formulas choose the line and connectors; Unity uses a small visual sink
-            // so the edge sits into the panplane instead of floating over it.
-            if (desc.SpriteIndex == 58 || desc.SpriteIndex == 59)
-                return C2WallObjectsV15BridgeEmbedPixelsLikeOriginal;
-
-            // Smaller fence/ground objects need less lowering.
-            if (desc.SpriteIndex == 60 || desc.SpriteIndex == 63 || desc.SpriteIndex == 70 || desc.SpriteIndex == 74)
-                return C2WallObjectsV15MinorEmbedPixelsLikeOriginal;
-
-            return 0.0f;
-        }
-
-
-        private Mesh ApplyWallSpriteBasisV13LikeOriginal(Mesh source, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (source == null || s == null || desc == null)
-                return source;
-
-            WallSpriteBasisV13LikeOriginal mode = _c2WallObjectsV13BasisModeLikeOriginal;
-            if (mode == WallSpriteBasisV13LikeOriginal.V12Aligned)
-                return source;
-
-            if (mode == WallSpriteBasisV13LikeOriginal.CameraPlaneCenterPivot || mode == WallSpriteBasisV13LikeOriginal.CameraPlaneBottomPivot)
-            {
-                Mesh cameraMesh = BuildSavedMapWallSpriteCameraPlaneBasisV13LikeOriginal(s, desc, wPx, hPx, mode == WallSpriteBasisV13LikeOriginal.CameraPlaneBottomPivot);
-                if (cameraMesh != null)
-                    return cameraMesh;
-                return source;
-            }
-
-            Vector3[] verts = source.vertices;
-            if (verts == null || verts.Length == 0)
-                return source;
-
-            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y) + desc.FixHeight);
-            for (int i = 0; i < verts.Length; i++)
-            {
-                Vector3 r = verts[i] - anchor;
-                if (mode == WallSpriteBasisV13LikeOriginal.FlipVertical)
-                {
-                    r.y = -r.y;
-                }
-                else if (mode == WallSpriteBasisV13LikeOriginal.FlipForward)
-                {
-                    r.z = -r.z;
-                }
-                else if (mode == WallSpriteBasisV13LikeOriginal.SwapVerticalForward)
-                {
-                    float oldY = r.y;
-                    r.y = r.z;
-                    r.z = oldY;
-                }
-                verts[i] = anchor + r;
-            }
-
-            Mesh mesh = new Mesh { name = source.name + "_V13_" + mode };
-            mesh.vertices = verts;
-            Vector2[] uv = source.uv;
-            mesh.uv = (uv != null && uv.Length == verts.Length) ? uv : GetWallSpriteQuadUvV8LikeOriginal();
-            Color32[] colors = source.colors32;
-            mesh.colors32 = (colors != null && colors.Length == verts.Length)
-                ? colors
-                : new[] { new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255) };
-            mesh.triangles = source.triangles;
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        private Mesh BuildSavedMapWallSpriteCameraPlaneBasisV13LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx, bool bottomPivot)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = bottomPivot ? hPx : GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-
-            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
-            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, terrain + desc.FixHeight);
-
-            Camera cam = Camera.main;
-            Vector3 right = Vector3.right;
-            Vector3 up = Vector3.up;
-            if (cam != null)
-            {
-                right = cam.transform.right;
-                up = cam.transform.up;
-            }
-
-            right.Normalize();
-            up.Normalize();
-
-            // Original frames are authored as camera-facing art. This mode tests that idea explicitly:
-            // local pixel X -> camera right, local pixel Y -> camera up, with Y inverted from top-left image coordinates.
-            Vector3[] verts =
-            {
-                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
-                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - 0.0f) * xyUnitToWorld),
-                anchor + right * ((wPx  - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld),
-                anchor + right * ((0.0f - cx) * xyUnitToWorld) + up * ((cy - hPx)  * xyUnitToWorld)
-            };
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V13_CameraPlane_" + (bottomPivot ? "Bottom_" : "Center_") + desc.Name, verts);
-        }
-
-        private string DescribeWallSpriteBasisVectorsV13LikeOriginal(Mesh mesh)
-        {
-            if (mesh == null || mesh.vertices == null || mesh.vertices.Length < 4)
-                return "basisVectors=missing";
-            Vector3[] v = mesh.vertices;
-            Vector3 right = v[1] - v[0];
-            Vector3 down = v[3] - v[0];
-            Vector3 up = -down;
-
-            string screen = string.Empty;
-            Camera cam = Camera.main;
-            if (cam != null)
-            {
-                Vector3 s0 = cam.WorldToScreenPoint(v[0]);
-                Vector3 sr = cam.WorldToScreenPoint(v[1]) - s0;
-                Vector3 su = cam.WorldToScreenPoint(v[3]) - s0;
-                screen = " screenRight=(" + sr.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                                           sr.y.ToString("0.###", CultureInfo.InvariantCulture) + ") " +
-                         "screenDown=(" + su.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                                          su.y.ToString("0.###", CultureInfo.InvariantCulture) + ")";
-            }
-
-            return "right=(" + right.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                              right.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                              right.z.ToString("0.###", CultureInfo.InvariantCulture) + ") " +
-                   "up=(" + up.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                           up.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                           up.z.ToString("0.###", CultureInfo.InvariantCulture) + ")" + screen;
-        }
-
-        private string DescribeWallSpriteCornersV13LikeOriginal(Mesh mesh)
-        {
-            if (mesh == null || mesh.vertices == null || mesh.vertices.Length < 4)
-                return "corners=missing";
-            Vector3[] v = mesh.vertices;
-            return "corners=[" +
-                   FormatWallVectorV13LikeOriginal(v[0]) + "][" +
-                   FormatWallVectorV13LikeOriginal(v[1]) + "][" +
-                   FormatWallVectorV13LikeOriginal(v[2]) + "][" +
-                   FormatWallVectorV13LikeOriginal(v[3]) + "]";
-        }
-
-        private static string FormatWallVectorV13LikeOriginal(Vector3 v)
-        {
-            return v.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                   v.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                   v.z.ToString("0.###", CultureInfo.InvariantCulture);
-        }
-
-
-        private static string GetSavedWallSpriteAdaptedDrawPathV10LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            if (C2WallObjectsV16UseRigidSavedWLSpriteCardsLikeOriginal)
-                return "RIGID_SAVED_WL_CARD_V16";
-            if (C2WallObjectsV11UseUniversalDepthlessCardForSavedWL)
-                return "UNIVERSAL_CARD_DEPTHLESS";
-            if (desc == null)
-                return "ADAPTED_BILLBOARD";
-            if ((desc.AlignMode == 'V' || desc.AlignMode == 'S') && desc.AlignPoints.Count >= 2)
-                return "ADAPTED_ALIGN_V";
-            if (desc.AlignMode == 'H')
-                return "ADAPTED_ALIGN_H";
-            if (desc.AlignMode == 'U' && desc.AlignPoints.Count >= 3)
-                return "ADAPTED_ALIGN_U";
-            return "ADAPTED_BILLBOARD";
-        }
-
-        private Mesh BuildSavedMapWallSpriteUniversalDepthlessCardV11LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            // V11 universal rule:
-            // Saved WL records from M3D are already chosen/ordered by the original map.
-            // For Unity we do NOT rebuild them as terrain-cut 3D quads and do NOT apply raw DirectX Matrix4D.
-            // We use the original data as formulas only:
-            //   sprite frame + original pivot/center + terrain anchor + 2.5D upright sprite card.
-            // ZTest Always is handled by WallObjectSpriteV7 so terrain cannot eat/slice these cards.
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
-
-            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y);
-            Vector3 anchor = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, terrain + desc.FixHeight);
-
-            Vector3 right = Vector3.right * xyUnitToWorld;
-            Vector3 up = Vector3.up * xyUnitToWorld;
-
-            // Sprite local coordinates are top-left. Pivot is CenterX/CenterY from walls.lst.
-            // World vertical must be cy - pixelY; otherwise fences/bridge pieces/huts appear upside-down.
-            Vector3[] verts =
-            {
-                anchor + right * (0.0f - cx)   + up * (cy - 0.0f),
-                anchor + right * (wPx - cx)    + up * (cy - 0.0f),
-                anchor + right * (wPx - cx)    + up * (cy - hPx),
-                anchor + right * (0.0f - cx)   + up * (cy - hPx)
-            };
-
-            // Keep the full visible sprite above the terrain anchor. Alpha pixels still form the real silhouette.
-            float minY = verts[0].y;
-            for (int i = 1; i < verts.Length; i++)
-                minY = Mathf.Min(minY, verts[i].y);
-
-            float allowedBelow = Mathf.Max(0.0f, C2WallObjectsV11AllowedBelowGroundPixels) * xyUnitToWorld;
-            float floorY = anchor.y - allowedBelow;
-            if (minY < floorY)
-            {
-                Vector3 lift = Vector3.up * (floorY - minY);
-                for (int i = 0; i < verts.Length; i++)
-                    verts[i] += lift;
-            }
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V11_UniversalCard_DisabledByV12_" + desc.Name, verts);
-        }
-
-        private Mesh BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null || desc.AlignPoints.Count < 2)
-                return null;
-
-            // Original formula source:
-            // GetAlignLineTransformWithScape(Center, pivot, x1,y1,x2,y2)
-            // but implemented as Unity mesh corners: local sprite point -> affine plane -> Unity world.
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-
-            float x1 = desc.AlignPoints[0].x;
-            float y1 = desc.AlignPoints[0].y;
-            float x2 = desc.AlignPoints[1].x;
-            float y2 = desc.AlignPoints[1].y;
-
-            float ox1 = s.X + x1 - cx;
-            float oy1 = s.Y + 2.0f * (y1 - cy);
-            float ox2 = s.X + x2 - cx;
-            float oy2 = s.Y + 2.0f * (y2 - cy);
-
-            float z1 = SampleWallHeightOriginalXYV1LikeOriginal(ox1, oy1) + desc.FixHeight;
-            float z2 = SampleWallHeightOriginalXYV1LikeOriginal(ox2, oy2) + desc.FixHeight;
-
-            const float dz = 128.0f;
-            float bias = 0.2f;
-            if (y1 < y2)
-                bias = -bias;
-
-            Vector2 s1 = new Vector2(x1, y1);
-            Vector2 s2 = new Vector2(x2, y2);
-            Vector2 s3 = new Vector2((x1 + x2) * 0.5f, (y1 + y2) * 0.5f - dz);
-
-            Vector3 w1 = OriginalWallXYZToWorldV6LikeOriginal(ox1, oy1 - bias, z1 + bias * 0.5f);
-            Vector3 w2 = OriginalWallXYZToWorldV6LikeOriginal(ox2, oy2 + bias, z2 - bias * 0.5f);
-            Vector3 w3 = OriginalWallXYZToWorldV6LikeOriginal(s.X, s.Y, (z1 + z2) * 0.5f + dz);
-
-            Vector3[] verts =
-            {
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), s1, s2, s3, w1, w2, w3)
-            };
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V12_VAlignDepthless_" + desc.Name, verts);
-        }
-
-        private Mesh BuildSavedMapWallSpriteGroundAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            // Original OneSprite::CreateMatrix atGround builds three support points around CenterX/CenterY
-            // and samples terrain. Unity version keeps the same three-point plane idea.
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-
-            const float tbias = -16.0f;
-            const float cos30 = 0.866025f;
-            float tbiasY = tbias * cos30;
-            float tbiasZ = tbias * 0.5f;
-            float bias = 0.0f;
-
-            Vector2 p1 = new Vector2(cx - 20.0f, cy - 5.0f);
-            Vector2 p2 = new Vector2(cx + 20.0f, cy - 5.0f);
-            Vector2 p3 = new Vector2(cx,        cy + 10.0f);
-
-            float wx1 = -20.0f;
-            float wy1 = -10.0f - tbiasY;
-            float wz1 = bias - tbiasZ;
-
-            float wx2 = 20.0f;
-            float wy2 = -10.0f - tbiasY;
-            float wz2 = bias - tbiasZ;
-
-            float wx3 = 0.0f;
-            float wy3 = 20.0f - tbiasY;
-            float wz3 = bias - tbiasZ;
-
-            float ox1 = s.X + wx1;
-            float oy1 = s.Y + wy1;
-            float ox2 = s.X + wx2;
-            float oy2 = s.Y + wy2;
-            float ox3 = s.X + wx3;
-            float oy3 = s.Y + wy3;
-
-            float h1 = SampleWallHeightOriginalXYV1LikeOriginal(ox1, oy1);
-            float h2 = SampleWallHeightOriginalXYV1LikeOriginal(ox2, oy2);
-            float h3 = SampleWallHeightOriginalXYV1LikeOriginal(ox3, oy3);
-
-            Vector3 w1 = OriginalWallXYZToWorldV6LikeOriginal(ox1, oy1, h1 + wz1 + desc.FixHeight);
-            Vector3 w2 = OriginalWallXYZToWorldV6LikeOriginal(ox2, oy2, h2 + wz2 + desc.FixHeight);
-            Vector3 w3 = OriginalWallXYZToWorldV6LikeOriginal(ox3, oy3, h3 + wz3 + desc.FixHeight);
-
-            Vector3[] verts =
-            {
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), p1, p2, p3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), p1, p2, p3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), p1, p2, p3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), p1, p2, p3, w1, w2, w3)
-            };
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V10_HAlign_" + desc.Name, verts);
-        }
-
-        private Mesh BuildSavedMapWallSpriteUniversalAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null || desc.AlignPoints.Count < 3)
-                return null;
-
-            // U-align in the active original parser is not a runtime Matrix4D path, but the data is useful:
-            // three local sprite support points form a semantic plane. Use it as an adapted Unity plane.
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-
-            Vector3 a = desc.AlignPoints[0];
-            Vector3 b = desc.AlignPoints[1];
-            Vector3 c = desc.AlignPoints[2];
-
-            Vector2 s1 = new Vector2(a.x, a.y);
-            Vector2 s2 = new Vector2(b.x, b.y);
-            Vector2 s3 = new Vector2(c.x, c.y);
-
-            Vector3 w1 = BuildWallWorldPointFromLocalUAlignV10LikeOriginal(s, desc, cx, cy, a);
-            Vector3 w2 = BuildWallWorldPointFromLocalUAlignV10LikeOriginal(s, desc, cx, cy, b);
-            Vector3 w3 = BuildWallWorldPointFromLocalUAlignV10LikeOriginal(s, desc, cx, cy, c);
-
-            Vector3[] verts =
-            {
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), s1, s2, s3, w1, w2, w3)
-            };
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V10_UAlign_" + desc.Name, verts);
-        }
-
-        private Vector3 BuildWallWorldPointFromLocalUAlignV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float cx, float cy, Vector3 local)
-        {
-            float ox = s.X + (local.x - cx);
-            float oy = s.Y + 2.0f * (local.y - cy);
-            float terrain = SampleWallHeightOriginalXYV1LikeOriginal(ox, oy);
-            return OriginalWallXYZToWorldV6LikeOriginal(ox, oy, terrain + local.z + desc.FixHeight);
-        }
-
-        private Mesh BuildSavedMapWallSpriteBillboardAdaptedMeshV10LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
-            float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
-            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
-
-            Vector3 center = WallOriginalXYToWorldV1LikeOriginal(s.X, s.Y, desc.FixHeight);
-            Vector3 right = Vector3.right;
-            Vector3 up = Vector3.up;
-
-            Vector3[] verts =
-            {
-                center + right * ((0.0f - cx) * xyUnitToWorld) + up * ((0.0f - cy) * xyUnitToWorld),
-                center + right * ((wPx - cx) * xyUnitToWorld) + up * ((0.0f - cy) * xyUnitToWorld),
-                center + right * ((wPx - cx) * xyUnitToWorld) + up * ((hPx - cy) * xyUnitToWorld),
-                center + right * ((0.0f - cx) * xyUnitToWorld) + up * ((hPx - cy) * xyUnitToWorld)
-            };
-
-            return CreateWallQuadMeshV10AdaptedLikeOriginal("C2_SavedMapWallSprite_V10_Billboard_" + desc.Name, verts);
-        }
-
-        private static float GetWallSpriteCenterXPxV10LikeOriginal(WallSpriteDescV1LikeOriginal desc, float wPx)
-        {
-            return desc != null && desc.Width > 0 ? desc.Width : wPx * 0.5f;
-        }
-
-        private static float GetWallSpriteCenterYPxV10LikeOriginal(WallSpriteDescV1LikeOriginal desc, float hPx)
-        {
-            return desc != null && desc.Height > 0 ? desc.Height : hPx * 0.5f;
-        }
-
-        private static Mesh CreateWallQuadMeshV10AdaptedLikeOriginal(string name, Vector3[] verts)
-        {
-            var mesh = new Mesh { name = name };
-            mesh.vertices = verts;
-            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
-            mesh.colors32 = new[]
-            {
-                new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255)
-            };
-            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        
-
-        private Mesh BuildSavedMapWallSpriteUAlignMeshV8LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null || desc.AlignPoints.Count < 3)
-                return null;
-
-            Vector3 center = WallOriginalXYToWorldV1LikeOriginal(s.X, s.Y, desc.FixHeight);
-            float xyUnitToWorld = WallOriginalXYUnitToWorldScaleV8LikeOriginal();
-            float zUnitToWorld = WallOriginalZUnitToWorldScaleV8LikeOriginal();
-            Vector2 pivot = GetWallSpritePivotPxV8LikeOriginal(desc, wPx, hPx);
-            float pivotPlaneZ = EvaluateWallUAlignPlaneZV4LikeOriginal(desc, pivot.x, pivot.y);
-
-            Vector2[] px =
-            {
-                new Vector2(0.0f, 0.0f),
-                new Vector2(wPx, 0.0f),
-                new Vector2(wPx, hPx),
-                new Vector2(0.0f, hPx)
-            };
-
-            Vector3 rightDir = Vector3.right;
-            Vector3 forwardDir = new Vector3(0.0f, 0.0f, WorldZSign);
-
-            Vector3[] verts = new Vector3[4];
-            for (int i = 0; i < 4; i++)
-            {
-                float dx = (px[i].x - pivot.x) * xyUnitToWorld;
-                float dy = (px[i].y - pivot.y) * xyUnitToWorld;
-                float dz = (EvaluateWallUAlignPlaneZV4LikeOriginal(desc, px[i].x, px[i].y) - pivotPlaneZ) * zUnitToWorld;
-                verts[i] = center + rightDir * dx + forwardDir * dy + Vector3.up * dz;
-            }
-
-            var mesh = new Mesh { name = "C2_SavedMapWallSprite_V8_UAlign_" + desc.Name };
-            mesh.vertices = verts;
-            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
-            mesh.colors32 = new[] { new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255) };
-            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        private Mesh BuildSavedMapWallSpriteVAlignMeshV7LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (s == null || desc == null || desc.AlignPoints.Count < 2)
-                return null;
-
-            Vector2 pivot = new Vector2(desc.AlignPoints[0].x, desc.AlignPoints[0].y);
-            Vector2 p1 = new Vector2(desc.AlignPoints[0].x, desc.AlignPoints[0].y);
-            Vector2 p2 = new Vector2(desc.AlignPoints[1].x, desc.AlignPoints[1].y);
-
-            float dx = (p2.y - p1.y) * 0.5f;
-            float dy = (p2.x - p1.x);
-            float dz = Mathf.Sqrt(dx * dx + dy * dy);
-            if (dz < 0.001f)
-                return null;
-
-            float ox1 = s.X + (p1.x - pivot.x);
-            float oy1 = s.Y + 2.0f * (p1.y - pivot.y);
-            float ox2 = s.X + (p2.x - pivot.x);
-            float oy2 = s.Y + 2.0f * (p2.y - pivot.y);
-
-            float z1 = SampleWallHeightOriginalXYV1LikeOriginal(ox1, oy1) + desc.FixHeight;
-            float z2 = SampleWallHeightOriginalXYV1LikeOriginal(ox2, oy2) + desc.FixHeight;
-            float zc = SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y) + desc.FixHeight;
-            float topAbsZ = (z1 + z2) * 0.5f + dz;
-
-            Vector3 w1 = WallOriginalXYToWorldV1LikeOriginal(ox1, oy1, z1 - SampleWallHeightOriginalXYV1LikeOriginal(ox1, oy1));
-            Vector3 w2 = WallOriginalXYToWorldV1LikeOriginal(ox2, oy2, z2 - SampleWallHeightOriginalXYV1LikeOriginal(ox2, oy2));
-            Vector3 w3 = WallOriginalXYToWorldV1LikeOriginal(s.X, s.Y, topAbsZ - SampleWallHeightOriginalXYV1LikeOriginal(s.X, s.Y));
-
-            Vector2 s1 = p1;
-            Vector2 s2 = p2;
-            Vector2 s3 = new Vector2((p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f - dz);
-
-            Vector3[] verts =
-            {
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, 0.0f), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, 0.0f), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(wPx, hPx), s1, s2, s3, w1, w2, w3),
-                AffineMapWallSpritePointV7LikeOriginal(new Vector2(0.0f, hPx), s1, s2, s3, w1, w2, w3)
-            };
-
-            var mesh = new Mesh { name = "C2_SavedMapWallSprite_V7_VAlign_" + desc.Name };
-            mesh.vertices = verts;
-            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
-            mesh.colors32 = new[] { new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255) };
-            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        private static Vector3 AffineMapWallSpritePointV7LikeOriginal(Vector2 p, Vector2 s1, Vector2 s2, Vector2 s3, Vector3 w1, Vector3 w2, Vector3 w3)
-        {
-            Vector2 e1 = s2 - s1;
-            Vector2 e2 = s3 - s1;
-            float det = e1.x * e2.y - e1.y * e2.x;
-            if (Mathf.Abs(det) < 0.0001f)
-                return w1;
-
-            Vector2 r = p - s1;
-            float a = (r.x * e2.y - r.y * e2.x) / det;
-            float b = (e1.x * r.y - e1.y * r.x) / det;
-            return w1 + (w2 - w1) * a + (w3 - w1) * b;
-        }
-
-        private Vector3 OriginalWallXYZToWorldV6LikeOriginal(float x, float y, float z)
-        {
-            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            float gx = x / 32.0f;
-            float gy = y / 32.0f;
-            float rawX = gx * kernel.BackingStepXWorld;
-            int ix = Mathf.FloorToInt(gx);
-            float rawZ = gy * kernel.BackingStepZWorld + (((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
-            float worldX = rawX - kernel.CenterX;
-            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
-            float worldY = z * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
-            return new Vector3(worldX, worldY, worldZ);
-        }
-
-        private Mesh BuildWallSpriteQuadMeshV1LikeOriginal(WallVisualPointV1LikeOriginal p, WallSpriteDescV1LikeOriginal desc)
-        {
-            if (desc == null)
-                desc = new WallSpriteDescV1LikeOriginal { Name = "NULL_DESC", Width = 64, Height = 64 };
-
-            Vector3 center = WallOriginalXYToWorldV1LikeOriginal(p.X, p.Y, p.Z + desc.FixHeight);
-            float wPx = Mathf.Max(8.0f, desc.Width);
-            float hPx = Mathf.Max(8.0f, desc.Height);
-
-            float a = p.Angle * Mathf.PI / 128.0f;
-            Vector3 rightDir = new Vector3(Mathf.Cos(a), 0.0f, -Mathf.Sin(a));
-            Vector3 forwardDir = new Vector3(Mathf.Sin(a), 0.0f, Mathf.Cos(a));
-
-            var mesh = new Mesh { name = "C2_WallObjectSpriteMesh_V6_" + desc.Name };
-
-            Vector3[] verts;
-            bool useUAlign = desc.AlignMode == 'U' && desc.AlignPoints.Count >= 3;
-
-            if (useUAlign)
-            {
-                // V4 fix:
-                // W48MOST1-W55MOST1 are ALIGNING U elements. They are not upright menu-like
-                // billboards. Original code uses three local support points with Z. Here we
-                // build a sloped local plane from those points and place the texture on that
-                // plane. This is the first Unity-side equivalent of original GetSkewTM().
-                Vector2[] px =
-                {
-                    new Vector2(0.0f, 0.0f),
-                    new Vector2(wPx, 0.0f),
-                    new Vector2(wPx, hPx),
-                    new Vector2(0.0f, hPx)
-                };
-
-                float scaleX = WallOriginalXYUnitToWorldScaleV8LikeOriginal() * Mathf.Max(0.001f, p.ScaleP);
-                float scaleY = WallOriginalXYUnitToWorldScaleV8LikeOriginal() * Mathf.Max(0.001f, p.ScaleO);
-                float scaleZ = WallOriginalZUnitToWorldScaleV8LikeOriginal() * Mathf.Max(0.001f, p.ScaleZ);
-
-                Vector2 pivot = GetWallSpritePivotPxV8LikeOriginal(desc, wPx, hPx);
-                float cx = pivot.x;
-                float cy = pivot.y;
-                float centerPlaneZ = EvaluateWallUAlignPlaneZV4LikeOriginal(desc, cx, cy);
-
-                verts = new Vector3[4];
-                for (int i = 0; i < 4; i++)
-                {
-                    float dx = (px[i].x - cx) * scaleX;
-                    float dy = (px[i].y - cy) * scaleY;
-                    float dz = (EvaluateWallUAlignPlaneZV4LikeOriginal(desc, px[i].x, px[i].y) - centerPlaneZ) * scaleZ;
-
-                    verts[i] = center + rightDir * dx + forwardDir * dy + Vector3.up * dz;
-                }
-            }
-            else
-            {
-                // Non-U elements remain old upright/quasi-sprite path until their original
-                // ALIGNING modes are ported separately.
-                float w = wPx * WallOriginalXYUnitToWorldScaleV8LikeOriginal() * p.ScaleP;
-                float h = hPx * WallOriginalXYUnitToWorldScaleV8LikeOriginal() * p.ScaleO;
-                Vector3 right = rightDir * (w * 0.5f);
-                Vector3 up = Vector3.up * h;
-
-                verts = new[]
-                {
-                    center - right,
-                    center + right,
-                    center + right + up,
-                    center - right + up
-                };
-            }
-
-            mesh.vertices = verts;
-            mesh.uv = GetWallSpriteQuadUvV8LikeOriginal();
-            mesh.colors32 = new[]
-            {
-                new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255), new Color32(255,255,255,255)
-            };
-            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        private float WallOriginalXYUnitToWorldScaleV8LikeOriginal()
-        {
-            if (_map == null)
-                return C2WallObjectsV1SpriteWorldScaleLikeOriginal;
-
-            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            return kernel.BackingStepXWorld / 32.0f;
-        }
-
-        private float WallOriginalZUnitToWorldScaleV8LikeOriginal()
-        {
-            if (_map == null)
-                return 1.0f;
-
-            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            return kernel.HeightScale;
-        }
-
-        private static Vector2 GetWallSpritePivotPxV8LikeOriginal(WallSpriteDescV1LikeOriginal desc, float wPx, float hPx)
-        {
-            if (desc != null && desc.AlignPoints.Count > 0)
-                return new Vector2(desc.AlignPoints[0].x, desc.AlignPoints[0].y);
-
-            return new Vector2(wPx * 0.5f, hPx * 0.5f);
-        }
-
-        private static Vector2[] GetWallSpriteQuadUvV8LikeOriginal()
-        {
-            // Original object/sprite descriptors use top-left image coordinates. Unity mesh UVs are bottom-left.
-            // V8 flips V once at the mesh layer; the decoded RGBA bytes stay untouched.
-            return new[]
-            {
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0), new Vector2(0, 0)
-            };
-        }
-
-        private static float EvaluateWallUAlignPlaneZV4LikeOriginal(WallSpriteDescV1LikeOriginal desc, float x, float y)
-        {
-            if (desc == null || desc.AlignPoints.Count < 3)
-                return 0.0f;
-
-            Vector3 a = desc.AlignPoints[0];
-            Vector3 b = desc.AlignPoints[1];
-            Vector3 c = desc.AlignPoints[2];
-
-            float det = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-            if (Mathf.Abs(det) < 0.0001f)
-                return (a.z + b.z + c.z) / 3.0f;
-
-            float u = ((x - a.x) * (c.y - a.y) - (c.x - a.x) * (y - a.y)) / det;
-            float v = ((b.x - a.x) * (y - a.y) - (x - a.x) * (b.y - a.y)) / det;
-            return a.z + u * (b.z - a.z) + v * (c.z - a.z);
-        }
-
-        private Vector3 WallOriginalXYToWorldV1LikeOriginal(float x, float y, float extraZ)
-        {
-            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            float gx = x / 32.0f;
-            float gy = y / 32.0f;
-            float rawX = gx * kernel.BackingStepXWorld;
-            int ix = Mathf.FloorToInt(gx);
-            float rawZ = gy * kernel.BackingStepZWorld + (((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
-            float worldX = rawX - kernel.CenterX;
-            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
-            float worldY = SampleWallHeightOriginalXYV1LikeOriginal(x, y) * kernel.HeightScale + extraZ * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
-            return new Vector3(worldX, worldY, worldZ);
-        }
-
-        private float SampleWallHeightOriginalXYV1LikeOriginal(float x, float y)
-        {
-            if (_map == null || _map.Heights == null || _map.Heights.Length == 0 || _map.VertInLine <= 1 || _map.MaxTH <= 1)
-                return 0.0f;
-
-            // Original MapSprites::GetHeight samples the Cossacks hex/triangle height cell,
-            // not a Unity-style bilinear grid. WALLS CreateMatrix/AddExtraHeightObject depend on this.
-            int ix = Mathf.FloorToInt(x);
-            int iy = Mathf.FloorToInt(y);
-            int maxX = Mathf.Max(0, (_map.VertInLine - 2) * 32);
-            int maxY = Mathf.Max(32, (_map.MaxTH - 2) * 32);
-            if (ix < 0) ix = 0;
-            if (iy < 32) iy = 32;
-            if (ix > maxX) ix = maxX;
-            if (iy > maxY) iy = maxY;
-
-            int nx = ix >> 5;
-            int vert1;
-            int vert2;
-            int vert3;
-            int x0;
-            int y0;
-
-            if ((nx & 1) != 0)
-            {
-                int dd = ix & 31;
-                int dy = dd >> 1;
-                int oy = 15 - dy;
-                int y1 = (iy + oy) >> 5;
-                int dy1 = (iy + oy) & 31;
-                y1 = Mathf.Clamp(y1, 0, _map.MaxTH - 2);
-
-                if (dy1 > 32 - dd)
-                {
-                    vert2 = nx + y1 * _map.VertInLine + 1;
-                    vert3 = vert2 + _map.VertInLine;
-                    vert1 = vert3 - 1;
-                    x0 = nx << 5;
-                    y0 = (y1 << 5) + 16;
-                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
-                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
-                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
-                    return h1 + (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
-                }
-                else
-                {
-                    vert2 = nx + y1 * _map.VertInLine;
-                    vert3 = vert2 + _map.VertInLine;
-                    vert1 = vert2 + 1;
-                    x0 = (nx << 5) + 32;
-                    y0 = y1 << 5;
-                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
-                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
-                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
-                    return h1 - (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
-                }
-            }
-            else
-            {
-                int dd = ix & 31;
-                int dy = dd >> 1;
-                int y1 = (iy + dy) >> 5;
-                int dy1 = (iy + dy) & 31;
-                y1 = Mathf.Clamp(y1, 0, _map.MaxTH - 2);
-
-                if (dy1 < dd)
-                {
-                    vert1 = nx + y1 * _map.VertInLine;
-                    vert2 = vert1 + 1;
-                    vert3 = vert2 + _map.VertInLine;
-                    x0 = nx << 5;
-                    y0 = y1 << 5;
-                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
-                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
-                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
-                    return h1 + (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
-                }
-                else
-                {
-                    vert2 = nx + y1 * _map.VertInLine;
-                    vert3 = vert2 + _map.VertInLine;
-                    vert1 = vert3 + 1;
-                    x0 = (nx << 5) + 32;
-                    y0 = (y1 << 5) + 16;
-                    int h1 = ReadWallTHMapHeightV45LikeOriginal(vert1);
-                    int h2 = ReadWallTHMapHeightV45LikeOriginal(vert2);
-                    int h3 = ReadWallTHMapHeightV45LikeOriginal(vert3);
-                    return h1 - (((ix - x0) * (((h2 + h3) >> 1) - h1)) >> 5) + (((iy - y0) * (h3 - h2)) >> 5);
-                }
-            }
-        }
-
-        private int ReadWallTHMapHeightV45LikeOriginal(int vertexIndex)
-        {
-            if (_map == null || _map.Heights == null || _map.Heights.Length == 0)
-                return 0;
-
-            int safeIndex = Mathf.Clamp(vertexIndex, 0, _map.Heights.Length - 1);
-            return Mathf.RoundToInt(_map.Heights[safeIndex]);
-        }
-
-        private void AccumulateWallC2MImmHeightLockLayerV25LikeOriginal(
-            WallIMMHeightLockLayerV25LikeOriginal layer,
-            WallSavedMapSpriteV6LikeOriginal s,
-            WallSpriteDescV1LikeOriginal desc,
-            WallC2MParsedMeshV23LikeOriginal c2m,
-            string loadAudit,
-            int order)
-        {
-            if (!C2WallObjectsV25ApplyIMMHeightLockLayerLikeOriginal || layer == null)
-                return;
-            if (s == null || desc == null || c2m == null)
-            {
-                if (layer.Audit.Count < C2WallObjectsV25ImmLayerAuditLimitLikeOriginal)
-                    layer.Audit.Add("order=" + order.ToString(CultureInfo.InvariantCulture) + " missing_c2m load=" + (loadAudit ?? string.Empty));
-                return;
-            }
-
-            if (c2m.Navimesh != null)
-                ScanWallC2MGeomIntoIMMLayerV25LikeOriginal(layer, s, desc, c2m.Navimesh, true, order);
-            else
-                layer.MissingNavimesh++;
-
-            if (c2m.Lockmesh != null)
-                ScanWallC2MGeomIntoIMMLayerV25LikeOriginal(layer, s, desc, c2m.Lockmesh, false, order);
-            else
-                layer.MissingLockmesh++;
-        }
-
-        private void ScanWallC2MGeomIntoIMMLayerV25LikeOriginal(
-            WallIMMHeightLockLayerV25LikeOriginal layer,
-            WallSavedMapSpriteV6LikeOriginal s,
-            WallSpriteDescV1LikeOriginal desc,
-            WallC2MParsedMeshV23LikeOriginal geom,
-            bool heightLayer,
-            int order)
-        {
-            if (layer == null || s == null || desc == null || geom == null || geom.Vertices == null || geom.Vertices.Length == 0)
-                return;
-
-            int beforeCells = heightLayer ? layer.HeightByCell.Count : layer.LockedCells.Count;
-            int beforeSamples = heightLayer ? layer.HeightSamples : layer.LockSamples;
-            int step = Mathf.Max(1, C2WallObjectsV25ScanCellSizeOriginalPixelsLikeOriginal);
-
-            for (int i = 0; i < geom.Vertices.Length; i++)
-            {
-                Vector3 local = geom.Vertices[i];
-                Vector3 original = s.HasMatrix
-                    ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local)
-                    : new Vector3(s.X + local.x, s.Y + local.y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + local.x, s.Y + local.y) + local.z);
-
-                int cx = Mathf.FloorToInt(original.x / step);
-                int cy = Mathf.FloorToInt(original.y / step);
-                long key = PackWallIMMCellKeyV25LikeOriginal(cx, cy);
-
-                if (heightLayer)
-                {
-                    float terrain = SampleWallHeightOriginalXYV1LikeOriginal(original.x, original.y);
-                    float delta = original.z - terrain;
-                    if (!layer.HeightByCell.TryGetValue(key, out float oldDelta) || delta > oldDelta)
-                        layer.HeightByCell[key] = delta;
-                    if (delta < layer.MinDelta) layer.MinDelta = delta;
-                    if (delta > layer.MaxDelta) layer.MaxDelta = delta;
-                    layer.HeightSamples++;
-                }
-                else
-                {
-                    layer.LockedCells.Add(key);
-                    layer.LockSamples++;
-                }
-            }
-
-            layer.HeightCells = layer.HeightByCell.Count;
-            layer.LockCells = layer.LockedCells.Count;
-
-            if (layer.Audit.Count < C2WallObjectsV25ImmLayerAuditLimitLikeOriginal)
-            {
-                int afterCells = heightLayer ? layer.HeightByCell.Count : layer.LockedCells.Count;
-                int afterSamples = heightLayer ? layer.HeightSamples : layer.LockSamples;
-                layer.Audit.Add("order=" + order.ToString(CultureInfo.InvariantCulture) +
-                                " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                                " name=" + desc.Name +
-                                " model=" + (string.IsNullOrWhiteSpace(desc.ModelPath) ? "-" : desc.ModelPath) +
-                                " layer=" + (heightLayer ? "NavimeshHeight" : "LockmeshLock") +
-                                " node=" + geom.NodeName +
-                                " samples+=" + (afterSamples - beforeSamples).ToString(CultureInfo.InvariantCulture) +
-                                " cells+=" + (afterCells - beforeCells).ToString(CultureInfo.InvariantCulture));
-            }
-        }
-
-        private static long PackWallIMMCellKeyV25LikeOriginal(int x, int y)
-        {
-            unchecked
-            {
-                return ((long)x << 32) ^ (uint)y;
-            }
-        }
-
-        private string BuildWallC2MImmLayerSummaryV25LikeOriginal(WallIMMHeightLockLayerV25LikeOriginal layer)
-        {
-            if (layer == null)
-                return "[C2:WALL IMM LAYER V26] missing";
-            string delta = (layer.HeightSamples > 0 && !float.IsInfinity(layer.MinDelta) && !float.IsInfinity(layer.MaxDelta))
-                ? layer.MinDelta.ToString("0.###", CultureInfo.InvariantCulture) + ".." + layer.MaxDelta.ToString("0.###", CultureInfo.InvariantCulture)
-                : "none";
-            string audit = layer.Audit.Count > 0 ? string.Join(" | ", layer.Audit.ToArray()) : "none";
-            return "[C2:WALL IMM LAYER V26] contract=" + C2WallObjectsV25IMMContractLikeOriginal +
-                   " heightSamples=" + layer.HeightSamples.ToString(CultureInfo.InvariantCulture) +
-                   " heightCells=" + layer.HeightCells.ToString(CultureInfo.InvariantCulture) +
-                   " lockSamples=" + layer.LockSamples.ToString(CultureInfo.InvariantCulture) +
-                   " lockCells=" + layer.LockCells.ToString(CultureInfo.InvariantCulture) +
-                   " missingNav=" + layer.MissingNavimesh.ToString(CultureInfo.InvariantCulture) +
-                   " missingLock=" + layer.MissingLockmesh.ToString(CultureInfo.InvariantCulture) +
-                   " delta=" + delta +
-                   " audit=" + audit;
-        }
-
-        private void AddWallC2MLockMeshColliderV25LikeOriginal(GameObject go, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallC2MParsedMeshV23LikeOriginal lockMesh, WallSavedWLRouteDecisionV20LikeOriginal route)
-        {
-            if (go == null || s == null || desc == null || lockMesh == null || lockMesh.Vertices == null || lockMesh.Vertices.Length == 0 || lockMesh.Triangles == null || lockMesh.Triangles.Length < 3)
-                return;
-
-            try
-            {
-                Vector3[] verts = new Vector3[lockMesh.Vertices.Length];
-                for (int i = 0; i < lockMesh.Vertices.Length; i++)
-                {
-                    Vector3 local = lockMesh.Vertices[i];
-                    Vector3 original = s.HasMatrix && route != null && route.UseSavedM4
-                        ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local)
-                        : new Vector3(s.X + local.x, s.Y + local.y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + local.x, s.Y + local.y) + local.z);
-                    verts[i] = OriginalWallXYZToWorldV6LikeOriginal(original.x, original.y, original.z + desc.FixHeight + C2WallObjectsV25LockColliderYOffsetPixelsLikeOriginal);
-                }
-
-                var colliderMesh = new Mesh { name = "C2_WallLockmeshCollider_V25_" + desc.Name };
-                if (verts.Length > 65000)
-                    colliderMesh.indexFormat = IndexFormat.UInt32;
-                colliderMesh.vertices = verts;
-                colliderMesh.triangles = lockMesh.Triangles;
-                colliderMesh.RecalculateBounds();
-
-                MeshCollider col = go.AddComponent<MeshCollider>();
-                col.sharedMesh = colliderMesh;
-                col.convex = false;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning("[C2:WALL IMM LAYER V26] failed to create lock collider for " + desc.Name + ": " + ex.Message);
-            }
-        }
-
-        private string BuildWallC2MImmScanAuditV24LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallC2MParsedMeshV23LikeOriginal c2m)
-        {
-            if (!C2WallObjectsV24AuditIMMHeightLockScanLikeOriginal)
-                return "imm_scan=disabled";
-            if (s == null || desc == null || c2m == null)
-                return "imm_scan=missing_input";
-
-            string nav = BuildWallC2MGeomScanPartV24LikeOriginal("Navimesh", s, desc, c2m.Navimesh);
-            string lockMesh = BuildWallC2MGeomScanPartV24LikeOriginal("Lockmesh", s, desc, c2m.Lockmesh);
-            string visual = c2m.HasLocalBounds
-                ? "carcassBounds=(" + FormatVector3V24LikeOriginal(c2m.LocalBoundsMin) + ")->(" + FormatVector3V24LikeOriginal(c2m.LocalBoundsMax) + ")"
-                : "carcassBounds=none";
-            return C2WallObjectsV24IMMContractLikeOriginal + " " + visual + " " + nav + " " + lockMesh;
-        }
-
-        private string BuildWallC2MGeomScanPartV24LikeOriginal(string label, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallC2MParsedMeshV23LikeOriginal geom)
-        {
-            if (geom == null || geom.Vertices == null || geom.Vertices.Length == 0)
-                return label + "=missing";
-
-            int samples = Mathf.Min(geom.Vertices.Length, 32);
-            float minDelta = float.PositiveInfinity;
-            float maxDelta = float.NegativeInfinity;
-            float minX = float.PositiveInfinity;
-            float maxX = float.NegativeInfinity;
-            float minY = float.PositiveInfinity;
-            float maxY = float.NegativeInfinity;
-
-            int step = Mathf.Max(1, geom.Vertices.Length / samples);
-            int used = 0;
-            for (int i = 0; i < geom.Vertices.Length && used < samples; i += step)
-            {
-                Vector3 local = geom.Vertices[i];
-                Vector3 original = s.HasMatrix
-                    ? TransformOriginalMatrix4DPointV19LikeOriginal(s.Matrix, local)
-                    : new Vector3(s.X + local.x, s.Y + local.y, SampleWallHeightOriginalXYV1LikeOriginal(s.X + local.x, s.Y + local.y) + local.z);
-
-                float terrain = SampleWallHeightOriginalXYV1LikeOriginal(original.x, original.y);
-                float delta = original.z - terrain;
-                if (delta < minDelta) minDelta = delta;
-                if (delta > maxDelta) maxDelta = delta;
-                if (original.x < minX) minX = original.x;
-                if (original.x > maxX) maxX = original.x;
-                if (original.y < minY) minY = original.y;
-                if (original.y > maxY) maxY = original.y;
-                used++;
-            }
-
-            if (used == 0)
-                return label + "=empty";
-
-            return label +
-                   "(v=" + geom.Vertices.Length.ToString(CultureInfo.InvariantCulture) +
-                   ",i=" + (geom.Triangles != null ? geom.Triangles.Length : 0).ToString(CultureInfo.InvariantCulture) +
-                   ",scan=" + used.ToString(CultureInfo.InvariantCulture) +
-                   ",xy=(" + minX.ToString("0.#", CultureInfo.InvariantCulture) + "," + minY.ToString("0.#", CultureInfo.InvariantCulture) +
-                   ")->(" + maxX.ToString("0.#", CultureInfo.InvariantCulture) + "," + maxY.ToString("0.#", CultureInfo.InvariantCulture) + ")" +
-                   ",zMinusTerrain=" + minDelta.ToString("0.###", CultureInfo.InvariantCulture) +
-                   ".." + maxDelta.ToString("0.###", CultureInfo.InvariantCulture) + ")";
-        }
-
-        private static string FormatVector3V24LikeOriginal(Vector3 v)
-        {
-            return v.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                   v.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                   v.z.ToString("0.###", CultureInfo.InvariantCulture);
-        }
-
-        private string BuildWallC2MRenderMaterialAuditLineV26LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
-        {
-            if (desc == null)
-                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " missing_desc";
-
-            WallC2MParsedMeshV23LikeOriginal c2m = TryLoadWallC2MVisualMeshV23LikeOriginal(desc.ModelPath, out string audit);
-            string colorStats = c2m != null ? BuildWallC2MVertexColorStatsV26LikeOriginal(c2m) : "c2m_not_loaded audit=" + audit;
-            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
-                   " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                   " name=" + desc.Name +
-                   " model=" + (string.IsNullOrWhiteSpace(desc.ModelPath) ? "-" : desc.ModelPath) +
-                   " shader=Cossacks2Bridge/WallC2MVertexColorV26" +
-                   " queue=" + C2WallObjectsV24ModelRenderQueueLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                   " zWrite=On zTest=LEqual cull=Off offset=-1,-1" +
-                   " contract=" + C2WallObjectsV26RenderContractLikeOriginal +
-                   " " + colorStats;
-        }
-
-        private static string BuildWallC2MVertexColorStatsV26LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m)
-        {
-            if (c2m == null || c2m.Colors == null || c2m.Colors.Length == 0)
-                return "vertexColors=missing";
-
-            int minR = 255, minG = 255, minB = 255, minA = 255;
-            int maxR = 0, maxG = 0, maxB = 0, maxA = 0;
-            long sumR = 0, sumG = 0, sumB = 0, sumA = 0;
-            for (int i = 0; i < c2m.Colors.Length; i++)
-            {
-                Color32 c = c2m.Colors[i];
-                minR = Mathf.Min(minR, c.r); minG = Mathf.Min(minG, c.g); minB = Mathf.Min(minB, c.b); minA = Mathf.Min(minA, c.a);
-                maxR = Mathf.Max(maxR, c.r); maxG = Mathf.Max(maxG, c.g); maxB = Mathf.Max(maxB, c.b); maxA = Mathf.Max(maxA, c.a);
-                sumR += c.r; sumG += c.g; sumB += c.b; sumA += c.a;
-            }
-            float inv = 1.0f / Mathf.Max(1, c2m.Colors.Length);
-            return "vertexColors=count=" + c2m.Colors.Length.ToString(CultureInfo.InvariantCulture) +
-                   " min=(" + minR.ToString(CultureInfo.InvariantCulture) + "," + minG.ToString(CultureInfo.InvariantCulture) + "," + minB.ToString(CultureInfo.InvariantCulture) + "," + minA.ToString(CultureInfo.InvariantCulture) + ")" +
-                   " max=(" + maxR.ToString(CultureInfo.InvariantCulture) + "," + maxG.ToString(CultureInfo.InvariantCulture) + "," + maxB.ToString(CultureInfo.InvariantCulture) + "," + maxA.ToString(CultureInfo.InvariantCulture) + ")" +
-                   " avg=(" + (sumR * inv).ToString("0.#", CultureInfo.InvariantCulture) + "," + (sumG * inv).ToString("0.#", CultureInfo.InvariantCulture) + "," + (sumB * inv).ToString("0.#", CultureInfo.InvariantCulture) + "," + (sumA * inv).ToString("0.#", CultureInfo.InvariantCulture) + ")";
-        }
-
-        private static bool IsWallDambaC2MModelV33LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            if (desc == null)
-                return false;
-
-            int id = desc.SpriteIndex;
-            if (id >= 60 && id <= 67)
-                return true;
-
-            string model = desc.ModelPath ?? string.Empty;
-            return model.IndexOf("dam", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   model.IndexOf("cmost", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        private static string BuildWallDambaChainAuditLineV33LikeOriginal(
-            int order,
-            WallSpriteDescV1LikeOriginal desc,
-            Texture2D tex,
-            string textureSource,
-            WallC2MParsedMeshV23LikeOriginal c2m,
-            string loadAudit,
-            WallSavedWLRouteDecisionV20LikeOriginal route)
-        {
-            if (desc == null)
-                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " desc=null";
-
-            string section = (desc.SpriteIndex >= 60 && desc.SpriteIndex <= 65) ? "#DAMBA" :
-                             (desc.SpriteIndex == 66 || desc.SpriteIndex == 67) ? "#OLDMOST" : "#MODEL";
-            bool texReal = tex != null && tex != Texture2D.whiteTexture;
-            string texInfo = texReal
-                ? tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture)
-                : "white_or_missing";
-
-            int v = c2m != null && c2m.Vertices != null ? c2m.Vertices.Length : 0;
-            int tri = c2m != null && c2m.Triangles != null ? c2m.Triangles.Length / 3 : 0;
-            int uv = c2m != null && c2m.UV != null ? c2m.UV.Length : 0;
-            int col = c2m != null && c2m.Colors != null ? c2m.Colors.Length : 0;
-            bool allWhite = c2m != null && AreWallC2MColorsAllWhiteV33LikeOriginal(c2m.Colors);
-            string nav = c2m != null && c2m.Navimesh != null ? "nav=yes" : "nav=no";
-            string lockm = c2m != null && c2m.Lockmesh != null ? "lock=yes" : "lock=no";
-
-            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
-                   " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                   " name=" + desc.Name +
-                   " section=" + section +
-                   " model='" + (desc.ModelPath ?? string.Empty) + "'" +
-                   " route=" + (route != null ? route.Route.ToString() : "-") +
-                   " path='" + (route != null ? route.Path : string.Empty) + "'" +
-                   " texture=WALLS.g16#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                   " textureReal=" + texReal +
-                   " texSize=" + texInfo +
-                   " uv=" + uv.ToString(CultureInfo.InvariantCulture) +
-                   " verts=" + v.ToString(CultureInfo.InvariantCulture) +
-                   " tris=" + tri.ToString(CultureInfo.InvariantCulture) +
-                   " colors=" + col.ToString(CultureInfo.InvariantCulture) +
-                   " colorsAllWhite=" + allWhite +
-                   " gpobj=" + FormatWallC2MGPObjBriefV40LikeOriginal(c2m != null ? c2m.GPObj : null) +
-                   " alphaMode=" + (IsWallDambaC2MModelV33LikeOriginal(desc) && !C2WallObjectsV33UseWallSpriteTextureForDambaC2MLikeOriginal ? "C2M_base_no_WALLS_fullUV" : (C2WallObjectsV36MakeDambaTextureOpaqueLikeOriginal ? "opaqueTexture_fullC2M" : (C2WallObjectsV35UseSeparateDambaSideOverlayLikeOriginal ? "baseOpaque_plus_sideOverlay" : (C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal ? "solidRGB_no_sprite_alpha" : "spriteAlphaCutout")))) +
-                   " zTest=" + (C2WallObjectsV34ForceDambaVisibleOverTerrainUntilExtraHeightPipelineLikeOriginal ? "Always_until_extraheight" : "LEqual") +
-                   " " + nav + " " + lockm +
-                   " source='" + (textureSource ?? string.Empty) + "'" +
-                   " loadAudit='" + (loadAudit ?? string.Empty) + "'";
-        }
-
-        private static bool AreWallC2MColorsAllWhiteV33LikeOriginal(Color32[] colors)
-        {
-            if (colors == null || colors.Length == 0)
-                return false;
-            for (int i = 0; i < colors.Length; i++)
-            {
-                Color32 c = colors[i];
-                if (c.r != 255 || c.g != 255 || c.b != 255)
-                    return false;
-            }
-            return true;
-        }
-
-        private static Texture2D MakeDambaTextureOpaqueV36LikeOriginal(Texture2D src, WallSpriteDescV1LikeOriginal desc, out string audit)
-        {
-            audit = "opaque=noop";
-            if (src == null || ReferenceEquals(src, Texture2D.whiteTexture))
-                return src;
-
-            try
-            {
-                Color32[] px = src.GetPixels32();
-                if (px == null || px.Length == 0)
-                    return src;
-
-                long sr = 0, sg = 0, sb = 0;
-                int visible = 0;
-                for (int i = 0; i < px.Length; i++)
-                {
-                    Color32 c = px[i];
-                    if (c.a > 8)
-                    {
-                        sr += c.r;
-                        sg += c.g;
-                        sb += c.b;
-                        visible++;
-                    }
-                }
-
-                byte ar = visible > 0 ? (byte)Mathf.Clamp(Mathf.RoundToInt(sr / (float)visible), 0, 255) : (byte)128;
-                byte ag = visible > 0 ? (byte)Mathf.Clamp(Mathf.RoundToInt(sg / (float)visible), 0, 255) : (byte)128;
-                byte ab = visible > 0 ? (byte)Mathf.Clamp(Mathf.RoundToInt(sb / (float)visible), 0, 255) : (byte)128;
-                Color32 fill = new Color32(ar, ag, ab, 255);
-
-                int transparent = 0;
-                for (int i = 0; i < px.Length; i++)
-                {
-                    if (px[i].a <= 8)
-                    {
-                        px[i] = fill;
-                        transparent++;
-                    }
-                    else
-                    {
-                        Color32 c = px[i];
-                        c.a = 255;
-                        px[i] = c;
-                    }
-                }
-
-                var outTex = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false, false)
-                {
-                    name = "C2_DAMBA_V36_Opaque_" + (desc != null ? desc.Name : src.name),
-                    filterMode = FilterMode.Point,
-                    wrapMode = TextureWrapMode.Clamp
-                };
-                outTex.SetPixels32(px);
-                outTex.Apply(false, false);
-                audit = "opaque=yes visible=" + visible.ToString(CultureInfo.InvariantCulture) +
-                        " transparentFilled=" + transparent.ToString(CultureInfo.InvariantCulture) +
-                        " fill=(" + ar.ToString(CultureInfo.InvariantCulture) + "," +
-                                   ag.ToString(CultureInfo.InvariantCulture) + "," +
-                                   ab.ToString(CultureInfo.InvariantCulture) + ")";
-                return outTex;
-            }
-            catch (Exception ex)
-            {
-                audit = "opaque=failed " + ex.GetType().Name + ":" + ex.Message;
-                return src;
-            }
-        }
-
-        private static bool NeedsFenceVerticalRaiseV35LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
-        {
-            if (s == null || desc == null || route == null)
-                return false;
-            if (route.Route != WallDrawRouteV20LikeOriginal.SavedFence)
-                return false;
-            if (!route.UseSavedM4 || !s.HasMatrix)
-                return false;
-
-            // Only compensate the problematic fence runs whose saved basis is oriented mostly along original Y.
-            // Horizontal runs were already visually acceptable.
-            return Mathf.Abs(s.Matrix.m01) > Mathf.Abs(s.Matrix.m00);
-        }
-
-        private Mesh OffsetWallMeshWorldYV35LikeOriginal(Mesh source, float pixels)
-        {
-            if (source == null || Mathf.Abs(pixels) <= 0.001f)
-                return source;
-
-            Vector3[] verts = source.vertices;
-            if (verts == null || verts.Length == 0)
-                return source;
-
-            float dy = pixels * WallOriginalXYUnitToWorldScaleV8LikeOriginal();
-            Vector3[] shifted = new Vector3[verts.Length];
-            for (int i = 0; i < verts.Length; i++)
-            {
-                shifted[i] = verts[i];
-                shifted[i].y += dy;
-            }
-
-            Mesh mesh = new Mesh { name = source.name + "_V35_raise" };
-            mesh.vertices = shifted;
-            mesh.uv = source.uv;
-            mesh.colors32 = source.colors32;
-            mesh.triangles = source.triangles;
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        private bool TryAttachDambaSideOverlayV35LikeOriginal(GameObject owner, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route, Material fallbackBase, out string audit)
-        {
-            audit = string.Empty;
-            if (owner == null || s == null || desc == null || route == null)
-            {
-                audit = "bad_args";
-                return false;
-            }
-            if (!IsWallDambaC2MModelV33LikeOriginal(desc))
-            {
-                audit = "not_damba";
-                return false;
-            }
-
-            Texture2D tex = TryLoadWallSpriteTextureV1LikeOriginal(desc, out string source);
-            if (tex == null)
-            {
-                audit = "overlay_missing_texture after " + (source ?? string.Empty);
-                return false;
-            }
-
-            Mesh overlayMesh = BuildDambaSideOverlayMeshV35LikeOriginal(s, desc, tex, route);
-            if (overlayMesh == null)
-            {
-                audit = "overlay_mesh_null source='" + (source ?? string.Empty) + "'";
-                return false;
-            }
-
-            GameObject child = new GameObject("DambaSideOverlayV35_" + desc.Name);
-            child.transform.SetParent(owner.transform, false);
-            MeshFilter mf = child.AddComponent<MeshFilter>();
-            MeshRenderer mr = child.AddComponent<MeshRenderer>();
-            ApplyWallRendererShadowContractV44LikeOriginal(mr);
-            mf.sharedMesh = overlayMesh;
-            mr.sharedMaterial = CreateWallSpriteMaterialV29LikeOriginal(tex, desc, null, fallbackBase);
-            mr.sortingOrder = Mathf.Clamp(s.Y, -32768, 32767);
-            audit = "overlay=attached id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                    " name=" + desc.Name +
-                    " source='" + (source ?? string.Empty) +
-                    "' contract='" + C2WallObjectsV35DambaRenderContractLikeOriginal + "'";
-            return true;
-        }
-
-        private Mesh BuildDambaSideOverlayMeshV35LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, Texture2D tex, WallSavedWLRouteDecisionV20LikeOriginal route)
-        {
-            if (s == null || desc == null)
-                return null;
-
-            float wPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.width) : Mathf.Max(8.0f, desc.Width * 2.0f);
-            float hPx = tex != null && tex != Texture2D.whiteTexture ? Mathf.Max(8.0f, tex.height) : Mathf.Max(8.0f, desc.Height * 2.0f);
-
-            Mesh mesh = null;
-            if (route.UseSavedM4 && s.HasMatrix)
-                mesh = BuildSavedMapWallSpriteSavedM4MeshV21LikeOriginal(s, desc, wPx, hPx, route.FlipLocalY, "DambaSideOverlayV35_SavedM4");
-
-            if (mesh == null)
-            {
-                mesh = BuildSavedMapWallSpriteVerticalAdaptedMeshV10LikeOriginal(s, desc, wPx, hPx);
-                if (mesh == null)
-                    mesh = BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
-            }
-
-            return ApplyWallSavedSpriteProfileEmbedV19LikeOriginal(mesh, desc, WallSavedWLProfileV18LikeOriginal.BridgeWallSide);
-        }
-
-        private static Color GetDambaC2MBaseTintV37LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            if (C2WallObjectsV37UseTemporaryStoneTintForDambaUntilC2MMaterialsLikeOriginal &&
-                IsWallDambaC2MModelV33LikeOriginal(desc))
-            {
-                return new Color(0.62f, 0.58f, 0.50f, 1.0f);
-            }
-
-            return Color.white;
-        }
-
-        private static Color GetDambaC2MBaseTintV39LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            // V50: real DrawWChunk GPObj texture/UV path is active, so the temporary stone tint must not color the decoded DAMBA frame.
-            return Color.white;
-        }
-
-        private Material CreateWallC2MModelMaterialV26LikeOriginal(Texture2D tex, WallSpriteDescV1LikeOriginal desc)
-        {
-            bool damba = IsWallDambaC2MModelV33LikeOriginal(desc);
-            Shader shader = null;
-
-            // V56: DAMBA/CMOST diagnostic chain already has correct rigid geometry.
-            // Do not use the old vertex-color/white-fill material for it.  Use a simple
-            // textured alpha-cut material, matching TemnyLess viewer logic:
-            // texture = GPObj/G16 frame, UV = baked DrawWChunk square rects, alpha = cutout.
-            if (damba && !C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal)
-                shader = Shader.Find("Universal Render Pipeline/Unlit") ??
-                         Shader.Find("Sprites/Default") ??
-                         Shader.Find("Unlit/Transparent");
-
-            if (shader == null && damba && C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal)
-                shader = Shader.Find("Cossacks2Bridge/WallC2MDambaSolidRGBV34");
-            if (shader == null && damba && C2WallObjectsV33UseDedicatedDambaC2MShaderLikeOriginal)
-                shader = Shader.Find("Cossacks2Bridge/WallC2MDambaTexturedV33");
-            if (shader == null && C2WallObjectsV26UseC2MVertexColorMaterialLikeOriginal)
-                shader = Shader.Find("Cossacks2Bridge/WallC2MVertexColorV26");
-            shader = shader ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Transparent") ?? Shader.Find("Standard");
-
-            Texture2D safeTex = tex != null ? tex : Texture2D.whiteTexture;
-            var mat = new Material(shader)
-            {
-                name = (damba ? "C2_DAMBA_C2M_TemnyLessTextured_V56_" : "C2_WallC2MModelMat_V26_") + (desc != null ? desc.Name : "Model"),
-                mainTexture = safeTex,
-                renderQueue = C2WallObjectsV24ModelRenderQueueLikeOriginal
-            };
-
-            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", safeTex);
-            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", safeTex);
-
-            Color tint = GetDambaC2MBaseTintV39LikeOriginal(desc);
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", tint);
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);
-
-            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 1);
-            if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", damba && C2WallObjectsV34ForceDambaVisibleOverTerrainUntilExtraHeightPipelineLikeOriginal ? (int)CompareFunction.Always : (int)CompareFunction.LessEqual);
-            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)CullMode.Off);
-
-            float cutoff = damba && C2WallObjectsV34UseSolidRgbForDambaC2MLikeOriginal ? 0.0f : (damba ? 0.015f : 0.01f);
-            if (mat.HasProperty("_AlphaCutoff")) mat.SetFloat("_AlphaCutoff", cutoff);
-            if (mat.HasProperty("_Cutoff")) mat.SetFloat("_Cutoff", cutoff);
-            if (mat.HasProperty("_AlphaClip")) mat.SetFloat("_AlphaClip", damba ? 1.0f : 0.0f);
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 0.0f); // Opaque + alpha clip, not transparent blend.
-
-            if (damba)
-            {
-                mat.SetOverrideTag("RenderType", "TransparentCutout");
-                mat.EnableKeyword("_ALPHATEST_ON");
-                mat.DisableKeyword("_ALPHABLEND_ON");
-                mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-
-                // Make sure decoded damba.g16 RGB is not multiplied by old C2M vertex colors.
-                if (mat.HasProperty("_UseVertexColor"))
-                    mat.SetFloat("_UseVertexColor", 0.0f);
-            }
-            return mat;
-        }
-
-
-        private sealed class WallSpriteRgbaStatsV29LikeOriginal
-        {
-            public int Width;
-            public int Height;
-            public int Total;
-            public int Visible;
-            public int WhiteVisible;
-            public byte MinR = 255;
-            public byte MinG = 255;
-            public byte MinB = 255;
-            public byte MinA = 255;
-            public byte MaxR;
-            public byte MaxG;
-            public byte MaxB;
-            public byte MaxA;
-            public float AvgR;
-            public float AvgG;
-            public float AvgB;
-            public float AvgA;
-            public bool Readable;
-            public bool Placeholder;
-            public string Error;
-
-            public float WhiteVisibleFraction => Visible > 0 ? WhiteVisible / (float)Visible : 0.0f;
-        }
-
-        private static bool IsWallSpriteRgbaAuditTargetV29LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            if (desc == null)
-                return false;
-            int id = desc.SpriteIndex;
-            return id == 58 || id == 59 || id == 70 || id == 74 || id == 68 || id == 72 || id == 73 || id == 80 || id == 82 || id == 69;
-        }
-
-        private static WallSpriteRgbaStatsV29LikeOriginal AnalyzeWallSpriteRgbaV29LikeOriginal(Texture2D tex, WallSpriteDescV1LikeOriginal desc)
-        {
-            var st = new WallSpriteRgbaStatsV29LikeOriginal();
-            if (tex == null)
-            {
-                st.Error = "null_texture";
-                return st;
-            }
-
-            st.Width = tex.width;
-            st.Height = tex.height;
-            st.Total = Mathf.Max(0, tex.width * tex.height);
-            st.Placeholder = ReferenceEquals(tex, Texture2D.whiteTexture);
-            try
-            {
-                Color32[] px = tex.GetPixels32();
-                st.Readable = true;
-                long sumR = 0, sumG = 0, sumB = 0, sumA = 0;
-                for (int i = 0; i < px.Length; i++)
-                {
-                    Color32 c = px[i];
-                    if (c.r < st.MinR) st.MinR = c.r;
-                    if (c.g < st.MinG) st.MinG = c.g;
-                    if (c.b < st.MinB) st.MinB = c.b;
-                    if (c.a < st.MinA) st.MinA = c.a;
-                    if (c.r > st.MaxR) st.MaxR = c.r;
-                    if (c.g > st.MaxG) st.MaxG = c.g;
-                    if (c.b > st.MaxB) st.MaxB = c.b;
-                    if (c.a > st.MaxA) st.MaxA = c.a;
-                    sumR += c.r;
-                    sumG += c.g;
-                    sumB += c.b;
-                    sumA += c.a;
-                    if (c.a > 8)
-                    {
-                        st.Visible++;
-                        if (c.r >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal &&
-                            c.g >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal &&
-                            c.b >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal)
-                            st.WhiteVisible++;
-                    }
-                }
-
-                float inv = px.Length > 0 ? 1.0f / px.Length : 0.0f;
-                st.AvgR = sumR * inv;
-                st.AvgG = sumG * inv;
-                st.AvgB = sumB * inv;
-                st.AvgA = sumA * inv;
-            }
-            catch (Exception ex)
-            {
-                st.Readable = false;
-                st.Error = ex.GetType().Name + ":" + ex.Message;
-            }
-            return st;
-        }
-
-        private static bool IsWallSpriteWhiteBridgeMaskV29LikeOriginal(WallSpriteDescV1LikeOriginal desc, WallSpriteRgbaStatsV29LikeOriginal st)
-        {
-            if (!C2WallObjectsV29RepairWhiteBridgeAlphaMaskLikeOriginal || desc == null || st == null || !st.Readable || st.Placeholder)
-                return false;
-            if (desc.SpriteIndex != 58 && desc.SpriteIndex != 59)
-                return false;
-            if (st.Visible <= 0)
-                return false;
-            return st.WhiteVisibleFraction >= C2WallObjectsV29WhiteMaskFractionLikeOriginal &&
-                   st.AvgR >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal - 10.0f &&
-                   st.AvgG >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal - 10.0f &&
-                   st.AvgB >= C2WallObjectsV29WhiteMaskRgbMinLikeOriginal - 10.0f;
-        }
-
-        private static Color GetWallSpriteRepairColorV29LikeOriginal(WallSpriteDescV1LikeOriginal desc)
-        {
-            if (desc != null && (desc.SpriteIndex == 58 || desc.SpriteIndex == 59))
-                return new Color(0.46f, 0.43f, 0.35f, 1.0f);
-            return Color.white;
-        }
-
-        private static string BuildWallSpriteRgbaAuditLineV29LikeOriginal(int order, WallSpriteDescV1LikeOriginal desc, string source, WallSpriteRgbaStatsV29LikeOriginal st)
-        {
-            if (desc == null)
-                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " desc=null";
-            if (st == null)
-                return "order=" + order.ToString(CultureInfo.InvariantCulture) + " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " stats=null source='" + (source ?? string.Empty) + "'";
-
-            bool repair = IsWallSpriteWhiteBridgeMaskV29LikeOriginal(desc, st);
-            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
-                   " id=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                   " name=" + desc.Name +
-                   " size=" + st.Width.ToString(CultureInfo.InvariantCulture) + "x" + st.Height.ToString(CultureInfo.InvariantCulture) +
-                   " readable=" + st.Readable +
-                   " placeholder=" + st.Placeholder +
-                   " visible=" + st.Visible.ToString(CultureInfo.InvariantCulture) +
-                   " whiteVisible=" + st.WhiteVisible.ToString(CultureInfo.InvariantCulture) +
-                   " whiteFrac=" + st.WhiteVisibleFraction.ToString("0.###", CultureInfo.InvariantCulture) +
-                   " min=" + st.MinR.ToString(CultureInfo.InvariantCulture) + "," + st.MinG.ToString(CultureInfo.InvariantCulture) + "," + st.MinB.ToString(CultureInfo.InvariantCulture) + "," + st.MinA.ToString(CultureInfo.InvariantCulture) +
-                   " max=" + st.MaxR.ToString(CultureInfo.InvariantCulture) + "," + st.MaxG.ToString(CultureInfo.InvariantCulture) + "," + st.MaxB.ToString(CultureInfo.InvariantCulture) + "," + st.MaxA.ToString(CultureInfo.InvariantCulture) +
-                   " avg=" + st.AvgR.ToString("0.#", CultureInfo.InvariantCulture) + "," + st.AvgG.ToString("0.#", CultureInfo.InvariantCulture) + "," + st.AvgB.ToString("0.#", CultureInfo.InvariantCulture) + "," + st.AvgA.ToString("0.#", CultureInfo.InvariantCulture) +
-                   " repairWhiteBridgeMask=" + repair +
-                   (string.IsNullOrEmpty(st.Error) ? string.Empty : " err='" + st.Error + "'") +
-                   " source='" + (source ?? string.Empty) + "'";
-        }
-
-        private Material CreateWallSpriteMaterialV29LikeOriginal(Texture2D tex, WallSpriteDescV1LikeOriginal desc, WallSpriteRgbaStatsV29LikeOriginal st, Material fallbackBase)
-        {
-            bool bridgeSprite = desc != null && (desc.SpriteIndex == 58 || desc.SpriteIndex == 59);
-            Shader shader = null;
-            if (C2WallObjectsV31UseExactBridgeSpriteCutoutLikeOriginal && bridgeSprite)
-                shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV31ExactCutout");
-            if (shader == null && C2WallObjectsV29UseDedicatedWallSpriteShaderLikeOriginal)
-                shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV29");
-            shader = shader ?? (fallbackBase != null ? fallbackBase.shader : null) ?? Shader.Find("Unlit/Transparent") ?? Shader.Find("Sprites/Default");
-
-            bool repairWhiteMask = !bridgeSprite && IsWallSpriteWhiteBridgeMaskV29LikeOriginal(desc, st);
-            var inst = new Material(shader)
-            {
-                name = "C2_WallMapSpriteMat_V31_" + (desc != null ? desc.Name : "Wall"),
-                mainTexture = tex != null ? tex : Texture2D.whiteTexture,
-                renderQueue = C2WallObjectsV18RenderQueueLikeOriginal
-            };
-            if (inst.HasProperty("_MainTex")) inst.SetTexture("_MainTex", tex != null ? tex : Texture2D.whiteTexture);
-            if (inst.HasProperty("_Color")) inst.SetColor("_Color", Color.white);
-            if (inst.HasProperty("_RepairAlphaMask")) inst.SetFloat("_RepairAlphaMask", repairWhiteMask ? 1.0f : 0.0f);
-            if (inst.HasProperty("_RepairColor")) inst.SetColor("_RepairColor", GetWallSpriteRepairColorV29LikeOriginal(desc));
-            if (inst.HasProperty("_AlphaCutoff")) inst.SetFloat("_AlphaCutoff", C2WallObjectsV29AlphaCutoffLikeOriginal);
-            if (inst.HasProperty("_ZWrite")) inst.SetInt("_ZWrite", 0);
-            if (inst.HasProperty("_ZTest")) inst.SetInt("_ZTest", (int)CompareFunction.LessEqual);
-            if (inst.HasProperty("_Cull")) inst.SetInt("_Cull", (int)CullMode.Off);
-            return inst;
-        }
-
-        private Material CreateWallObjectMaterialV1LikeOriginal()
-        {
-            Shader shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV31ExactCutout") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV29") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV7") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV6") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV5") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV4") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV3") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV2") ?? Shader.Find("Cossacks2Bridge/WallObjectSpriteV1") ?? Shader.Find("Unlit/Transparent") ?? Shader.Find("Sprites/Default");
-            var mat = new Material(shader)
-            {
-                name = "C2_WallObjectSprite_V29_like_original",
-                renderQueue = C2WallObjectsV18RenderQueueLikeOriginal
-            };
-            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
-            if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", (int)CompareFunction.LessEqual);
-            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)CullMode.Off);
-            if (mat.HasProperty("_AlphaCutoff")) mat.SetFloat("_AlphaCutoff", C2WallObjectsV29AlphaCutoffLikeOriginal);
-            if (mat.HasProperty("_RepairAlphaMask")) mat.SetFloat("_RepairAlphaMask", 0.0f);
-            return mat;
-        }
-
-        private static void ApplyWallRendererShadowContractV44LikeOriginal(Renderer renderer)
-        {
-            if (renderer == null || !C2WallObjectsV44DisableUnityShadowCastingForWallObjectsLikeOriginal)
-                return;
-
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-        }
-
-        private static Vector4 ChooseWallC2MGPObjTextureUvTransformV43LikeOriginal(Texture2D tex, WallC2MParsedMeshV23LikeOriginal c2m, out string audit)
-        {
-            audit = string.Empty;
-            if (tex == null || c2m == null || c2m.UV == null || c2m.UV.Length == 0)
-            {
-                audit = "no_tex_or_uv";
-                return new Vector4(1.0f, 1.0f, 0.0f, 0.0f);
-            }
-
-            string[] names = { "normal", "flipV", "flipU", "flipUV" };
-            Vector4[] transforms =
-            {
-                new Vector4(1.0f, 1.0f, 0.0f, 0.0f),
-                new Vector4(1.0f, -1.0f, 0.0f, 1.0f),
-                new Vector4(-1.0f, 1.0f, 1.0f, 0.0f),
-                new Vector4(-1.0f, -1.0f, 1.0f, 1.0f)
-            };
-
-            int total = Mathf.Min(C2WallObjectsV43UvFitSampleLimitLikeOriginal, c2m.UV.Length);
-            int step = Mathf.Max(1, c2m.UV.Length / Mathf.Max(1, total));
-            int best = 0;
-            int bestHits = -1;
-            float bestAlpha = -1.0f;
-            var parts = new List<string>(names.Length);
-
-            for (int m = 0; m < transforms.Length; m++)
-            {
-                int hits = 0;
-                int samples = 0;
-                float alphaSum = 0.0f;
-                Vector4 tr = transforms[m];
-
-                try
-                {
-                    for (int i = 0; i < c2m.UV.Length && samples < total; i += step)
-                    {
-                        Vector2 uv = c2m.UV[i];
-                        float u = uv.x * tr.x + tr.z;
-                        float v = uv.y * tr.y + tr.w;
-                        Color c = tex.GetPixelBilinear(u, v);
-                        float a = c.a;
-                        alphaSum += a;
-                        if (a > 0.03f)
-                            hits++;
-                        samples++;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    parts.Add(names[m] + ":error=" + ex.GetType().Name);
-                    continue;
-                }
-
-                float avg = samples > 0 ? alphaSum / samples : 0.0f;
-                parts.Add(names[m] + ":hits=" + hits.ToString(CultureInfo.InvariantCulture) +
-                          "/" + samples.ToString(CultureInfo.InvariantCulture) +
-                          ",avgA=" + avg.ToString("0.000", CultureInfo.InvariantCulture));
-
-                if (hits > bestHits || (hits == bestHits && avg > bestAlpha))
-                {
-                    best = m;
-                    bestHits = hits;
-                    bestAlpha = avg;
-                }
-            }
-
-            audit = "chosen=" + names[best] +
-                    " scale=(" + transforms[best].x.ToString(CultureInfo.InvariantCulture) +
-                    "," + transforms[best].y.ToString(CultureInfo.InvariantCulture) + ")" +
-                    " offset=(" + transforms[best].z.ToString(CultureInfo.InvariantCulture) +
-                    "," + transforms[best].w.ToString(CultureInfo.InvariantCulture) + ")" +
-                    " scores=[" + string.Join(";", parts.ToArray()) + "]";
-            return transforms[best];
-        }
-
-        private static string BuildWallC2MGPObjMaterialAuditLineV42LikeOriginal(
-            WallSpriteDescV1LikeOriginal desc,
-            WallC2MParsedMeshV23LikeOriginal c2m,
-            Texture2D tex,
-            bool bound,
-            string source)
-        {
-            WallC2MGPObjInfoV40LikeOriginal gp = c2m != null ? c2m.GPObj : null;
-            return "id=" + (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
-                   " name=" + (desc != null ? desc.Name : string.Empty) +
-                   " model='" + (desc != null ? (desc.ModelPath ?? string.Empty) : string.Empty) + "'" +
-                   " gpName='" + (gp != null ? (gp.GPName ?? string.Empty) : string.Empty) + "'" +
-                   " frameIdx=" + (gp != null ? gp.FrameIdx.ToString(CultureInfo.InvariantCulture) : "-") +
-                   " bound=" + bound +
-                   " tex=" + (tex != null ? tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture) : "null") +
-                   " source='" + (source ?? string.Empty) + "'";
-        }
-
-
-        private Texture2D TryLoadWallC2MTXRETextureV48LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m, out string source)
-        {
-            source = string.Empty;
-            if (c2m == null || string.IsNullOrWhiteSpace(c2m.TextureName) || _bootstrap == null || _bootstrap.Fs == null)
-                return null;
-
-            string textureName = c2m.TextureName.Trim().Replace('/', '\\');
-            var candidates = new List<string>();
-            candidates.Add(textureName);
-            candidates.Add(Path.GetFileName(textureName));
-            candidates.Add("textures\\" + Path.GetFileName(textureName));
-            candidates.Add("Textures\\" + Path.GetFileName(textureName));
-
-            Texture2D tex = C2OriginalTextureService.TryLoadTextureByCandidates(
-                _bootstrap.Fs,
-                candidates.ToArray(),
-                "C2M_TXRE_" + Path.GetFileNameWithoutExtension(textureName),
-                C2OriginalTexturePolicy.WorldTextureLikeOriginal,
-                out string resolved);
-
-            if (tex != null)
-                source = "TXRE='" + textureName + "' resolved='" + resolved + "'";
-            else
-                source = "TXRE_missing '" + textureName + "'";
-
-            return tex;
-        }
-
-        private Texture2D TryLoadWallC2MGPObjFrameTextureV42LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m, out string source, out List<WallG16SquareV47LikeOriginal> squares)
-        {
-            source = string.Empty;
-            squares = null;
-            if (c2m == null || c2m.GPObj == null)
-            {
-                source = "no_gpobj";
-                return null;
-            }
-
-            string gpName = c2m.GPObj.GPName ?? string.Empty;
-            int frameIdx = SelectWallC2MGPObjFrameIndexV46LikeOriginal(c2m, gpName, c2m.GPObj.FrameIdx, out string frameAudit);
-            if (string.IsNullOrWhiteSpace(gpName))
-            {
-                source = "empty_gpName";
-                return null;
-            }
-
-            List<string> candidates = BuildWallC2MGPObjG16CandidatePathsV42LikeOriginal(gpName);
-            var checkedPaths = new List<string>(Mathf.Min(candidates.Count, 8));
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                string path = candidates[i];
-                if (checkedPaths.Count < 8)
-                    checkedPaths.Add(path);
-
-                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                    continue;
-
-                Texture2D tex = TryLoadG16FrameViaMelinojaV42LikeOriginal(path, frameIdx, out string loadSource);
-                if (tex != null)
-                {
-                    string squareAudit;
-                    squares = TryParseWallG16FrameSquaresV47LikeOriginal(path, frameIdx, out squareAudit);
-                    source = "gpName='" + gpName + "' frameIdx=" + frameIdx.ToString(CultureInfo.InvariantCulture) + " " + frameAudit + " " + loadSource + " squares='" + squareAudit + "'";
-                    return tex;
-                }
-
-                source = "found_path_but_load_failed gpName='" + gpName + "' frameIdx=" + frameIdx.ToString(CultureInfo.InvariantCulture) + " " + frameAudit + " " + loadSource;
-            }
-
-            source = "missing_gp_g16 gpName='" + gpName + "' frameIdx=" + frameIdx.ToString(CultureInfo.InvariantCulture) +
-                     " " + frameAudit + " checked=[" + string.Join(";", checkedPaths.ToArray()) + "]";
-            return null;
-        }
-
-        private static int SelectWallC2MGPObjFrameIndexV46LikeOriginal(WallC2MParsedMeshV23LikeOriginal c2m, string gpName, int parsedFrameIdx, out string audit)
-        {
-            audit = "parsedFrameIdx=" + parsedFrameIdx.ToString(CultureInfo.InvariantCulture);
-            if (!C2WallObjectsV46UseDrawWChunkDambaFrameLikeOriginal ||
-                !string.Equals((gpName ?? string.Empty).Trim(), "damba", StringComparison.OrdinalIgnoreCase))
-                return parsedFrameIdx;
-
-            string model = c2m != null ? (c2m.ModelPath ?? string.Empty) : string.Empty;
-            if (model.IndexOf("dam_bottom", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                audit += " drawWChunkFrame=0 model=dam_bottom";
-                return 0;
-            }
-
-            if (model.IndexOf("dam_top", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                audit += " drawWChunkFrame=3 model=dam_top";
-                return 3;
-            }
-
-            audit += " drawWChunkFrame=unforced";
-            return parsedFrameIdx;
         }
 
         private static List<WallG16SquareV47LikeOriginal> TryParseWallG16FrameSquaresV47LikeOriginal(string path, int frameIdx, out string audit)
@@ -9703,7 +11786,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                     return null;
                 }
 
-                var tex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+                var tex = new Texture2D(w, h, TextureFormat.RGBA32, false, false);
                 tex.name = $"WALLS_g16_frame_{frameIndex:0000}";
                 tex.LoadRawTextureData(rgba);
                 tex.Apply(false, false);
@@ -9802,5 +11885,480 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 return v;
             return 0.0f;
         }
+
+        // V168 compile repair: neutral helpers kept only for non-fence diagnostics / non-WALS2D routes.
+        // The old individual WALS2D fence routes remain absent from active routing.
+        private const string C2WallObjectsV116FenceContractLikeOriginal = "V172_RESTORED_original_saved_WL_individual_OneSprite_path";
+        private const string C2WallObjectsV117FenceContractLikeOriginal = "V172_RESTORED_original_saved_WL_individual_OneSprite_path";
+
+        private static bool IsFiniteWallFloatV21LikeOriginal(float v)
+        {
+            return !float.IsNaN(v) && !float.IsInfinity(v);
+        }
+
+        private static bool IsFiniteWallM4V21LikeOriginal(Matrix4x4 m)
+        {
+            return IsFiniteWallFloatV21LikeOriginal(m.m00) && IsFiniteWallFloatV21LikeOriginal(m.m01) &&
+                   IsFiniteWallFloatV21LikeOriginal(m.m02) && IsFiniteWallFloatV21LikeOriginal(m.m03) &&
+                   IsFiniteWallFloatV21LikeOriginal(m.m10) && IsFiniteWallFloatV21LikeOriginal(m.m11) &&
+                   IsFiniteWallFloatV21LikeOriginal(m.m12) && IsFiniteWallFloatV21LikeOriginal(m.m13) &&
+                   IsFiniteWallFloatV21LikeOriginal(m.m20) && IsFiniteWallFloatV21LikeOriginal(m.m21) &&
+                   IsFiniteWallFloatV21LikeOriginal(m.m22) && IsFiniteWallFloatV21LikeOriginal(m.m23) &&
+                   IsFiniteWallFloatV21LikeOriginal(m.m30) && IsFiniteWallFloatV21LikeOriginal(m.m31) &&
+                   IsFiniteWallFloatV21LikeOriginal(m.m32) && IsFiniteWallFloatV21LikeOriginal(m.m33);
+        }
+
+        private static bool HasOriginalSavedWallAligningV172LikeOriginal(WallSpriteDescV1LikeOriginal desc)
+        {
+            if (desc == null)
+                return false;
+
+            // Original LoadSprites2 uses OS->OC->HaveAligning, and if it is true the saved Matrix4D
+            // read from 2ERT/TRE2 is deleted. In this port the catalog evidence for HaveAligning is
+            // the parsed [ALIGNING] mode/points from walls.lst.
+            char a = desc.AlignMode;
+            return a == 'V' || a == 'S' || a == 'H' || a == 'U' || desc.AlignPoints.Count > 0;
+        }
+
+        private static bool UseSavedMatrixAfterLoadSprites2V172LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc)
+        {
+            if (s == null || !s.HasMatrix)
+                return false;
+            if (!IsFiniteWallM4V21LikeOriginal(s.Matrix))
+                return false;
+
+            // Original:
+            // if(M4){
+            //     if(OS->OC->HaveAligning) delete(M4);
+            //     else OS->M4=M4;
+            // }
+            return !HasOriginalSavedWallAligningV172LikeOriginal(desc);
+        }
+
+        private static string FormatWallFloatV118LikeOriginal(float v)
+        {
+            if (!IsFiniteWallFloatV21LikeOriginal(v))
+                return "nan";
+            return v.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        private static void IncrementWallIdCountV118LikeOriginal(Dictionary<int, int> ids, WallSpriteDescV1LikeOriginal desc)
+        {
+            if (ids == null || desc == null)
+                return;
+            int id = desc.SpriteIndex;
+            ids.TryGetValue(id, out int count);
+            ids[id] = count + 1;
+        }
+
+        private WallSavedWLRouteDecisionV20LikeOriginal SelectSavedWallRouteV20LikeOriginal(WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc)
+        {
+            var route = new WallSavedWLRouteDecisionV20LikeOriginal();
+            route.Route = WallDrawRouteV20LikeOriginal.SavedAlignedSprite;
+            route.Profile = WallSavedWLProfileV18LikeOriginal.BillboardFallback;
+            route.ClassV118 = WallWL2DClassV118LikeOriginal.UnknownFallback;
+
+            bool hasAligningV172 = HasOriginalSavedWallAligningV172LikeOriginal(desc);
+            bool useSavedM4AfterLoadSprites2V172 = UseSavedMatrixAfterLoadSprites2V172LikeOriginal(s, desc);
+            string loadSprites2RuleV172 = hasAligningV172
+                ? "V172_LoadSprites2_HaveAligning_true_saved_M4_deleted_CreateMatrix_path"
+                : (useSavedM4AfterLoadSprites2V172
+                    ? "V172_LoadSprites2_HaveAligning_false_saved_M4_kept_DrawWSprite_path"
+                    : "V172_LoadSprites2_no_saved_M4_AddWorldPoint_or_GetMatrix4D_path");
+
+            route.Path = loadSprites2RuleV172;
+            route.Reason =
+                "V172 original saved-WL rule: sign=='WL' -> addSpriteAnyway(&WALLS); " +
+                "if saved M4 exists and OC->HaveAligning then ignore/delete saved M4, else keep saved M4; " +
+                "render via DrawWSprite when OS.M4 exists, otherwise AddWorldPoint/CreateMatrix.";
+
+            if (desc != null && !string.IsNullOrWhiteSpace(desc.ModelPath))
+            {
+                route.Route = WallDrawRouteV20LikeOriginal.SavedModelC2M;
+                route.Profile = WallSavedWLProfileV18LikeOriginal.ModelBackedC2M;
+                route.ClassV118 = WallWL2DClassV118LikeOriginal.ModelBackedC2M;
+                route.UseSavedM4 = useSavedM4AfterLoadSprites2V172;
+                route.MatrixVerified = route.UseSavedM4;
+                route.Path = useSavedM4AfterLoadSprites2V172
+                    ? "V172_ModelBacked_LoadSprites2_no_HaveAligning_use_saved_M4_RenderModels"
+                    : "V172_ModelBacked_LoadSprites2_HaveAligning_or_no_M4_use_GetMatrix4D";
+                route.MatrixAudit = hasAligningV172
+                    ? "V172_ignored_saved_M4_because_OC_HaveAligning_matches_LoadSprites2"
+                    : (route.UseSavedM4 ? "V172_saved_M4_kept_because_no_HaveAligning" : "V172_no_saved_M4_after_LoadSprites2");
+                return route;
+            }
+
+            char a = desc != null ? desc.AlignMode : '\0';
+            if (a == 'H')
+            {
+                route.Profile = WallSavedWLProfileV18LikeOriginal.GroundAligned;
+                route.ClassV118 = WallWL2DClassV118LikeOriginal.GroundAligned;
+                route.Path = "V172_GroundAligned_LoadSprites2_HaveAligning_delete_saved_M4_CreateMatrix_atGround";
+            }
+            else if (a == 'V' || a == 'S' || a == 'U')
+            {
+                route.Profile = WallSavedWLProfileV18LikeOriginal.VerticalAligned;
+                route.ClassV118 = WallWL2DClassV118LikeOriginal.VerticalAligned;
+                route.Path = "V172_VerticalOrUniversal_LoadSprites2_HaveAligning_delete_saved_M4_CreateMatrix";
+            }
+            else
+            {
+                route.Profile = WallSavedWLProfileV18LikeOriginal.BillboardFallback;
+                route.ClassV118 = WallWL2DClassV118LikeOriginal.Single2DProp;
+                route.Path = loadSprites2RuleV172;
+            }
+
+            route.UseSavedM4 = useSavedM4AfterLoadSprites2V172;
+            route.MatrixVerified = route.UseSavedM4;
+            route.MatrixAudit = hasAligningV172
+                ? "V172_ignored_saved_M4_because_OC_HaveAligning_matches_LoadSprites2"
+                : (route.UseSavedM4 ? "V172_saved_M4_kept_because_no_HaveAligning" : "V172_no_saved_M4_after_LoadSprites2");
+            return route;
+        }
+
+        private static void CountWallSavedRouteV20LikeOriginal(
+            WallDrawRouteV20LikeOriginal route,
+            ref int routeBridge,
+            ref int routeFence,
+            ref int routeLargeFence,
+            ref int routeAligned,
+            ref int routeModel,
+            ref int routeFallback)
+        {
+            switch (route)
+            {
+                case WallDrawRouteV20LikeOriginal.SavedModelC2M:
+                    routeModel++;
+                    break;
+                case WallDrawRouteV20LikeOriginal.SavedAlignedSprite:
+                    routeAligned++;
+                    break;
+                default:
+                    routeFallback++;
+                    break;
+            }
+        }
+
+        private static void CountWallSavedProfileV20LikeOriginal(
+            WallSavedWLProfileV18LikeOriginal profile,
+            ref int profileBridge,
+            ref int profileFence,
+            ref int profileModel,
+            ref int profileGround,
+            ref int profileVertical,
+            ref int profileFallback)
+        {
+            switch (profile)
+            {
+                case WallSavedWLProfileV18LikeOriginal.ModelBackedC2M:
+                    profileModel++;
+                    break;
+                case WallSavedWLProfileV18LikeOriginal.GroundAligned:
+                    profileGround++;
+                    break;
+                case WallSavedWLProfileV18LikeOriginal.VerticalAligned:
+                    profileVertical++;
+                    break;
+                default:
+                    profileFallback++;
+                    break;
+            }
+        }
+
+        private string BuildWallWL2DAuditLineV118LikeOriginal(
+            int order,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            Texture2D tex,
+            Mesh mesh,
+            WallSavedWLRouteDecisionV20LikeOriginal route,
+            string reason)
+        {
+            string name = desc != null ? desc.Name : "null";
+            string id = desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-";
+            string r = route != null ? route.Route.ToString() : "-";
+            string cls = route != null ? route.ClassV118.ToString() : "-";
+            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
+                   " id=" + id +
+                   " name=" + name +
+                   " route=" + r +
+                   " class=" + cls +
+                   " path=V172_original_saved_WL_per_OneSprite_route" +
+                   " xy=(" + (s != null ? s.X.ToString(CultureInfo.InvariantCulture) : "-") + "," +
+                              (s != null ? s.Y.ToString(CultureInfo.InvariantCulture) : "-") + ")" +
+                   " reason='" + (reason ?? string.Empty) + "'";
+        }
+
+        private string BuildWallMatrixAuditLineV21LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            Matrix4x4 m = s != null ? s.Matrix : Matrix4x4.identity;
+            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
+                   " id=" + (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
+                   " name=" + (desc != null ? desc.Name : "null") +
+                   " m4ok=" + (s != null && s.HasMatrix && IsFiniteWallM4V21LikeOriginal(m)).ToString(CultureInfo.InvariantCulture) +
+                   " tr=(" + FormatWallFloatV118LikeOriginal(m.m03) + "," + FormatWallFloatV118LikeOriginal(m.m13) + "," + FormatWallFloatV118LikeOriginal(m.m23) + ")" +
+                   " route=" + (route != null ? route.Route.ToString() : "-");
+        }
+
+        private string BuildWallModelAuditLineV22LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
+                   " id=" + (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
+                   " name=" + (desc != null ? desc.Name : "null") +
+                   " model=" + (desc != null ? (desc.ModelPath ?? string.Empty) : string.Empty) +
+                   " route=" + (route != null ? route.Route.ToString() : "-") +
+                   " note=V168_non_fence_model_audit";
+        }
+
+        private string BuildWallIMMRouteAuditLineV24LikeOriginal(int order, WallSavedMapSpriteV6LikeOriginal s, WallSpriteDescV1LikeOriginal desc, WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
+                   " id=" + (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
+                   " route=" + (route != null ? route.Route.ToString() : "-") +
+                   " imm=V168_neutral";
+        }
+
+        private string BuildWallRouteAuditLineV20LikeOriginal(
+            int order,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route,
+            Texture2D tex,
+            Mesh mesh)
+        {
+            return "order=" + order.ToString(CultureInfo.InvariantCulture) +
+                   " id=" + (desc != null ? desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) : "-") +
+                   " name=" + (desc != null ? desc.Name : "null") +
+                   " route=" + (route != null ? route.Route.ToString() : "-") +
+                   " profile=" + (route != null ? route.Profile.ToString() : "-") +
+                   " path=" + (route != null ? route.Path : "-") +
+                   " emitted=" + (mesh != null).ToString(CultureInfo.InvariantCulture) +
+                   " tex=" + (tex != null ? tex.name : "null") +
+                   " note=V172_original_saved_WL_per_OneSprite_restored";
+        }
+
+        private Mesh BuildSavedMapWallSpriteRouteMeshV20LikeOriginal(
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            Texture2D tex,
+            WallSavedWLRouteDecisionV20LikeOriginal route)
+        {
+            float wPx = Mathf.Max(1.0f, tex != null ? tex.width : (desc != null ? desc.Width : 64));
+            float hPx = Mathf.Max(1.0f, tex != null ? tex.height : (desc != null ? desc.Height : 64));
+            if (route != null && route.UseSavedM4 && s != null && s.HasMatrix)
+                return BuildSavedMapWallSpriteSavedM4MeshV21LikeOriginal(s, desc, wPx, hPx, route.FlipLocalY, route.Path);
+            return BuildSavedMapWallSpriteAlignedNoEmbedV20LikeOriginal(s, desc, wPx, hPx);
+        }
+
+        private WallWL2DPlacementMetricV119LikeOriginal BuildWallWL2DPlacementMetricV119LikeOriginal(
+            int order,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route,
+            Mesh mesh,
+            Texture2D tex)
+        {
+            var m = new WallWL2DPlacementMetricV119LikeOriginal();
+            m.Order = order;
+            m.SpriteIndex = desc != null ? desc.SpriteIndex : -1;
+            m.Name = desc != null ? desc.Name : string.Empty;
+            m.X = s != null ? s.X : 0;
+            m.Y = s != null ? s.Y : 0;
+            m.Route = route != null ? route.Route : WallDrawRouteV20LikeOriginal.DebugFallback;
+            m.Profile = route != null ? route.Profile : WallSavedWLProfileV18LikeOriginal.BillboardFallback;
+            m.ClassV118 = route != null ? route.ClassV118 : WallWL2DClassV118LikeOriginal.UnknownFallback;
+            m.HasMatrix = s != null && s.HasMatrix;
+            m.UseMatrix = route != null && route.UseSavedM4;
+            m.Path = route != null ? route.Path : string.Empty;
+            m.TextureSource = tex != null ? tex.name : string.Empty;
+            if (mesh != null)
+            {
+                Bounds b = mesh.bounds;
+                m.BoundsDiagonal = b.size.magnitude;
+                m.BoundsHeight = b.size.y;
+                m.BoundsWidthXZ = Mathf.Sqrt(b.size.x * b.size.x + b.size.z * b.size.z);
+                m.BoundsCenterY = b.center.y;
+            }
+            return m;
+        }
+
+        private int AddWallDambaSceneOnlyAnchorObjectsV84LikeOriginal(
+            Transform parent,
+            List<WallSavedMapSpriteV6LikeOriginal> sprites,
+            WallSpriteCatalogV1LikeOriginal catalog)
+        {
+            return 0;
+        }
+
+        private string BuildWallWL2DIdSummaryV118LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> ids)
+        {
+            if (ids == null || ids.Count == 0)
+                return "0";
+            var parts = new List<string>();
+            foreach (var kv in ids)
+            {
+                string name = catalog != null && catalog.ByIndex.TryGetValue(kv.Key, out WallSpriteDescV1LikeOriginal d) && d != null ? d.Name : ("W" + kv.Key.ToString(CultureInfo.InvariantCulture));
+                parts.Add(name + ":" + kv.Value.ToString(CultureInfo.InvariantCulture));
+            }
+            return string.Join(",", parts.ToArray());
+        }
+
+        private void LogWallWL2DTopOffendersV119LikeOriginal(List<WallWL2DPlacementMetricV119LikeOriginal> metrics)
+        {
+            if (metrics == null || metrics.Count == 0)
+                return;
+            Debug.Log("[C2:WALL WL2D TOP V119] disabled_by_V168 old individual WALS2D fence routes deleted; metrics=" + metrics.Count.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private string BuildWallUsedIdCoverageLineV27LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> wlIndexAudit)
+        {
+            return BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wlIndexAudit);
+        }
+
+        private string BuildWallModelCoverageLineV27LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> wlIndexAudit)
+        {
+            if (catalog == null || wlIndexAudit == null || wlIndexAudit.Count == 0)
+                return "models=0";
+            int modelCount = 0;
+            foreach (var kv in wlIndexAudit)
+            {
+                if (catalog.ByIndex.TryGetValue(kv.Key, out WallSpriteDescV1LikeOriginal d) && d != null && !string.IsNullOrWhiteSpace(d.ModelPath))
+                    modelCount += kv.Value;
+            }
+            return "models=" + modelCount.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private string BuildWallUsedModelNameListV27LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> wlIndexAudit)
+        {
+            if (catalog == null || wlIndexAudit == null || wlIndexAudit.Count == 0)
+                return "none";
+            var names = new List<string>();
+            foreach (var kv in wlIndexAudit)
+            {
+                if (catalog.ByIndex.TryGetValue(kv.Key, out WallSpriteDescV1LikeOriginal d) && d != null && !string.IsNullOrWhiteSpace(d.ModelPath))
+                    names.Add(d.ModelPath);
+            }
+            return names.Count == 0 ? "none" : string.Join(",", names.ToArray());
+        }
+
+        private string ResolveWallC2MModelPathV161LikeOriginal(string modelPath, out string audit)
+        {
+            audit = string.Empty;
+            string raw = (modelPath ?? string.Empty).Replace('/', '\\').Trim().Trim('"');
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                audit = "empty_model_path";
+                return string.Empty;
+            }
+
+            if (_bootstrap == null || _bootstrap.Fs == null)
+            {
+                audit = "fs_not_ready";
+                return raw;
+            }
+
+            var candidates = new List<string>();
+            Action<string> add = c =>
+            {
+                c = (c ?? string.Empty).Replace('/', '\\').Trim().Trim('"');
+                if (string.IsNullOrWhiteSpace(c))
+                    return;
+                if (!candidates.Exists(x => string.Equals(x, c, StringComparison.OrdinalIgnoreCase)))
+                    candidates.Add(c);
+            };
+
+            add(raw);
+            if (!raw.EndsWith(".c2m", StringComparison.OrdinalIgnoreCase))
+                add(raw + ".c2m");
+            if (!raw.StartsWith("Models\\", StringComparison.OrdinalIgnoreCase))
+            {
+                add("Models\\" + raw);
+                if (!raw.EndsWith(".c2m", StringComparison.OrdinalIgnoreCase))
+                    add("Models\\" + raw + ".c2m");
+            }
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (_bootstrap.Fs.Exists(candidates[i]))
+                {
+                    audit = "resolved=" + candidates[i];
+                    return candidates[i];
+                }
+            }
+
+            audit = "not_found candidates=" + string.Join(",", candidates.ToArray());
+            return raw;
+        }
+
+        // V169 compile compatibility wrappers after physical deletion of old WALS2D fence routes.
+        // They keep non-fence audit/model code compiling while the old individual WALS2D fence builders remain physically removed.
+        private string BuildWallWL2DAuditLineV118LikeOriginal(
+            int order,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSavedMapSpriteV6LikeOriginal sourceSpriteForLog,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route,
+            object meshOrUnused,
+            string reason)
+        {
+            return BuildWallWL2DAuditLineV118LikeOriginal(
+                order,
+                s,
+                desc,
+                null,
+                meshOrUnused as Mesh,
+                route,
+                reason);
+        }
+
+        private string BuildWallRouteAuditLineV20LikeOriginal(
+            int order,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSavedMapSpriteV6LikeOriginal sourceSpriteForLog,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route,
+            object meshOrSource)
+        {
+            return BuildWallRouteAuditLineV20LikeOriginal(
+                order,
+                s,
+                desc,
+                route,
+                null,
+                meshOrSource as Mesh);
+        }
+
+        private WallWL2DPlacementMetricV119LikeOriginal BuildWallWL2DPlacementMetricV119LikeOriginal(
+            int order,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route,
+            Mesh mesh,
+            string source)
+        {
+            return BuildWallWL2DPlacementMetricV119LikeOriginal(
+                order,
+                s,
+                desc,
+                route,
+                mesh,
+                (Texture2D)null);
+        }
+
+        private int AddWallDambaSceneOnlyAnchorObjectsV84LikeOriginal(
+            GameObject go,
+            WallSavedMapSpriteV6LikeOriginal s,
+            WallSpriteDescV1LikeOriginal desc,
+            WallSavedWLRouteDecisionV20LikeOriginal route,
+            WallC2MParsedMeshV23LikeOriginal c2m,
+            int order,
+            List<string> audit)
+        {
+            return 0;
+        }
+
+
     }
 }

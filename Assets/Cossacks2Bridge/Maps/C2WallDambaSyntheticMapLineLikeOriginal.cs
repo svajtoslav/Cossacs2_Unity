@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1863,13 +1863,40 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (wrapHandles)
                 Handles.BeginGUI();
-            GUILayout.BeginArea(new Rect(12, 218, 260, 92), "C2 DAMBA V93", GUI.skin.window);
-            if (GUILayout.Button("Сохранить позицию", GUILayout.Height(30)))
+            EnsureWals2DHeightInstructionLoadedV178LikeOriginal();
+            GUILayout.BeginArea(new Rect(12, 218, 330, 178), "C2 DAMBA / WALS2D V178", GUI.skin.window);
+
+            GUILayout.Label("Высота вертикалей: " + _c2Wals2DVerticalRaisePixelsV178LikeOriginal.ToString("0.#", CultureInfo.InvariantCulture));
+            float newVertical = GUILayout.HorizontalSlider(_c2Wals2DVerticalRaisePixelsV178LikeOriginal, C2WallObjectsV178HeightSliderMinLikeOriginal, C2WallObjectsV178HeightSliderMaxLikeOriginal);
+            newVertical = Mathf.Round(newVertical * 2.0f) * 0.5f;
+
+            GUILayout.Label("Высота горизонталей: " + _c2Wals2DHorizontalRaisePixelsV178LikeOriginal.ToString("0.#", CultureInfo.InvariantCulture));
+            float newHorizontal = GUILayout.HorizontalSlider(_c2Wals2DHorizontalRaisePixelsV178LikeOriginal, C2WallObjectsV178HeightSliderMinLikeOriginal, C2WallObjectsV178HeightSliderMaxLikeOriginal);
+            newHorizontal = Mathf.Round(newHorizontal * 2.0f) * 0.5f;
+
+            if (Mathf.Abs(newVertical - _c2Wals2DVerticalRaisePixelsV178LikeOriginal) > 0.0001f ||
+                Mathf.Abs(newHorizontal - _c2Wals2DHorizontalRaisePixelsV178LikeOriginal) > 0.0001f)
+            {
+                _c2Wals2DVerticalRaisePixelsV178LikeOriginal = newVertical;
+                _c2Wals2DHorizontalRaisePixelsV178LikeOriginal = newHorizontal;
+                ApplyWals2DHeightSlidersToLiveMeshesV178LikeOriginal();
+            }
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Сброс высот", GUILayout.Height(24)))
+            {
+                _c2Wals2DVerticalRaisePixelsV178LikeOriginal = 0.0f;
+                _c2Wals2DHorizontalRaisePixelsV178LikeOriginal = 0.0f;
+                ApplyWals2DHeightSlidersToLiveMeshesV178LikeOriginal();
+            }
+
+            if (GUILayout.Button("Сохранить позицию", GUILayout.Height(24)))
                 SaveSyntheticDambaPosesV93LikeOriginal();
+            GUILayout.EndHorizontal();
 
             string status = Time.realtimeSinceStartup < _c2WallDambaSyntheticPoseStatusUntilV93LikeOriginal
                 ? _c2WallDambaSyntheticPoseStatusV93LikeOriginal
-                : "Move V93 line objects, then save";
+                : "Move V93 line objects / tune WALS2D heights, then save";
             GUILayout.Label(status);
             GUILayout.EndArea();
             if (wrapHandles)
@@ -1924,6 +1951,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 sb.AppendLine("mapPath=" + (_mapRelativePath ?? string.Empty));
                 sb.AppendLine("mapInstructionPath=" + ResolveSyntheticDambaPoseMapSidecarPathV111LikeOriginal());
                 sb.AppendLine("contract=" + C2WallDambaSyntheticMapLineV93ContractLikeOriginal);
+                sb.AppendLine("wals2dHeightContract=" + C2WallObjectsV175WLSavedSpriteSideShadowLiftContractLikeOriginal);
+                sb.AppendLine("wals2dVerticalRaisePx=" + _c2Wals2DVerticalRaisePixelsV178LikeOriginal.ToString("R", CultureInfo.InvariantCulture));
+                sb.AppendLine("wals2dHorizontalRaisePx=" + _c2Wals2DHorizontalRaisePixelsV178LikeOriginal.ToString("R", CultureInfo.InvariantCulture));
 
                 int saved = 0;
                 for (int i = 0; i < _c2WallDambaSyntheticRowsV93LikeOriginal.Count; i++)
@@ -1963,7 +1993,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
 
                 _c2WallDambaSyntheticSavedPosesV93LikeOriginal = null;
+                _c2Wals2DHeightInstructionLoadedV178LikeOriginal = false;
                 EnsureSyntheticDambaSavedPosesLoadedV93LikeOriginal();
+                EnsureWals2DHeightInstructionLoadedV178LikeOriginal();
+                ApplyWals2DHeightSlidersToLiveMeshesV178LikeOriginal();
                 _c2WallDambaSyntheticPoseStatusV93LikeOriginal = writtenPaths.Count > 0
                     ? "Saved rows: " + saved.ToString(CultureInfo.InvariantCulture) + " -> " + writtenPaths[0]
                     : "Save failed: no writable path";
@@ -1976,6 +2009,62 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _c2WallDambaSyntheticPoseStatusUntilV93LikeOriginal = Time.realtimeSinceStartup + 6.0f;
                 Debug.LogWarning("[C2:DAMBA SYNTH V93] save poses failed: " + ex);
             }
+        }
+
+        private void EnsureWals2DHeightInstructionLoadedV178LikeOriginal()
+        {
+            if (_c2Wals2DHeightInstructionLoadedV178LikeOriginal)
+                return;
+
+            _c2Wals2DHeightInstructionLoadedV178LikeOriginal = true;
+            _c2Wals2DVerticalRaisePixelsV178LikeOriginal = C2WallObjectsV35VerticalFenceRaisePixelsLikeOriginal;
+            _c2Wals2DHorizontalRaisePixelsV178LikeOriginal = C2WallObjectsV178DefaultHorizontalFenceRaisePixelsLikeOriginal;
+
+            LoadWals2DHeightInstructionFileV178LikeOriginal(ResolveSyntheticDambaPoseProjectPathV93LikeOriginal());
+            LoadWals2DHeightInstructionFileV178LikeOriginal(ResolveSyntheticDambaPosePersistentPathV93LikeOriginal());
+            LoadWals2DHeightInstructionFileV178LikeOriginal(ResolveSyntheticDambaPoseMapSidecarPathV111LikeOriginal());
+        }
+
+        private void LoadWals2DHeightInstructionFileV178LikeOriginal(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return;
+
+            string[] lines = File.ReadAllLines(path);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+                line = line.Trim();
+                if (line.StartsWith("#", StringComparison.Ordinal))
+                    continue;
+
+                int eq = line.IndexOf('=');
+                if (eq <= 0)
+                    continue;
+
+                string key = line.Substring(0, eq).Trim();
+                string value = line.Substring(eq + 1).Trim();
+                if (key.Equals("wals2dVerticalRaisePx", StringComparison.OrdinalIgnoreCase))
+                    _c2Wals2DVerticalRaisePixelsV178LikeOriginal = ClampWals2DHeightInstructionV178LikeOriginal(ParseWals2DFloatV178LikeOriginal(value, _c2Wals2DVerticalRaisePixelsV178LikeOriginal));
+                else if (key.Equals("wals2dHorizontalRaisePx", StringComparison.OrdinalIgnoreCase))
+                    _c2Wals2DHorizontalRaisePixelsV178LikeOriginal = ClampWals2DHeightInstructionV178LikeOriginal(ParseWals2DFloatV178LikeOriginal(value, _c2Wals2DHorizontalRaisePixelsV178LikeOriginal));
+            }
+        }
+
+        private static float ParseWals2DFloatV178LikeOriginal(string value, float fallback)
+        {
+            if (!float.TryParse(value ?? string.Empty, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
+                return fallback;
+            return parsed;
+        }
+
+        private static float ClampWals2DHeightInstructionV178LikeOriginal(float value)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value))
+                return 0.0f;
+            return Mathf.Clamp(value, C2WallObjectsV178HeightSliderMinLikeOriginal, C2WallObjectsV178HeightSliderMaxLikeOriginal);
         }
 
         private static void LoadSyntheticDambaPoseFileV93LikeOriginal(
