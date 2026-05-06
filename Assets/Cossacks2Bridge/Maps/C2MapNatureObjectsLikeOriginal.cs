@@ -42,9 +42,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const int C2NatureObjectsV1InstancesPerMeshLikeOriginal = 12000;
         private const float C2NatureObjectsV1DebugAlphaLikeOriginal = 0.62f;
         private const float C2NatureObjectsV1DebugYOffsetWorldLikeOriginal = 0.06f;
-        private const bool C2NatureObjectsV3_2DrawGeneratedFieldPatchesLikeOriginal = false;
+        private const bool C2NatureObjectsV3_2DrawGeneratedFieldPatchesLikeOriginal = true;
         private const bool C2NatureObjectsV3_2DrawFallbackWhenTextureMissingLikeOriginal = false;
-        private const string C2NatureObjectsV1ContractLikeOriginal = "V26_FROM_V17_TRE2_GA_TS_original_tree_render_state_roll_sway_billboard_TreesAll_shadow_fine_indexed_micro_depth_lanes_shadow_boost";
+        private const float C2NatureObjectsV67FieldRowsStepLikeOriginal = 6.0f;
+        private const float C2NatureObjectsV67FieldRowsStepPartLikeOriginal = 2.5f;
+        private const float C2NatureObjectsV67DefStrawHeightLikeOriginal = 30.0f;
+        private const float C2NatureObjectsV67FieldTextureURatioLikeOriginal = 1.0f / 180.0f;
+        private const int C2NatureObjectsV67FieldRndCountLikeOriginal = 1024;
+        private const int C2NatureObjectsV67FieldPatchWidthLikeOriginal = 64;
+        private const int C2NatureObjectsV67FieldPatchHeightLikeOriginal = 64;
+        private const float C2NatureObjectsV69FieldUnityTopVLikeOriginal = 255.5f / 256.0f;
+        private const float C2NatureObjectsV69FieldUnityBottomVLikeOriginal = 224.5f / 256.0f;
+        private const bool C2NatureObjectsV68FieldSwayLikeOriginal = true;
+        private const string C2NatureObjectsV1ContractLikeOriginal = "V70_TRE2_OC_FIELDPATH_akField_original_sway_attached_exact_mRandom_LCG";
         private const string C2NatureObjectsV6PivotContractLikeOriginal = "V26_keep_V17_orientation_foot_clamp_alpha_zwrite_ztest_add_fine_indexed_micro_depth_lanes_max4px_no_thinning_shadow_boost";
         private const string C2NatureObjectsV12TreeShadowContractLikeOriginal = "V26_FROM_V17_TreesShadow_L_XML_same_fine_indexed_micro_depth_lane_as_tree_shadow_alpha_0_80";
 
@@ -53,6 +63,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private readonly Dictionary<string, Texture2D> _c2NatureTextureCacheV2LikeOriginal = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Material> _c2NatureMaterialCacheV2LikeOriginal = new Dictionary<string, Material>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<Texture2D, Vector2> _c2NatureAlphaRowsCacheV9LikeOriginal = new Dictionary<Texture2D, Vector2>();
+        private int _c2NatureFieldPatchesV67LikeOriginal;
+        private int _c2NatureFieldRowsV67LikeOriginal;
+        private int _c2NatureFieldQuadsV67LikeOriginal;
+        private int _c2NatureFieldVertsV67LikeOriginal;
+        private static float[] _c2NatureFieldRndTableV70LikeOriginal;
 
         private IEnumerator Start()
         {
@@ -89,6 +104,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 _c2NatureObjectsRootV1LikeOriginal = new GameObject("C2_NatureObjects_V1_" + _selectedId);
                 _c2NatureObjectsRootV1LikeOriginal.transform.SetParent(_terrainRoot.transform, false);
+                _c2NatureFieldPatchesV67LikeOriginal = 0;
+                _c2NatureFieldRowsV67LikeOriginal = 0;
+                _c2NatureFieldQuadsV67LikeOriginal = 0;
+                _c2NatureFieldVertsV67LikeOriginal = 0;
 
                 WallMapStateV1LikeOriginal state = TryLoadWallMapStateFromCurrentMapV1LikeOriginal();
                 if (state == null || state.Tre2Objects == null || state.Tre2Objects.Count == 0)
@@ -154,6 +173,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                           " realOC=" + realOc.ToString(CultureInfo.InvariantCulture) +
                           " fieldOC=" + fieldOc.ToString(CultureInfo.InvariantCulture) +
                           " generatedFieldPatches=" + C2NatureObjectsV3_2DrawGeneratedFieldPatchesLikeOriginal +
+                          " fieldRows=" + _c2NatureFieldRowsV67LikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " fieldQuads=" + _c2NatureFieldQuadsV67LikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " fieldVerts=" + _c2NatureFieldVertsV67LikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                          " fieldStates=" + BuildNatureFieldStateAuditV68LikeOriginal(oc, complex) +
                           " fallbackTextures=" + C2NatureObjectsV3_2DrawFallbackWhenTextureMissingLikeOriginal +
                           " fallbackGA=" + fallbackGa.ToString(CultureInfo.InvariantCulture) +
                           " fallbackTS=" + fallbackTs.ToString(CultureInfo.InvariantCulture) +
@@ -742,6 +765,44 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        private static string BuildNatureFieldStateAuditV68LikeOriginal(List<Tre2MapObjectV28LikeOriginal> objects, NatureSpriteCatalogV1LikeOriginal catalog)
+        {
+            if (objects == null || objects.Count == 0 || catalog == null)
+                return "none";
+
+            SortedDictionary<string, int> counts = new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            int missing = 0;
+            for (int i = 0; i < objects.Count; i++)
+            {
+                Tre2MapObjectV28LikeOriginal obj = objects[i];
+                if (obj == null)
+                    continue;
+
+                NatureSpriteDescV1LikeOriginal desc;
+                if (!catalog.ByIndex.TryGetValue(obj.SpriteIndex, out desc) || desc == null)
+                {
+                    missing++;
+                    continue;
+                }
+
+                if (!desc.IsFieldPatch)
+                    continue;
+
+                string name = string.IsNullOrWhiteSpace(desc.Name) ? ("#" + obj.SpriteIndex.ToString(CultureInfo.InvariantCulture)) : desc.Name;
+                int count;
+                counts.TryGetValue(name, out count);
+                counts[name] = count + 1;
+            }
+
+            List<string> parts = new List<string>();
+            foreach (KeyValuePair<string, int> kv in counts)
+                parts.Add(kv.Key + "=" + kv.Value.ToString(CultureInfo.InvariantCulture));
+            if (missing > 0)
+                parts.Add("missing=" + missing.ToString(CultureInfo.InvariantCulture));
+
+            return parts.Count > 0 ? string.Join(",", parts.ToArray()) : "none";
+        }
+
 
         private sealed class NatureMeshBatchV2LikeOriginal
         {
@@ -756,6 +817,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public readonly List<float> SwayPhases = new List<float>();
             public readonly List<Vector3> SwayPivots = new List<Vector3>();
             public bool HasSway;
+            public bool HasFieldSway;
+            public readonly List<Vector2> FieldOriginalXY = new List<Vector2>();
+            public readonly List<float> FieldTopMask = new List<float>();
+            public readonly List<float> FieldHeightOriginal = new List<float>();
             public int Count;
         }
 
@@ -852,6 +917,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mr.sharedMaterial = b.Material;
                 ApplyNatureRendererOrderingV14LikeOriginal(mr, true, NatureKindV1LikeOriginal.Tree);
                 AttachNatureTreeSwayAnimatorV12LikeOriginal(go, mesh, b);
+                AttachNatureFieldSwayAnimatorV68LikeOriginal(go, mesh, b, WallOriginalXYUnitToWorldScaleV8LikeOriginal());
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 mr.lightProbeUsage = LightProbeUsage.Off;
@@ -928,6 +994,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     Material fieldMat = GetNatureMaterialV2LikeOriginal(fieldTex, "FIELDPATH", NatureKindV1LikeOriginal.Complex, false);
                     string fieldKey = "FIELD:" + desc.FieldGrowStage.ToString(CultureInfo.InvariantCulture) + ":" + desc.FieldYScale.ToString(CultureInfo.InvariantCulture);
                     NatureMeshBatchV2LikeOriginal batch = GetNatureBatchV2LikeOriginal(batches, fieldKey, "C2_Nature_FIELD_V2", fieldTex, fieldMat);
+                    batch.HasFieldSway = C2NatureObjectsV68FieldSwayLikeOriginal;
                     AppendNatureFieldPatchV2LikeOriginal(batch, obj, desc);
                     fieldDrawn++;
                     continue;
@@ -995,6 +1062,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mr.sharedMaterial = b.Material;
                 ApplyNatureRendererOrderingV14LikeOriginal(mr, false, kind);
                 AttachNatureTreeSwayAnimatorV12LikeOriginal(go, mesh, b);
+                AttachNatureFieldSwayAnimatorV68LikeOriginal(go, mesh, b, WallOriginalXYUnitToWorldScaleV8LikeOriginal());
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 mr.lightProbeUsage = LightProbeUsage.Off;
@@ -1064,6 +1132,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             NatureTreeSwayAnimatorV12LikeOriginal animator = go.AddComponent<NatureTreeSwayAnimatorV12LikeOriginal>();
             animator.Configure(mesh, batch.SwayAmounts.ToArray(), batch.SwayPhases.ToArray(), batch.SwayPivots.ToArray());
+        }
+
+        private static void AttachNatureFieldSwayAnimatorV68LikeOriginal(GameObject go, Mesh mesh, NatureMeshBatchV2LikeOriginal batch, float xyUnitToWorld)
+        {
+            if (!C2NatureObjectsV68FieldSwayLikeOriginal || go == null || mesh == null || batch == null || !batch.HasFieldSway)
+                return;
+            if (batch.FieldOriginalXY.Count != batch.Vertices.Count ||
+                batch.FieldTopMask.Count != batch.Vertices.Count ||
+                batch.FieldHeightOriginal.Count != batch.Vertices.Count)
+                return;
+
+            NatureFieldSwayAnimatorV68LikeOriginal animator = go.AddComponent<NatureFieldSwayAnimatorV68LikeOriginal>();
+            animator.Configure(mesh, batch.FieldOriginalXY.ToArray(), batch.FieldTopMask.ToArray(), batch.FieldHeightOriginal.ToArray(), xyUnitToWorld);
         }
 
         private static bool IsNatureAnimatedTreeV16LikeOriginal(NatureSpriteDescV1LikeOriginal desc, NatureKindV1LikeOriginal kind)
@@ -1196,6 +1277,71 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         v.x = pivot.x + d.x * ca - d.y * sa;
                         v.y = pivot.y + d.x * sa + d.y * ca;
                         v.z = _baseVertices[i].z;
+                    }
+                    _workVertices[i] = v;
+                }
+
+                _mesh.vertices = _workVertices;
+            }
+        }
+
+        private sealed class NatureFieldSwayAnimatorV68LikeOriginal : MonoBehaviour
+        {
+            private Mesh _mesh;
+            private Vector3[] _baseVertices;
+            private Vector3[] _workVertices;
+            private Vector2[] _originalXY;
+            private float[] _topMask;
+            private float[] _heightOriginal;
+            private float _xyUnitToWorld;
+            private bool _ready;
+
+            public void Configure(Mesh mesh, Vector2[] originalXY, float[] topMask, float[] heightOriginal, float xyUnitToWorld)
+            {
+                _mesh = mesh;
+                _originalXY = originalXY;
+                _topMask = topMask;
+                _heightOriginal = heightOriginal;
+                _xyUnitToWorld = Mathf.Max(0.0001f, xyUnitToWorld);
+                if (_mesh == null || _originalXY == null || _topMask == null || _heightOriginal == null)
+                    return;
+
+                _baseVertices = _mesh.vertices;
+                if (_baseVertices == null || _baseVertices.Length == 0 ||
+                    _originalXY.Length != _baseVertices.Length ||
+                    _topMask.Length != _baseVertices.Length ||
+                    _heightOriginal.Length != _baseVertices.Length)
+                    return;
+
+                _workVertices = new Vector3[_baseVertices.Length];
+                _mesh.MarkDynamic();
+                Bounds b = _mesh.bounds;
+                b.Expand(Mathf.Max(0.05f, _xyUnitToWorld * 20.0f));
+                _mesh.bounds = b;
+                _ready = true;
+            }
+
+            private void Update()
+            {
+                if (!_ready || _mesh == null || _baseVertices == null || _workVertices == null ||
+                    _originalXY == null || _topMask == null || _heightOriginal == null)
+                    return;
+
+                float timeMs = Time.time * 1000.0f;
+                for (int i = 0; i < _baseVertices.Length; i++)
+                {
+                    Vector3 v = _baseVertices[i];
+                    if (_topMask[i] > 0.5f && _heightOriginal[i] > 0.0001f)
+                    {
+                        Vector2 o = _originalXY[i];
+                        float frnd = GetNatureFieldRndV67LikeOriginal(Mathf.Abs(Mathf.FloorToInt(o.x + o.y)) % C2NatureObjectsV67FieldRndCountLikeOriginal);
+                        float frnd1 = GetNatureFieldRndV67LikeOriginal(Mathf.Abs(Mathf.FloorToInt(o.x)) % C2NatureObjectsV67FieldRndCountLikeOriginal);
+                        float bendDirX = 0.5f - frnd;
+                        float bendDirY = 0.5f - frnd1;
+                        float bendAmount = 1.8f * Mathf.Sin(timeMs * 0.0004f + frnd) * frnd1;
+                        float strawPitch = _heightOriginal[i] * _heightOriginal[i] * bendAmount * 0.01f;
+                        v.x += bendDirX * bendAmount * strawPitch * _xyUnitToWorld;
+                        v.z += bendDirY * bendAmount * strawPitch * _xyUnitToWorld * WorldZSign;
                     }
                     _workVertices[i] = v;
                 }
@@ -1388,34 +1534,168 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (batch == null || obj == null || desc == null)
                 return;
 
-            float halfW = Mathf.Max(16.0f, desc.FieldWidth * 32.0f);
-            float halfH = Mathf.Max(16.0f, desc.FieldHeight * 32.0f);
-            float x0 = obj.X - halfW;
-            float x1 = obj.X + halfW;
-            float y0 = obj.Y - halfH;
-            float y1 = obj.Y + halfH;
+            // V67: real akField-style path, not V66 debug cross-stems.
+            // Original DrawFPatch ignores complex.lst Width/Height and always calls:
+            //   DrawFPatch(OS.x, OS.y, OS.z, 64, 64, OC->Z0/255.0, OC->DZ/255.0)
+            // DrawFPatch builds a diamond from 4 terrain-height points and FieldModel::AddPatch
+            // emits one horizontal straw row every 6 original map units, using pole1.tga V range 0..32/256.
+            float x = obj.X;
+            float y = obj.Y;
+            int d = (C2NatureObjectsV67FieldPatchWidthLikeOriginal * 14142) / 20000;
+            if (d <= 0) d = 45;
 
-            Vector3 bl = WallOriginalXYToWorldV1LikeOriginal(x0, y0, 0.0f); bl.y += C2NatureObjectsV2FieldYOffsetWorldLikeOriginal;
-            Vector3 br = WallOriginalXYToWorldV1LikeOriginal(x1, y0, 0.0f); br.y += C2NatureObjectsV2FieldYOffsetWorldLikeOriginal;
-            Vector3 tr = WallOriginalXYToWorldV1LikeOriginal(x1, y1, 0.0f); tr.y += C2NatureObjectsV2FieldYOffsetWorldLikeOriginal;
-            Vector3 tl = WallOriginalXYToWorldV1LikeOriginal(x0, y1, 0.0f); tl.y += C2NatureObjectsV2FieldYOffsetWorldLikeOriginal;
+            Vector2 ltO = new Vector2(x, y + d);
+            Vector2 rtO = new Vector2(x + d, y);
+            Vector2 lbO = new Vector2(x - d, y);
+            Vector2 rbO = new Vector2(x, y - d);
 
-            int v0 = batch.Vertices.Count;
-            batch.Vertices.Add(bl);
-            batch.Vertices.Add(br);
-            batch.Vertices.Add(tr);
-            batch.Vertices.Add(tl);
-            batch.Uv.Add(new Vector2(0, 0));
-            batch.Uv.Add(new Vector2(1, 0));
-            batch.Uv.Add(new Vector2(1, 1));
-            batch.Uv.Add(new Vector2(0, 1));
-            Color32 c = new Color32(255, 255, 255, 220);
-            batch.Colors.Add(c); batch.Colors.Add(c); batch.Colors.Add(c); batch.Colors.Add(c);
-            batch.SwayAmounts.Add(0.0f); batch.SwayAmounts.Add(0.0f); batch.SwayAmounts.Add(0.0f); batch.SwayAmounts.Add(0.0f);
-            batch.SwayPhases.Add(0.0f); batch.SwayPhases.Add(0.0f); batch.SwayPhases.Add(0.0f); batch.SwayPhases.Add(0.0f);
-            batch.Triangles.Add(v0 + 0); batch.Triangles.Add(v0 + 2); batch.Triangles.Add(v0 + 1);
-            batch.Triangles.Add(v0 + 0); batch.Triangles.Add(v0 + 3); batch.Triangles.Add(v0 + 2);
+            AppendNatureFieldAkPatchRowsV67LikeOriginal(batch, ltO, rtO, lbO, rbO, desc);
             batch.Count++;
+            _c2NatureFieldPatchesV67LikeOriginal++;
+        }
+
+        private void AppendNatureFieldAkPatchRowsV67LikeOriginal(NatureMeshBatchV2LikeOriginal batch, Vector2 ltO, Vector2 rtO, Vector2 lbO, Vector2 rbO, NatureSpriteDescV1LikeOriginal desc)
+        {
+            if (batch == null || desc == null)
+                return;
+
+            Vector2 lRail = ltO - lbO;
+            Vector2 rRail = rtO - rbO;
+            float lLen = Mathf.Max(0.001f, lRail.magnitude);
+            float rLen = Mathf.Max(0.001f, rRail.magnitude);
+            int nRows = Mathf.Max(1, Mathf.FloorToInt(Mathf.Max(lLen, rLen) / C2NatureObjectsV67FieldRowsStepLikeOriginal));
+            float lStep = lLen / nRows;
+            float rStep = rLen / nRows;
+            float lStepPart = lStep * C2NatureObjectsV67FieldRowsStepPartLikeOriginal / C2NatureObjectsV67FieldRowsStepLikeOriginal;
+            float rStepPart = rStep * C2NatureObjectsV67FieldRowsStepPartLikeOriginal / C2NatureObjectsV67FieldRowsStepLikeOriginal;
+
+            float lC = 0.0f;
+            float rC = 0.0f;
+            float growRatio = Mathf.Clamp01(desc.FieldGrowStage / 255.0f);
+            Color32 growColor = GetNatureFieldGrowColorV67LikeOriginal(growRatio);
+            float zUnitToWorld = WallOriginalZUnitToWorldScaleV8LikeOriginal();
+
+            for (int row = 0; row < nRows; row++)
+            {
+                float lShift = (row & 1) != 0 ? lC : lC + lStepPart;
+                lC += lStep;
+                float rShift = (row & 1) != 0 ? rC : rC + rStepPart;
+                rC += rStep;
+
+                float lt = Mathf.Clamp01(lShift / lLen);
+                float rt = Mathf.Clamp01(rShift / rLen);
+                Vector2 vclO = Vector2.Lerp(lbO, ltO, lt);
+                Vector2 vcrO = Vector2.Lerp(rbO, rtO, rt);
+
+                Vector3 vlb = WallOriginalXYToWorldV1LikeOriginal(vclO.x, vclO.y, 0.0f);
+                Vector3 vrb = WallOriginalXYToWorldV1LikeOriginal(vcrO.x, vcrO.y, 0.0f);
+                vlb.y += C2NatureObjectsV2FieldYOffsetWorldLikeOriginal;
+                vrb.y += C2NatureObjectsV2FieldYOffsetWorldLikeOriginal;
+
+                float hLOriginal = GetNatureFieldStrawHeightOriginalUnitsV67LikeOriginal(vclO.x, vclO.y, growRatio);
+                float hROriginal = GetNatureFieldStrawHeightOriginalUnitsV67LikeOriginal(vcrO.x, vcrO.y, growRatio);
+                float hL = hLOriginal * zUnitToWorld;
+                float hR = hROriginal * zUnitToWorld;
+                Vector3 vlt = vlb + Vector3.up * hL;
+                Vector3 vrt = vrb + Vector3.up * hR;
+
+                float uShift = GetNatureFieldRowRandom01V67LikeOriginal(row, lbO.x, lbO.y);
+                float u1 = uShift + vclO.x * C2NatureObjectsV67FieldTextureURatioLikeOriginal;
+                float u2 = uShift + vcrO.x * C2NatureObjectsV67FieldTextureURatioLikeOriginal;
+
+                int v0 = batch.Vertices.Count;
+                batch.Vertices.Add(vlt);
+                batch.Vertices.Add(vrt);
+                batch.Vertices.Add(vlb);
+                batch.Vertices.Add(vrb);
+
+                // Original akField uses v=0..32/256 in the DirectX texture basis. The imported
+                // pole1.tga visible alpha band lands in Unity rows 224..255, so use the equivalent
+                // top strip here instead of sampling the fully transparent lower rows.
+                batch.Uv.Add(new Vector2(u1, C2NatureObjectsV69FieldUnityTopVLikeOriginal));
+                batch.Uv.Add(new Vector2(u2, C2NatureObjectsV69FieldUnityTopVLikeOriginal));
+                batch.Uv.Add(new Vector2(u1, C2NatureObjectsV69FieldUnityBottomVLikeOriginal));
+                batch.Uv.Add(new Vector2(u2, C2NatureObjectsV69FieldUnityBottomVLikeOriginal));
+
+                batch.Colors.Add(growColor); batch.Colors.Add(growColor); batch.Colors.Add(growColor); batch.Colors.Add(growColor);
+                batch.SwayAmounts.Add(0.0f); batch.SwayAmounts.Add(0.0f); batch.SwayAmounts.Add(0.0f); batch.SwayAmounts.Add(0.0f);
+                batch.SwayPhases.Add(0.0f); batch.SwayPhases.Add(0.0f); batch.SwayPhases.Add(0.0f); batch.SwayPhases.Add(0.0f);
+                batch.SwayPivots.Add(vlb); batch.SwayPivots.Add(vrb); batch.SwayPivots.Add(vlb); batch.SwayPivots.Add(vrb);
+                batch.FieldOriginalXY.Add(vclO); batch.FieldOriginalXY.Add(vcrO); batch.FieldOriginalXY.Add(vclO); batch.FieldOriginalXY.Add(vcrO);
+                batch.FieldTopMask.Add(1.0f); batch.FieldTopMask.Add(1.0f); batch.FieldTopMask.Add(0.0f); batch.FieldTopMask.Add(0.0f);
+                batch.FieldHeightOriginal.Add(hLOriginal); batch.FieldHeightOriginal.Add(hROriginal); batch.FieldHeightOriginal.Add(0.0f); batch.FieldHeightOriginal.Add(0.0f);
+
+                // BaseMesh quad-list equivalent. Keep same winding convention used by other nature quads.
+                batch.Triangles.Add(v0 + 2); batch.Triangles.Add(v0 + 1); batch.Triangles.Add(v0 + 0);
+                batch.Triangles.Add(v0 + 2); batch.Triangles.Add(v0 + 3); batch.Triangles.Add(v0 + 1);
+
+                _c2NatureFieldRowsV67LikeOriginal++;
+                _c2NatureFieldQuadsV67LikeOriginal++;
+                _c2NatureFieldVertsV67LikeOriginal += 4;
+            }
+        }
+
+        private static Color32 GetNatureFieldGrowColorV67LikeOriginal(float growRatio)
+        {
+            // Original GetGrowColor:
+            //   bclr = 10 + growRatio * (255 - 10)
+            //   ARGB = A=bclr, R=bclr, G=255, B=bclr
+            byte bclr = (byte)Mathf.Clamp(Mathf.RoundToInt(10.0f + Mathf.Clamp01(growRatio) * 245.0f), 0, 255);
+            return new Color32(bclr, 255, bclr, bclr);
+        }
+
+        private static float GetNatureFieldRndV67LikeOriginal(int index)
+        {
+            // Original gMotor/mRandom.cpp + akField::Init:
+            //   static int s_LastRnd = 1;
+            //   rndValue() = ((s_LastRnd = s_LastRnd * 214013L + 2531011L) >> 16) & 0x7fff;
+            //   rndValuef() = rndValue() / RAND_MAX;
+            //   FieldModel::Init fills m_Rnd[1024] by consecutive rndValuef() calls.
+            float[] table = GetNatureFieldRndTableV70LikeOriginal();
+            int idx = Mathf.Abs(index) % C2NatureObjectsV67FieldRndCountLikeOriginal;
+            return table[idx];
+        }
+
+        private static float[] GetNatureFieldRndTableV70LikeOriginal()
+        {
+            if (_c2NatureFieldRndTableV70LikeOriginal != null && _c2NatureFieldRndTableV70LikeOriginal.Length == C2NatureObjectsV67FieldRndCountLikeOriginal)
+                return _c2NatureFieldRndTableV70LikeOriginal;
+
+            float[] table = new float[C2NatureObjectsV67FieldRndCountLikeOriginal];
+            int seed = 1;
+            for (int i = 0; i < table.Length; i++)
+                table[i] = GetNatureFieldRndValuefFromSeedV70LikeOriginal(ref seed);
+            _c2NatureFieldRndTableV70LikeOriginal = table;
+            return table;
+        }
+
+        private static float GetNatureFieldRndValuefFromSeedV70LikeOriginal(ref int seed)
+        {
+            unchecked
+            {
+                seed = seed * 214013 + 2531011;
+                int rnd = (seed >> 16) & 0x7fff;
+                return rnd / 32767.0f;
+            }
+        }
+
+        private static float GetNatureFieldStrawHeightOriginalUnitsV67LikeOriginal(float strawX, float strawY, float growRatio)
+        {
+            int idx = Mathf.Abs(Mathf.FloorToInt(strawY - strawX)) % C2NatureObjectsV67FieldRndCountLikeOriginal;
+            float rnd = GetNatureFieldRndV67LikeOriginal(idx);
+            return C2NatureObjectsV67DefStrawHeightLikeOriginal * (1.0f - rnd * 0.1f) * Mathf.Clamp01(growRatio);
+        }
+
+        private static float GetNatureFieldRowRandom01V67LikeOriginal(int row, float patchX, float patchY)
+        {
+            unchecked
+            {
+                // Original akField.cpp row code:
+                //   rndInit((i*i*i*i + 128189 - 101*i) ^ ((int)(fabs(lt.x)*fabs(lt.y) + 1317)));
+                //   float ushift = rndValuef();
+                int seed = (row * row * row * row + 128189 - 101 * row) ^ Mathf.FloorToInt(Mathf.Abs(patchX) * Mathf.Abs(patchY) + 1317.0f);
+                return GetNatureFieldRndValuefFromSeedV70LikeOriginal(ref seed);
+            }
         }
 
         private static void ApplyNatureTextureSamplerV16LikeOriginal(Texture2D tex, NatureKindV1LikeOriginal kind)
@@ -2372,12 +2652,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_c2NatureMaterialCacheV2LikeOriginal.TryGetValue(key, out Material cached) && cached != null)
                 return cached;
 
-            Shader shader = kind == NatureKindV1LikeOriginal.Tree
-                ? Shader.Find("Cossacks2Bridge/NatureTreeSpriteV14")
+            bool fieldMaterial = kind == NatureKindV1LikeOriginal.Complex && string.Equals(gpName, "FIELDPATH", StringComparison.OrdinalIgnoreCase);
+            Shader shader = fieldMaterial
+                ? Shader.Find("Cossacks2Bridge/NatureFieldV1LikeOriginal")
                 : null;
+            if (shader == null && kind == NatureKindV1LikeOriginal.Tree)
+                shader = Shader.Find("Cossacks2Bridge/NatureTreeSpriteV14");
+            if (shader == null && fieldMaterial)
+                shader = Shader.Find("Cossacks2Bridge/NatureTreeSpriteV14");
             if (shader == null && kind == NatureKindV1LikeOriginal.Tree)
                 shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV31ExactCutout");
             if (shader == null && kind == NatureKindV1LikeOriginal.Tree)
+                shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV29");
+            if (shader == null && fieldMaterial)
                 shader = Shader.Find("Cossacks2Bridge/WallObjectSpriteV29");
             if (shader == null) shader = Shader.Find("Sprites/Default");
             if (shader == null) shader = Shader.Find("Unlit/Transparent");
@@ -2399,14 +2686,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             mat.renderQueue = C2NatureObjectsV2RenderQueueLikeOriginal;
             if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
             if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", kind == NatureKindV1LikeOriginal.Tree ? 1 : 0);
+            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", kind == NatureKindV1LikeOriginal.Tree || fieldMaterial ? 1 : 0);
             if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", (int)CompareFunction.LessEqual);
             if (mat.HasProperty("_AlphaCutoff"))
             {
                 float alphaRef = kind == NatureKindV1LikeOriginal.Tree
                     ? (animatedTree ? C2NatureObjectsV16AnimatedTreeAlphaRefLikeOriginal : C2NatureObjectsV16TreeAlphaRefLikeOriginal)
-                    : 1.0f / 255.0f;
+                    : (fieldMaterial ? (0x10 / 255.0f) : (1.0f / 255.0f));
                 mat.SetFloat("_AlphaCutoff", alphaRef);
+            }
+            if (fieldMaterial)
+            {
+                mat.name = "C2_Nature_FIELD_akField_V68";
+                mat.renderQueue = C2NatureObjectsV2RenderQueueLikeOriginal;
+                if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 1);
+                if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)CullMode.Off);
+                if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+                if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
             }
             if (mat.HasProperty("_OpaqueAfterClip")) mat.SetFloat("_OpaqueAfterClip", 0.0f);
             // animated_trees.xml uses ColorOp=Modulate2x. With the original 0x808080 diffuse,
@@ -2477,12 +2773,31 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             int grow = desc != null ? desc.FieldGrowStage : 0;
             int scale = desc != null ? desc.FieldYScale : 256;
-            string key = "__field__" + grow.ToString(CultureInfo.InvariantCulture) + "_" + scale.ToString(CultureInfo.InvariantCulture);
+            string key = "__field_v67_pole1_akfield_rows__" + grow.ToString(CultureInfo.InvariantCulture) + "_" + scale.ToString(CultureInfo.InvariantCulture);
             if (_c2NatureTextureCacheV2LikeOriginal.TryGetValue(key, out Texture2D tex) && tex != null)
                 return tex;
 
+            if (_bootstrap != null && _bootstrap.Fs != null)
+            {
+                string resolved;
+                tex = C2OriginalTextureService.TryLoadTextureByCandidates(
+                    _bootstrap.Fs,
+                    new[] { @"textures\pole1.tga", @"Textures\pole1.tga", @"Data1\textures\pole1.tga", @"Data1\Textures\pole1.tga" },
+                    "C2_Nature_Field_pole1_V67",
+                    C2OriginalTexturePolicy.WorldTextureLikeOriginal,
+                    out resolved);
+                if (tex != null)
+                {
+                    tex.name = "C2_Nature_Field_pole1_V67";
+                    tex.filterMode = FilterMode.Bilinear;
+                    tex.wrapMode = TextureWrapMode.Repeat;
+                    _c2NatureTextureCacheV2LikeOriginal[key] = tex;
+                    return tex;
+                }
+            }
+
             tex = new Texture2D(64, 64, TextureFormat.RGBA32, false, true);
-            tex.name = "C2_Nature_FieldPatch_" + grow.ToString(CultureInfo.InvariantCulture) + "_" + scale.ToString(CultureInfo.InvariantCulture);
+            tex.name = "C2_Nature_FieldPatch_Fallback_V67_" + grow.ToString(CultureInfo.InvariantCulture) + "_" + scale.ToString(CultureInfo.InvariantCulture);
             Color32[] px = new Color32[64 * 64];
             float mature = Mathf.Clamp01(grow / 255.0f);
             byte r0 = (byte)Mathf.Lerp(70, 166, mature);
