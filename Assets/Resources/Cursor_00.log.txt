@@ -1,0 +1,53 @@
+﻿G2D Analysis for: C:/Users/Koshey/My project/Kozaks/Assets\Resources\Cursor_00.g2d
+Magic: GU2D
+FileSize(hdr): 10741 ActualBytes: 10741
+Frames: 14   TexCount: 1   MeshCount: 61
+CanvasWH: 32x32   Directions: 1   VertexFormat: 0   InfoLen: 6
+
+DEBUG: FrameInfo=8 TextureInfo=32 Mesh=18 Vertex=10 VertexC=14
+
+Texture[0] OK  128x128 Flags=0x204
+Texture[0] Flags=0x204 comp=4 pack=2
+
+Frame 0: MeshOff=0 MeshNum=4
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0000.tga (36x35) OK
+
+Frame 1: MeshOff=4 MeshNum=4
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0001.tga (36x35) OK
+
+Frame 2: MeshOff=8 MeshNum=4
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0002.tga (36x35) OK
+
+Frame 3: MeshOff=12 MeshNum=5
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0003.tga (36x35) OK
+
+Frame 4: MeshOff=17 MeshNum=6
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0004.tga (36x35) OK
+
+Frame 5: MeshOff=23 MeshNum=4
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0005.tga (36x35) OK
+
+Frame 6: MeshOff=27 MeshNum=3
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0006.tga (36x35) OK
+
+Frame 7: MeshOff=30 MeshNum=3
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0007.tga (36x35) OK
+
+Frame 8: MeshOff=33 MeshNum=4
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0008.tga (36x35) OK
+
+Frame 9: MeshOff=37 MeshNum=5
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0009.tga (36x35) OK
+
+Frame 10: MeshOff=42 MeshNum=5
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0010.tga (36x35) OK
+
+Frame 11: MeshOff=47 MeshNum=4
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0011.tga (36x35) OK
+
+Frame 12: MeshOff=51 MeshNum=6
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0012.tga (36x35) OK
+
+Frame 13: MeshOff=57 MeshNum=4
+  Saved: C:\Users\Koshey\My project\Kozaks\Assets\Resources\Cursor_00_frames\frame_0013.tga (36x35) OK
+

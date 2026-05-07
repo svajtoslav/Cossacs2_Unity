@@ -1,0 +1,997 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
+namespace Cossacks2Bridge.UnityAdapters.Maps
+{
+    public enum C2GameplayTargetKindV1
+    {
+        None = 0,
+        Terrain = 1,
+        Tree = 2,
+        Stone = 3,
+        Field = 4,
+        Enemy = 5,
+        Building = 6,
+        FriendlyUnit = 7,
+        Unknown = 255
+    }
+
+    public sealed class C2GameplayInteractableZoneV1 : MonoBehaviour
+    {
+        public C2GameplayTargetKindV1 Kind = C2GameplayTargetKindV1.Unknown;
+        public string Source = string.Empty;
+    }
+
+    public sealed class C2GameplayUnitTaskV1 : MonoBehaviour
+    {
+        public C2NeutralPeasantUnitInfoV2LikeOriginal Unit;
+        public C2GameplayTargetKindV1 TaskKind;
+        public Vector3 TargetWorld;
+        public float WorkStartDistance = 1.35f;
+
+        private float _phase;
+        private float _until;
+        private bool _active;
+
+        public void Begin(C2NeutralPeasantUnitInfoV2LikeOriginal unit, C2GameplayTargetKindV1 kind, Vector3 targetWorld, float durationSeconds)
+        {
+            Unit = unit != null ? unit : GetComponent<C2NeutralPeasantUnitInfoV2LikeOriginal>();
+            TaskKind = kind;
+            TargetWorld = targetWorld;
+            _phase = 0.0f;
+            _until = Time.realtimeSinceStartup + Mathf.Max(1.0f, durationSeconds);
+            _active = Unit != null;
+
+            if (Unit != null)
+            {
+                Unit.SetMoveDestinationLikeOriginal(targetWorld);
+                Debug.Log("[C2:GAMEPLAY TASK V1] order unit='" + Unit.SourceMonsterId + "' kind=" + kind +
+                          " targetWorld=" + Vec3(targetWorld) + " mode=move_then_work_animation_stub");
+            }
+        }
+
+        private void Update()
+        {
+            if (!_active || Unit == null || Unit.SpriteAnimator == null)
+                return;
+
+            if (Time.realtimeSinceStartup > _until)
+            {
+                Unit.SpriteAnimator.SetMovingLikeOriginal(false);
+                _active = false;
+                Debug.Log("[C2:GAMEPLAY TASK V1] complete unit='" + Unit.SourceMonsterId + "' kind=" + TaskKind);
+                return;
+            }
+
+            Vector3 flatSelf = Unit.transform.position; flatSelf.y = 0.0f;
+            Vector3 flatTarget = TargetWorld; flatTarget.y = 0.0f;
+            float dist = Vector3.Distance(flatSelf, flatTarget);
+            if (dist > WorkStartDistance)
+                return;
+
+            Vector3 d = flatTarget - flatSelf;
+            byte dir = DirectionFromWorldDelta(d);
+            Unit.SetFacingDirectionLikeOriginal(dir);
+
+            // Временный рабочий слой задачи. Реальные MD-actions рубки/добычи/жатвы/атаки подключаются отдельно.
+            Unit.SpriteAnimator.SetMovingLikeOriginal(true);
+            Unit.SpriteAnimator.SetMotionStateLikeOriginal(Unit.GraphDir, false);
+            _phase += Time.deltaTime * Mathf.Max(1.0f, Unit.MotionDist) * 3.0f;
+            Unit.SpriteAnimator.SetWalkPathFrameLikeOriginal(_phase, Mathf.Max(1.0f, Unit.MotionDist));
+        }
+
+        private static byte DirectionFromWorldDelta(Vector3 d)
+        {
+            if (d.sqrMagnitude < 0.0001f) return 0;
+            float angle = Mathf.Atan2(-d.z, d.x) * Mathf.Rad2Deg;
+            int raw = Mathf.RoundToInt(Mathf.Repeat(angle / 360.0f * 256.0f, 256.0f));
+            int snapped = (raw + 8) & 0xF0;
+            return (byte)(snapped & 255);
+        }
+
+        private static string Vec3(Vector3 v)
+        {
+            return "(" + v.x.ToString("0.00", CultureInfo.InvariantCulture) + "," +
+                   v.y.ToString("0.00", CultureInfo.InvariantCulture) + "," +
+                   v.z.ToString("0.00", CultureInfo.InvariantCulture) + ")";
+        }
+    }
+
+    public sealed class C2GameplayInteractionControllerV1 : MonoBehaviour
+    {
+        private const string Contract = "V5G_CURSOR_CHANGE_DISABLED_MAIN_ONLY";
+        private static C2GameplayInteractionControllerV1 _active;
+
+        private readonly List<C2NeutralPeasantUnitInfoV2LikeOriginal> _selected = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(64);
+        private float _nextColliderScan;
+        private float _nextLog;
+        private C2GameplayTargetKindV1 _hoverKind;
+        private Vector3 _hoverWorld;
+        private string _hoverSource = string.Empty;
+
+        private Canvas _cursorCanvas;
+        private Image _cursorImage;
+        private RectTransform _cursorRect;
+        private bool _softwareCursorReady;
+        private bool _cursorHidden;
+        private int _lastCurPtr = int.MinValue;
+        private int _lastHardwareCurPtr = int.MinValue;
+        private readonly HashSet<int> _loggedCursorPtrOnce = new HashSet<int>();
+        private C2OriginalHardCursorFrameV5 _lastCursorFrame;
+        private bool _loggedMissingCursor;
+        private Vector2 _guiMouseTopLeft;
+        private bool _hasGuiMouseTopLeft;
+        private int _lastLoggedSetCurPtr = int.MinValue;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void AutoInstall()
+        {
+            if (_active != null) return;
+            GameObject go = new GameObject("C2_GameplayInteraction_OriginalHardCursor_V5F");
+            DontDestroyOnLoad(go);
+            go.hideFlags = HideFlags.HideAndDontSave;
+            _active = go.AddComponent<C2GameplayInteractionControllerV1>();
+        }
+
+        private void Awake()
+        {
+            _active = this;
+            // V5D: cursor is applied through Unity hardware cursor API.
+            // No overlay canvas and no OnGUI draw path: this is visible in GameView and costs almost nothing.
+            string audit = C2OriginalHardCursorProviderV5.PrewarmOriginalHardCursors();
+            Debug.Log("[C2:GAMEPLAY INTERACTION V5G] installed contract=" + Contract +
+                      " cursorProvider=" + C2OriginalHardCursorProviderV5.Contract + " " + audit);
+        }
+
+        private void OnDestroy()
+        {
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+            Cursor.visible = true;
+            _cursorHidden = false;
+            _lastHardwareCurPtr = int.MinValue;
+            if (_active == this) _active = null;
+        }
+
+        private void Update()
+        {
+            RefreshSelected();
+
+            bool hasBattleUnits = HasAnyBattleUnit();
+            if (hasBattleUnits && Time.realtimeSinceStartup >= _nextColliderScan)
+            {
+                _nextColliderScan = Time.realtimeSinceStartup + 1.0f;
+                EnsureSceneInteractionColliders();
+            }
+
+            if (hasBattleUnits)
+                UpdateHover();
+            else
+            {
+                _hoverKind = C2GameplayTargetKindV1.None;
+                _hoverWorld = Vector3.zero;
+                _hoverSource = string.Empty;
+            }
+
+            HandleRightClickTaskOnly();
+            UpdateOriginalHardCursor();
+
+            if (Time.realtimeSinceStartup >= _nextLog)
+            {
+                _nextLog = Time.realtimeSinceStartup + 3.0f;
+                Debug.Log("[C2:GAMEPLAY INTERACTION V5G] selected=" + _selected.Count.ToString(CultureInfo.InvariantCulture) +
+                          " hover=" + _hoverKind + " src='" + _hoverSource + "' curptr=" + CursorPtrForHoverLikeOriginal(_hoverKind).ToString(CultureInfo.InvariantCulture) +
+                          " hardwareCursor=" + (_lastCursorFrame != null && _lastCursorFrame.Texture != null) +
+                          " unityCursorVisible=" + Cursor.visible);
+            }
+        }
+
+        private void OnGUI()
+        {
+            // V5D: disabled intentionally.
+            // V5C hid the system cursor and tried to repaint through IMGUI; in this project/GameView that path did not render.
+            // Cursor.SetCursor below is the stable path.
+        }
+
+        private static Vector2 MousePositionBottomLeft()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (Mouse.current != null)
+                return Mouse.current.position.ReadValue();
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+            return UnityEngine.Input.mousePosition;
+#else
+            Event e = Event.current;
+            if (e != null)
+                return new Vector2(e.mousePosition.x, Screen.height - e.mousePosition.y);
+            return Vector2.zero;
+#endif
+        }
+
+        private static bool RightMouseButtonPressedThisFrame()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame)
+                return true;
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+            return UnityEngine.Input.GetMouseButtonDown(1);
+#else
+            return false;
+#endif
+        }
+
+        private void EnsureSoftwareCursorCanvas()
+        {
+            if (_cursorCanvas != null && _cursorImage != null && _cursorRect != null)
+            {
+                _softwareCursorReady = true;
+                return;
+            }
+
+            GameObject cgo = new GameObject("C2_OriginalHardCursor_Canvas_V5");
+            cgo.transform.SetParent(transform, false);
+            cgo.hideFlags = HideFlags.HideAndDontSave;
+
+            _cursorCanvas = cgo.AddComponent<Canvas>();
+            _cursorCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _cursorCanvas.sortingOrder = 32767;
+
+            GameObject igo = new GameObject("C2_OriginalHardCursor_Image_V5");
+            igo.transform.SetParent(cgo.transform, false);
+            _cursorImage = igo.AddComponent<Image>();
+            _cursorImage.raycastTarget = false;
+            _cursorImage.preserveAspect = true;
+            _cursorImage.enabled = false;
+
+            _cursorRect = igo.GetComponent<RectTransform>();
+            _cursorRect.anchorMin = new Vector2(0.0f, 0.0f);
+            _cursorRect.anchorMax = new Vector2(0.0f, 0.0f);
+            _cursorRect.pivot = new Vector2(0.0f, 1.0f); // top-left; hotspot компенсируем вручную
+            _cursorRect.sizeDelta = new Vector2(32.0f, 32.0f);
+
+            _softwareCursorReady = true;
+        }
+
+        private void UpdateOriginalHardCursor()
+        {
+            int curptr = CursorPtrForHoverLikeOriginal(_hoverKind);
+            if (curptr != _lastCurPtr || _lastCursorFrame == null || _lastCursorFrame.Texture == null)
+            {
+                _lastCurPtr = curptr;
+                _lastCursorFrame = C2OriginalHardCursorProviderV5.LoadCursor(curptr, out string audit);
+                if (_lastCursorFrame != null && _lastCursorFrame.Texture != null)
+                {
+                    _loggedMissingCursor = false;
+                    if (!_loggedCursorPtrOnce.Contains(curptr))
+                    {
+                        _loggedCursorPtrOnce.Add(curptr);
+                        Debug.Log("[C2:ORIGINAL HARD CURSOR V5G] loaded curptr=" + curptr.ToString(CultureInfo.InvariantCulture) + " " + audit);
+                    }
+                }
+                else if (!_loggedMissingCursor)
+                {
+                    _loggedMissingCursor = true;
+                    Debug.LogWarning("[C2:ORIGINAL HARD CURSOR V5G] missing curptr=" + curptr.ToString(CultureInfo.InvariantCulture) + " " + audit);
+                }
+            }
+
+            if (_cursorImage != null)
+                _cursorImage.enabled = false;
+
+            if (_lastCursorFrame == null || _lastCursorFrame.Texture == null)
+            {
+                Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                Cursor.visible = true;
+                _cursorHidden = false;
+                _lastHardwareCurPtr = int.MinValue;
+                return;
+            }
+
+            if (_lastHardwareCurPtr != curptr)
+            {
+                Vector2 hotspot = new Vector2(_lastCursorFrame.HotspotX, _lastCursorFrame.HotspotY);
+                Cursor.SetCursor(_lastCursorFrame.Texture, hotspot, CursorMode.Auto);
+                _lastHardwareCurPtr = curptr;
+            }
+
+            // Hardware cursor must stay visible. V5C hid it and depended on OnGUI, which was invisible in the Game window.
+            if (!Cursor.visible)
+                Cursor.visible = true;
+            _cursorHidden = false;
+        }
+
+        private void HandleRightClickTaskOnly()
+        {
+            if (_selected.Count == 0)
+                return;
+
+            if (!RightMouseButtonPressedThisFrame())
+                return;
+
+            int curptr = CursorPtrForHoverLikeOriginal(_hoverKind);
+            if ((_hoverKind == C2GameplayTargetKindV1.Tree ||
+                 _hoverKind == C2GameplayTargetKindV1.Stone ||
+                 _hoverKind == C2GameplayTargetKindV1.Field ||
+                 _hoverKind == C2GameplayTargetKindV1.Enemy) && curptr != 0)
+            {
+                TryIssueRightClickTask(_hoverKind, _hoverWorld);
+            }
+            else if (_hoverKind == C2GameplayTargetKindV1.Terrain || curptr == 0)
+            {
+                IssueMoveOrderLikeOriginal(_hoverWorld);
+            }
+        }
+
+        private bool IssueMoveOrderLikeOriginal(Vector3 world)
+        {
+            if (_selected.Count == 0) return false;
+
+            for (int i = 0; i < _selected.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
+                if (u == null) continue;
+                u.SetMoveDestinationLikeOriginal(world);
+                Debug.Log("[C2:GAMEPLAY MOVE V5F] order unit='" + u.SourceMonsterId + "' targetWorld=" + Vec3(world));
+            }
+            return true;
+        }
+
+        private void RefreshSelected()
+        {
+            _selected.Clear();
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] all = FindObjectsOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = all[i];
+                if (u != null && u.isActiveAndEnabled && u.IsSelected && u.CanReceiveOrdersLikeOriginal())
+                    _selected.Add(u);
+            }
+        }
+
+        private static bool HasAnyBattleUnit()
+        {
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] all = FindObjectsOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
+            return all != null && all.Length > 0;
+        }
+
+        private void EnsureSceneInteractionColliders()
+        {
+            int added = 0;
+            MeshFilter[] filters = FindObjectsOfType<MeshFilter>();
+            for (int i = 0; i < filters.Length; i++)
+            {
+                MeshFilter mf = filters[i];
+                if (mf == null || mf.sharedMesh == null || mf.gameObject == null) continue;
+                string n = mf.gameObject.name ?? string.Empty;
+                if (IsIgnoredCursorHitObjectName(n)) continue;
+                C2GameplayTargetKindV1 kind = ClassifyObjectName(n);
+                if (kind == C2GameplayTargetKindV1.Unknown || kind == C2GameplayTargetKindV1.None) continue;
+
+                C2GameplayInteractableZoneV1 zone = mf.gameObject.GetComponent<C2GameplayInteractableZoneV1>();
+                if (zone == null) zone = mf.gameObject.AddComponent<C2GameplayInteractableZoneV1>();
+                zone.Kind = kind;
+                zone.Source = n;
+
+                Collider existing = mf.gameObject.GetComponent<Collider>();
+                if (existing == null)
+                {
+                    MeshCollider mc = mf.gameObject.AddComponent<MeshCollider>();
+                    mc.sharedMesh = mf.sharedMesh;
+                    mc.convex = false;
+                    added++;
+                }
+            }
+
+            if (added > 0)
+                Debug.Log("[C2:GAMEPLAY ZONES V5G] addedMeshColliders=" + added.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private void UpdateHover()
+        {
+            _hoverKind = C2GameplayTargetKindV1.Terrain;
+            _hoverWorld = Vector3.zero;
+            _hoverSource = string.Empty;
+
+            // UI only cancels gameplay-hover; it must not force a resource cursor.
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                _hoverKind = C2GameplayTargetKindV1.None;
+                return;
+            }
+
+            Vector2 mp = MousePositionBottomLeft();
+            Camera[] cams = BestPickCameras();
+
+            bool foundAny = false;
+            float bestCameraTerrainDist = float.PositiveInfinity;
+            RaycastHit bestCameraResourceHit = new RaycastHit();
+            C2GameplayTargetKindV1 bestCameraResourceKind = C2GameplayTargetKindV1.Unknown;
+            string bestCameraResourceSource = string.Empty;
+            float bestCameraResourceDist = float.PositiveInfinity;
+
+            for (int i = 0; cams != null && i < cams.Length; i++)
+            {
+                Camera cam = cams[i];
+                if (cam == null) continue;
+
+                Ray ray = cam.ScreenPointToRay(mp);
+                RaycastHit[] hits = Physics.RaycastAll(ray, 20000.0f, ~0, QueryTriggerInteraction.Ignore);
+                if (hits == null || hits.Length == 0) continue;
+
+                Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+                float terrainDist = float.PositiveInfinity;
+                RaycastHit terrainHit = new RaycastHit();
+                bool hasTerrain = false;
+
+                RaycastHit resourceHit = new RaycastHit();
+                C2GameplayTargetKindV1 resourceKind = C2GameplayTargetKindV1.Unknown;
+                string resourceSource = string.Empty;
+                float resourceDist = float.PositiveInfinity;
+
+                for (int h = 0; h < hits.Length; h++)
+                {
+                    RaycastHit hit = hits[h];
+                    if (hit.collider == null) continue;
+
+                    C2GameplayTargetKindV1 k = KindFromHit(hit);
+                    if (k == C2GameplayTargetKindV1.Unknown || k == C2GameplayTargetKindV1.None)
+                        continue;
+
+                    if (k == C2GameplayTargetKindV1.Terrain)
+                    {
+                        if (!hasTerrain)
+                        {
+                            hasTerrain = true;
+                            terrainDist = hit.distance;
+                            terrainHit = hit;
+                        }
+                        continue;
+                    }
+
+                    // Original logic calculates map cell under mouse (xmx/yreal), then DetermineResource(xmx,yreal).
+                    // It does NOT pick a tree mesh behind the ground point along the camera ray.
+                    // So resource/building/unit hits behind the first terrain hit are ignored.
+                    if (hasTerrain && hit.distance > terrainDist + 0.25f)
+                        continue;
+
+                    resourceHit = hit;
+                    resourceKind = k;
+                    resourceSource = hit.collider.gameObject.name;
+                    resourceDist = hit.distance;
+                    break;
+                }
+
+                if (resourceKind != C2GameplayTargetKindV1.Unknown)
+                {
+                    foundAny = true;
+                    if (resourceDist < bestCameraResourceDist)
+                    {
+                        bestCameraResourceDist = resourceDist;
+                        bestCameraResourceHit = resourceHit;
+                        bestCameraResourceKind = resourceKind;
+                        bestCameraResourceSource = resourceSource;
+                    }
+                }
+                else if (hasTerrain && terrainDist < bestCameraTerrainDist)
+                {
+                    foundAny = true;
+                    bestCameraTerrainDist = terrainDist;
+                    _hoverWorld = terrainHit.point;
+                    _hoverSource = terrainHit.collider != null ? terrainHit.collider.gameObject.name : string.Empty;
+                }
+            }
+
+            if (bestCameraResourceKind != C2GameplayTargetKindV1.Unknown)
+            {
+                _hoverKind = bestCameraResourceKind;
+                _hoverWorld = bestCameraResourceHit.point;
+                _hoverSource = bestCameraResourceSource;
+            }
+            else if (foundAny)
+            {
+                _hoverKind = C2GameplayTargetKindV1.Terrain;
+            }
+        }
+
+        private static int TargetPriority(C2GameplayTargetKindV1 kind)
+        {
+            switch (kind)
+            {
+                case C2GameplayTargetKindV1.Enemy: return 50;
+                case C2GameplayTargetKindV1.Tree: return 40;
+                case C2GameplayTargetKindV1.Stone: return 40;
+                case C2GameplayTargetKindV1.Field: return 40;
+                case C2GameplayTargetKindV1.Building: return 30;
+                case C2GameplayTargetKindV1.FriendlyUnit: return 20;
+                case C2GameplayTargetKindV1.Terrain: return 0;
+                default: return -10;
+            }
+        }
+
+        private bool TryIssueRightClickTask(C2GameplayTargetKindV1 kind, Vector3 targetWorld)
+        {
+            if (_selected.Count == 0) return false;
+            if (CursorPtrForHoverLikeOriginal(kind) == 0) return false;
+            if (kind != C2GameplayTargetKindV1.Tree &&
+                kind != C2GameplayTargetKindV1.Stone &&
+                kind != C2GameplayTargetKindV1.Field &&
+                kind != C2GameplayTargetKindV1.Enemy)
+                return false;
+
+            for (int i = 0; i < _selected.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
+                if (u == null) continue;
+                C2GameplayUnitTaskV1 task = u.GetComponent<C2GameplayUnitTaskV1>();
+                if (task == null) task = u.gameObject.AddComponent<C2GameplayUnitTaskV1>();
+                task.Begin(u, kind, targetWorld, kind == C2GameplayTargetKindV1.Enemy ? 5.0f : 8.0f);
+            }
+            return true;
+        }
+
+        private static C2GameplayTargetKindV1 KindFromHit(RaycastHit hit)
+        {
+            if (hit.collider == null) return C2GameplayTargetKindV1.Unknown;
+
+            string n = hit.collider.gameObject != null ? (hit.collider.gameObject.name ?? string.Empty) : string.Empty;
+            if (IsIgnoredCursorHitObjectName(n))
+                return C2GameplayTargetKindV1.Unknown;
+
+            C2GameplayInteractableZoneV1 z = hit.collider.GetComponent<C2GameplayInteractableZoneV1>();
+            if (z != null)
+            {
+                // Old V5E could leave a Tree zone on shadow billboards created in a previous Play run.
+                if (z.Source != null && IsIgnoredCursorHitObjectName(z.Source))
+                    return C2GameplayTargetKindV1.Unknown;
+                return z.Kind;
+            }
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal u = hit.collider.GetComponentInParent<C2NeutralPeasantUnitInfoV2LikeOriginal>();
+            if (u != null) return u.IsSelected ? C2GameplayTargetKindV1.FriendlyUnit : C2GameplayTargetKindV1.Enemy;
+
+            return ClassifyObjectName(n);
+        }
+
+        private static bool IsIgnoredCursorHitObjectName(string n)
+        {
+            if (string.IsNullOrWhiteSpace(n)) return false;
+
+            // Shadow billboard batches are visual shadows only. They often cover empty ground and must never become Tree hover.
+            if (n.IndexOf("C2_Nature_GA_ShadowBillboard", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (n.IndexOf("ShadowBillboard", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+
+            return false;
+        }
+
+        private static C2GameplayTargetKindV1 ClassifyObjectName(string n)
+        {
+            if (string.IsNullOrWhiteSpace(n)) return C2GameplayTargetKindV1.Unknown;
+            if (IsIgnoredCursorHitObjectName(n)) return C2GameplayTargetKindV1.Unknown;
+            if (n.IndexOf("C2_Nature_GA_", StringComparison.OrdinalIgnoreCase) >= 0) return C2GameplayTargetKindV1.Tree;
+            if (n.IndexOf("C2_Nature_TS_", StringComparison.OrdinalIgnoreCase) >= 0) return C2GameplayTargetKindV1.Stone;
+            if (n.IndexOf("C2_Nature_FIELD_", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("FIELDPATH", StringComparison.OrdinalIgnoreCase) >= 0) return C2GameplayTargetKindV1.Field;
+            if (n.IndexOf("C2_SettlementBuildings", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("3INU_MD", StringComparison.OrdinalIgnoreCase) >= 0) return C2GameplayTargetKindV1.Building;
+            if (n.IndexOf("Terrain", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("Ground", StringComparison.OrdinalIgnoreCase) >= 0) return C2GameplayTargetKindV1.Terrain;
+            return C2GameplayTargetKindV1.Unknown;
+        }
+
+        private static Camera[] BestPickCameras()
+        {
+            List<Camera> result = new List<Camera>(4);
+            Camera[] all = Camera.allCameras;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                for (int i = 0; all != null && i < all.Length; i++)
+                {
+                    Camera c = all[i];
+                    if (c == null || !c.isActiveAndEnabled || result.Contains(c)) continue;
+                    string n = c.name ?? string.Empty;
+                    if (pass == 0 && n.IndexOf("C2_BattleTerrainCamera_Iso", StringComparison.OrdinalIgnoreCase) >= 0) result.Add(c);
+                    if (pass == 1 && n.IndexOf("BattleTerrain", StringComparison.OrdinalIgnoreCase) >= 0) result.Add(c);
+                    if (pass == 2 && c == Camera.main) result.Add(c);
+                }
+            }
+            if (result.Count == 0 && Camera.main != null) result.Add(Camera.main);
+            return result.ToArray();
+        }
+
+        private int CursorPtrForHoverLikeOriginal(C2GameplayTargetKindV1 kind)
+        {
+            // V5G: cursor switching is intentionally disabled for now.
+            // Keep one standard Cossacks cursor: s_cursor.c2m curptr=0 -> Cursors/Hard/main.cur.
+            // Hover/selection/task logic below can still work, but it no longer changes the cursor.
+            return 0;
+        }
+
+        private bool HasSelectedOrderUnitsLikeOriginal()
+        {
+            for (int i = 0; i < _selected.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
+                if (u != null && u.isActiveAndEnabled && u.CanReceiveOrdersLikeOriginal())
+                    return true;
+            }
+            return false;
+        }
+
+        private bool CanSelectedTakeResourcesLikeOriginal()
+        {
+            for (int i = 0; i < _selected.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
+                if (IsSelectedPeasantLikeOriginal(u))
+                    return true;
+            }
+            return false;
+        }
+
+        private bool CanSelectedRepairLikeOriginal()
+        {
+            for (int i = 0; i < _selected.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
+                if (IsSelectedPeasantLikeOriginal(u))
+                    return true;
+            }
+            return false;
+        }
+
+        private bool CanSelectedEnterLikeOriginal()
+        {
+            return HasSelectedOrderUnitsLikeOriginal();
+        }
+
+        private bool CanSelectedAttackLikeOriginal()
+        {
+            // Until real NewMonster KillMask/AttBuild/Capture flags are parsed, any controllable selected unit may show AttackPtr.
+            return HasSelectedOrderUnitsLikeOriginal();
+        }
+
+        private static bool IsSelectedPeasantLikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal u)
+        {
+            if (u == null || !u.isActiveAndEnabled || !u.CanReceiveOrdersLikeOriginal())
+                return false;
+
+            string id = ((u.SourceMonsterId ?? string.Empty) + " " + (u.ResolvedMd ?? string.Empty)).ToLowerInvariant();
+            // Current real peasant in logs: SourceMonsterId='UnitKri(AU)', ResolvedMd='EngKri'.
+            // Keep this strict so line infantry/artillery won't get wood/stone/food cursors later.
+            return id.IndexOf("kri", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   id.IndexOf("peasant", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   id.IndexOf("worker", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string Vec3(Vector3 v)
+        {
+            return "(" + v.x.ToString("0.00", CultureInfo.InvariantCulture) + "," +
+                   v.y.ToString("0.00", CultureInfo.InvariantCulture) + "," +
+                   v.z.ToString("0.00", CultureInfo.InvariantCulture) + ")";
+        }
+    }
+
+    internal sealed class C2OriginalHardCursorFrameV5
+    {
+        public Sprite Sprite;
+        public Texture2D Texture;
+        public int Width;
+        public int Height;
+        public int HotspotX;
+        public int HotspotY;
+        public string SourcePath;
+    }
+
+    internal static class C2OriginalHardCursorProviderV5
+    {
+        public const string Contract = "V5F_PARSE_S_CURSOR_C2M_HARD_CUR_SELECTED_GROUND_HIT";
+
+        private static readonly Dictionary<int, C2OriginalHardCursorFrameV5> Cache = new Dictionary<int, C2OriginalHardCursorFrameV5>();
+        private static readonly Dictionary<int, string> CurPtrToResource = new Dictionary<int, string>
+        {
+            { 0,  "Cursors/Hard/main" },
+            { 1,  "Cursors/Hard/attack" },
+            { 2,  "Cursors/Hard/into_house" },
+            { 3,  "Cursors/Hard/mend" },
+            { 4,  "Cursors/Hard/mining" },
+            { 5,  "Cursors/Hard/stoun" },
+            { 6,  "Cursors/Hard/wood" },
+            { 7,  "Cursors/Hard/food" },
+            { 8,  "Cursors/Game/rally" },
+            { 9,  "Cursors/Hard/graundAt" },
+            { 10, "Cursors/Game/guard" },
+            { 11, "Cursors/Hard/into_house" },
+            { 15, "Cursors/null" }
+        };
+
+        public static string PrewarmOriginalHardCursors()
+        {
+            int ok = 0;
+            string first = string.Empty;
+            int[] ptrs = new[] { 0, 1, 2, 4, 5, 6, 7, 9, 15 };
+            for (int i = 0; i < ptrs.Length; i++)
+            {
+                C2OriginalHardCursorFrameV5 f = LoadCursor(ptrs[i], out string audit);
+                if (f != null && f.Sprite != null) ok++;
+                if (i == 0) first = audit;
+            }
+            return "prewarmOk=" + ok.ToString(CultureInfo.InvariantCulture) + "/" + ptrs.Length.ToString(CultureInfo.InvariantCulture) + " first={" + first + "}";
+        }
+
+        public static C2OriginalHardCursorFrameV5 LoadCursor(int curptr, out string audit)
+        {
+            if (Cache.TryGetValue(curptr, out C2OriginalHardCursorFrameV5 cached))
+            {
+                audit = "cached curptr=" + curptr.ToString(CultureInfo.InvariantCulture) + " src='" + (cached != null ? cached.SourcePath : "null") + "'";
+                return cached;
+            }
+
+            string resourcePath = ResourcePathForCurPtr(curptr);
+            byte[] bytes = TryReadCursorBytes(resourcePath, out string sourcePath);
+            if ((bytes == null || bytes.Length == 0) && curptr != 0)
+            {
+                // Original-safe fallback: if special cursor is absent, keep main cursor visible instead of hiding it.
+                bytes = TryReadCursorBytes("Cursors/Hard/main", out sourcePath);
+            }
+
+            if (bytes == null || bytes.Length == 0)
+            {
+                audit = "missing bytes curptr=" + curptr.ToString(CultureInfo.InvariantCulture) + " res='" + resourcePath + "'";
+                Cache[curptr] = null;
+                return null;
+            }
+
+            C2OriginalHardCursorFrameV5 frame = DecodeCur(bytes, sourcePath, out string decodeAudit);
+            Cache[curptr] = frame;
+            audit = "curptr=" + curptr.ToString(CultureInfo.InvariantCulture) + " res='" + resourcePath + "' source='" + sourcePath + "' " + decodeAudit;
+            return frame;
+        }
+
+        private static string ResourcePathForCurPtr(int curptr)
+        {
+            if (CurPtrToResource.TryGetValue(curptr, out string path))
+                return path;
+            return "Cursors/Hard/main";
+        }
+
+        private static byte[] TryReadCursorBytes(string resourcePath, out string sourcePath)
+        {
+            sourcePath = string.Empty;
+
+            TextAsset ta = Resources.Load<TextAsset>(resourcePath);
+            if (ta != null && ta.bytes != null && ta.bytes.Length > 0)
+            {
+                sourcePath = "Resources.Load<TextAsset>('" + resourcePath + "')";
+                return ta.bytes;
+            }
+
+            string rel = resourcePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+            string[] candidates = new[]
+            {
+                Path.Combine(Application.dataPath, "Resources", rel + ".cur"),
+                Path.Combine(Application.dataPath, "Resources", rel + ".bytes"),
+                Path.Combine(Application.dataPath, rel + ".cur")
+            };
+
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                string p = candidates[i];
+                if (!string.IsNullOrEmpty(p) && File.Exists(p))
+                {
+                    sourcePath = p;
+                    return File.ReadAllBytes(p);
+                }
+            }
+
+            return null;
+        }
+
+        private static C2OriginalHardCursorFrameV5 DecodeCur(byte[] data, string sourcePath, out string audit)
+        {
+            audit = string.Empty;
+            try
+            {
+                if (data == null || data.Length < 22)
+                {
+                    audit = "decodeFailed tooSmall";
+                    return null;
+                }
+
+                ushort reserved = U16(data, 0);
+                ushort type = U16(data, 2);
+                ushort count = U16(data, 4);
+                if (reserved != 0 || type != 2 || count == 0)
+                {
+                    audit = "decodeFailed badIconDir reserved=" + reserved + " type=" + type + " count=" + count;
+                    return null;
+                }
+
+                int bestEntry = 6;
+                int bestPixels = -1;
+                for (int i = 0; i < count; i++)
+                {
+                    int e = 6 + i * 16;
+                    if (e + 16 > data.Length) break;
+                    int ew = data[e] == 0 ? 256 : data[e];
+                    int eh = data[e + 1] == 0 ? 256 : data[e + 1];
+                    int entryPixels = ew * eh;
+                    if (entryPixels > bestPixels)
+                    {
+                        bestPixels = entryPixels;
+                        bestEntry = e;
+                    }
+                }
+
+                int entryW = data[bestEntry] == 0 ? 256 : data[bestEntry];
+                int entryH = data[bestEntry + 1] == 0 ? 256 : data[bestEntry + 1];
+                int hotX = U16(data, bestEntry + 4);
+                int hotY = U16(data, bestEntry + 6);
+                int bytesInRes = I32(data, bestEntry + 8);
+                int imageOffset = I32(data, bestEntry + 12);
+
+                if (imageOffset < 0 || imageOffset >= data.Length)
+                {
+                    audit = "decodeFailed badImageOffset=" + imageOffset;
+                    return null;
+                }
+
+                // PNG cursor entry.
+                if (imageOffset + 8 < data.Length && data[imageOffset] == 0x89 && data[imageOffset + 1] == 0x50 && data[imageOffset + 2] == 0x4E && data[imageOffset + 3] == 0x47)
+                {
+                    byte[] png = new byte[Mathf.Min(bytesInRes, data.Length - imageOffset)];
+                    Buffer.BlockCopy(data, imageOffset, png, 0, png.Length);
+                    Texture2D pngTex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    if (!pngTex.LoadImage(png, false))
+                    {
+                        audit = "decodeFailed pngLoadImage";
+                        return null;
+                    }
+                    pngTex.filterMode = FilterMode.Point;
+                    pngTex.wrapMode = TextureWrapMode.Clamp;
+                    Sprite pngSp = Sprite.Create(pngTex, new Rect(0, 0, pngTex.width, pngTex.height), new Vector2(0, 1), 100.0f);
+                    audit = "png " + pngTex.width + "x" + pngTex.height + " hot=" + hotX + "," + hotY;
+                    return new C2OriginalHardCursorFrameV5 { Texture = pngTex, Sprite = pngSp, Width = pngTex.width, Height = pngTex.height, HotspotX = hotX, HotspotY = hotY, SourcePath = sourcePath };
+                }
+
+                int headerSize = I32(data, imageOffset);
+                if (headerSize < 40 || imageOffset + headerSize > data.Length)
+                {
+                    audit = "decodeFailed badDibHeader=" + headerSize;
+                    return null;
+                }
+
+                int dibW = I32(data, imageOffset + 4);
+                int dibHRaw = I32(data, imageOffset + 8);
+                ushort planes = U16(data, imageOffset + 12);
+                ushort bpp = U16(data, imageOffset + 14);
+                int compression = I32(data, imageOffset + 16);
+                int colorsUsed = I32(data, imageOffset + 32);
+                if (planes != 1 || compression != 0 || dibW <= 0 || dibHRaw == 0)
+                {
+                    audit = "decodeFailed unsupportedDib planes=" + planes + " compression=" + compression + " w=" + dibW + " h=" + dibHRaw;
+                    return null;
+                }
+
+                bool bottomUp = dibHRaw > 0;
+                int dibHAbs = Mathf.Abs(dibHRaw);
+                int imgH = Math.Max(1, dibHAbs / 2);
+                int imgW = dibW;
+                if (entryW > 0) imgW = entryW;
+                if (entryH > 0) imgH = entryH;
+
+                int paletteEntries = 0;
+                if (bpp <= 8)
+                    paletteEntries = colorsUsed > 0 ? colorsUsed : (1 << bpp);
+
+                int paletteOffset = imageOffset + headerSize;
+                int xorOffset = paletteOffset + paletteEntries * 4;
+                int xorStride = ((imgW * bpp + 31) / 32) * 4;
+                int xorBytes = xorStride * imgH;
+                int andOffset = xorOffset + xorBytes;
+                int andStride = ((imgW + 31) / 32) * 4;
+
+                if (xorOffset < 0 || xorOffset + xorBytes > data.Length)
+                {
+                    audit = "decodeFailed badXorData w=" + imgW + " h=" + imgH + " bpp=" + bpp + " xorOffset=" + xorOffset + " xorBytes=" + xorBytes;
+                    return null;
+                }
+
+                Color32[] pixels = new Color32[imgW * imgH];
+                for (int y = 0; y < imgH; y++)
+                {
+                    int srcY = bottomUp ? y : (imgH - 1 - y);
+                    int row = xorOffset + srcY * xorStride;
+                    for (int x = 0; x < imgW; x++)
+                    {
+                        byte r = 0, g = 0, b = 0, a = 255;
+                        if (bpp == 32)
+                        {
+                            int p = row + x * 4;
+                            b = data[p + 0];
+                            g = data[p + 1];
+                            r = data[p + 2];
+                            a = data[p + 3];
+                        }
+                        else if (bpp == 24)
+                        {
+                            int p = row + x * 3;
+                            b = data[p + 0];
+                            g = data[p + 1];
+                            r = data[p + 2];
+                            a = 255;
+                        }
+                        else if (bpp == 8)
+                        {
+                            int idx = data[row + x];
+                            int pal = paletteOffset + idx * 4;
+                            if (pal + 3 < data.Length)
+                            {
+                                b = data[pal + 0]; g = data[pal + 1]; r = data[pal + 2]; a = 255;
+                            }
+                        }
+                        else
+                        {
+                            audit = "decodeFailed unsupportedBpp=" + bpp;
+                            return null;
+                        }
+
+                        if (andOffset + andStride * imgH <= data.Length)
+                        {
+                            int maskRow = andOffset + srcY * andStride;
+                            int maskByte = data[maskRow + (x >> 3)];
+                            bool transparent = (maskByte & (0x80 >> (x & 7))) != 0;
+                            if (transparent) a = 0;
+                        }
+
+                        pixels[y * imgW + x] = new Color32(r, g, b, a);
+                    }
+                }
+
+                Texture2D tex = new Texture2D(imgW, imgH, TextureFormat.RGBA32, false);
+                tex.name = "C2OriginalHardCursor_" + Path.GetFileNameWithoutExtension(sourcePath);
+                tex.filterMode = FilterMode.Point;
+                tex.wrapMode = TextureWrapMode.Clamp;
+                tex.SetPixels32(pixels);
+                tex.Apply(false, false);
+
+                Sprite sp = Sprite.Create(tex, new Rect(0, 0, imgW, imgH), new Vector2(0, 1), 100.0f);
+                audit = "dib " + imgW + "x" + imgH + " bpp=" + bpp + " hot=" + hotX + "," + hotY + " bytes=" + data.Length;
+                return new C2OriginalHardCursorFrameV5
+                {
+                    Texture = tex,
+                    Sprite = sp,
+                    Width = imgW,
+                    Height = imgH,
+                    HotspotX = hotX,
+                    HotspotY = hotY,
+                    SourcePath = sourcePath
+                };
+            }
+            catch (Exception ex)
+            {
+                audit = "decodeException " + ex.GetType().Name + ": " + ex.Message;
+                return null;
+            }
+        }
+
+        private static ushort U16(byte[] d, int o)
+        {
+            return (ushort)(d[o] | (d[o + 1] << 8));
+        }
+
+        private static int I32(byte[] d, int o)
+        {
+            unchecked
+            {
+                return d[o] | (d[o + 1] << 8) | (d[o + 2] << 16) | (d[o + 3] << 24);
+            }
+        }
+    }
+}

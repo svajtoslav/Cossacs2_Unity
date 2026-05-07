@@ -1,4 +1,4 @@
-// C2NeutralPeasantUnitsLikeOriginal.cs
+﻿// C2NeutralPeasantUnitsLikeOriginal.cs
 // V19: widens V18 from UnitKri-only to saved Unit* records through original NDS->MD aliases,
 // caches MD directional visuals, and keeps original-style ground selection markers.
 // Reads saved 3INU/UNI3 unit records, resolves MD/USERLC/G2D frames,
@@ -17,13 +17,20 @@ using UnityEngine.UI;
 
 namespace Cossacks2Bridge.UnityAdapters.Maps
 {
+    internal static class C2NeutralPeasantUnitsLogGateV45LikeOriginal
+    {
+        internal const bool Verbose = false; // V45/V1B: global gate for noisy unit Debug.Log calls.
+    }
+
     public sealed partial class C2BattleTerrainMode
     {
         private const bool C2NeutralPeasantUnitsV2EnabledLikeOriginal = true;
         private const string C2NeutralPeasantUnitsV2ContractLikeOriginal =
-            "V33_CONTINUOUS_XZ_NO_PARITY_JUMP_SMOOTH_Y";
+            "V50_SHADER_SELECTED_PULSE_AND_SELECTION_PATCH_DEPTH";
         private const string C2NeutralPeasantUnitsV2RootPrefixLikeOriginal =
-            "C2_NeutralPeasantUnits_3INU_MD_G2D_V33_";
+            "C2_NeutralPeasantUnits_3INU_MD_G2D_V50_";
+        private const bool C2NeutralPeasantUnitsV45VerboseLogLikeOriginal = false; // V45: disable noisy unit logs; warnings/errors stay enabled.
+        private static bool C2NeutralPeasantUnitsV44PickerResetDoneLikeOriginal;
         private const string C2NeutralPeasantUnitsV1RootPrefixForCleanupLikeOriginal =
             "C2_NeutralPeasantUnits_3INU_MD_G2D_V1_";
         private const string C2NeutralPeasantUnitsV2RootPrefixForCleanupLikeOriginal =
@@ -122,7 +129,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             else
             {
-                go = new GameObject("C2_NeutralPeasantUnits_3INU_MD_G2D_V33_AutoRunner");
+                go = new GameObject("C2_NeutralPeasantUnits_3INU_MD_G2D_V44_AutoRunner");
                 UnityEngine.Object.DontDestroyOnLoad(go);
                 go.hideFlags = HideFlags.HideAndDontSave;
                 go.AddComponent<C2NeutralPeasantUnitsV2AutoRunner>();
@@ -133,30 +140,112 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // yellow drag rectangle from living in DontDestroyOnLoad and covering menu UI.
         }
 
+        private static void C2NeutralPeasantUnitsV2ForcePickerResetV44LikeOriginal(GameObject keepHost)
+        {
+            if (C2NeutralPeasantUnitsV44PickerResetDoneLikeOriginal) return;
+            C2NeutralPeasantUnitsV44PickerResetDoneLikeOriginal = true;
+
+            C2NeutralPeasantUnitPickerV2LikeOriginal.Active = null;
+
+            GameObject[] all = UnityEngine.Object.FindObjectsOfType<GameObject>();
+            if (all == null) return;
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                GameObject go = all[i];
+                if (go == null || go == keepHost) continue;
+
+                string n = go.name ?? string.Empty;
+                bool hasPicker = false;
+                try { hasPicker = go.GetComponent<C2NeutralPeasantUnitPickerV2LikeOriginal>() != null; }
+                catch { hasPicker = false; }
+
+                bool staleScreenOverlay =
+                    n.StartsWith("C2_NeutralPeasantUnits_V", StringComparison.OrdinalIgnoreCase) &&
+                    n.IndexOf("ScreenOverlay", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                bool stalePickerHost =
+                    n.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V", StringComparison.OrdinalIgnoreCase) &&
+                    n.IndexOf("PickerHost", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                bool staleAutoRunner =
+                    n.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V", StringComparison.OrdinalIgnoreCase) &&
+                    n.IndexOf("AutoRunner", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    n.IndexOf("_V44_", StringComparison.OrdinalIgnoreCase) < 0;
+
+                if (hasPicker || staleScreenOverlay || stalePickerHost || staleAutoRunner)
+                {
+                    SafeDestroy(go);
+                }
+            }
+
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT PICKER V44 RESET] staleActiveCleared=True source=force_once");
+        }
+
         private static void C2NeutralPeasantUnitsV2EnsurePickerInstalledLikeOriginal(GameObject host, string source)
         {
-            // V8: singleton guard. V4 could attach a new picker every auto-runner tick,
-            // producing dozens of identical pick/miss logs per one click.
-            var existingPicker = C2NeutralPeasantUnitPickerV2LikeOriginal.Active;
-            if (existingPicker == null && host != null)
-                existingPicker = host.GetComponent<C2NeutralPeasantUnitPickerV2LikeOriginal>();
-            if (existingPicker == null)
-                existingPicker = UnityEngine.Object.FindObjectOfType<C2NeutralPeasantUnitPickerV2LikeOriginal>();
+            // V44: reset stale V18/V40/V41/V42/V43 picker references once, then install one real V44 picker.
+            // In V43 the unit runner loaded, but the picker/overlay did not install if Active pointed to an old component.
+            C2NeutralPeasantUnitsV2ForcePickerResetV44LikeOriginal(host);
 
-            if (existingPicker != null)
+            C2NeutralPeasantUnitPickerV2LikeOriginal active = C2NeutralPeasantUnitPickerV2LikeOriginal.Active;
+            if (active != null && active.gameObject != null && active.isActiveAndEnabled &&
+                active.gameObject.name.IndexOf("_V44_", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
                 return;
+            }
 
             if (host == null)
             {
-                host = new GameObject("C2_NeutralPeasantUnits_3INU_MD_G2D_V22_PickerHost");
-                UnityEngine.Object.DontDestroyOnLoad(host);
-                host.hideFlags = HideFlags.HideAndDontSave;
+                host = GameObject.Find("C2_NeutralPeasantUnits_3INU_MD_G2D_V44_PickerHost");
+                if (host == null)
+                {
+                    host = new GameObject("C2_NeutralPeasantUnits_3INU_MD_G2D_V44_PickerHost");
+                    UnityEngine.Object.DontDestroyOnLoad(host);
+                    host.hideFlags = HideFlags.HideAndDontSave;
+                }
             }
 
-            host.AddComponent<C2NeutralPeasantUnitPickerV2LikeOriginal>();
-            Debug.Log("[C2:NEUTRAL PEASANT PICKER V19 AUTOINSTALL] source=" + source +
+            C2NeutralPeasantUnitPickerV2LikeOriginal existingOnHost =
+                host.GetComponent<C2NeutralPeasantUnitPickerV2LikeOriginal>();
+            if (existingOnHost != null && existingOnHost.isActiveAndEnabled)
+            {
+                C2NeutralPeasantUnitPickerV2LikeOriginal.Active = existingOnHost;
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT PICKER V44 AUTOINSTALL] source=" + source +
+                          " status=reused host='" + host.name + "'");
+                return;
+            }
+
+            // One-time cleanup of stale hosts/canvases from failed visual attempts.
+            GameObject[] all = UnityEngine.Object.FindObjectsOfType<GameObject>();
+            if (all != null)
+            {
+                for (int i = 0; i < all.Length; i++)
+                {
+                    GameObject go = all[i];
+                    if (go == null || go == host) continue;
+                    string n = go.name ?? string.Empty;
+                    bool stalePickerHost =
+                        n.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V", StringComparison.OrdinalIgnoreCase) &&
+                        n.IndexOf("PickerHost", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool staleScreenOverlay =
+                        n.StartsWith("C2_NeutralPeasantUnits_V", StringComparison.OrdinalIgnoreCase) &&
+                        n.IndexOf("ScreenOverlay", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (stalePickerHost || staleScreenOverlay)
+                    {
+                        SafeDestroy(go);
+                    }
+                }
+            }
+
+            C2NeutralPeasantUnitPickerV2LikeOriginal picker =
+                host.AddComponent<C2NeutralPeasantUnitPickerV2LikeOriginal>();
+            C2NeutralPeasantUnitPickerV2LikeOriginal.Active = picker;
+
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT PICKER V44 AUTOINSTALL] source=" + source +
                       " status=added host='" + host.name + "'");
         }
+
 
         private sealed class C2NeutralPeasantUnitsV2AutoRunner : MonoBehaviour
         {
@@ -181,7 +270,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (_waitLogs < 12)
                     {
                         _waitLogs++;
-                        Debug.Log("[C2:NEUTRAL PEASANT UNITS V23 WAIT] mapPath='" +
+                        if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNITS V23 WAIT] mapPath='" +
                                   (map ?? "<null>") + "' mapObjectReady=" + mapObjectReady +
                                   " hint=waiting for terrain parser / _mapRelativePath");
                     }
@@ -219,6 +308,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 "C2_NeutralPeasantUnits_3INU_MD_G2D_V23_PickerHost",
                 "C2_NeutralPeasantUnits_3INU_MD_G2D_V25_PickerHost",
                 "C2_NeutralPeasantUnits_3INU_MD_G2D_V33_PickerHost",
+                "C2_NeutralPeasantUnits_3INU_MD_G2D_V34_PickerHost",
+                "C2_NeutralPeasantUnits_3INU_MD_G2D_V35_PickerHost",
+                "C2_NeutralPeasantUnits_3INU_MD_G2D_V36_PickerHost",
+                "C2_NeutralPeasantUnits_3INU_MD_G2D_V37_PickerHost",
+                "C2_NeutralPeasantUnits_3INU_MD_G2D_V38_PickerHost",
+                "C2_NeutralPeasantUnits_3INU_MD_G2D_V39_PickerHost",
+                "C2_NeutralPeasantUnits_3INU_MD_G2D_V44_PickerHost",
             };
 
             GameObject[] all = UnityEngine.Object.FindObjectsOfType<GameObject>();
@@ -245,7 +341,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (_map == null)
             {
-                Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V33] parsed terrain map object is not ready; skip source=" +
+                Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V44] parsed terrain map object is not ready; skip source=" +
                                  source + " map='" + (mapPath ?? "<null>") + "'");
                 return;
             }
@@ -253,7 +349,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string abs = C2Settlement3InuMdV2ResolveMapPathLikeOriginal(mapPath);
             if (string.IsNullOrEmpty(abs) || !File.Exists(abs))
             {
-                Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V33] map not found: " + (mapPath ?? "<null>"));
+                Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V44] map not found: " + (mapPath ?? "<null>"));
                 return;
             }
 
@@ -261,7 +357,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string chunkAudit;
             if (!C2Settlement3InuMdV2TryParseRecordsLikeOriginal(abs, out records, out chunkAudit))
             {
-                Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V33] no 3INU/UNI3 records map='" +
+                Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V44] no 3INU/UNI3 records map='" +
                                  mapPath + "' audit=" + chunkAudit);
                 return;
             }
@@ -400,7 +496,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
-            Debug.Log("[C2:NEUTRAL PEASANT UNITS V33] contract=" + C2NeutralPeasantUnitsV2ContractLikeOriginal +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNITS V44] contract=" + C2NeutralPeasantUnitsV2ContractLikeOriginal +
                       " source=" + source +
                       " map='" + mapPath + "'" +
                       " records=" + records.Count.ToString(CultureInfo.InvariantCulture) +
@@ -422,7 +518,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       " chunkAudit=" + chunkAudit +
                       " allNames=" + C2Settlement3InuMdV2TopNamesLikeOriginal(nameCounts, 40));
 
-            if (sample.Count > 0) Debug.Log("[C2:NEUTRAL PEASANT UNITS V33 SAMPLE] " + string.Join(" | ", sample.ToArray()));
+            if (sample.Count > 0) if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNITS V44 SAMPLE] " + string.Join(" | ", sample.ToArray()));
             if (mdMiss.Count > 0) Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V33 MD MISS] " + string.Join(" | ", mdMiss.ToArray()));
             if (visMiss.Count > 0) Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V33 VISUAL MISS] " + string.Join(" | ", visMiss.ToArray()));
         }
@@ -443,9 +539,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 var go = gos[i];
                 if (go == null) continue;
 
-                // Do not delete the V8 hidden auto-runner/picker host while rebuilding unit roots.
-                if (go.GetComponent<C2NeutralPeasantUnitsV2AutoRunner>() != null ||
-                    go.GetComponent<C2NeutralPeasantUnitPickerV2LikeOriginal>() != null)
+                // V40: do not keep old picker/auto-runner hosts from older patches.
+                // Only the current V40 host is protected while rebuilding; V22..V39 hosts must die,
+                // otherwise their old picker/overlay can stay active and hide/bypass new selection visuals.
+                bool hasRuntimeHostV40LikeOriginal =
+                    go.GetComponent<C2NeutralPeasantUnitsV2AutoRunner>() != null ||
+                    go.GetComponent<C2NeutralPeasantUnitPickerV2LikeOriginal>() != null;
+                if (hasRuntimeHostV40LikeOriginal &&
+                    go.name.StartsWith(C2NeutralPeasantUnitsV2RootPrefixLikeOriginal, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 if (go.name.StartsWith(C2NeutralPeasantUnitsV2RootPrefixLikeOriginal, StringComparison.OrdinalIgnoreCase) ||
@@ -458,7 +559,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     go.name.StartsWith(C2NeutralPeasantUnitsV19RootPrefixForCleanupLikeOriginal, StringComparison.OrdinalIgnoreCase) ||
                     go.name.StartsWith(C2NeutralPeasantUnitsV20RootPrefixForCleanupLikeOriginal, StringComparison.OrdinalIgnoreCase) ||
                     go.name.StartsWith(C2NeutralPeasantUnitsV21RootPrefixForCleanupLikeOriginal, StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V39_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V38_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V37_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V36_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V35_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V34_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V33_", StringComparison.OrdinalIgnoreCase) ||
                     go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V32_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V31_", StringComparison.OrdinalIgnoreCase) ||
+                    go.name.StartsWith("C2_NeutralPeasantUnits_3INU_MD_G2D_V30_", StringComparison.OrdinalIgnoreCase) ||
                     go.name.StartsWith(C2NeutralPeasantUnitsV16RootPrefixForCleanupLikeOriginal, StringComparison.OrdinalIgnoreCase) ||
                     go.name.StartsWith(C2NeutralPeasantUnitsV15RootPrefixForCleanupLikeOriginal, StringComparison.OrdinalIgnoreCase) ||
                     go.name.StartsWith(C2NeutralPeasantUnitsV14RootPrefixForCleanupLikeOriginal, StringComparison.OrdinalIgnoreCase) ||
@@ -2125,6 +2235,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             info.VisualAudit = frames[0].VisualAudit ?? "";
             info.FramesAudit = framesAudit ?? "";
             info.NotSelectable = md != null && md.NotSelectable;
+            info.ControllableByPlayer = !info.NotSelectable;
             info.UnitRadius = md != null ? Mathf.Max(1, md.UnitRadius) : 16;
             info.MotionDist = C2NeutralPeasantUnitsV30ParseMotionDistFromMdLikeOriginal(md);
             info.SelectionTypeName = selInfo.HasSelType ? selInfo.SelTypeName : "RoundFallback";
@@ -2134,7 +2245,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             info.MapPixelToWorld = mapPixelToWorld;
             info.SelectionLocalOffset = C2NeutralPeasantUnitsV2SelectionOffsetLikeOriginal(r, selInfo, baseWorld);
             info.SelectionAudit = selInfo.Audit ?? "";
-            info.MarkerYOffset = 0.085f;
+            info.MarkerYOffset = -0.042f;
 
             if (C2NeutralPeasantUnitsV2DrawDebugLabelsLikeOriginal)
                 C2NeutralPeasantUnitsV2CreateDebugLabelLikeOriginal(parent.transform, r, alias, frames[0].ExactSprite, frames[0].Ty + 0.35f * s);
@@ -2171,8 +2282,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
         private static Material C2NeutralPeasantUnitsV2GetMaterialLikeOriginal(Texture2D tex)
-        {
-            Shader sh = Shader.Find("Cossacks2Bridge/SettlementBuildingSpriteV23LikeOriginal");
+{
+    // ИМЯ ДОЛЖНО БЫТЬ ТАКИМ ЖЕ, КАК В ПЕРВОЙ СТРОКЕ .shader ФАЙЛА
+    Shader sh = Shader.Find("Cossacks2Bridge/C2UnitSpriteV55_BrightPulse"); 
+    
+    if (sh == null) sh = Shader.Find("Cossacks2Bridge/C2UnitSpriteV54ExactCutoutPulseLikeOriginal");
+    if (sh == null) sh = Shader.Find("Cossacks2Bridge/C2UnitSpriteV50SelectedPulseLikeOriginal");
+            if (sh == null) sh = Shader.Find("Cossacks2Bridge/C2UnitSpriteV50SelectedPulseLikeOriginal");
+            if (sh == null) sh = Shader.Find("Cossacks2Bridge/C2UnitSpriteV49LikeOriginal");
+            if (sh == null) sh = Shader.Find("Cossacks2Bridge/SettlementBuildingSpriteV23LikeOriginal");
             if (sh == null) sh = Shader.Find("Cossacks2Bridge/WallObjectSpriteV31ExactCutout");
             if (sh == null) sh = Shader.Find("Legacy Shaders/Transparent/Cutout/Unlit");
             if (sh == null) sh = Shader.Find("Unlit/Transparent Cutout");
@@ -2180,7 +2298,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (sh == null) sh = Shader.Find("Standard");
 
             var mat = new Material(sh);
-            mat.name = "C2_NeutralPeasantUnits_V2_Mat_" + (tex != null ? tex.name : "null");
+            mat.name = "C2_NeutralPeasantUnits_V51_Mat_" + (tex != null ? tex.name : "null");
             mat.mainTexture = tex != null ? tex : Texture2D.whiteTexture;
             mat.renderQueue = C2NeutralPeasantUnitsV2RenderQueueLikeOriginal;
             mat.SetOverrideTag("RenderType", "TransparentCutout");
@@ -2190,6 +2308,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (mat.HasProperty("_MainTex")) { mat.SetTextureScale("_MainTex", Vector2.one); mat.SetTextureOffset("_MainTex", Vector2.zero); }
             if (mat.HasProperty("_BaseMap")) { mat.SetTextureScale("_BaseMap", Vector2.one); mat.SetTextureOffset("_BaseMap", Vector2.zero); }
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", Color.white);
+            if (mat.HasProperty("_SelectedPulse")) mat.SetFloat("_SelectedPulse", 0.0f);
+            if (mat.HasProperty("_BaseDiffuse")) mat.SetFloat("_BaseDiffuse", 128.0f / 255.0f);
+                        if (mat.HasProperty("_SelectedPulseBright")) mat.SetFloat("_SelectedPulseBright", 194.0f / 255.0f);
+            if (mat.HasProperty("_SelectedPulseSpeed")) mat.SetFloat("_SelectedPulseSpeed", 1.35f);
             if (mat.HasProperty("_AlphaCutoff")) mat.SetFloat("_AlphaCutoff", C2NeutralPeasantUnitsV2AlphaRefLikeOriginal);
             if (mat.HasProperty("_Cutoff")) mat.SetFloat("_Cutoff", C2NeutralPeasantUnitsV2AlphaRefLikeOriginal);
             if (mat.HasProperty("_AlphaClip")) mat.SetFloat("_AlphaClip", 1.0f);
@@ -2392,6 +2516,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private int _lastAuditSprite = int.MinValue;
         private int _lastAuditDir = int.MinValue;
         private string _lastAuditTexture = "";
+        private bool _selectedVisual;
+        private Color _baseMaterialColor = Color.white;
+        private MeshFilter _selectedOverlayMeshFilter;
+        private MeshRenderer _selectedOverlayRenderer;
+        private Material _selectedOverlayMaterial;
+        private int _selectedOverlayLastSprite = int.MinValue;
 
         public int CurrentFrameIndex { get { return _currentIndex; } }
 
@@ -2442,15 +2572,145 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        public bool TryGetSelectionFootScreenPointLikeOriginal(Camera cam, out Vector2 footScreen)
+        {
+            footScreen = Vector2.zero;
+
+            C2NeutralPeasantUnitFrameV2LikeOriginal f = CurrentFrame;
+            if (cam == null || f == null) return false;
+
+            float lx, rx, by, ty;
+            GetAnchoredFrameRectLikeOriginal(f, out lx, out rx, out by, out ty);
+
+            // Original DrawMarker puts round3 around the footprint, so the unit stands
+            // inside the oval.  Use a point slightly above the absolute sprite bottom:
+            // bottom alpha rows often include shoe/transparent padding and made the
+            // marker sit below the feet.
+            float footY = Mathf.Lerp(by, ty, 0.19f);
+            Vector3 world = transform.TransformPoint(new Vector3((lx + rx) * 0.5f, footY, 0.0f));
+            Vector3 screen = cam.WorldToScreenPoint(world);
+            if (screen.z <= 0.0f || float.IsNaN(screen.x) || float.IsNaN(screen.y))
+                return false;
+
+            footScreen = new Vector2(screen.x, screen.y);
+            return true;
+        }
+
         public void SetSelectedVisualLikeOriginal(bool selected)
         {
-            // Original selection is mainly the DrawMarker patch. A small diffuse boost helps
-            // confirm selection without replacing the marker logic.
-            Color c = selected ? new Color(1.18f, 1.18f, 1.18f, 1.0f) : Color.white;
-            if (_material != null && _material.HasProperty("_Color")) _material.SetColor("_Color", c);
-            if (_meshRenderer != null && _meshRenderer.sharedMaterial != null && _meshRenderer.sharedMaterial.HasProperty("_Color"))
-                _meshRenderer.sharedMaterial.SetColor("_Color", c);
+            // Original MiniMap4X.cpp selected unit pulse: diffuse color is recalculated by
+            // sin(GetTickCount()/200) and applied to the sprite draw call.
+            _selectedVisual = selected;
+
+            // V36: force a per-renderer material instance for selected units. Some Unity
+            // shaders ignored edits to the cached shared material, so V35 could log selection
+            // but show no visible pulse.
+            if (_meshRenderer != null && _meshRenderer.sharedMaterial != null)
+            {
+                Material inst = _meshRenderer.material;
+                if (inst != null)
+                {
+                    _material = inst;
+                    if (_material.HasProperty("_Color")) _baseMaterialColor = _material.GetColor("_Color");
+                    else _baseMaterialColor = Color.white;
+                }
+            }
+
+            if (_selectedOverlayRenderer != null) _selectedOverlayRenderer.enabled = false;
+            ApplySelectedDiffusePulseLikeOriginal(true);
         }
+
+        private void EnsureSelectedSpriteOverlayV37LikeOriginal()
+        {
+            if (_selectedOverlayRenderer != null && _selectedOverlayMeshFilter != null) return;
+
+            GameObject go = new GameObject("selected_pulse_overlay_v37");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+
+            _selectedOverlayMeshFilter = go.AddComponent<MeshFilter>();
+            _selectedOverlayRenderer = go.AddComponent<MeshRenderer>();
+            _selectedOverlayRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _selectedOverlayRenderer.receiveShadows = false;
+            _selectedOverlayRenderer.lightProbeUsage = LightProbeUsage.Off;
+            _selectedOverlayRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+
+            Shader sh = Shader.Find("Unlit/Transparent");
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh == null) sh = Shader.Find("Legacy Shaders/Transparent/Diffuse");
+            if (sh == null) sh = Shader.Find("Standard");
+            _selectedOverlayMaterial = new Material(sh);
+            _selectedOverlayMaterial.name = "C2_NeutralPeasant_SelectedPulseOverlay_V40";
+            _selectedOverlayMaterial.renderQueue = 7000;
+            if (_selectedOverlayMaterial.HasProperty("_ZTest")) _selectedOverlayMaterial.SetInt("_ZTest", (int)CompareFunction.Always);
+            if (_selectedOverlayMaterial.HasProperty("_Cull")) _selectedOverlayMaterial.SetInt("_Cull", (int)CullMode.Off);
+            if (_selectedOverlayMaterial.HasProperty("_SrcBlend")) _selectedOverlayMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            if (_selectedOverlayMaterial.HasProperty("_DstBlend")) _selectedOverlayMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            _selectedOverlayRenderer.sharedMaterial = _selectedOverlayMaterial;
+            _selectedOverlayRenderer.enabled = _selectedVisual;
+        }
+
+        private void UpdateSelectedPulseOverlayFrameV37LikeOriginal(C2NeutralPeasantUnitFrameV2LikeOriginal f)
+        {
+            if (f == null || f.Texture == null) return;
+            if (!_selectedVisual)
+            {
+                if (_selectedOverlayRenderer != null) _selectedOverlayRenderer.enabled = false;
+                return;
+            }
+
+            EnsureSelectedSpriteOverlayV37LikeOriginal();
+            if (_selectedOverlayMeshFilter != null) _selectedOverlayMeshFilter.sharedMesh = _mesh;
+            if (_selectedOverlayMaterial != null)
+            {
+                _selectedOverlayMaterial.mainTexture = f.Texture;
+                if (_selectedOverlayMaterial.HasProperty("_MainTex")) _selectedOverlayMaterial.SetTexture("_MainTex", f.Texture);
+                if (_selectedOverlayMaterial.HasProperty("_BaseMap")) _selectedOverlayMaterial.SetTexture("_BaseMap", f.Texture);
+            }
+            if (_selectedOverlayRenderer != null) _selectedOverlayRenderer.enabled = true;
+            _selectedOverlayLastSprite = f.ExactSprite;
+        }
+
+       private void ApplySelectedDiffusePulseLikeOriginal(bool force)
+{
+    // Значение 1.0f включит ветку 'if (_SelectedPulse > 0.5)' в шейдере
+    float selectedPulse = _selectedVisual ? 1.0f : 0.0f;
+    
+    // Новые значения под логику "в плюс"
+    const float baseBrightness = 1.0f;       // Исходная яркость спрайта
+    const float pulseIntensity = 1.25f;     // На сколько будет ярче (45% сверху)
+    const float selectedSpeed = 2.0f;       // Скорость (согласно параметрам шейдера)
+
+    if (_material != null)
+    {
+        // Сбрасываем цвет в белый, чтобы не мешать яркости
+        if (_material.HasProperty("_Color")) _material.SetColor("_Color", Color.white);
+        
+        // Устанавливаем новые параметры пульсации
+        if (_material.HasProperty("_SelectedPulse")) _material.SetFloat("_SelectedPulse", selectedPulse);
+        if (_material.HasProperty("_BaseBrightness")) _material.SetFloat("_BaseBrightness", baseBrightness);
+        if (_material.HasProperty("_PulseIntensity")) _material.SetFloat("_PulseIntensity", pulseIntensity);
+        if (_material.HasProperty("_PulseSpeed")) _material.SetFloat("_PulseSpeed", selectedSpeed);
+    }
+
+    if (_meshRenderer != null)
+    {
+        MaterialPropertyBlock block = new MaterialPropertyBlock();
+        _meshRenderer.GetPropertyBlock(block);
+        
+        block.SetColor("_Color", Color.white);
+        block.SetFloat("_SelectedPulse", selectedPulse);
+        block.SetFloat("_BaseBrightness", baseBrightness);
+        block.SetFloat("_PulseIntensity", pulseIntensity);
+        block.SetFloat("_PulseSpeed", selectedSpeed);
+        
+        _meshRenderer.SetPropertyBlock(block);
+    }
+
+    if (_selectedOverlayRenderer != null) _selectedOverlayRenderer.enabled = false;
+}
 
         public void Configure(C2NeutralPeasantUnitFrameV2LikeOriginal[] frames, C2NeutralPeasantUnitFrameV2LikeOriginal[][] idleFramesByDir, C2NeutralPeasantUnitFrameV2LikeOriginal[][] restFramesByDir, C2NeutralPeasantUnitFrameV2LikeOriginal[] walkFrames, C2NeutralPeasantUnitFrameV2LikeOriginal[][] walkFramesByDir, C2NeutralPeasantUnitMotionBanksV20LikeOriginal motionBanks, Material material, float fps, float walkFps, float alphaBias, int phaseSeed, byte initialGraphDir)
         {
@@ -2494,7 +2754,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _meshFilter.sharedMesh = _mesh;
             }
 
-            if (_material != null) _meshRenderer.sharedMaterial = _material;
+            if (_material != null)
+            {
+                if (_material.HasProperty("_Color")) _baseMaterialColor = _material.GetColor("_Color");
+                _meshRenderer.sharedMaterial = _material;
+            }
             ApplyFrame(0, true);
         }
 
@@ -2590,6 +2854,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Update()
         {
+            ApplySelectedDiffusePulseLikeOriginal(false);
+
             C2NeutralPeasantUnitFrameV2LikeOriginal[] active = ActiveFramesLikeOriginal();
             if (active == null || active.Length == 0) return;
 
@@ -2712,67 +2978,71 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ty = f.Ty - anchorY;
         }
 
-        private void ApplyFrame(int idx, bool force)
+       private void ApplyFrame(int idx, bool force)
+{
+    C2NeutralPeasantUnitFrameV2LikeOriginal[] active = ActiveFramesLikeOriginal();
+    if (active == null || active.Length == 0) return;
+    idx = Mathf.Clamp(idx, 0, active.Length - 1);
+    if (!force && idx == _currentIndex) return;
+
+    C2NeutralPeasantUnitFrameV2LikeOriginal f = active[idx];
+    if (f == null || f.Texture == null) return;
+
+    _currentIndex = idx;
+
+    if (_mesh == null)
+    {
+        _mesh = new Mesh();
+        _mesh.name = gameObject.name + "_Mesh";
+        if (_meshFilter != null) _meshFilter.sharedMesh = _mesh;
+    }
+
+    _mesh.Clear(false);
+    float lx, rx, by, ty;
+    GetAnchoredFrameRectLikeOriginal(f, out lx, out rx, out by, out ty);
+
+    _mesh.vertices = new[]
+    {
+        new Vector3(lx, by, 0f),
+        new Vector3(rx, by, 0f),
+        new Vector3(rx, ty, 0f),
+        new Vector3(lx, ty, 0f)
+    };
+
+    _mesh.uv = f.MirrorX
+        ? new[]
         {
-            C2NeutralPeasantUnitFrameV2LikeOriginal[] active = ActiveFramesLikeOriginal();
-            if (active == null || active.Length == 0) return;
-            idx = Mathf.Clamp(idx, 0, active.Length - 1);
-            if (!force && idx == _currentIndex) return;
-
-            C2NeutralPeasantUnitFrameV2LikeOriginal f = active[idx];
-            if (f == null || f.Texture == null) return;
-
-            _currentIndex = idx;
-
-            if (_mesh == null)
-            {
-                _mesh = new Mesh();
-                _mesh.name = gameObject.name + "_Mesh";
-                if (_meshFilter != null) _meshFilter.sharedMesh = _mesh;
-            }
-
-            _mesh.Clear(false);
-            float lx, rx, by, ty;
-            GetAnchoredFrameRectLikeOriginal(f, out lx, out rx, out by, out ty);
-
-            _mesh.vertices = new[]
-            {
-                new Vector3(lx, by, 0f),
-                new Vector3(rx, by, 0f),
-                new Vector3(rx, ty, 0f),
-                new Vector3(lx, ty, 0f)
-            };
-
-            _mesh.uv = f.MirrorX
-                ? new[]
-                {
-                    new Vector2(1f, 0f),
-                    new Vector2(0f, 0f),
-                    new Vector2(0f, 1f),
-                    new Vector2(1f, 1f)
-                }
-                : new[]
-                {
-                    new Vector2(0f, 0f),
-                    new Vector2(1f, 0f),
-                    new Vector2(1f, 1f),
-                    new Vector2(0f, 1f)
-                };
-
-            _mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
-            _mesh.RecalculateBounds();
-
-            if (_material != null)
-            {
-                _material.mainTexture = f.Texture;
-                if (_material.HasProperty("_MainTex")) _material.SetTexture("_MainTex", f.Texture);
-                if (_material.HasProperty("_BaseMap")) _material.SetTexture("_BaseMap", f.Texture);
-                if (_material.HasProperty("_MainTex")) { _material.SetTextureScale("_MainTex", Vector2.one); _material.SetTextureOffset("_MainTex", Vector2.zero); }
-                if (_material.HasProperty("_BaseMap")) { _material.SetTextureScale("_BaseMap", Vector2.one); _material.SetTextureOffset("_BaseMap", Vector2.zero); }
-            }
-
-            C2NeutralPeasantUnitsV27LogAppliedFrameLikeOriginal(f, idx, force);
+            new Vector2(1f, 0f),
+            new Vector2(0f, 0f),
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f)
         }
+        : new[]
+        {
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(1f, 1f),
+            new Vector2(0f, 1f)
+        };
+
+    _mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+    _mesh.RecalculateBounds();
+
+    if (_material != null)
+    {
+        _material.mainTexture = f.Texture;
+        if (_material.HasProperty("_MainTex")) _material.SetTexture("_MainTex", f.Texture);
+        if (_material.HasProperty("_BaseMap")) _material.SetTexture("_BaseMap", f.Texture);
+        if (_material.HasProperty("_MainTex")) { _material.SetTextureScale("_MainTex", Vector2.one); _material.SetTextureOffset("_MainTex", Vector2.zero); }
+        if (_material.HasProperty("_BaseMap")) { _material.SetTextureScale("_BaseMap", Vector2.one); _material.SetTextureOffset("_BaseMap", Vector2.zero); }
+    }
+
+    // ВОТ ЭТУ СТРОКУ НУЖНО ЗАКОММЕНТИРОВАТЬ (если она у вас была):
+    // UpdateSelectedPulseOverlayFrameV37LikeOriginal(f);
+
+    ApplySelectedDiffusePulseLikeOriginal(false);
+    C2NeutralPeasantUnitsV27LogAppliedFrameLikeOriginal(f, idx, force);
+}
 
         private void C2NeutralPeasantUnitsV27LogAppliedFrameLikeOriginal(C2NeutralPeasantUnitFrameV2LikeOriginal f, int idx, bool force)
         {
@@ -2788,7 +3058,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _lastAuditDir = _activeWalkDir;
             _lastAuditTexture = texName;
 
-            Debug.Log("[C2:NEUTRAL PEASANT UNIT FRAME V33] go='" + gameObject.name + "'" +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT FRAME V42] go='" + gameObject.name + "'" +
                       " moving=" + _moving +
                       " dir=" + (_activeWalkDir & 255).ToString(CultureInfo.InvariantCulture) +
                       " leftLeg=" + _leftLeg +
@@ -3038,6 +3308,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public string VisualAudit;
         public string FramesAudit;
         public bool NotSelectable;
+        public bool ControllableByPlayer = true;
         public int UnitRadius = 16;
         public int MotionDist = 40;
 
@@ -3047,13 +3318,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public int SelectionShift;
         public float MapPixelToWorld = 0.1f;
         public Vector3 SelectionLocalOffset;
-        public float MarkerYOffset = 0.045f;
+        public float MarkerYOffset = -0.042f;
         public string SelectionAudit;
 
         private GameObject _selectionMarker;
         private bool _selected;
 
         public bool IsSelected { get { return _selected; } }
+
+        public bool CanReceiveOrdersLikeOriginal()
+        {
+            return !NotSelectable && ControllableByPlayer;
+        }
 
         public bool TryPixelHit(Camera cam, Vector3 screenPosition, out float alpha, out Vector2 uv)
         {
@@ -3081,91 +3357,322 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _selectionMarker = CreateSelectionMarkerLikeOriginal();
 
             if (_selectionMarker != null)
+            {
                 _selectionMarker.SetActive(selected);
+                ApplySelectionMarkerColorLikeOriginal();
+                UpdateSelectionMarkerWorldV36LikeOriginal();
+            }
+        }
+
+        public void ForceUpdateSelectionVisualsV42LikeOriginal()
+        {
+            if (SpriteAnimator != null)
+                SpriteAnimator.SetSelectedVisualLikeOriginal(_selected);
+
+            if (_selected)
+            {
+                if (_selectionMarker == null) _selectionMarker = CreateSelectionMarkerLikeOriginal();
+                if (_selectionMarker != null)
+                {
+                    _selectionMarker.SetActive(true);
+                    ApplySelectionMarkerColorLikeOriginal();
+                    UpdateSelectionMarkerWorldV36LikeOriginal();
+                }
+            }
+            else if (_selectionMarker != null)
+            {
+                _selectionMarker.SetActive(false);
+            }
+        }
+
+        private void UpdateSelectionMarkerWorldV36LikeOriginal()
+        {
+            if (_selectionMarker == null || !_selected) return;
+            _selectionMarker.transform.SetParent(OwnerMode != null ? OwnerMode.transform : null, true);
+            _selectionMarker.transform.position = SelectionMarkerWorldPositionV47LikeOriginal();
+            _selectionMarker.transform.rotation = Quaternion.identity;
+            _selectionMarker.transform.localScale = Vector3.one;
+        }
+
+        private Vector3 SelectionMarkerWorldPositionV47LikeOriginal()
+        {
+            Camera cam = C2NeutralPeasantUnitsV47BestMarkerCameraLikeOriginal();
+            Vector2 footScreen;
+            if (cam != null &&
+                SpriteAnimator != null &&
+                SpriteAnimator.TryGetSelectionFootScreenPointLikeOriginal(cam, out footScreen))
+            {
+                Ray ray = cam.ScreenPointToRay(new Vector3(footScreen.x, footScreen.y, 0.0f));
+                Plane plane = new Plane(Vector3.up, new Vector3(transform.position.x, transform.position.y + MarkerYOffset, transform.position.z));
+                float enter;
+                if (plane.Raycast(ray, out enter))
+                {
+                    Vector3 shifted = SelectionShift != 0 ? SelectionLocalOffset : Vector3.zero;
+                    return ray.GetPoint(enter) + shifted;
+                }
+            }
+
+            return transform.position + (SelectionShift != 0 ? SelectionLocalOffset : Vector3.zero) + Vector3.up * MarkerYOffset;
+        }
+
+        private static Camera C2NeutralPeasantUnitsV47BestMarkerCameraLikeOriginal()
+        {
+            Camera[] all = Camera.allCameras;
+            if (all != null)
+            {
+                for (int i = 0; i < all.Length; i++)
+                {
+                    Camera c = all[i];
+                    if (c == null || !c.isActiveAndEnabled) continue;
+                    string n = c.name ?? string.Empty;
+                    if (n.IndexOf("C2_BattleTerrainCamera_Iso", StringComparison.OrdinalIgnoreCase) >= 0) return c;
+                    if (n.IndexOf("BattleTerrain", StringComparison.OrdinalIgnoreCase) >= 0) return c;
+                    if (n.IndexOf("Iso", StringComparison.OrdinalIgnoreCase) >= 0) return c;
+                }
+            }
+
+            return Camera.main;
+        }
+
+        private void ApplySelectionMarkerColorLikeOriginal()
+        {
+            if (_selectionMarker == null) return;
+            MeshRenderer mr = _selectionMarker.GetComponent<MeshRenderer>();
+            if (mr == null || mr.sharedMaterial == null) return;
+
+            Color col = C2NeutralPeasantUnitsV44SelectionMarkerColorLikeOriginal();
+            Material mat = mr.material;
+            if (mat == null) return;
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", col);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", col);
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", col);
+
+            MaterialPropertyBlock block = new MaterialPropertyBlock();
+            mr.GetPropertyBlock(block);
+            block.SetColor("_Color", col);
+            block.SetColor("_BaseColor", col);
+            block.SetColor("_TintColor", col);
+            mr.SetPropertyBlock(block);
+        }
+
+        private Color C2NeutralPeasantUnitsV44SelectionMarkerColorLikeOriginal()
+        {
+            // Original DrawMarker is white for controllable units and red for units
+            // outside the current player's NMask.  Until full diplomacy/NMask is ported,
+            // tie the color to the same bridge flag that allows movement orders.
+            return CanReceiveOrdersLikeOriginal()
+                ? Color.white
+                : new Color(1.0f, 0.08f, 0.04f, 1.0f);
+        }
+
+
+        private static Texture2D C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureInfoLikeOriginal;
+
+        private static Texture2D C2NeutralPeasantUnitsV40CreateProceduralRoundSelectionTextureLikeOriginal()
+        {
+            if (C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureInfoLikeOriginal != null)
+                return C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureInfoLikeOriginal;
+
+            const int w = 64;
+            const int h = 32;
+            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            tex.name = "C2_NeutralPeasant_ProceduralRoundSelectionInfo_V40";
+            for (int y = 0; y < h; y++)
+            {
+                float ny = ((y + 0.5f) / h - 0.5f) * 2.0f;
+                for (int x = 0; x < w; x++)
+                {
+                    float nx = ((x + 0.5f) / w - 0.5f) * 2.0f;
+                    float r = Mathf.Sqrt(nx * nx + ny * ny);
+                    float a = 0.0f;
+                    if (r <= 1.0f)
+                    {
+                        float ring = Mathf.Abs(r - 0.78f);
+                        a = Mathf.Clamp01(1.0f - ring / 0.16f) * 0.92f;
+                        if (r < 0.62f) a = Mathf.Max(a, 0.18f);
+                    }
+                    tex.SetPixel(x, y, new Color(1.0f, 1.0f, 1.0f, a));
+                }
+            }
+            tex.Apply(false, true);
+            C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureInfoLikeOriginal = tex;
+            return tex;
         }
 
         private GameObject CreateSelectionMarkerLikeOriginal()
+{
+    var go = new GameObject("selection_marker_" + (string.IsNullOrEmpty(SelectionTypeName) ? "Round" : SelectionTypeName));
+    go.transform.SetParent(OwnerMode != null ? OwnerMode.transform : null, true);
+    go.transform.position = SelectionMarkerWorldPositionV47LikeOriginal();
+    go.transform.rotation = Quaternion.identity;
+
+    var mf = go.AddComponent<MeshFilter>();
+    var mr = go.AddComponent<MeshRenderer>();
+    mf.sharedMesh = BuildSelectionPatchMeshV34LikeOriginal();
+
+    Texture2D markerTex = C2NeutralPeasantUnitsV34LoadSelectionRoundTextureLikeOriginal(SelectionTypeName);
+    if (markerTex == null)
+        markerTex = C2NeutralPeasantUnitsV40CreateProceduralRoundSelectionTextureLikeOriginal();
+
+    // Пытаемся найти новый шейдер V55
+    Shader sh = Shader.Find("Cossacks2Bridge/C2UnitSpriteV55_BrightPulse");
+    
+    // Если V55 не найден, пробуем старые варианты
+    if (sh == null) sh = Shader.Find("Cossacks2Bridge/C2SelectionPatchV50ThroughTerrainUnderUnits");
+    if (sh == null) sh = Shader.Find("Cossacks2Bridge/C2SelectionPatchV47LikeOriginal");
+    if (sh == null) sh = Shader.Find("Unlit/Transparent");
+    if (sh == null) sh = Shader.Find("Sprites/Default");
+    if (sh == null) sh = Shader.Find("Standard");
+
+    if (sh == null)
+    {
+        Debug.LogError("[C2:PEASANT] Не удалось найти подходящий шейдер для маркера выделения!");
+        return go;
+    }
+
+    var mat = new Material(sh);
+    mat.name = "C2_NeutralPeasantUnits_V55_SelectionMarker_" + SelectionTypeName;
+    mat.mainTexture = markerTex;
+
+    // Настройка текстур
+    if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", markerTex);
+    if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", markerTex);
+
+    // Цвет маркера (белый или красный в зависимости от владельца)
+    Color col = C2NeutralPeasantUnitsV44SelectionMarkerColorLikeOriginal();
+    if (mat.HasProperty("_Color")) mat.SetColor("_Color", col);
+    if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", col);
+
+    // --- ПАРАМЕТРЫ ДЛЯ V55 ---
+    // Для патча под ногами пульсация обычно выключена
+    if (mat.HasProperty("_SelectedPulse")) mat.SetFloat("_SelectedPulse", 0.0f);
+    if (mat.HasProperty("_BaseBrightness")) mat.SetFloat("_BaseBrightness", 1.0f);
+    if (mat.HasProperty("_PulseIntensity")) mat.SetFloat("_PulseIntensity", 0.5f);
+    if (mat.HasProperty("_PulseSpeed")) mat.SetFloat("_PulseSpeed", 4.0f);
+
+    // Локальное значение порога прозрачности (4.0/255.0), чтобы избежать ошибки CS0103
+    float alphaRef = 0.01568627f; 
+
+    // Технические параметры
+    if (mat.HasProperty("_AlphaCutoff")) mat.SetFloat("_AlphaCutoff", alphaRef);
+    if (mat.HasProperty("_Cutoff")) mat.SetFloat("_Cutoff", alphaRef);
+    
+    // Настройки буфера и блендинга
+    if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0); 
+    if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+    if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+    if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+    if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+    // Очередь рендеринга: под юнитами (3670), но над землей (2000+)
+    mat.renderQueue = 2990; 
+    mat.enableInstancing = true;
+
+    mr.sharedMaterial = mat;
+    mr.sortingOrder = -32768;
+    mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    mr.receiveShadows = false;
+
+    go.SetActive(false);
+    return go;
+}
+
+        private static Texture2D C2NeutralPeasantUnitsV34SelectionRoundTextureLikeOriginal;
+        private static readonly Dictionary<string, Texture2D> C2NeutralPeasantUnitsV44SelectionTextureCacheLikeOriginal =
+            new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+
+        private static Texture2D C2NeutralPeasantUnitsV34LoadSelectionRoundTextureLikeOriginal()
         {
-            var go = new GameObject("selection_marker_" + (string.IsNullOrEmpty(SelectionTypeName) ? "Round" : SelectionTypeName));
-            go.transform.SetParent(transform, false);
-            go.transform.localPosition = SelectionLocalOffset + Vector3.up * MarkerYOffset;
-            go.transform.localRotation = Quaternion.identity;
+            return C2NeutralPeasantUnitsV34LoadSelectionRoundTextureLikeOriginal("Round");
+        }
 
-            var mf = go.AddComponent<MeshFilter>();
-            var mr = go.AddComponent<MeshRenderer>();
-            mf.sharedMesh = BuildSelectionRingMeshLikeOriginal();
+        private static Texture2D C2NeutralPeasantUnitsV34LoadSelectionRoundTextureLikeOriginal(string selectionTypeName)
+        {
+            string roundName = C2NeutralPeasantUnitsV44SelectionTextureNameLikeOriginal(selectionTypeName);
+            Texture2D cached;
+            if (C2NeutralPeasantUnitsV44SelectionTextureCacheLikeOriginal.TryGetValue(roundName, out cached) && cached != null)
+                return cached;
 
-            Shader sh = Shader.Find("Unlit/Color");
-            if (sh == null) sh = Shader.Find("Sprites/Default");
-            if (sh == null) sh = Shader.Find("Standard");
-            var mat = new Material(sh);
-            mat.name = "C2_NeutralPeasantUnits_V33_Selection_" + SelectionTypeName;
+            string[] paths =
+            {
+                "textures/selection/" + roundName,
+                "textures/selection/" + CultureInfo.InvariantCulture.TextInfo.ToTitleCase(roundName),
+                "Textures/selection/" + roundName,
+                "Textures/Selection/" + roundName,
+                "selection/" + roundName
+            };
 
-            // Original path:
-            // mapa.cpp::DrawMarker -> DrawSelPatchDir -> SelectionRect.cpp::DrawSelPatchDir.
-            // The real marker is a small terrain patch from Dialogs\\SelType.xml
-            // (Round -> textures\\selection\\round3.tga, 32x32, centered 16/16).
-            // Until the textured terrain patch path is fully ported, draw a thin yellow
-            // ground-space frame/patch that is visually close and very clear in Unity.
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", new Color(1.0f, 0.92f, 0.05f, 0.95f));
-            if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", (int)CompareFunction.Always);
-            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)CullMode.Off);
-            mat.renderQueue = 6000;
+            for (int i = 0; i < paths.Length; i++)
+            {
+                Texture2D tex = Resources.Load<Texture2D>(paths[i]);
+                if (tex == null) continue;
+                C2NeutralPeasantUnitsV44SelectionTextureCacheLikeOriginal[roundName] = tex;
+                if (string.Equals(roundName, "round3", StringComparison.OrdinalIgnoreCase))
+                    C2NeutralPeasantUnitsV34SelectionRoundTextureLikeOriginal = tex;
+                return tex;
+            }
 
-            mr.sharedMaterial = mat;
-            mr.shadowCastingMode = ShadowCastingMode.Off;
-            mr.receiveShadows = false;
-            mr.lightProbeUsage = LightProbeUsage.Off;
-            mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            return null;
+        }
 
-            go.SetActive(false);
-            return go;
+        private static string C2NeutralPeasantUnitsV44SelectionTextureNameLikeOriginal(string selectionTypeName)
+        {
+            string s = selectionTypeName ?? "";
+            if (s.IndexOf("BrigRound", StringComparison.OrdinalIgnoreCase) >= 0) return "round4";
+            if (s.IndexOf("RoundArt", StringComparison.OrdinalIgnoreCase) >= 0) return "round5";
+            return "round3";
+        }
+
+        private Mesh BuildSelectionPatchMeshV34LikeOriginal()
+        {
+            float hx = Mathf.Max(0.16f, MapPixelToWorld * 16.0f * Mathf.Max(0.05f, SelectionScaleX));
+            float hz = Mathf.Max(0.16f, MapPixelToWorld * 16.0f * Mathf.Max(0.05f, SelectionScaleY));
+
+            var mesh = new Mesh();
+            mesh.name = "C2_NeutralPeasant_SelectionRound3Patch_V34";
+            mesh.vertices = new[]
+            {
+                new Vector3(-hx, 0.0f, -hz),
+                new Vector3( hx, 0.0f, -hz),
+                new Vector3( hx, 0.0f,  hz),
+                new Vector3(-hx, 0.0f,  hz)
+            };
+            mesh.uv = new[]
+            {
+                new Vector2(0.0f, 0.0f),
+                new Vector2(1.0f, 0.0f),
+                new Vector2(1.0f, 1.0f),
+                new Vector2(0.0f, 1.0f)
+            };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2 };
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private Mesh BuildSelectionRingMeshLikeOriginal()
         {
-            // V28: visible round/oval SELTYPE marker under unit feet.
-            // Original path: DrawMarker -> DrawSelPatchDir -> SelType Round texture patch.
-            // We draw a flat oval ring in world space; IMGUI also duplicates it for visibility.
-            float rx = Mathf.Max(0.16f, MapPixelToWorld * 18.0f * Mathf.Max(0.05f, SelectionScaleX));
-            float rz = Mathf.Max(0.10f, MapPixelToWorld * 11.5f * Mathf.Max(0.05f, SelectionScaleY));
-            float t = Mathf.Clamp(MapPixelToWorld * 2.25f, 0.035f, Mathf.Min(rx, rz) * 0.55f);
-            float irx = Mathf.Max(0.02f, rx - t);
-            float irz = Mathf.Max(0.02f, rz - t);
-
-            const int seg = 48;
-            Vector3[] verts = new Vector3[seg * 2];
-            int[] tris = new int[seg * 6];
-
-            float a0 = ((RealDir & 255) / 256.0f) * Mathf.PI * 2.0f;
-            float ca = Mathf.Cos(a0);
-            float sa = Mathf.Sin(a0);
-
-            for (int i = 0; i < seg; i++)
-            {
-                float a = (i / (float)seg) * Mathf.PI * 2.0f;
-                Vector3 o = new Vector3(Mathf.Cos(a) * rx, 0.0f, Mathf.Sin(a) * rz);
-                Vector3 inn = new Vector3(Mathf.Cos(a) * irx, 0.0f, Mathf.Sin(a) * irz);
-                verts[i] = RotateSelectionPointLikeOriginal(o, ca, sa);
-                verts[i + seg] = RotateSelectionPointLikeOriginal(inn, ca, sa);
-            }
-
-            int ti = 0;
-            for (int i = 0; i < seg; i++)
-            {
-                int j = (i + 1) % seg;
-                tris[ti++] = i;
-                tris[ti++] = j;
-                tris[ti++] = seg + j;
-                tris[ti++] = i;
-                tris[ti++] = seg + j;
-                tris[ti++] = seg + i;
-            }
+            // V40: real original-style SELTYPE patch: full textured oval/quad, not yellow debug ring.
+            // Original path is DrawMarker -> DrawSelPatchDir -> SelType Round -> round3.tga.
+            float rx = Mathf.Clamp(MapPixelToWorld * 14.0f * Mathf.Max(0.05f, SelectionScaleX), 0.26f, 0.70f);
+            float rz = Mathf.Clamp(MapPixelToWorld * 7.0f * Mathf.Max(0.05f, SelectionScaleY), 0.10f, 0.28f);
 
             var mesh = new Mesh();
-            mesh.name = "C2_NeutralPeasant_SelectionOvalRing_V33";
-            mesh.vertices = verts;
-            mesh.triangles = tris;
+            mesh.name = "C2_NeutralPeasant_SelectionRoundPatch_V40";
+            mesh.vertices = new[]
+            {
+                new Vector3(-rx, 0.0f, -rz),
+                new Vector3( rx, 0.0f, -rz),
+                new Vector3( rx, 0.0f,  rz),
+                new Vector3(-rx, 0.0f,  rz)
+            };
+            mesh.uv = new[]
+            {
+                new Vector2(0.0f, 0.0f),
+                new Vector2(1.0f, 0.0f),
+                new Vector2(1.0f, 1.0f),
+                new Vector2(0.0f, 1.0f)
+            };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2 };
             mesh.RecalculateBounds();
             return mesh;
         }
@@ -3221,6 +3728,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
         private bool _hasMoveTarget;
+        private bool _hasFinalFacingDir;
+        private byte _finalFacingDir;
         private float _destRealX;
         private float _destRealY;
         private float _totalPathReal;
@@ -3324,6 +3833,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         public void SetMoveDestinationRealLikeOriginal(float destRealX, float destRealY, float speedOriginalPixelsPerSecond)
         {
+            SetMoveDestinationRealLikeOriginal(destRealX, destRealY, speedOriginalPixelsPerSecond, false, 0);
+        }
+
+        public void SetMoveDestinationRealLikeOriginal(float destRealX, float destRealY, float speedOriginalPixelsPerSecond, bool hasFinalFacingDir, byte finalFacingDir)
+        {
             SetMoveSpeedLikeOriginal(speedOriginalPixelsPerSecond);
 
             Vector3 beforeWorld = transform.position;
@@ -3336,6 +3850,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             _destRealX = destRealX;
             _destRealY = destRealY;
+            _hasFinalFacingDir = hasFinalFacingDir;
+            _finalFacingDir = finalFacingDir;
             _hasMoveTarget = true;
             _v29MoveCommandSeq++;
             _v29MoveTickLogCount = 0;
@@ -3368,7 +3884,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float targetWorldDistance = OwnerMode != null ? Vector3.Distance(beforeWorld, destWorld) : -1.0f;
             C2NeutralPeasantUnitFrameV2LikeOriginal afterFrame = SpriteAnimator != null ? SpriteAnimator.CurrentFrame : null;
 
-            Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33 COMMAND] seq=" + _v29MoveCommandSeq.ToString(CultureInfo.InvariantCulture) +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44 COMMAND] seq=" + _v29MoveCommandSeq.ToString(CultureInfo.InvariantCulture) +
                       " idx=" + RecordIndex.ToString(CultureInfo.InvariantCulture) +
                       " name='" + SourceMonsterId + "'" +
                       " beforeReal=(" + beforeRealX.ToString("0.0", CultureInfo.InvariantCulture) + "," + beforeRealY.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
@@ -3391,12 +3907,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       " warningImmediateTeleport=" + (immediateWorldJump > 0.05f));
         }
 
+        public void SetFacingDirectionLikeOriginal(byte realDir)
+        {
+            RealDir = realDir;
+            RealDirPrecise = (RealDir & 255) << 8;
+            GraphDir = C2NeutralPeasantUnitsV2UpdateOctantGraphDirLikeOriginal(RealDir, ref OctantInfo);
+            if (SpriteAnimator != null)
+            {
+                SpriteAnimator.SetMovingLikeOriginal(false);
+                SpriteAnimator.SetMotionStateLikeOriginal(GraphDir, false);
+            }
+        }
+
         private void Update()
         {
+            UpdateSelectionMarkerWorldV36LikeOriginal();
+
             if (!_hasMoveTarget) return;
             if (OwnerMode == null)
             {
                 _hasMoveTarget = false;
+                _hasFinalFacingDir = false;
                 if (SpriteAnimator != null) SpriteAnimator.SetMovingLikeOriginal(false);
                 return;
             }
@@ -3426,6 +3957,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Vector3 afterWorldSnap = transform.position;
                 _hasMoveTarget = false;
                 if (SpriteAnimator != null) SpriteAnimator.SetMovingLikeOriginal(false);
+                if (_hasFinalFacingDir)
+                {
+                    SetFacingDirectionLikeOriginal(_finalFacingDir);
+                    _hasFinalFacingDir = false;
+                }
+                UpdateSelectionMarkerWorldV36LikeOriginal();
                 C2NeutralPeasantUnitsV29LogMoveTickLikeOriginal(0, GraphDir, dx, dy, dis, 0.0f, beforeRealX, beforeRealY, RealXFloat, RealYFloat, beforeWorld, afterWorldSnap, true);
                 return;
             }
@@ -3468,6 +4005,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (SpriteAnimator != null)
                 SpriteAnimator.SetWalkPathFrameLikeOriginal(_totalPathReal, Mathf.Max(1.0f, MotionDist));
 
+            UpdateSelectionMarkerWorldV36LikeOriginal();
             Vector3 afterWorld = transform.position;
             C2NeutralPeasantUnitsV29LogMoveTickLikeOriginal(targetDir, GraphDir, dx, dy, dis, stepReal, beforeRealX, beforeRealY, RealXFloat, RealYFloat, beforeWorld, afterWorld, false);
         }
@@ -3552,7 +4090,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             bool teleportWarn = deltaWorld > Mathf.Max(0.35f, expectedWorld * 4.0f + 0.10f);
 
             C2NeutralPeasantUnitFrameV2LikeOriginal cf = SpriteAnimator != null ? SpriteAnimator.CurrentFrame : null;
-            Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33 TICK] seq=" + _v29MoveCommandSeq.ToString(CultureInfo.InvariantCulture) +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44 TICK] seq=" + _v29MoveCommandSeq.ToString(CultureInfo.InvariantCulture) +
                       " tick=" + _v29MoveTickLogCount.ToString(CultureInfo.InvariantCulture) +
                       " idx=" + RecordIndex.ToString(CultureInfo.InvariantCulture) +
                       " name='" + SourceMonsterId + "'" +
@@ -3601,7 +4139,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public string DebugPickLine(float alpha, Vector2 uv)
         {
             C2NeutralPeasantUnitFrameV2LikeOriginal cf = SpriteAnimator != null ? SpriteAnimator.CurrentFrame : null;
-            return "[C2:NEUTRAL PEASANT UNIT PICK V33] idx=" + RecordIndex +
+            return "[C2:NEUTRAL PEASANT UNIT PICK V44] idx=" + RecordIndex +
                    " name='" + SourceMonsterId + "'" +
                    " md='" + ResolvedMd + "'" +
                    " real=(" + RealX + "," + RealY + ")" +
@@ -3622,7 +4160,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
     public sealed class C2NeutralPeasantUnitPickerV2LikeOriginal : MonoBehaviour
     {
-        public static C2NeutralPeasantUnitPickerV2LikeOriginal Active { get; private set; }
+        public static C2NeutralPeasantUnitPickerV2LikeOriginal Active { get; set; }
 
         private const float V8FallbackPickRadiusPixelsLikeOriginal = 48.0f;
         private const float V8SelectionDragThresholdPixelsLikeOriginal = 12.0f;
@@ -3642,17 +4180,45 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private Vector3 _dragStart;
         private Vector3 _dragCurrent;
 
+        private bool _strelActive;
+        private bool _strelExceeded;
+        private Vector3 _strelStart;
+        private Vector3 _strelCurrent;
+        private const float V44SelectionDragThresholdPixelsLikeOriginal = 12.0f;
+        private const float V44StrelDistPixelsLikeOriginal = 60.0f;
+        private const bool V45UseCameraOverlayForSelectionLikeOriginal = false;
+        private const bool V46UseGLPostRenderSelectionLikeOriginal = true;
+
         private static Texture2D _guiPixel;
+        private static Sprite _guiPixelSpriteV44;
+        private static Texture2D _selectionRoundTextureV34;
+        private static Sprite _selectionRoundSpriteV35;
 
         private RectTransform _screenOverlayRoot;
         private Image _dragFillImage;
         private GameObject _worldDragFrameRoot;
         private LineRenderer[] _worldDragLines;
         private Material _worldDragLineMaterial;
+        private GameObject _worldStrelArrowRoot;
+        private LineRenderer[] _worldStrelArrowLines;
+        private Material _worldStrelArrowMaterial;
         private RectTransform _dragTopLine;
         private RectTransform _dragBottomLine;
         private RectTransform _dragLeftLine;
         private RectTransform _dragRightLine;
+        private GameObject _cameraOverlayRootV45;
+        private MeshFilter _cameraDragFillMeshFilterV45;
+        private MeshRenderer _cameraDragFillRendererV45;
+        private Mesh _cameraDragFillMeshV45;
+        private MeshFilter _cameraStrelMeshFilterV45;
+        private MeshRenderer _cameraStrelRendererV45;
+        private Mesh _cameraStrelMeshV45;
+        private Material _cameraDragFillMaterialV45;
+        private Material _cameraStrelMaterialV45;
+        private bool _glOverlayRegisteredV46;
+        private int _lastGlOverlayFrameV46 = -1;
+        private Camera _lastGlOverlayCameraV46;
+        private static Material _glOverlayMaterialV46;
         private readonly Dictionary<C2NeutralPeasantUnitInfoV2LikeOriginal, RectTransform> _screenSelectionMarkers =
             new Dictionary<C2NeutralPeasantUnitInfoV2LikeOriginal, RectTransform>();
         private readonly List<C2NeutralPeasantUnitInfoV2LikeOriginal> _markerRemoveScratch =
@@ -3669,6 +4235,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public bool LeftHeld;
             public bool LeftUp;
             public bool RightDown;
+            public bool RightHeld;
+            public bool RightUp;
         }
 
         private struct PickMissInfoLikeOriginal
@@ -3725,8 +4293,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (units != null && units.Length > 0 && C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal() != null)
                 return true;
 
-            var buildings = C2NeutralPeasantUnitsV2FindBuildingsLikeOriginal();
-            return buildings != null && buildings.Length > 0 && C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal() != null;
+            return false;
         }
 
 
@@ -3734,23 +4301,71 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (Active != null && Active != this)
             {
-                _duplicateDead = true;
-                enabled = false;
-                UnityEngine.Object.Destroy(this);
-                return;
+                bool activeIsCurrentV40 = false;
+                try
+                {
+                    activeIsCurrentV40 = Active.gameObject != null &&
+                        Active.gameObject.name.IndexOf("_V44_", StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+                catch { activeIsCurrentV40 = false; }
+
+                if (activeIsCurrentV40)
+                {
+                    _duplicateDead = true;
+                    enabled = false;
+                    UnityEngine.Object.Destroy(this);
+                    return;
+                }
+
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT PICKER V40 RESET] replace stale Active picker host='" +
+                          (Active != null && Active.gameObject != null ? Active.gameObject.name : "<null>") + "'");
+                try { UnityEngine.Object.Destroy(Active); } catch { }
+                Active = null;
             }
 
             Active = this;
-            // V16: the picker is hosted by the map auto-runner. Do not create the UI overlay here:
-            // in the main menu this produced the huge yellow rectangle over the menu. Overlay is
-            // created lazily only when battle units exist.
             _dragActive = false;
             _dragExceeded = false;
+            _strelActive = false;
+            _strelExceeded = false;
         }
+
 
         private void OnDestroy()
         {
+            UnregisterGLOverlayV46LikeOriginal();
             if (Active == this) Active = null;
+            if (_cameraOverlayRootV45 != null)
+            {
+                UnityEngine.Object.Destroy(_cameraOverlayRootV45);
+                _cameraOverlayRootV45 = null;
+            }
+        }
+
+        private void OnEnable()
+        {
+            RegisterGLOverlayV46LikeOriginal();
+        }
+
+        private void OnDisable()
+        {
+            UnregisterGLOverlayV46LikeOriginal();
+        }
+
+        private void RegisterGLOverlayV46LikeOriginal()
+        {
+            if (!V46UseGLPostRenderSelectionLikeOriginal || _glOverlayRegisteredV46) return;
+            Camera.onPostRender += DrawGLOverlayAfterCameraV46LikeOriginal;
+            RenderPipelineManager.endCameraRendering += DrawGLOverlayAfterSrpCameraV46LikeOriginal;
+            _glOverlayRegisteredV46 = true;
+        }
+
+        private void UnregisterGLOverlayV46LikeOriginal()
+        {
+            if (!_glOverlayRegisteredV46) return;
+            Camera.onPostRender -= DrawGLOverlayAfterCameraV46LikeOriginal;
+            RenderPipelineManager.endCameraRendering -= DrawGLOverlayAfterSrpCameraV46LikeOriginal;
+            _glOverlayRegisteredV46 = false;
         }
 
         private void Update()
@@ -3760,13 +4375,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!_loggedReady)
             {
                 _loggedReady = true;
-                Debug.Log("[C2:NEUTRAL PEASANT PICKER V18] installed input=" + C2NeutralPeasantUnitsV2InputBackendLikeOriginal());
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT PICKER V44] installed input=" + C2NeutralPeasantUnitsV2InputBackendLikeOriginal());
             }
 
             if (!HasBattleUnitsForOverlayV16LikeOriginal())
             {
                 _dragActive = false;
                 _dragExceeded = false;
+                _strelActive = false;
+                _strelExceeded = false;
                 if (_selectedUnits.Count > 0 || _selectedBuildings.Count > 0)
                     SetSelectionLikeOriginal(new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(0), new List<C2SettlementBuildingSelectableV1LikeOriginal>(0), false);
                 return;
@@ -3783,6 +4400,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (mouse.LeftDown)
             {
+                _strelActive = false;
+                _strelExceeded = false;
                 _dragActive = true;
                 _dragExceeded = false;
                 _dragStart = mouse.Position;
@@ -3792,7 +4411,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_dragActive && mouse.LeftHeld)
             {
                 _dragCurrent = mouse.Position;
-                if ((_dragCurrent - _dragStart).sqrMagnitude >= V8SelectionDragThresholdPixelsLikeOriginal * V8SelectionDragThresholdPixelsLikeOriginal)
+                if ((_dragCurrent - _dragStart).sqrMagnitude >= V44SelectionDragThresholdPixelsLikeOriginal * V44SelectionDragThresholdPixelsLikeOriginal)
                     _dragExceeded = true;
             }
 
@@ -3804,7 +4423,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Camera[] cameras = C2NeutralPeasantUnitsV2GetPickCamerasLikeOriginal(mouse.Position);
                 if (cameras == null || cameras.Length == 0)
                 {
-                    Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V33] miss camera=null");
+                    if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V44] miss camera=null");
                     _dragActive = false;
                     _dragExceeded = false;
                     return;
@@ -3824,20 +4443,47 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 if (_selectedUnits.Count == 0)
                 {
-                    Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] miss no_movable_selected_units selectedBuildings=" +
+                    if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT STREL V44] miss no_movable_selected_units selectedBuildings=" +
                               _selectedBuildings.Count.ToString(CultureInfo.InvariantCulture));
+                    _strelActive = false;
                     return;
                 }
 
-                Camera[] cameras = C2NeutralPeasantUnitsV2GetPickCamerasLikeOriginal(mouse.Position);
+                _strelActive = true;
+                _strelExceeded = false;
+                _strelStart = mouse.Position;
+                _strelCurrent = mouse.Position;
+            }
+
+            if (_strelActive && mouse.RightHeld)
+            {
+                _strelCurrent = mouse.Position;
+                if ((_strelCurrent - _strelStart).sqrMagnitude >= V44StrelDistPixelsLikeOriginal * V44StrelDistPixelsLikeOriginal)
+                    _strelExceeded = true;
+            }
+
+            if (_strelActive && mouse.RightUp)
+            {
+                _strelCurrent = mouse.Position;
+                Camera[] cameras = C2NeutralPeasantUnitsV2GetPickCamerasLikeOriginal(_strelCurrent);
                 if (cameras == null || cameras.Length == 0)
                 {
-                    Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] miss camera=null selected=" +
+                    if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT STREL V44] miss camera=null selected=" +
                               _selectedUnits.Count.ToString(CultureInfo.InvariantCulture));
+                    _strelActive = false;
+                    _strelExceeded = false;
                     return;
                 }
 
-                MoveSelectedGroupLikeOriginal(mouse.Position, cameras);
+                byte finalDir = _strelExceeded ? C2NeutralPeasantUnitsV44DirectionFromStrelScreenDeltaLikeOriginal(_strelStart, _strelCurrent) : (byte)0;
+                MoveSelectedGroupLikeOriginal(_strelExceeded ? _strelStart : _strelCurrent, cameras, _strelExceeded, finalDir);
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT STREL V44] command start=(" +
+                          _strelStart.x.ToString("0", CultureInfo.InvariantCulture) + "," +
+                          _strelStart.y.ToString("0", CultureInfo.InvariantCulture) + ") end=(" +
+                          _strelCurrent.x.ToString("0", CultureInfo.InvariantCulture) + "," +
+                          _strelCurrent.y.ToString("0", CultureInfo.InvariantCulture) + ") arrow=" + _strelExceeded);
+                _strelActive = false;
+                _strelExceeded = false;
             }
         }
 
@@ -3847,35 +4493,52 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!HasBattleUnitsForOverlayV16LikeOriginal())
             {
                 if (_screenOverlayRoot != null) _screenOverlayRoot.gameObject.SetActive(false);
+                if (_cameraOverlayRootV45 != null) _cameraOverlayRootV45.SetActive(false);
                 return;
             }
-            // V18: Canvas overlay disabled; screen feedback is IMGUI only.
-            // V15: original selection rectangle is a screen-space UI rectangle, not a terrain/world rectangle.
-            // The previous LineRenderer frame was misleading and is intentionally disabled.
-            // UpdateWorldDragFrameV15LikeOriginal();
+
+            SyncSelectedUnitsFromFlagsV41LikeOriginal();
+
+            if (V46UseGLPostRenderSelectionLikeOriginal)
+            {
+                if (_screenOverlayRoot != null) _screenOverlayRoot.gameObject.SetActive(false);
+                if (_cameraOverlayRootV45 != null) _cameraOverlayRootV45.SetActive(false);
+            }
+            else if (V45UseCameraOverlayForSelectionLikeOriginal)
+            {
+                if (_screenOverlayRoot != null) _screenOverlayRoot.gameObject.SetActive(false);
+                UpdateCameraOverlayV45LikeOriginal();
+            }
+            else
+            {
+                // Unity Game view does not reliably show IMGUI over the active camera stack here.
+                // Use a ScreenSpaceOverlay canvas, but keep the original semantics: dark fill only
+                // for LMB selection and yellow StrelMode lines only after StrelDist.
+                UpdateScreenOverlayV10LikeOriginal();
+                if (_screenOverlayRoot != null) _screenOverlayRoot.gameObject.SetActive(true);
+            }
+
+            // Keep selected unit material pulse and the textured round3 patch updated.
+            UpdateSelectedWorldVisualsV42LikeOriginal();
+
+            // Disable failed world/pipeline fallbacks from V42.
+            if (_worldDragFrameRoot != null) _worldDragFrameRoot.SetActive(false);
+            if (_worldStrelArrowRoot != null) _worldStrelArrowRoot.SetActive(false);
         }
 
         private void OnGUI()
         {
+            if (V46UseGLPostRenderSelectionLikeOriginal) return;
+            if (V45UseCameraOverlayForSelectionLikeOriginal) return;
             if (_duplicateDead) return;
             if (!HasBattleUnitsForOverlayV16LikeOriginal()) return;
-            int oldDepth = GUI.depth;
-            GUI.depth = -100000;
 
-            if (_dragActive && _dragExceeded)
-            {
-                // Strong IMGUI fallback: visible even if the ScreenSpaceOverlay canvas is hidden
-                // behind another project UI layer in Game View.
-                Rect screenRect = C2NeutralPeasantUnitsV2ScreenRectFromPointsLikeOriginal(_dragStart, _dragCurrent);
-                DrawSelectionRectGuiLikeOriginal(screenRect);
-            }
+            // Hard fallback for the Unity Game view: original mapa.cpp draws these as screen
+            // primitives, so IMGUI is the closest reliable path when a camera stack hides Canvas.
+            if (_dragActive && (_dragCurrent - _dragStart).sqrMagnitude >= 4.0f)
+                DrawSelectionRectGuiV36StrongLikeOriginal(C2NeutralPeasantUnitsV2ScreenRectFromPointsLikeOriginal(_dragStart, _dragCurrent));
 
-            // V28: selected unit marker must be visible even when the old ScreenSpaceOverlay
-            // canvas path is disabled. This draws the original-like SELTYPE oval under feet.
-            DrawSelectedMarkersGuiV10LikeOriginal();
-            DrawSelectedCounterGuiV10LikeOriginal();
-            DrawMoveFeedbackGuiV10LikeOriginal();
-            GUI.depth = oldDepth;
+            DrawStrelModeGuiV34LikeOriginal();
         }
 
         private void SelectSingleAtPointLikeOriginal(Vector3 mousePosition, Camera[] cameras, bool additive)
@@ -3891,29 +4554,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 var list = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(1);
                 list.Add(hit);
                 SetSelectionLikeOriginal(list, additive);
-                Debug.Log(hit.DebugPickLine(hitAlpha, hitUv) + " mode=" + hitMode +
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log(hit.DebugPickLine(hitAlpha, hitUv) + " mode=" + hitMode +
                           " selectedCount=" + _selectedUnits.Count.ToString(CultureInfo.InvariantCulture));
-                return;
-            }
-
-            C2SettlementBuildingSelectableV1LikeOriginal buildingHit;
-            float buildingDist;
-            string buildingMode;
-            if (TryPickBuildingAtScreenPointLikeOriginal(mousePosition, cameras, out buildingHit, out buildingDist, out buildingMode))
-            {
-                var buildings = new List<C2SettlementBuildingSelectableV1LikeOriginal>(1);
-                buildings.Add(buildingHit);
-                SetSelectionLikeOriginal(new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(0), buildings, additive);
-                Debug.Log(buildingHit.DebugPickLineLikeOriginal(buildingDist) + " mode=" + buildingMode +
-                          " selectedUnits=" + _selectedUnits.Count.ToString(CultureInfo.InvariantCulture) +
-                          " selectedBuildings=" + _selectedBuildings.Count.ToString(CultureInfo.InvariantCulture));
                 return;
             }
 
             if (!additive)
                 SetSelectionLikeOriginal(new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(0), new List<C2SettlementBuildingSelectableV1LikeOriginal>(0), false);
 
-            Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V33] miss pixelAlpha=no_visible_unit mouse=(" +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V44] miss pixelAlpha=no_visible_unit mouse=(" +
                       mousePosition.x.ToString("0", CultureInfo.InvariantCulture) + "," +
                       mousePosition.y.ToString("0", CultureInfo.InvariantCulture) + ") units=" +
                       C2NeutralPeasantUnitsV2FindUnitsLikeOriginal().Length.ToString(CultureInfo.InvariantCulture) +
@@ -3934,20 +4583,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var result = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(64);
             var seen = new HashSet<C2NeutralPeasantUnitInfoV2LikeOriginal>();
             var buildingResult = new List<C2SettlementBuildingSelectableV1LikeOriginal>(64);
-            var seenBuildings = new HashSet<C2SettlementBuildingSelectableV1LikeOriginal>();
 
             var units = C2NeutralPeasantUnitsV2FindUnitsLikeOriginal();
-            var buildings = C2NeutralPeasantUnitsV2FindBuildingsLikeOriginal();
-            if ((units == null || units.Length == 0) && (buildings == null || buildings.Length == 0))
+            if (units == null || units.Length == 0)
             {
                 if (!additive) SetSelectionLikeOriginal(result, buildingResult, false);
-                Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V19] miss no_units_or_buildings rect=" +
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V44] miss no_units rect=" +
                           C2NeutralPeasantUnitsV2RectToLogLikeOriginal(selectionRectScreen));
                 return;
             }
 
             if (units != null) Array.Sort(units, C2NeutralPeasantUnitPickerV2SortLikeOriginal);
-            if (buildings != null) Array.Sort(buildings, C2NeutralPeasantUnitPickerV2BuildingSortLikeOriginal);
 
             for (int c = 0; c < cameras.Length; c++)
             {
@@ -3975,30 +4621,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         result.Add(u);
                     }
                 }
-
-                if (buildings != null)
-                {
-                    for (int i = 0; i < buildings.Length; i++)
-                    {
-                        C2SettlementBuildingSelectableV1LikeOriginal b = buildings[i];
-                        if (b == null || !b.isActiveAndEnabled || b.NotSelectable || seenBuildings.Contains(b)) continue;
-
-                        Rect buildingRect;
-                        if (!b.TryGetScreenRectLikeOriginal(cam, out buildingRect))
-                            continue;
-
-                        if (!selectionRectScreen.Overlaps(buildingRect, true))
-                            continue;
-
-                        seenBuildings.Add(b);
-                        buildingResult.Add(b);
-                    }
-                }
             }
 
             SetSelectionLikeOriginal(result, buildingResult, additive);
 
-            Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V19] units=" +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V19] units=" +
                       result.Count.ToString(CultureInfo.InvariantCulture) +
                       " buildings=" + buildingResult.Count.ToString(CultureInfo.InvariantCulture) +
                       " selectedUnits=" + _selectedUnits.Count.ToString(CultureInfo.InvariantCulture) +
@@ -4029,7 +4656,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var units = C2NeutralPeasantUnitsV2FindUnitsLikeOriginal();
             if (units == null || units.Length == 0)
             {
-                Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V33] miss no_units");
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V44] miss no_units");
                 return false;
             }
 
@@ -4236,12 +4863,39 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
-        private void MoveSelectedGroupLikeOriginal(Vector3 mousePosition, Camera[] cameras)
+        private void SyncSelectedUnitsFromFlagsV41LikeOriginal()
+        {
+            CleanupSelectionListLikeOriginal();
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] units = C2NeutralPeasantUnitsV2FindUnitsLikeOriginal();
+            if (units == null) return;
+
+            for (int i = 0; i < units.Length; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = units[i];
+                if (u == null || !u.isActiveAndEnabled || !u.IsSelected) continue;
+                if (!_selectedUnits.Contains(u))
+                    _selectedUnits.Add(u);
+            }
+        }
+
+        private void UpdateSelectedWorldVisualsV42LikeOriginal()
+        {
+            SyncSelectedUnitsFromFlagsV41LikeOriginal();
+            for (int i = 0; i < _selectedUnits.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selectedUnits[i];
+                if (u == null || !u.isActiveAndEnabled) continue;
+                u.ForceUpdateSelectionVisualsV42LikeOriginal();
+            }
+        }
+
+        private void MoveSelectedGroupLikeOriginal(Vector3 mousePosition, Camera[] cameras, bool hasFinalFacingDir, byte finalFacingDir)
         {
             CleanupSelectionListLikeOriginal();
             if (_selectedUnits.Count == 0)
             {
-                Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] miss no_selected_units");
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44] miss no_selected_units");
                 return;
             }
 
@@ -4252,7 +4906,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             for (int i = 0; i < _selectedUnits.Count; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = _selectedUnits[i];
-                if (u == null) continue;
+                if (u == null || !u.CanReceiveOrdersLikeOriginal()) continue;
                 centroidRealX += u.RealXFloat;
                 centroidRealY += u.RealYFloat;
                 planeY += u.transform.position.y;
@@ -4261,7 +4915,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (count == 0)
             {
-                Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] miss selected_destroyed");
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44] miss selected_destroyed");
                 return;
             }
 
@@ -4273,7 +4927,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Camera moveCam;
             if (!C2NeutralPeasantUnitsV2TryScreenToMovePointLikeOriginal(mousePosition, cameras, planeY, out movePoint, out moveCam))
             {
-                Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] miss screen_to_world_failed selected=" +
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44] miss screen_to_world_failed selected=" +
                           count.ToString(CultureInfo.InvariantCulture));
                 return;
             }
@@ -4285,7 +4939,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             if (mode == null)
             {
-                Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] miss owner_mode_null selected=" +
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44] miss owner_mode_null selected=" +
                           count.ToString(CultureInfo.InvariantCulture));
                 return;
             }
@@ -4294,7 +4948,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float destPxY;
             if (!mode.C2NeutralPeasantUnitsV2WorldToOriginalPixelV15LikeOriginal(movePoint, out destPxX, out destPxY))
             {
-                Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] miss world_to_original_failed selected=" +
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44] miss world_to_original_failed selected=" +
                           count.ToString(CultureInfo.InvariantCulture));
                 return;
             }
@@ -4309,16 +4963,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             for (int i = 0; i < _selectedUnits.Count; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = _selectedUnits[i];
-                if (u == null) continue;
+                if (u == null || !u.CanReceiveOrdersLikeOriginal()) continue;
 
                 float offX = u.RealXFloat - centroidRealX;
                 float offY = u.RealYFloat - centroidRealY;
                 u.SetMoveDestinationRealLikeOriginal(destRealCenterX + offX,
                                                      destRealCenterY + offY,
-                                                     C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal);
+                                                     C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
+                                                     hasFinalFacingDir,
+                                                     finalFacingDir);
             }
 
-            Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V33] selected=" +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44] selected=" +
                       count.ToString(CultureInfo.InvariantCulture) +
                       " targetOriginalPx=(" + destPxX.ToString("0.0", CultureInfo.InvariantCulture) + "," +
                       destPxY.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
@@ -4327,7 +4983,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       " camera='" + (moveCam != null ? moveCam.name : "<none>") + "'" +
                       " mode=RealXRealY_DestXDestY_noRootTeleport_exactSnap speedOriginalPx=" +
                       C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) +
-                      " anim=#MOTION_L direction=targetSegment_noTurnSmoothing cameraDoesNotControlDirection=true screenGuiSelectionOnly=true");
+                      " anim=#MOTION_L direction=targetSegment_noTurnSmoothing cameraDoesNotControlDirection=true screenGuiSelectionOnly=true" +
+                      " strelFinalFacing=" + hasFinalFacingDir +
+                      " finalDir=" + finalFacingDir.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private static byte C2NeutralPeasantUnitsV44DirectionFromStrelScreenDeltaLikeOriginal(Vector3 startBottomLeft, Vector3 endBottomLeft)
+        {
+            float rx = endBottomLeft.x - startBottomLeft.x;
+            // Original mouse y in mapa.cpp is top-left screen space. Unity input is bottom-left,
+            // so vertical StrelMode delta must be inverted.
+            float ry = -(endBottomLeft.y - startBottomLeft.y) * 2.0f;
+            if (Mathf.Abs(rx) < 0.001f && Mathf.Abs(ry) < 0.001f) return 0;
+
+            float angle = Mathf.Atan2(ry, rx) * Mathf.Rad2Deg;
+            int raw = Mathf.RoundToInt(Mathf.Repeat(angle / 360.0f * 256.0f, 256.0f));
+            int snapped = (raw + 8) & 0xF0;
+            return (byte)(snapped & 255);
         }
 
         private static bool C2NeutralPeasantUnitsV2TryScreenToMovePointLikeOriginal(
@@ -4404,14 +5076,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static void DrawSelectionRectGuiLikeOriginal(Rect screenRectBottomLeft)
         {
-            if (_guiPixel == null)
-            {
-                _guiPixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-                _guiPixel.name = "C2_NeutralPeasant_SelectionRectPixel_V10";
-                _guiPixel.SetPixel(0, 0, Color.white);
-                _guiPixel.Apply(false, true);
-            }
-
+            EnsureGuiPixelV10LikeOriginal();
             Rect r = new Rect(
                 screenRectBottomLeft.xMin,
                 Screen.height - screenRectBottomLeft.yMax,
@@ -4419,28 +5084,31 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Mathf.Max(1.0f, screenRectBottomLeft.height));
 
             Color old = GUI.color;
-
-            // Original mapa.cpp draws translucent fill while the LMB selection bar is active:
-            // GPS.DrawFillRect(VS.x,VS.y,x-VS.x,y-VS.y,0x60000000).
-            GUI.color = new Color(0.0f, 0.0f, 0.0f, 0.38f);
+            GUI.color = new Color(0.0f, 0.0f, 0.0f, 96.0f / 255.0f);
             GUI.DrawTexture(r, _guiPixel);
-
-            GUI.color = new Color(1.0f, 1.0f, 0.0f, 1.0f);
-            float t = 2.0f;
-            GUI.DrawTexture(new Rect(r.xMin, r.yMin, r.width, t), _guiPixel);
-            GUI.DrawTexture(new Rect(r.xMin, r.yMax - t, r.width, t), _guiPixel);
-            GUI.DrawTexture(new Rect(r.xMin, r.yMin, t, r.height), _guiPixel);
-            GUI.DrawTexture(new Rect(r.xMax - t, r.yMin, t, r.height), _guiPixel);
-
             GUI.color = old;
         }
 
+                private static void DrawSelectionRectGuiV36StrongLikeOriginal(Rect screenRectBottomLeft)
+        {
+            EnsureGuiPixelV10LikeOriginal();
 
+            // Original UI selection: GPS.DrawFillRect(..., 0x60000000).
+            // 0x60 alpha, RGB=0, no yellow border and no world/pipeline line.
+            DrawGuiFilledFrameRectV10LikeOriginal(
+                screenRectBottomLeft,
+                new Color(0.0f, 0.0f, 0.0f, 96.0f / 255.0f),
+                new Color(0.0f, 0.0f, 0.0f, 0.0f),
+                0.0f);
+        }
 
         private void DrawSelectedMarkersGuiV10LikeOriginal()
         {
-            CleanupSelectionListLikeOriginal();
+            SyncSelectedUnitsFromFlagsV41LikeOriginal();
             if (_selectedUnits.Count == 0) return;
+
+            Texture2D markerTex = C2NeutralPeasantUnitsV34LoadSelectionRoundTextureGuiLikeOriginal();
+            if (markerTex == null) markerTex = C2NeutralPeasantUnitsV40CreateProceduralRoundSelectionTextureLikeOriginal();
 
             for (int i = 0; i < _selectedUnits.Count; i++)
             {
@@ -4452,18 +5120,86 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (!TryGetUnitSelectionMarkerScreenRectV10LikeOriginal(u, out anchor, out size))
                     continue;
 
-                // V28: original marker is a terrain patch under the feet. Draw a visible oval,
-                // not a body rectangle, so a selected peasant clearly has a circle under legs.
-                size.x = Mathf.Clamp(size.x, 34.0f, 72.0f);
-                size.y = Mathf.Clamp(size.y, 16.0f, 34.0f);
+                size.x = Mathf.Clamp(size.x * 1.22f, 40.0f, 78.0f);
+                size.y = Mathf.Clamp(size.y * 1.35f, 18.0f, 38.0f);
 
-                Rect bottomLeftRect = new Rect(anchor.x - size.x * 0.5f, anchor.y - size.y * 0.5f, size.x, size.y);
-                DrawGuiOvalRingLikeOriginal(
-                    bottomLeftRect,
-                    new Color(1.0f, 0.92f, 0.05f, 0.30f),
-                    new Color(1.0f, 1.0f, 0.0f, 1.0f),
-                    3.0f);
+                Rect bottomLeftRect = new Rect(anchor.x - size.x * 0.5f, anchor.y - size.y * 0.52f, size.x, size.y);
+                if (markerTex != null)
+                    DrawGuiSelectionTextureV34LikeOriginal(bottomLeftRect, markerTex, new Color(1.0f, 1.0f, 1.0f, 0.96f));
+                else
+                    DrawGuiOvalRingLikeOriginal(bottomLeftRect, new Color(0.0f, 0.0f, 0.0f, 0.14f), new Color(0.0f, 0.0f, 0.0f, 0.55f), 1.0f);
             }
+        }
+
+        private void DrawSelectedMarkersGuiV36StrongLikeOriginal()
+        {
+            SyncSelectedUnitsFromFlagsV41LikeOriginal();
+            if (_selectedUnits.Count == 0) return;
+
+            Camera cam = C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal();
+            if (cam == null) cam = Camera.main;
+            if (cam == null) return;
+
+            Texture2D markerTex = C2NeutralPeasantUnitsV34LoadSelectionRoundTextureGuiLikeOriginal();
+            if (markerTex == null) markerTex = C2NeutralPeasantUnitsV40CreateProceduralRoundSelectionTextureLikeOriginal();
+
+            for (int i = 0; i < _selectedUnits.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selectedUnits[i];
+                if (u == null || !u.isActiveAndEnabled) continue;
+
+                Vector3 sp = cam.WorldToScreenPoint(u.transform.position);
+                if (sp.z <= 0.0f) continue;
+
+                float w = 64.0f * Mathf.Max(0.35f, u.SelectionScaleX);
+                float h = 30.0f * Mathf.Max(0.35f, u.SelectionScaleY);
+                Rect r = new Rect(sp.x - w * 0.5f, sp.y - h * 0.52f, w, h);
+
+                if (markerTex != null)
+                    DrawGuiSelectionTextureV34LikeOriginal(r, markerTex, new Color(1.0f, 1.0f, 1.0f, 0.96f));
+                else
+                    DrawGuiOvalRingLikeOriginal(r, new Color(0.0f, 0.0f, 0.0f, 0.14f), new Color(0.0f, 0.0f, 0.0f, 0.55f), 1.0f);
+            }
+        }
+
+        private void DrawSelectedUnitScreenPulseV37LikeOriginal()
+        {
+            if (_selectedUnits.Count == 0) return;
+
+            Camera cam = C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal();
+            if (cam == null) cam = Camera.main;
+            if (cam == null) return;
+
+            // Original MiniMap4X.cpp does a diffuse pulse.  This screen overlay is a forced
+            // visible equivalent for Unity shaders that ignore material color properties.
+            float pulse = (Mathf.Sin(Time.realtimeSinceStartup * 5.0f) + 1.0f) * 0.5f;
+            Color old = GUI.color;
+            GUI.color = new Color(1.0f, 1.0f, 1.0f, Mathf.Lerp(0.00f, 0.62f, pulse));
+
+            for (int i = 0; i < _selectedUnits.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selectedUnits[i];
+                if (u == null || !u.isActiveAndEnabled || u.SpriteAnimator == null) continue;
+
+                C2NeutralPeasantUnitFrameV2LikeOriginal f = u.SpriteAnimator.CurrentFrame;
+                if (f == null || f.Texture == null) continue;
+
+                float dist;
+                Vector2 center;
+                Vector4 rect4;
+                if (!u.TryGetScreenQuadDistance(cam, Vector3.zero, out dist, out center, out rect4))
+                    continue;
+
+                Rect r = new Rect(
+                    rect4.x,
+                    Screen.height - rect4.w,
+                    Mathf.Max(1.0f, rect4.z - rect4.x),
+                    Mathf.Max(1.0f, rect4.w - rect4.y));
+
+                GUI.DrawTexture(r, f.Texture, ScaleMode.StretchToFill, true);
+            }
+
+            GUI.color = old;
         }
 
         private void DrawMoveFeedbackGuiV10LikeOriginal()
@@ -4476,12 +5212,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             DrawGuiFilledFrameRectV10LikeOriginal(
                 new Rect(x - s, y - s, s * 2.0f, s * 2.0f),
-                new Color(0.1f, 1.0f, 0.1f, 0.20f),
-                new Color(0.2f, 1.0f, 0.1f, 1.0f),
+                new Color(1.0f, 1.0f, 0.0f, 0.16f),
+                new Color(0.0f, 0.0f, 0.0f, 0.78f),
                 3.0f);
 
-            DrawGuiLineRectV10LikeOriginal(new Rect(x - 2.0f, y - s * 1.45f, 4.0f, s * 2.9f), new Color(0.2f, 1.0f, 0.1f, 1.0f));
-            DrawGuiLineRectV10LikeOriginal(new Rect(x - s * 1.45f, y - 2.0f, s * 2.9f, 4.0f), new Color(0.2f, 1.0f, 0.1f, 1.0f));
+            DrawGuiLineRectV10LikeOriginal(new Rect(x - 2.0f, y - s * 1.45f, 4.0f, s * 2.9f), new Color(0.0f, 0.0f, 0.0f, 0.78f));
+            DrawGuiLineRectV10LikeOriginal(new Rect(x - s * 1.45f, y - 2.0f, s * 2.9f, 4.0f), new Color(0.0f, 0.0f, 0.0f, 0.78f));
         }
 
         private void DrawSelectedCounterGuiV10LikeOriginal()
@@ -4502,6 +5238,117 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             GUI.color = Color.yellow;
             GUI.Label(new Rect(15, 15, 360, 28), text, style);
             GUI.color = Color.white;
+        }
+
+        private static Texture2D C2NeutralPeasantUnitsV34LoadSelectionRoundTextureGuiLikeOriginal()
+        {
+            if (_selectionRoundTextureV34 != null) return _selectionRoundTextureV34;
+
+            string[] paths =
+            {
+                "textures/selection/round3",
+                "textures/selection/Round3",
+                "Textures/selection/round3",
+                "Textures/Selection/round3",
+                "selection/round3"
+            };
+
+            for (int i = 0; i < paths.Length; i++)
+            {
+                Texture2D tex = Resources.Load<Texture2D>(paths[i]);
+                if (tex == null) continue;
+                _selectionRoundTextureV34 = tex;
+                return tex;
+            }
+
+            return null;
+        }
+
+        private static Texture2D C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureGuiLikeOriginal;
+
+        private static Texture2D C2NeutralPeasantUnitsV40CreateProceduralRoundSelectionTextureLikeOriginal()
+        {
+            if (C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureGuiLikeOriginal != null)
+                return C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureGuiLikeOriginal;
+
+            const int w = 64;
+            const int h = 32;
+            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            tex.name = "C2_NeutralPeasant_ProceduralRoundSelectionGui_V40";
+            for (int y = 0; y < h; y++)
+            {
+                float ny = ((y + 0.5f) / h - 0.5f) * 2.0f;
+                for (int x = 0; x < w; x++)
+                {
+                    float nx = ((x + 0.5f) / w - 0.5f) * 2.0f;
+                    float r = Mathf.Sqrt(nx * nx + ny * ny);
+                    float a = 0.0f;
+                    if (r <= 1.0f)
+                    {
+                        float ring = Mathf.Abs(r - 0.78f);
+                        a = Mathf.Clamp01(1.0f - ring / 0.16f) * 0.92f;
+                        if (r < 0.62f) a = Mathf.Max(a, 0.18f);
+                    }
+                    tex.SetPixel(x, y, new Color(0.55f, 0.75f, 0.18f, a));
+                }
+            }
+            tex.Apply(false, true);
+            C2NeutralPeasantUnitsV40ProceduralRoundSelectionTextureGuiLikeOriginal = tex;
+            return tex;
+        }
+
+
+        private static void DrawGuiSelectionTextureV34LikeOriginal(Rect bottomLeftRect, Texture2D tex, Color color)
+        {
+            if (tex == null) return;
+            Rect r = new Rect(
+                bottomLeftRect.xMin,
+                Screen.height - bottomLeftRect.yMax,
+                Mathf.Max(1.0f, bottomLeftRect.width),
+                Mathf.Max(1.0f, bottomLeftRect.height));
+
+            Color old = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(r, tex, ScaleMode.StretchToFill, true);
+            GUI.color = old;
+        }
+
+        private void DrawStrelModeGuiV34LikeOriginal()
+        {
+            if (!_strelActive) return;
+            Vector2 a = new Vector2(_strelStart.x, _strelStart.y);
+            Vector2 b = new Vector2(_strelCurrent.x, _strelCurrent.y);
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len <= V44StrelDistPixelsLikeOriginal) return;
+
+            Vector2 n = d / Mathf.Max(0.0001f, len);
+            Vector2 p = new Vector2(-n.y, n.x);
+            float head = Mathf.Clamp(len * 0.22f, 18.0f, 42.0f);
+            Color yellow = new Color(1.0f, 1.0f, 0.0f, 1.0f);
+
+            DrawGuiLineV34LikeOriginal(a, b, yellow, 3.0f);
+            DrawGuiLineV34LikeOriginal(b, b - n * head + p * head * 0.45f, yellow, 3.0f);
+            DrawGuiLineV34LikeOriginal(b, b - n * head - p * head * 0.45f, yellow, 3.0f);
+        }
+
+        private static void DrawGuiLineV34LikeOriginal(Vector2 bottomLeftA, Vector2 bottomLeftB, Color color, float width)
+        {
+            EnsureGuiPixelV10LikeOriginal();
+            Vector2 a = new Vector2(bottomLeftA.x, Screen.height - bottomLeftA.y);
+            Vector2 b = new Vector2(bottomLeftB.x, Screen.height - bottomLeftB.y);
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len <= 0.001f) return;
+
+            Color oldColor = GUI.color;
+            Matrix4x4 oldMatrix = GUI.matrix;
+            GUI.color = color;
+            float angle = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+            GUIUtility.RotateAroundPivot(angle, a);
+            GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, len, Mathf.Max(1.0f, width)), _guiPixel);
+            GUI.matrix = oldMatrix;
+            GUI.color = oldColor;
         }
 
         private static void DrawGuiOvalRingLikeOriginal(Rect bottomLeftRect, Color fill, Color line, float thickness)
@@ -4570,12 +5417,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             GUI.color = fill;
             GUI.DrawTexture(r, _guiPixel);
 
-            GUI.color = line;
-            float t = Mathf.Max(1.0f, thickness);
-            GUI.DrawTexture(new Rect(r.xMin, r.yMin, r.width, t), _guiPixel);
-            GUI.DrawTexture(new Rect(r.xMin, r.yMax - t, r.width, t), _guiPixel);
-            GUI.DrawTexture(new Rect(r.xMin, r.yMin, t, r.height), _guiPixel);
-            GUI.DrawTexture(new Rect(r.xMax - t, r.yMin, t, r.height), _guiPixel);
+            if (line.a > 0.001f && thickness > 0.001f)
+            {
+                GUI.color = line;
+                float t = Mathf.Max(1.0f, thickness);
+                GUI.DrawTexture(new Rect(r.xMin, r.yMin, r.width, t), _guiPixel);
+                GUI.DrawTexture(new Rect(r.xMin, r.yMax - t, r.width, t), _guiPixel);
+                GUI.DrawTexture(new Rect(r.xMin, r.yMin, t, r.height), _guiPixel);
+                GUI.DrawTexture(new Rect(r.xMax - t, r.yMin, t, r.height), _guiPixel);
+            }
 
             GUI.color = old;
         }
@@ -4608,40 +5458,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
 
 
-        private void UpdateWorldDragFrameV15LikeOriginal()
+                private void UpdateWorldDragFrameV15LikeOriginal()
         {
-            EnsureWorldDragFrameV15LikeOriginal();
-            if (_worldDragFrameRoot == null || _worldDragLines == null) return;
-
-            bool show = _dragActive && _dragExceeded;
-            _worldDragFrameRoot.SetActive(show);
-            if (!show) return;
-
-            Camera[] cameras = C2NeutralPeasantUnitsV2GetPickCamerasLikeOriginal(_dragCurrent);
-            if (cameras == null || cameras.Length == 0) return;
-
-            Rect r = C2NeutralPeasantUnitsV2ScreenRectFromPointsLikeOriginal(_dragStart, _dragCurrent);
-            float planeY = 50.0f;
-            if (_selectedUnits.Count > 0 && _selectedUnits[0] != null) planeY = _selectedUnits[0].transform.position.y;
-            else
-            {
-                var any = UnityEngine.Object.FindObjectOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
-                if (any != null) planeY = any.transform.position.y;
-            }
-
-            Vector3 p0, p1, p2, p3;
-            Camera c;
-            if (!C2NeutralPeasantUnitsV2TryScreenToMovePointLikeOriginal(new Vector3(r.xMin, r.yMin, 0.0f), cameras, planeY, out p0, out c)) return;
-            if (!C2NeutralPeasantUnitsV2TryScreenToMovePointLikeOriginal(new Vector3(r.xMax, r.yMin, 0.0f), cameras, planeY, out p1, out c)) return;
-            if (!C2NeutralPeasantUnitsV2TryScreenToMovePointLikeOriginal(new Vector3(r.xMax, r.yMax, 0.0f), cameras, planeY, out p2, out c)) return;
-            if (!C2NeutralPeasantUnitsV2TryScreenToMovePointLikeOriginal(new Vector3(r.xMin, r.yMax, 0.0f), cameras, planeY, out p3, out c)) return;
-
-            const float raise = 1.15f;
-            p0.y += raise; p1.y += raise; p2.y += raise; p3.y += raise;
-            SetWorldDragLineV15LikeOriginal(0, p0, p1);
-            SetWorldDragLineV15LikeOriginal(1, p1, p2);
-            SetWorldDragLineV15LikeOriginal(2, p2, p3);
-            SetWorldDragLineV15LikeOriginal(3, p3, p0);
+            // V44: original LMB selection rectangle is screen-space GPS.DrawFillRect,
+            // never a world/pipeline rectangle.
+            if (_worldDragFrameRoot != null) _worldDragFrameRoot.SetActive(false);
         }
 
         private void EnsureWorldDragFrameV15LikeOriginal()
@@ -4655,8 +5476,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (sh == null) sh = Shader.Find("Unlit/Color");
             if (sh == null) sh = Shader.Find("Standard");
             _worldDragLineMaterial = new Material(sh);
-            _worldDragLineMaterial.name = "C2_NeutralPeasantUnits_V15_WorldDragLine_Yellow";
-            if (_worldDragLineMaterial.HasProperty("_Color")) _worldDragLineMaterial.SetColor("_Color", new Color(1.0f, 1.0f, 0.0f, 1.0f));
+            _worldDragLineMaterial.name = "C2_NeutralPeasantUnits_V44_WorldDragLine_DISABLED";
+            if (_worldDragLineMaterial.HasProperty("_Color")) _worldDragLineMaterial.SetColor("_Color", new Color(0.0f, 0.0f, 0.0f, 0.78f));
             _worldDragLineMaterial.renderQueue = 5000;
 
             _worldDragLines = new LineRenderer[4];
@@ -4667,15 +5488,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 var lr = go.AddComponent<LineRenderer>();
                 lr.useWorldSpace = true;
                 lr.positionCount = 2;
-                lr.startWidth = 2.80f;
-                lr.endWidth = 2.80f;
+                lr.startWidth = 1.80f;
+                lr.endWidth = 1.80f;
                 lr.numCapVertices = 2;
                 lr.numCornerVertices = 2;
                 lr.shadowCastingMode = ShadowCastingMode.Off;
                 lr.receiveShadows = false;
                 lr.material = _worldDragLineMaterial;
-                lr.startColor = new Color(1.0f, 1.0f, 0.0f, 1.0f);
-                lr.endColor = new Color(1.0f, 1.0f, 0.0f, 1.0f);
+                lr.startColor = new Color(0.0f, 0.0f, 0.0f, 0.78f);
+                lr.endColor = new Color(0.0f, 0.0f, 0.0f, 0.78f);
                 _worldDragLines[i] = lr;
             }
             _worldDragFrameRoot.SetActive(false);
@@ -4688,30 +5509,446 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _worldDragLines[index].SetPosition(1, b);
         }
 
+                private void UpdateWorldStrelArrowV42LikeOriginal()
+        {
+            // V44: StrelMode arrow is rendered by screen-space UI/IMGUI lines.
+            if (_worldStrelArrowRoot != null) _worldStrelArrowRoot.SetActive(false);
+        }
+
+        private void EnsureWorldStrelArrowV42LikeOriginal()
+        {
+            if (_worldStrelArrowRoot != null) return;
+            _worldStrelArrowRoot = new GameObject("C2_NeutralPeasantUnits_V44_WorldStrelArrow");
+            _worldStrelArrowRoot.hideFlags = HideFlags.HideAndDontSave;
+            Shader sh = Shader.Find("Sprites/Default");
+            if (sh == null) sh = Shader.Find("Unlit/Color");
+            if (sh == null) sh = Shader.Find("Unlit/Transparent");
+            _worldStrelArrowMaterial = new Material(sh);
+            _worldStrelArrowMaterial.name = "C2_NeutralPeasantUnits_V44_WorldStrelArrow_Yellow";
+            Color yc = new Color(1.0f, 0.92f, 0.0f, 1.0f);
+            if (_worldStrelArrowMaterial.HasProperty("_Color")) _worldStrelArrowMaterial.SetColor("_Color", yc);
+            if (_worldStrelArrowMaterial.HasProperty("_BaseColor")) _worldStrelArrowMaterial.SetColor("_BaseColor", yc);
+            if (_worldStrelArrowMaterial.HasProperty("_TintColor")) _worldStrelArrowMaterial.SetColor("_TintColor", yc);
+            if (_worldStrelArrowMaterial.HasProperty("_ZTest")) _worldStrelArrowMaterial.SetInt("_ZTest", (int)CompareFunction.Always);
+            _worldStrelArrowMaterial.renderQueue = 7300;
+            _worldStrelArrowLines = new LineRenderer[3];
+            for (int i = 0; i < 3; i++)
+            {
+                GameObject go = new GameObject("world_strel_line_" + i.ToString(CultureInfo.InvariantCulture));
+                go.transform.SetParent(_worldStrelArrowRoot.transform, false);
+                LineRenderer lr = go.AddComponent<LineRenderer>();
+                lr.useWorldSpace = true;
+                lr.positionCount = 2;
+                lr.startWidth = 1.25f;
+                lr.endWidth = 1.25f;
+                lr.numCapVertices = 2;
+                lr.numCornerVertices = 2;
+                lr.shadowCastingMode = ShadowCastingMode.Off;
+                lr.receiveShadows = false;
+                lr.material = _worldStrelArrowMaterial;
+                lr.startColor = yc;
+                lr.endColor = yc;
+                _worldStrelArrowLines[i] = lr;
+            }
+            _worldStrelArrowRoot.SetActive(false);
+        }
+
+        private void SetWorldStrelLineV42LikeOriginal(int index, Vector3 a, Vector3 b)
+        {
+            if (_worldStrelArrowLines == null || index < 0 || index >= _worldStrelArrowLines.Length || _worldStrelArrowLines[index] == null) return;
+            _worldStrelArrowLines[index].SetPosition(0, a);
+            _worldStrelArrowLines[index].SetPosition(1, b);
+        }
+
+        private void DrawGLOverlayAfterSrpCameraV46LikeOriginal(ScriptableRenderContext context, Camera cam)
+        {
+            DrawGLOverlayAfterCameraV46LikeOriginal(cam);
+        }
+
+        private void DrawGLOverlayAfterCameraV46LikeOriginal(Camera cam)
+        {
+            if (!V46UseGLPostRenderSelectionLikeOriginal) return;
+            if (_duplicateDead || !isActiveAndEnabled) return;
+            if (cam == null || !cam.isActiveAndEnabled) return;
+
+            Camera best = C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal();
+            if (best != null && cam != best) return;
+            if (!HasBattleUnitsForOverlayV16LikeOriginal()) return;
+
+            bool showDrag = _dragActive && (_dragCurrent - _dragStart).sqrMagnitude >= 4.0f;
+            bool showStrel = _strelActive && ((_strelCurrent - _strelStart).sqrMagnitude > V44StrelDistPixelsLikeOriginal * V44StrelDistPixelsLikeOriginal);
+            if (!showDrag && !showStrel) return;
+
+            if (_lastGlOverlayFrameV46 == Time.frameCount && _lastGlOverlayCameraV46 == cam)
+                return;
+            _lastGlOverlayFrameV46 = Time.frameCount;
+            _lastGlOverlayCameraV46 = cam;
+
+            Material mat = EnsureGLOverlayMaterialV46LikeOriginal();
+            if (mat == null || !mat.SetPass(0)) return;
+
+            GL.PushMatrix();
+            GL.LoadPixelMatrix(0.0f, Mathf.Max(1.0f, cam.pixelWidth), 0.0f, Mathf.Max(1.0f, cam.pixelHeight));
+
+            if (showDrag)
+            {
+                Rect r = C2NeutralPeasantUnitsV2ScreenRectFromPointsLikeOriginal(_dragStart, _dragCurrent);
+                Rect local = C2NeutralPeasantUnitsV46CameraLocalRectLikeOriginal(cam, r);
+                DrawGLScreenQuadV46LikeOriginal(local, new Color(0.0f, 0.0f, 0.0f, 96.0f / 255.0f));
+            }
+
+            if (showStrel)
+            {
+                Vector2 a = C2NeutralPeasantUnitsV46CameraLocalPointLikeOriginal(cam, _strelStart);
+                Vector2 b = C2NeutralPeasantUnitsV46CameraLocalPointLikeOriginal(cam, _strelCurrent);
+                DrawGLStrelArrowV46LikeOriginal(a, b);
+            }
+
+            GL.PopMatrix();
+        }
+
+        private static Material EnsureGLOverlayMaterialV46LikeOriginal()
+        {
+            if (_glOverlayMaterialV46 != null) return _glOverlayMaterialV46;
+
+            Shader sh = Shader.Find("Hidden/Internal-Colored");
+            if (sh == null) sh = Shader.Find("Unlit/Color");
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh == null) sh = Shader.Find("Unlit/Transparent");
+            if (sh == null) return null;
+
+            _glOverlayMaterialV46 = new Material(sh);
+            _glOverlayMaterialV46.name = "C2_NeutralPeasantUnits_V46_GL_OriginalScreenSelection";
+            _glOverlayMaterialV46.hideFlags = HideFlags.HideAndDontSave;
+            if (_glOverlayMaterialV46.HasProperty("_SrcBlend")) _glOverlayMaterialV46.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            if (_glOverlayMaterialV46.HasProperty("_DstBlend")) _glOverlayMaterialV46.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            if (_glOverlayMaterialV46.HasProperty("_Cull")) _glOverlayMaterialV46.SetInt("_Cull", (int)CullMode.Off);
+            if (_glOverlayMaterialV46.HasProperty("_ZWrite")) _glOverlayMaterialV46.SetInt("_ZWrite", 0);
+            if (_glOverlayMaterialV46.HasProperty("_ZTest")) _glOverlayMaterialV46.SetInt("_ZTest", (int)CompareFunction.Always);
+            return _glOverlayMaterialV46;
+        }
+
+        private static Vector2 C2NeutralPeasantUnitsV46CameraLocalPointLikeOriginal(Camera cam, Vector3 screenPoint)
+        {
+            Rect pr = cam != null ? cam.pixelRect : new Rect(0.0f, 0.0f, Screen.width, Screen.height);
+            return new Vector2(screenPoint.x - pr.xMin, screenPoint.y - pr.yMin);
+        }
+
+        private static Rect C2NeutralPeasantUnitsV46CameraLocalRectLikeOriginal(Camera cam, Rect screenRect)
+        {
+            Vector2 a = C2NeutralPeasantUnitsV46CameraLocalPointLikeOriginal(cam, new Vector3(screenRect.xMin, screenRect.yMin, 0.0f));
+            Vector2 b = C2NeutralPeasantUnitsV46CameraLocalPointLikeOriginal(cam, new Vector3(screenRect.xMax, screenRect.yMax, 0.0f));
+            return Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
+        }
+
+        private static void DrawGLScreenQuadV46LikeOriginal(Rect r, Color color)
+        {
+            GL.Begin(GL.QUADS);
+            GL.Color(color);
+            GL.Vertex3(r.xMin, r.yMin, 0.0f);
+            GL.Vertex3(r.xMax, r.yMin, 0.0f);
+            GL.Vertex3(r.xMax, r.yMax, 0.0f);
+            GL.Vertex3(r.xMin, r.yMax, 0.0f);
+            GL.End();
+        }
+
+        private static void DrawGLStrelArrowV46LikeOriginal(Vector2 a, Vector2 b)
+        {
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len <= 0.001f) return;
+
+            Vector2 n = d / Mathf.Max(0.0001f, len);
+            Vector2 p = new Vector2(-n.y, n.x);
+            float shaftHalf = Mathf.Clamp(len * 0.055f, 6.0f, 13.0f);
+            float headLen = Mathf.Clamp(len * 0.22f, 22.0f, 48.0f);
+            headLen = Mathf.Min(headLen, len * 0.62f);
+            float headHalf = Mathf.Clamp(shaftHalf * 1.85f, 12.0f, 24.0f);
+            float line = Mathf.Clamp(len * 0.018f, 1.6f, 2.8f);
+            Color yellow = Color.yellow;
+
+            Vector2 tail = a + n * Mathf.Min(8.0f, len * 0.10f);
+            Vector2 neck = b - n * headLen;
+            Vector2 l0 = tail + p * shaftHalf;
+            Vector2 r0 = tail - p * shaftHalf;
+            Vector2 l1 = neck + p * shaftHalf;
+            Vector2 r1 = neck - p * shaftHalf;
+            Vector2 lh = neck + p * headHalf;
+            Vector2 rh = neck - p * headHalf;
+
+            // Original StrelMode draws a hollow yellow direction arrow: two shaft edges
+            // and an outlined arrow head, not one filled thick line.
+            DrawGLScreenLineQuadV46LikeOriginal(l0, l1, line, yellow);
+            DrawGLScreenLineQuadV46LikeOriginal(r0, r1, line, yellow);
+            DrawGLScreenLineQuadV46LikeOriginal(l0, r0, line, yellow);
+            DrawGLScreenLineQuadV46LikeOriginal(l1, lh, line, yellow);
+            DrawGLScreenLineQuadV46LikeOriginal(r1, rh, line, yellow);
+            DrawGLScreenLineQuadV46LikeOriginal(lh, b, line, yellow);
+            DrawGLScreenLineQuadV46LikeOriginal(rh, b, line, yellow);
+        }
+
+        private static void DrawGLScreenLineQuadV46LikeOriginal(Vector2 a, Vector2 b, float width, Color color)
+        {
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len <= 0.001f) return;
+
+            Vector2 n = d / len;
+            Vector2 p = new Vector2(-n.y, n.x) * Mathf.Max(1.0f, width) * 0.5f;
+
+            GL.Begin(GL.QUADS);
+            GL.Color(color);
+            GL.Vertex3(a.x + p.x, a.y + p.y, 0.0f);
+            GL.Vertex3(b.x + p.x, b.y + p.y, 0.0f);
+            GL.Vertex3(b.x - p.x, b.y - p.y, 0.0f);
+            GL.Vertex3(a.x - p.x, a.y - p.y, 0.0f);
+            GL.End();
+        }
+
+        private void UpdateCameraOverlayV45LikeOriginal()
+        {
+            EnsureCameraOverlayV45LikeOriginal();
+            if (_cameraOverlayRootV45 == null) return;
+
+            Camera cam = C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal();
+            if (cam == null) cam = Camera.main;
+            if (cam == null)
+            {
+                _cameraOverlayRootV45.SetActive(false);
+                return;
+            }
+
+            _cameraOverlayRootV45.SetActive(true);
+            _cameraOverlayRootV45.transform.position = Vector3.zero;
+            _cameraOverlayRootV45.transform.rotation = Quaternion.identity;
+            _cameraOverlayRootV45.transform.localScale = Vector3.one;
+
+            bool showDrag = _dragActive && (_dragCurrent - _dragStart).sqrMagnitude >= 4.0f;
+            if (showDrag)
+            {
+                Rect r = C2NeutralPeasantUnitsV2ScreenRectFromPointsLikeOriginal(_dragStart, _dragCurrent);
+                r.width = Mathf.Max(1.0f, r.width);
+                r.height = Mathf.Max(1.0f, r.height);
+                SetCameraScreenRectMeshV45LikeOriginal(
+                    _cameraDragFillMeshV45,
+                    cam,
+                    r,
+                    new Color(0.0f, 0.0f, 0.0f, 96.0f / 255.0f));
+                if (_cameraDragFillRendererV45 != null) _cameraDragFillRendererV45.enabled = true;
+            }
+            else if (_cameraDragFillRendererV45 != null)
+            {
+                _cameraDragFillRendererV45.enabled = false;
+            }
+
+            bool showStrel = _strelActive && ((_strelCurrent - _strelStart).sqrMagnitude > V44StrelDistPixelsLikeOriginal * V44StrelDistPixelsLikeOriginal);
+            if (showStrel)
+            {
+                SetCameraStrelMeshV45LikeOriginal(
+                    _cameraStrelMeshV45,
+                    cam,
+                    new Vector2(_strelStart.x, _strelStart.y),
+                    new Vector2(_strelCurrent.x, _strelCurrent.y),
+                    Color.yellow);
+                if (_cameraStrelRendererV45 != null) _cameraStrelRendererV45.enabled = true;
+            }
+            else if (_cameraStrelRendererV45 != null)
+            {
+                _cameraStrelRendererV45.enabled = false;
+            }
+        }
+
+        private void EnsureCameraOverlayV45LikeOriginal()
+        {
+            if (_cameraOverlayRootV45 != null) return;
+
+            _cameraOverlayRootV45 = new GameObject("C2_NeutralPeasantUnits_V45_CameraOverlay_OriginalSelection");
+            _cameraOverlayRootV45.hideFlags = HideFlags.HideAndDontSave;
+
+            GameObject dragGo = new GameObject("drag_fill_0x60000000_camera_quad");
+            dragGo.transform.SetParent(_cameraOverlayRootV45.transform, false);
+            _cameraDragFillMeshFilterV45 = dragGo.AddComponent<MeshFilter>();
+            _cameraDragFillRendererV45 = dragGo.AddComponent<MeshRenderer>();
+            _cameraDragFillMeshV45 = new Mesh();
+            _cameraDragFillMeshV45.name = "C2_NeutralPeasantUnits_V45_DragFillMesh";
+            _cameraDragFillMeshFilterV45.sharedMesh = _cameraDragFillMeshV45;
+            _cameraDragFillMaterialV45 = CreateCameraOverlayMaterialV45LikeOriginal(
+                "C2_NeutralPeasantUnits_V45_DragFill_0x60000000",
+                new Color(0.0f, 0.0f, 0.0f, 96.0f / 255.0f));
+            _cameraDragFillRendererV45.sharedMaterial = _cameraDragFillMaterialV45;
+            SetupOverlayRendererV45LikeOriginal(_cameraDragFillRendererV45);
+            _cameraDragFillRendererV45.enabled = false;
+
+            GameObject strelGo = new GameObject("strel_arrow_0xFFFFFF00_camera_quads");
+            strelGo.transform.SetParent(_cameraOverlayRootV45.transform, false);
+            _cameraStrelMeshFilterV45 = strelGo.AddComponent<MeshFilter>();
+            _cameraStrelRendererV45 = strelGo.AddComponent<MeshRenderer>();
+            _cameraStrelMeshV45 = new Mesh();
+            _cameraStrelMeshV45.name = "C2_NeutralPeasantUnits_V45_StrelArrowMesh";
+            _cameraStrelMeshFilterV45.sharedMesh = _cameraStrelMeshV45;
+            _cameraStrelMaterialV45 = CreateCameraOverlayMaterialV45LikeOriginal(
+                "C2_NeutralPeasantUnits_V45_StrelArrow_0xFFFFFF00",
+                Color.yellow);
+            _cameraStrelRendererV45.sharedMaterial = _cameraStrelMaterialV45;
+            SetupOverlayRendererV45LikeOriginal(_cameraStrelRendererV45);
+            _cameraStrelRendererV45.enabled = false;
+        }
+
+        private static void SetupOverlayRendererV45LikeOriginal(MeshRenderer renderer)
+        {
+            if (renderer == null) return;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            renderer.sortingOrder = 32767;
+        }
+
+        private static Material CreateCameraOverlayMaterialV45LikeOriginal(string name, Color color)
+        {
+            Shader sh = Shader.Find("Hidden/Internal-Colored");
+            if (sh == null) sh = Shader.Find("Unlit/Color");
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh == null) sh = Shader.Find("Unlit/Transparent");
+            if (sh == null) sh = Shader.Find("Standard");
+
+            Material mat = new Material(sh);
+            mat.name = name;
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", color);
+            if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)CullMode.Off);
+            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+            if (mat.HasProperty("_ZTest")) mat.SetInt("_ZTest", (int)CompareFunction.Always);
+            mat.renderQueue = 7500;
+            return mat;
+        }
+
+        private static void SetCameraScreenRectMeshV45LikeOriginal(Mesh mesh, Camera cam, Rect r, Color color)
+        {
+            if (mesh == null || cam == null) return;
+            float z = Mathf.Max(cam.nearClipPlane + 0.05f, 0.05f);
+
+            Vector3 bl = cam.ScreenToWorldPoint(new Vector3(r.xMin, r.yMin, z));
+            Vector3 br = cam.ScreenToWorldPoint(new Vector3(r.xMax, r.yMin, z));
+            Vector3 tr = cam.ScreenToWorldPoint(new Vector3(r.xMax, r.yMax, z));
+            Vector3 tl = cam.ScreenToWorldPoint(new Vector3(r.xMin, r.yMax, z));
+
+            mesh.Clear();
+            mesh.vertices = new[] { bl, br, tr, tl };
+            mesh.colors = new[] { color, color, color, color };
+            mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.one, Vector2.up };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateBounds();
+        }
+
+        private static void SetCameraStrelMeshV45LikeOriginal(Mesh mesh, Camera cam, Vector2 a, Vector2 b, Color color)
+        {
+            if (mesh == null || cam == null) return;
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len <= 0.001f)
+            {
+                mesh.Clear();
+                return;
+            }
+
+            Vector2 n = d / Mathf.Max(0.0001f, len);
+            Vector2 p = new Vector2(-n.y, n.x);
+            float head = Mathf.Clamp(len * 0.22f, 18.0f, 42.0f);
+
+            var verts = new List<Vector3>(12);
+            var tris = new List<int>(18);
+            var cols = new List<Color>(12);
+            AddCameraScreenLineQuadV45LikeOriginal(verts, tris, cols, cam, a, b, 3.0f, color);
+            AddCameraScreenLineQuadV45LikeOriginal(verts, tris, cols, cam, b, b - n * head + p * head * 0.45f, 3.0f, color);
+            AddCameraScreenLineQuadV45LikeOriginal(verts, tris, cols, cam, b, b - n * head - p * head * 0.45f, 3.0f, color);
+
+            mesh.Clear();
+            mesh.SetVertices(verts);
+            mesh.SetColors(cols);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+        }
+
+        private static void AddCameraScreenLineQuadV45LikeOriginal(
+            List<Vector3> verts,
+            List<int> tris,
+            List<Color> cols,
+            Camera cam,
+            Vector2 a,
+            Vector2 b,
+            float widthPx,
+            Color color)
+        {
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len <= 0.001f) return;
+
+            Vector2 n = d / len;
+            Vector2 p = new Vector2(-n.y, n.x) * Mathf.Max(1.0f, widthPx) * 0.5f;
+            float z = Mathf.Max(cam.nearClipPlane + 0.05f, 0.05f);
+
+            int start = verts.Count;
+            verts.Add(cam.ScreenToWorldPoint(new Vector3(a.x + p.x, a.y + p.y, z)));
+            verts.Add(cam.ScreenToWorldPoint(new Vector3(b.x + p.x, b.y + p.y, z)));
+            verts.Add(cam.ScreenToWorldPoint(new Vector3(b.x - p.x, b.y - p.y, z)));
+            verts.Add(cam.ScreenToWorldPoint(new Vector3(a.x - p.x, a.y - p.y, z)));
+
+            cols.Add(color);
+            cols.Add(color);
+            cols.Add(color);
+            cols.Add(color);
+
+            tris.Add(start + 0);
+            tris.Add(start + 1);
+            tris.Add(start + 2);
+            tris.Add(start + 0);
+            tris.Add(start + 2);
+            tris.Add(start + 3);
+        }
+
         private void UpdateScreenOverlayV10LikeOriginal()
         {
             EnsureScreenOverlayV10LikeOriginal();
             if (_screenOverlayRoot == null) return;
+            UpdateScreenOverlayRootSizeV44LikeOriginal();
 
             UpdateDragSelectionOverlayV10LikeOriginal();
-            UpdateSelectedMarkersOverlayV10LikeOriginal();
+            DisableSelectedMarkersOverlayV44LikeOriginal();
+            UpdateStrelModeOverlayV35LikeOriginal();
         }
 
         private void EnsureScreenOverlayV10LikeOriginal()
         {
             if (_screenOverlayRoot != null) return;
 
-            const string canvasName = "C2_NeutralPeasantUnits_V18_ScreenOverlay";
+            const string canvasName = "C2_NeutralPeasantUnits_V44_ScreenOverlay";
             GameObject canvasGo = GameObject.Find(canvasName);
-            if (canvasGo == null)
+            if (canvasGo != null && canvasGo.GetComponent<RectTransform>() == null)
             {
-                canvasGo = new GameObject(canvasName);
+                canvasGo.name = canvasName + "_legacy_no_rect";
+                canvasGo = null;
             }
+
+            if (canvasGo == null)
+                canvasGo = new GameObject(canvasName, typeof(RectTransform));
+
+            canvasGo.SetActive(true);
+            RectTransform canvasRt = canvasGo.GetComponent<RectTransform>();
+            canvasRt.anchorMin = Vector2.zero;
+            canvasRt.anchorMax = Vector2.zero;
+            canvasRt.pivot = Vector2.zero;
+            canvasRt.anchoredPosition = Vector2.zero;
+            canvasRt.sizeDelta = new Vector2(Mathf.Max(1.0f, Screen.width), Mathf.Max(1.0f, Screen.height));
 
             Canvas canvas = canvasGo.GetComponent<Canvas>();
             if (canvas == null) canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 32767;
+            canvas.overrideSorting = true;
             canvas.pixelPerfect = false;
 
             CanvasScaler scaler = canvasGo.GetComponent<CanvasScaler>();
@@ -4725,32 +5962,58 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 rootGo = oldRoot.gameObject;
             else
             {
-                rootGo = new GameObject("Root");
+                rootGo = new GameObject("Root", typeof(RectTransform));
                 rootGo.transform.SetParent(canvasGo.transform, false);
             }
 
+            rootGo.SetActive(true);
             _screenOverlayRoot = rootGo.GetComponent<RectTransform>();
-            if (_screenOverlayRoot == null) _screenOverlayRoot = rootGo.AddComponent<RectTransform>();
             _screenOverlayRoot.anchorMin = Vector2.zero;
-            _screenOverlayRoot.anchorMax = Vector2.one;
-            _screenOverlayRoot.offsetMin = Vector2.zero;
-            _screenOverlayRoot.offsetMax = Vector2.zero;
-            _screenOverlayRoot.pivot = new Vector2(0.5f, 0.5f);
+            _screenOverlayRoot.anchorMax = Vector2.zero;
+            _screenOverlayRoot.pivot = Vector2.zero;
+            _screenOverlayRoot.anchoredPosition = Vector2.zero;
+            _screenOverlayRoot.sizeDelta = new Vector2(Mathf.Max(1.0f, Screen.width), Mathf.Max(1.0f, Screen.height));
 
-            _dragFillImage = CreateOverlayImageV10LikeOriginal("drag_fill_black", _screenOverlayRoot, new Color(0.0f, 0.0f, 0.0f, 0.42f));
-            _dragTopLine = CreateOverlayImageV10LikeOriginal("drag_line_top_yellow", _screenOverlayRoot, new Color(1.0f, 1.0f, 0.0f, 1.0f)).rectTransform;
-            _dragBottomLine = CreateOverlayImageV10LikeOriginal("drag_line_bottom_yellow", _screenOverlayRoot, new Color(1.0f, 1.0f, 0.0f, 1.0f)).rectTransform;
-            _dragLeftLine = CreateOverlayImageV10LikeOriginal("drag_line_left_yellow", _screenOverlayRoot, new Color(1.0f, 1.0f, 0.0f, 1.0f)).rectTransform;
-            _dragRightLine = CreateOverlayImageV10LikeOriginal("drag_line_right_yellow", _screenOverlayRoot, new Color(1.0f, 1.0f, 0.0f, 1.0f)).rectTransform;
+            _dragFillImage = CreateOverlayImageV10LikeOriginal("drag_fill_black", _screenOverlayRoot, new Color(0.0f, 0.0f, 0.0f, 96.0f / 255.0f));
+            _dragTopLine = CreateOverlayImageV10LikeOriginal("strel_line_main_yellow", _screenOverlayRoot, Color.yellow).rectTransform;
+            _dragBottomLine = CreateOverlayImageV10LikeOriginal("strel_line_head_l_yellow", _screenOverlayRoot, Color.yellow).rectTransform;
+            _dragLeftLine = CreateOverlayImageV10LikeOriginal("strel_line_head_r_yellow", _screenOverlayRoot, Color.yellow).rectTransform;
+            _dragRightLine = CreateOverlayImageV10LikeOriginal("strel_line_unused", _screenOverlayRoot, Color.yellow).rectTransform;
 
             SetDragOverlayVisibleV10LikeOriginal(false);
 
             if (!_overlayLogged)
             {
                 _overlayLogged = true;
-                Debug.Log("[C2:NEUTRAL PEASANT SCREEN OVERLAY V18] installed canvas='" + canvasName +
-                          "' mode=ScreenSpaceOverlay selectionRect=ui selectedMarkers=ui");
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT SCREEN OVERLAY V44] installed canvas='" + canvasName +
+                          "' mode=ScreenSpaceOverlay selectionRect=ui selectedMarkers=round3 strelArrow=ui");
             }
+        }
+
+        private void UpdateScreenOverlayRootSizeV44LikeOriginal()
+        {
+            float w = Mathf.Max(1.0f, Screen.width);
+            float h = Mathf.Max(1.0f, Screen.height);
+
+            Canvas canvas = _screenOverlayRoot != null ? _screenOverlayRoot.GetComponentInParent<Canvas>() : null;
+            if (canvas != null)
+            {
+                RectTransform canvasRt = canvas.GetComponent<RectTransform>();
+                if (canvasRt != null)
+                {
+                    canvasRt.anchorMin = Vector2.zero;
+                    canvasRt.anchorMax = Vector2.zero;
+                    canvasRt.pivot = Vector2.zero;
+                    canvasRt.anchoredPosition = Vector2.zero;
+                    canvasRt.sizeDelta = new Vector2(w, h);
+                }
+            }
+
+            _screenOverlayRoot.anchorMin = Vector2.zero;
+            _screenOverlayRoot.anchorMax = Vector2.zero;
+            _screenOverlayRoot.pivot = Vector2.zero;
+            _screenOverlayRoot.anchoredPosition = Vector2.zero;
+            _screenOverlayRoot.sizeDelta = new Vector2(w, h);
         }
 
         private static Image CreateOverlayImageV10LikeOriginal(string name, Transform parent, Color color)
@@ -4766,13 +6029,33 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             var img = go.AddComponent<Image>();
             img.color = color;
+            img.sprite = EnsureGuiPixelSpriteV44LikeOriginal();
+            img.type = Image.Type.Simple;
+            img.preserveAspect = false;
+            img.enabled = true;
             img.raycastTarget = false;
             return img;
         }
 
+        private static Sprite EnsureGuiPixelSpriteV44LikeOriginal()
+        {
+            EnsureGuiPixelV10LikeOriginal();
+            if (_guiPixelSpriteV44 != null) return _guiPixelSpriteV44;
+
+            _guiPixelSpriteV44 = Sprite.Create(
+                _guiPixel,
+                new Rect(0.0f, 0.0f, 1.0f, 1.0f),
+                Vector2.zero,
+                1.0f,
+                0,
+                SpriteMeshType.FullRect);
+            _guiPixelSpriteV44.name = "C2_NeutralPeasant_OverlayPixelSprite_V44";
+            return _guiPixelSpriteV44;
+        }
+
         private void UpdateDragSelectionOverlayV10LikeOriginal()
         {
-            bool show = _dragActive && _dragExceeded;
+            bool show = _dragActive && (_dragCurrent - _dragStart).sqrMagnitude >= 4.0f;
             SetDragOverlayVisibleV10LikeOriginal(show);
             if (!show) return;
 
@@ -4782,20 +6065,32 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             SetOverlayRectV10LikeOriginal(_dragFillImage.rectTransform, r);
 
-            const float t = 9.0f;
-            SetOverlayRectV10LikeOriginal(_dragTopLine, new Rect(r.xMin, r.yMax - t, r.width, t));
-            SetOverlayRectV10LikeOriginal(_dragBottomLine, new Rect(r.xMin, r.yMin, r.width, t));
-            SetOverlayRectV10LikeOriginal(_dragLeftLine, new Rect(r.xMin, r.yMin, t, r.height));
-            SetOverlayRectV10LikeOriginal(_dragRightLine, new Rect(r.xMax - t, r.yMin, t, r.height));
+            // Original selection drag is a dark translucent fill (GPS.DrawFillRect 0x60000000).
+            // Do not draw the old thick yellow debug rectangle here.
+            if (!_strelActive)
+            {
+                if (_dragTopLine != null) _dragTopLine.gameObject.SetActive(false);
+                if (_dragBottomLine != null) _dragBottomLine.gameObject.SetActive(false);
+                if (_dragLeftLine != null) _dragLeftLine.gameObject.SetActive(false);
+                if (_dragRightLine != null) _dragRightLine.gameObject.SetActive(false);
+            }
         }
 
         private void SetDragOverlayVisibleV10LikeOriginal(bool visible)
         {
             if (_dragFillImage != null) _dragFillImage.gameObject.SetActive(visible);
-            if (_dragTopLine != null) _dragTopLine.gameObject.SetActive(visible);
-            if (_dragBottomLine != null) _dragBottomLine.gameObject.SetActive(visible);
-            if (_dragLeftLine != null) _dragLeftLine.gameObject.SetActive(visible);
-            if (_dragRightLine != null) _dragRightLine.gameObject.SetActive(visible);
+            if (_dragTopLine != null) _dragTopLine.gameObject.SetActive(false);
+            if (_dragBottomLine != null) _dragBottomLine.gameObject.SetActive(false);
+            if (_dragLeftLine != null) _dragLeftLine.gameObject.SetActive(false);
+            if (_dragRightLine != null) _dragRightLine.gameObject.SetActive(false);
+        }
+
+        private void DisableSelectedMarkersOverlayV44LikeOriginal()
+        {
+            foreach (var kv in _screenSelectionMarkers)
+            {
+                if (kv.Value != null) kv.Value.gameObject.SetActive(false);
+            }
         }
 
         private void UpdateSelectedMarkersOverlayV10LikeOriginal()
@@ -4857,22 +6152,47 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             root.anchorMax = Vector2.zero;
             root.pivot = Vector2.zero;
             root.anchoredPosition = Vector2.zero;
-            root.sizeDelta = new Vector2(24.0f, 12.0f);
+            root.sizeDelta = new Vector2(36.0f, 16.0f);
 
-            Image fill = CreateOverlayImageV10LikeOriginal("fill_soft_yellow", root, new Color(1.0f, 0.92f, 0.05f, 0.42f));
-            StretchChildRectV10LikeOriginal(fill.rectTransform);
-
-            CreateFrameLineV10LikeOriginal(root, "top", true, true);
-            CreateFrameLineV10LikeOriginal(root, "bottom", true, false);
-            CreateFrameLineV10LikeOriginal(root, "left", false, false);
-            CreateFrameLineV10LikeOriginal(root, "right", false, true);
+            Image img = rootGo.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.color = Color.white;
+            Sprite sp = C2NeutralPeasantUnitsV35LoadSelectionRoundSpriteLikeOriginal();
+            if (sp != null)
+            {
+                img.sprite = sp;
+                img.type = Image.Type.Simple;
+                img.preserveAspect = false;
+            }
+            else
+            {
+                img.color = new Color(1.0f, 0.92f, 0.05f, 0.60f);
+            }
 
             return root;
         }
 
+        private static Sprite C2NeutralPeasantUnitsV35LoadSelectionRoundSpriteLikeOriginal()
+        {
+            Texture2D tex = C2NeutralPeasantUnitsV34LoadSelectionRoundTextureGuiLikeOriginal();
+            if (tex == null) return null;
+            if (_selectionRoundSpriteV35 != null && _selectionRoundSpriteV35.texture == tex)
+                return _selectionRoundSpriteV35;
+
+            _selectionRoundSpriteV35 = Sprite.Create(
+                tex,
+                new Rect(0.0f, 0.0f, tex.width, tex.height),
+                new Vector2(0.5f, 0.5f),
+                100.0f,
+                0,
+                SpriteMeshType.FullRect);
+            _selectionRoundSpriteV35.name = "C2_NeutralPeasant_Round3_SelectionSprite_V35";
+            return _selectionRoundSpriteV35;
+        }
+
         private void CreateFrameLineV10LikeOriginal(RectTransform parent, string name, bool horizontal, bool highSide)
         {
-            Image img = CreateOverlayImageV10LikeOriginal("line_" + name, parent, new Color(1.0f, 1.0f, 0.0f, 1.0f));
+            Image img = CreateOverlayImageV10LikeOriginal("line_" + name, parent, new Color(0.0f, 0.0f, 0.0f, 0.78f));
             RectTransform rt = img.rectTransform;
             const float t = 9.0f;
 
@@ -4904,12 +6224,73 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             rt.pivot = new Vector2(0.5f, 0.5f);
         }
 
+        private void UpdateStrelModeOverlayV35LikeOriginal()
+        {
+            if (_dragActive && _dragExceeded) return;
+
+            bool show = _strelActive && ((_strelCurrent - _strelStart).sqrMagnitude > V44StrelDistPixelsLikeOriginal * V44StrelDistPixelsLikeOriginal);
+            if (!show)
+            {
+                if (_dragTopLine != null && !_dragActive) _dragTopLine.gameObject.SetActive(false);
+                if (_dragBottomLine != null && !_dragActive) _dragBottomLine.gameObject.SetActive(false);
+                if (_dragLeftLine != null && !_dragActive) _dragLeftLine.gameObject.SetActive(false);
+                if (_dragRightLine != null) _dragRightLine.gameObject.SetActive(false);
+                return;
+            }
+
+            Vector2 a = new Vector2(_strelStart.x, _strelStart.y);
+            Vector2 b = new Vector2(_strelCurrent.x, _strelCurrent.y);
+            Vector2 d = b - a;
+            float len = d.magnitude;
+
+            Vector2 n = d / Mathf.Max(0.0001f, len);
+            Vector2 p = new Vector2(-n.y, n.x);
+            float head = Mathf.Clamp(len * 0.22f, 18.0f, 42.0f);
+
+            SetOverlayLineColorV44LikeOriginal(_dragTopLine, Color.yellow);
+            SetOverlayLineColorV44LikeOriginal(_dragBottomLine, Color.yellow);
+            SetOverlayLineColorV44LikeOriginal(_dragLeftLine, Color.yellow);
+
+            SetOverlayLineV35LikeOriginal(_dragTopLine, a, b, 3.0f);
+            SetOverlayLineV35LikeOriginal(_dragBottomLine, b, b - n * head + p * head * 0.45f, 3.0f);
+            SetOverlayLineV35LikeOriginal(_dragLeftLine, b, b - n * head - p * head * 0.45f, 3.0f);
+            if (_dragRightLine != null) _dragRightLine.gameObject.SetActive(false);
+        }
+
+        private static void SetOverlayLineColorV44LikeOriginal(RectTransform rt, Color color)
+        {
+            if (rt == null) return;
+            Image img = rt.GetComponent<Image>();
+            if (img != null) img.color = color;
+        }
+
+        private static void SetOverlayLineV35LikeOriginal(RectTransform rt, Vector2 bottomLeftA, Vector2 bottomLeftB, float width)
+        {
+            if (rt == null) return;
+            Vector2 d = bottomLeftB - bottomLeftA;
+            float len = d.magnitude;
+            if (len <= 0.001f)
+            {
+                rt.gameObject.SetActive(false);
+                return;
+            }
+
+            rt.gameObject.SetActive(true);
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.zero;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = (bottomLeftA + bottomLeftB) * 0.5f;
+            rt.sizeDelta = new Vector2(len, Mathf.Max(1.0f, width));
+            rt.localRotation = Quaternion.Euler(0.0f, 0.0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
+        }
+
         private static void SetOverlayRectV10LikeOriginal(RectTransform rt, Rect r)
         {
             if (rt == null) return;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.zero;
             rt.pivot = Vector2.zero;
+            rt.localRotation = Quaternion.identity;
             rt.anchoredPosition = new Vector2(r.xMin, r.yMin);
             rt.sizeDelta = new Vector2(Mathf.Max(1.0f, r.width), Mathf.Max(1.0f, r.height));
         }
@@ -4972,6 +6353,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 state.LeftDown = (left && !_prevLeftPressed) || mouse.leftButton.wasPressedThisFrame;
                 state.LeftUp = (!left && _prevLeftPressed) || mouse.leftButton.wasReleasedThisFrame;
                 state.RightDown = (right && !_prevRightPressed) || mouse.rightButton.wasPressedThisFrame;
+                state.RightHeld = right;
+                state.RightUp = (!right && _prevRightPressed) || mouse.rightButton.wasReleasedThisFrame;
 
                 _prevLeftPressed = left;
                 _prevRightPressed = right;
@@ -4989,6 +6372,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 state.LeftDown = (left && !_prevLeftPressed) || pointer.press.wasPressedThisFrame;
                 state.LeftUp = (!left && _prevLeftPressed) || pointer.press.wasReleasedThisFrame;
                 state.RightDown = false;
+                state.RightHeld = false;
+                state.RightUp = false;
 
                 _prevLeftPressed = left;
                 _prevRightPressed = false;
@@ -5005,6 +6390,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             state.LeftDown = Input.GetMouseButtonDown(0) || (left && !_prevLeftPressed);
             state.LeftUp = Input.GetMouseButtonUp(0) || (!left && _prevLeftPressed);
             state.RightDown = Input.GetMouseButtonDown(1) || (right && !_prevRightPressed);
+            state.RightHeld = right;
+            state.RightUp = Input.GetMouseButtonUp(1) || (!right && _prevRightPressed);
 
             _prevLeftPressed = left;
             _prevRightPressed = right;
