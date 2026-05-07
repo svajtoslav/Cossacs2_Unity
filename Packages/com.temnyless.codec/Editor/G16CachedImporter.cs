@@ -87,7 +87,7 @@ namespace TemnyLessCodec.Editor
 
             try
             {
-                return CodecFacade.DecodeG16ToLogAndFrames(absPath, out logPath, out err, doubleOverlay);
+                return MelinojaCodecBridge.DecodeG16ToLogAndFrames(absPath, out logPath, out err, doubleOverlay);
             }
             catch (Exception ex)
             {

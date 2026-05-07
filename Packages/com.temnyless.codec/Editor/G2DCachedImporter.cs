@@ -70,7 +70,7 @@ namespace TemnyLessCodec.Editor
 
             try
             {
-                return CodecFacade.DecodeG2DToLogAndFrames(absPath, out logPath, out err, doubleOverlay);
+                return MelinojaCodecBridge.DecodeG2DToLogAndFrames(absPath, out logPath, out err, doubleOverlay);
             }
             catch (Exception ex)
             {
