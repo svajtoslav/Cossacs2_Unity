@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -281,9 +281,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             br.BaseStream.Position = start + payloadLen;
 
             string typeReport = BuildRoadTypeReportV2LikeAdapted(typeCounts);
-            UnityEngine.Debug.Log(
-                $"[C2:ROADS PARSE V2] section={tag} knots={knots.Length} visibleKnots={visibleKnots} knotSize={knotSize} rawKnotSize={rawKnotSize} exact={exact} payload={payloadLen} " +
-                $"xy=({minX},{minY})->({maxX},{maxY}) rawLinks={totalLinksRaw} validLinks={linkIndexValid} invalidLinks={linkIndexInvalid} types={typeReport}");
 
             return true;
         }
@@ -537,10 +534,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (mat.HasProperty("_RoadSceneDepthTolerance"))
                 mat.SetFloat("_RoadSceneDepthTolerance", C2RoadSceneDepthToleranceV15LikeOriginal);
 
-            UnityEngine.Debug.Log(
-                $"[C2:ROADS MATERIAL V18] type={desc.Type} name='{desc.RoadName}' tex='{resolvedPath}' useTextureAlpha={useTextureAlpha} " +
-                $"vFlip={vFlip} road6={road6} colorBoost={roadColorBoost:F2} alphaBoost={roadAlphaBoost:F2} rgbAlphaFallback={roadRgbAlphaFallback:F2} rgbAlphaBoost={roadRgbAlphaBoost:F2} " +
-                $"reason={(road6 ? "road6_no_vflip_rgb_alpha_repair" : (wideRoad ? "wide_d3d_v_origin_texture_alpha" : "trail_keep_V5"))} zTest=LEqual sceneDepthTolerance=off zWrite=Off depthBias=Offset(-1,-1) lateQueue=3600 screenDepthPull={C2RoadScreenDepthPullV17LikeOriginal:F4} sceneDepthTolerance=0.00 reason2=exact_terrain_triangle_height_smallBias_noMountainBleed width={desc.RWidth}");
 
             return mat;
         }
@@ -613,9 +606,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mat.SetFloat("_UseTextureAlpha", useGroundAtlas ? 0.0f : 0.35f);
 
             string source = useGroundAtlas ? (resources.GroundAtlasPath ?? "GroundTex.bmp") : fallbackPath;
-            UnityEngine.Debug.Log(
-                $"[C2:ROADS BODY TEX V6] type={desc.Type} name='{desc.RoadName}' source='{source}' useGroundAtlas={useGroundAtlas} " +
-                $"mapTex={desc.MapTextureID} facture={desc.FactureID} texR={desc.TexRMin}->{desc.TexRMax} width={desc.RWidth}");
             return mat;
         }
 
@@ -671,7 +661,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (image == null)
             {
-                UnityEngine.Debug.LogWarning($"[C2:ROADS TEX V8] failed type={desc.Type} name='{desc.RoadName}' request='{desc.TexturePath}' file='{fileName}' candidates={candidates.Length}");
                 return null;
             }
 
@@ -688,7 +677,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             texture.Apply(false, false);
 
             RoadTextureStatsV6LikeOriginal(image.Pixels, out int minA, out int maxA, out int avgA, out int avgRgb);
-            UnityEngine.Debug.Log($"[C2:ROADS TEX V8] loaded type={desc.Type} name='{desc.RoadName}' tex='{resolvedPath}' size={image.Width}x{image.Height} a={minA}/{avgA}/{maxA} rgbAvg={avgRgb} vRelief={desc.ReliefY0}->{desc.ReliefY1} vColor={desc.ColorY0}->{desc.ColorY1}");
             return texture;
         }
 
@@ -879,7 +867,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (string.IsNullOrWhiteSpace(text))
             {
-                UnityEngine.Debug.LogWarning("[C2:ROADS DAT V2] Roads.dat not found. Using fallback descriptors.");
                 return result;
             }
 
@@ -950,13 +937,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 previous = d;
             }
 
-            UnityEngine.Debug.Log($"[C2:ROADS DAT V2] source='{source}' descs={result.Count}");
             for (int i = 0; i < result.Count; i++)
             {
                 RoadDescLikeOriginal d = result[i];
                 if (d != null && (d.Type == 0 || d.Type == 11 || d.Type == 14 || d.Type == 16 || d.RWidth >= 80 || d.MapTextureID >= 0))
                 {
-                    UnityEngine.Debug.Log($"[C2:ROADS DESC V6] type={d.Type} name='{d.RoadName}' tex='{d.TexturePath}' width={d.RWidth} mapTex={d.MapTextureID} facture={d.FactureID} texR={d.TexRMin}->{d.TexRMax} relief={d.ReliefY0}->{d.ReliefY1} alpha={d.AFactorMin}->{d.AFactor} rgb={d.RFactor},{d.GFactor},{d.BFactor}");
                 }
             }
             return result;

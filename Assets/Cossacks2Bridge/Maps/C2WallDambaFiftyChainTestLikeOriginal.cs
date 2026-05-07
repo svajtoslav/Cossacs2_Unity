@@ -28,14 +28,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 desc == null ||
                 string.IsNullOrWhiteSpace(desc.ModelPath))
             {
-                Debug.LogWarning("[C2:DAMBA 50 CHAIN V92] W60 catalog/model missing; test chain not spawned.");
                 return;
             }
 
             WallC2MParsedMeshV23LikeOriginal c2m = TryLoadWallC2MVisualMeshV23LikeOriginal(desc.ModelPath, out string loadAudit);
             if (c2m == null)
             {
-                Debug.LogWarning("[C2:DAMBA 50 CHAIN V92] C2M load failed: " + loadAudit);
                 return;
             }
 
@@ -62,15 +60,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 AttachWallDambaCalibratorMeshV1LikeOriginal(go, desc, c2m, "V92_" + i.ToString("000", CultureInfo.InvariantCulture));
             }
 
-            Debug.Log("[C2:DAMBA 50 CHAIN V92] spawned count=" + C2WallDambaFiftyChainTestV92CountLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                      " sprite=" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                      " model=" + desc.ModelPath +
-                      " deltaPixels=(" + C2WallObjectsV72DambaW60PairDeltaPixelsLikeOriginal.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                      C2WallObjectsV72DambaW60PairDeltaPixelsLikeOriginal.y.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                      " stepWorld=(" + stepWorld.x.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                      stepWorld.y.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                      stepWorld.z.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                      " contract=" + C2WallDambaFiftyChainTestV92ContractLikeOriginal);
         }
     }
 }

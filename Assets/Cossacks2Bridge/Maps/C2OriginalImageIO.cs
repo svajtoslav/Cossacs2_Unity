@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -100,14 +100,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[C2:TEX] Image read failed rel='{resolvedPath}' abs='{absolutePath}': {ex.GetType().Name}: {ex.Message}");
                 return false;
             }
 
             image = CreateImageFromBytes(bytes, resolvedPath);
             if (image == null)
             {
-                Debug.LogWarning($"[C2:TEX] Image decode returned null rel='{resolvedPath}' abs='{absolutePath}'");
                 return false;
             }
 
@@ -228,7 +226,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[C2:TEX] Recursive locate failed root='{absoluteRoot}' file='{fileName}': {ex.GetType().Name}: {ex.Message}");
             }
 
             return false;

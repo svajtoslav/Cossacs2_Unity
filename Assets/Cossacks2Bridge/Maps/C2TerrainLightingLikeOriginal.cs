@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Xml.Linq;
 using UnityEngine;
 
@@ -429,10 +429,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             float avg = count > 0 ? (float)sum / count : 0.0f;
-            UnityEngine.Debug.Log(
-                $"[C2:STRICT LIGHTING V2] ready. map={map?.VertInLine}x{map?.MaxTH} light=({C2GlobalLighting.LightDX},{C2GlobalLighting.LightDY},{C2GlobalLighting.LightDZ}) " +
-                $"shadowColor=#{_strictSurfaceShadowColor.r:X2}{_strictSurfaceShadowColor.g:X2}{_strictSurfaceShadowColor.b:X2} sunColor=#{_strictSurfaceSunColor.r:X2}{_strictSurfaceSunColor.g:X2}{_strictSurfaceSunColor.b:X2} " +
-                $"lightMapMinMaxAvg={min}/{max}/{avg:F1}");
         }
 
         private static Color32 ReadEngineSettingsColorLikeOriginal(XDocument doc, string memberName, Color32 fallback)

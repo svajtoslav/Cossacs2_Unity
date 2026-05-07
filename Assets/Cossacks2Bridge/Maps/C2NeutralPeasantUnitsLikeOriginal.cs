@@ -454,17 +454,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2NeutralPeasantUnitMotionBanksV20LikeOriginal motionBanks;
                 string motionBankAudit;
                 bool motionBankCacheHit;
-                C2NeutralPeasantUnitsV20GetOrBuildMotionBanksLikeOriginal(md, out motionBanks, out motionBankAudit, out motionBankCacheHit);
+                C2NeutralPeasantUnitsV20GetOrBuildMotionBanksLikeOriginal(md, r, out motionBanks, out motionBankAudit, out motionBankCacheHit);
 
                 C2NeutralPeasantUnitFrameV2LikeOriginal[][] idleDirectionBanks;
                 string idleBankAudit;
                 bool idleBankCacheHit;
-                C2NeutralPeasantUnitsV23GetOrBuildIdleDirectionBanksLikeOriginal(md, out idleDirectionBanks, out idleBankAudit, out idleBankCacheHit);
+                C2NeutralPeasantUnitsV23GetOrBuildIdleDirectionBanksLikeOriginal(md, r, out idleDirectionBanks, out idleBankAudit, out idleBankCacheHit);
 
                 C2NeutralPeasantUnitFrameV2LikeOriginal[][] restDirectionBanks;
                 string restBankAudit;
                 bool restBankCacheHit;
-                C2NeutralPeasantUnitsV30GetOrBuildRestDirectionBanksLikeOriginal(md, out restDirectionBanks, out restBankAudit, out restBankCacheHit);
+                C2NeutralPeasantUnitsV30GetOrBuildRestDirectionBanksLikeOriginal(md, r, out restDirectionBanks, out restBankAudit, out restBankCacheHit);
 
                 visualFound++;
                 idleFramesTotal += idleFrames.Count;
@@ -681,6 +681,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     md,
                     resolvedFrame,
                     C2Settlement3InuMdV2Kind.Unit,
+                    r.Nation,
                     out tex,
                     out visualAudit);
 
@@ -809,6 +810,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     md,
                     resolvedFrame,
                     C2Settlement3InuMdV2Kind.Unit,
+                    r.Nation,
                     out tex,
                     out visualAudit);
 
@@ -888,6 +890,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private bool C2NeutralPeasantUnitsV2TryBuildWalkFramesForDirLikeOriginal(
             C2Settlement3InuMdV2Info md,
             byte realDir,
+            int ownerPlayerIndex,
             out List<C2NeutralPeasantUnitFrameV2LikeOriginal> frames,
             out string audit)
         {
@@ -929,6 +932,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     md,
                     resolvedFrame,
                     C2Settlement3InuMdV2Kind.Unit,
+                    ownerPlayerIndex,
                     out tex,
                     out visualAudit);
 
@@ -997,7 +1001,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 List<C2NeutralPeasantUnitFrameV2LikeOriginal> frames;
                 string a;
-                if (!C2NeutralPeasantUnitsV2TryBuildWalkFramesForDirLikeOriginal(md, (byte)center, out frames, out a) || frames == null || frames.Count == 0)
+                if (!C2NeutralPeasantUnitsV2TryBuildWalkFramesForDirLikeOriginal(md, (byte)center, r.Nation, out frames, out a) || frames == null || frames.Count == 0)
                     continue;
 
                 C2NeutralPeasantUnitFrameV2LikeOriginal[] arr = frames.ToArray();
@@ -1120,7 +1124,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             walkAnimFound = false;
             cacheHit = false;
 
-            string key = C2NeutralPeasantUnitsV19VisualCacheKeyLikeOriginal(md, r.RealDir);
+            string key = C2NeutralPeasantUnitsV19VisualCacheKeyLikeOriginal(md, r.RealDir, r.Nation);
             C2NeutralPeasantUnitVisualCacheEntryV19LikeOriginal cached;
             if (!string.IsNullOrEmpty(key) &&
                 C2NeutralPeasantUnitsV19VisualCacheLikeOriginal.TryGetValue(key, out cached) &&
@@ -1180,7 +1184,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             walkBankAudit = "";
             cacheHit = false;
 
-            string key = C2NeutralPeasantUnitsV19WalkBankCacheKeyLikeOriginal(md);
+            string key = C2NeutralPeasantUnitsV19WalkBankCacheKeyLikeOriginal(md, r.Nation);
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] cached;
             if (!string.IsNullOrEmpty(key) &&
                 C2NeutralPeasantUnitsV19WalkBankCacheLikeOriginal.TryGetValue(key, out cached) &&
@@ -1200,6 +1204,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private bool C2NeutralPeasantUnitsV20GetOrBuildMotionBanksLikeOriginal(
             C2Settlement3InuMdV2Info md,
+            C2Settlement3InuMdV2Record r,
             out C2NeutralPeasantUnitMotionBanksV20LikeOriginal motionBanks,
             out string audit,
             out bool cacheHit)
@@ -1208,7 +1213,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             audit = "";
             cacheHit = false;
 
-            string key = C2NeutralPeasantUnitsV20MotionBankCacheKeyLikeOriginal(md);
+            string key = C2NeutralPeasantUnitsV20MotionBankCacheKeyLikeOriginal(md, r.Nation);
             C2NeutralPeasantUnitMotionBanksV20LikeOriginal cached;
             if (!string.IsNullOrEmpty(key) &&
                 C2NeutralPeasantUnitsV20MotionBankCacheLikeOriginal.TryGetValue(key, out cached) &&
@@ -1232,10 +1237,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] bankLB;
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] bankRB;
 
-            motionBanks.HasMotionL = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_L", out bankL, out auditL);
-            motionBanks.HasMotionR = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_R", out bankR, out auditR);
-            motionBanks.HasMotionLB = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_LB", out bankLB, out auditLB);
-            motionBanks.HasMotionRB = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_RB", out bankRB, out auditRB);
+            motionBanks.HasMotionL = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_L", r.Nation, out bankL, out auditL);
+            motionBanks.HasMotionR = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_R", r.Nation, out bankR, out auditR);
+            motionBanks.HasMotionLB = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_LB", r.Nation, out bankLB, out auditLB);
+            motionBanks.HasMotionRB = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_RB", r.Nation, out bankRB, out auditRB);
 
             // Original TryToMove selects L/R and LB/RB. Many MDs do not provide all four names.
             // Keep strict first-choice selection, but fill missing banks from the closest existing
@@ -1271,6 +1276,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private bool C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(
             C2Settlement3InuMdV2Info md,
             string animationName,
+            int ownerPlayerIndex,
             out C2NeutralPeasantUnitFrameV2LikeOriginal[][] banks,
             out string audit)
         {
@@ -1295,7 +1301,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 List<C2NeutralPeasantUnitFrameV2LikeOriginal> frames;
                 string frameAudit;
-                if (!C2NeutralPeasantUnitsV20TryBuildMotionFramesForDirLikeOriginal(md, motion, (byte)center, out frames, out frameAudit) ||
+                if (!C2NeutralPeasantUnitsV20TryBuildMotionFramesForDirLikeOriginal(md, motion, (byte)center, ownerPlayerIndex, out frames, out frameAudit) ||
                     frames == null || frames.Count == 0)
                     continue;
 
@@ -1350,6 +1356,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2Settlement3InuMdV2Info md,
             C2Settlement3InuMdV2Animation motion,
             byte realDir,
+            int ownerPlayerIndex,
             out List<C2NeutralPeasantUnitFrameV2LikeOriginal> frames,
             out string audit)
         {
@@ -1383,6 +1390,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     md,
                     resolvedFrame,
                     C2Settlement3InuMdV2Kind.Unit,
+                    ownerPlayerIndex,
                     out tex,
                     out visualAudit);
 
@@ -1451,16 +1459,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
-        private static string C2NeutralPeasantUnitsV20MotionBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md)
+        private static string C2NeutralPeasantUnitsV20MotionBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md, int ownerPlayerIndex)
         {
             if (md == null) return "";
             string path = !string.IsNullOrEmpty(md.MdPath) ? md.MdPath : (md.MdName ?? "");
             if (string.IsNullOrEmpty(path)) return "";
-            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|motionBanksV21_animRot";
+            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|motionBanksV21_animRot|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex);
         }
 
         private bool C2NeutralPeasantUnitsV23GetOrBuildIdleDirectionBanksLikeOriginal(
             C2Settlement3InuMdV2Info md,
+            C2Settlement3InuMdV2Record r,
             out C2NeutralPeasantUnitFrameV2LikeOriginal[][] idleDirectionBanks,
             out string audit,
             out bool cacheHit)
@@ -1469,7 +1478,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             audit = "";
             cacheHit = false;
 
-            string key = C2NeutralPeasantUnitsV23IdleBankCacheKeyLikeOriginal(md);
+            string key = C2NeutralPeasantUnitsV23IdleBankCacheKeyLikeOriginal(md, r.Nation);
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] cached;
             if (!string.IsNullOrEmpty(key) &&
                 C2NeutralPeasantUnitsV23IdleBankCacheLikeOriginal.TryGetValue(key, out cached) &&
@@ -1495,6 +1504,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 idleAnim,
                 C2NeutralPeasantUnitsV2MaxIdleFramesLikeOriginal,
                 16,
+                r.Nation,
                 out idleDirectionBanks,
                 out audit);
 
@@ -1546,6 +1556,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2Settlement3InuMdV2Animation anim,
             int maxFrames,
             int directionStep,
+            int ownerPlayerIndex,
             out C2NeutralPeasantUnitFrameV2LikeOriginal[][] banks,
             out string audit)
         {
@@ -1562,7 +1573,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 List<C2NeutralPeasantUnitFrameV2LikeOriginal> frames;
                 string frameAudit;
-                if (!C2NeutralPeasantUnitsV23TryBuildAnimationFramesForDirLikeOriginal(md, anim, (byte)center, maxFrames, out frames, out frameAudit) ||
+                if (!C2NeutralPeasantUnitsV23TryBuildAnimationFramesForDirLikeOriginal(md, anim, (byte)center, maxFrames, ownerPlayerIndex, out frames, out frameAudit) ||
                     frames == null || frames.Count == 0)
                     continue;
 
@@ -1600,6 +1611,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2Settlement3InuMdV2Animation anim,
             byte realDir,
             int maxFrames,
+            int ownerPlayerIndex,
             out List<C2NeutralPeasantUnitFrameV2LikeOriginal> frames,
             out string audit)
         {
@@ -1632,6 +1644,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     md,
                     resolvedFrame,
                     C2Settlement3InuMdV2Kind.Unit,
+                    ownerPlayerIndex,
                     out tex,
                     out visualAudit);
 
@@ -1687,6 +1700,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private bool C2NeutralPeasantUnitsV30GetOrBuildRestDirectionBanksLikeOriginal(
             C2Settlement3InuMdV2Info md,
+            C2Settlement3InuMdV2Record r,
             out C2NeutralPeasantUnitFrameV2LikeOriginal[][] restDirectionBanks,
             out string audit,
             out bool cacheHit)
@@ -1695,7 +1709,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             audit = "";
             cacheHit = false;
 
-            string key = C2NeutralPeasantUnitsV30RestBankCacheKeyLikeOriginal(md);
+            string key = C2NeutralPeasantUnitsV30RestBankCacheKeyLikeOriginal(md, r.Nation);
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] cached;
             if (!string.IsNullOrEmpty(key) &&
                 C2NeutralPeasantUnitsV30RestBankCacheLikeOriginal.TryGetValue(key, out cached) &&
@@ -1719,6 +1733,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 rest,
                 C2NeutralPeasantUnitsV2MaxIdleFramesLikeOriginal,
                 16,
+                r.Nation,
                 out restDirectionBanks,
                 out audit);
 
@@ -1730,20 +1745,20 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return ok;
         }
 
-        private static string C2NeutralPeasantUnitsV30RestBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md)
+        private static string C2NeutralPeasantUnitsV30RestBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md, int ownerPlayerIndex)
         {
             if (md == null) return "";
             string path = !string.IsNullOrEmpty(md.MdPath) ? md.MdPath : (md.MdName ?? "");
             if (string.IsNullOrEmpty(path)) return "";
-            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|restBanksV30";
+            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|restBanksV30|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex);
         }
 
-        private static string C2NeutralPeasantUnitsV23IdleBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md)
+        private static string C2NeutralPeasantUnitsV23IdleBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md, int ownerPlayerIndex)
         {
             if (md == null) return "";
             string path = !string.IsNullOrEmpty(md.MdPath) ? md.MdPath : (md.MdName ?? "");
             if (string.IsNullOrEmpty(path)) return "";
-            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|idleBanksV30_standOnly";
+            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|idleBanksV30_standOnly|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex);
         }
 
         private static C2NeutralPeasantUnitsV2SelectionMdInfoLikeOriginal C2NeutralPeasantUnitsV19GetSelectionInfoLikeOriginal(C2Settlement3InuMdV2Info md)
@@ -1763,26 +1778,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return info;
         }
 
-        private static string C2NeutralPeasantUnitsV19VisualCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md, byte realDir)
+        private static string C2NeutralPeasantUnitsV19VisualCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md, byte realDir, int ownerPlayerIndex)
         {
             if (md == null) return "";
             string path = !string.IsNullOrEmpty(md.MdPath) ? md.MdPath : (md.MdName ?? "");
             if (string.IsNullOrEmpty(path)) return "";
-            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|dir=" + (realDir & 255).ToString(CultureInfo.InvariantCulture) + "|idleWalkV30_standOnly";
+            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|dir=" + (realDir & 255).ToString(CultureInfo.InvariantCulture) + "|idleWalkV30_standOnly|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex);
         }
 
-        private static string C2NeutralPeasantUnitsV19WalkBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md)
+        private static string C2NeutralPeasantUnitsV19WalkBankCacheKeyLikeOriginal(C2Settlement3InuMdV2Info md, int ownerPlayerIndex)
         {
             if (md == null) return "";
             string path = !string.IsNullOrEmpty(md.MdPath) ? md.MdPath : (md.MdName ?? "");
             if (string.IsNullOrEmpty(path)) return "";
-            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|walkBanksV21_animRot";
+            return path + "|rot=" + md.Rotations.ToString(CultureInfo.InvariantCulture) + "|walkBanksV21_animRot|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex);
         }
 
         private bool C2NeutralPeasantUnitsV2TryLoadSpecificFrameCachedLikeOriginal(
             C2Settlement3InuMdV2Info md,
             C2Settlement3InuMdV2AnimFrame frameRef,
             C2Settlement3InuMdV2Kind kind,
+            int ownerPlayerIndex,
             out Texture2D tex,
             out string audit)
         {
@@ -1791,7 +1807,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             string mdKey = md != null ? (md.MdPath ?? md.MdName ?? "<md>") : "<null_md>";
             string pkg = C2Settlement3InuMdV2PackageForFileRefLikeOriginal(md, frameRef.FileRef) ?? "<pkg>";
-            string key = mdKey + "|" + pkg + "|" + frameRef.FileRef.ToString(CultureInfo.InvariantCulture) + "|" + frameRef.SpriteId.ToString(CultureInfo.InvariantCulture) + "|" + kind.ToString();
+            string key = mdKey + "|" + pkg + "|" + frameRef.FileRef.ToString(CultureInfo.InvariantCulture) + "|" + frameRef.SpriteId.ToString(CultureInfo.InvariantCulture) + "|" + kind.ToString() + "|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex);
 
             Texture2D cached;
             if (C2NeutralPeasantUnitsV2TextureCacheLikeOriginal.TryGetValue(key, out cached) && cached != null)
@@ -1803,12 +1819,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return true;
             }
 
-            bool ok = C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frameRef, kind, out tex, out audit);
+            bool ok = C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(md, frameRef, kind, ownerPlayerIndex, out tex, out audit);
             if (ok && tex != null)
             {
                 C2NeutralPeasantUnitsV2TextureCacheLikeOriginal[key] = tex;
                 audit = "cache_store " + audit;
             }
+
             return ok && tex != null;
         }
 

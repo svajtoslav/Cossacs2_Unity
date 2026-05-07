@@ -112,7 +112,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 WallMapStateV1LikeOriginal state = TryLoadWallMapStateFromCurrentMapV1LikeOriginal();
                 if (state == null || state.Tre2Objects == null || state.Tre2Objects.Count == 0)
                 {
-                    Debug.Log("[C2:NATURE V1] no TRE2 objects. contract=" + C2NatureObjectsV1ContractLikeOriginal);
                     return;
                 }
 
@@ -158,37 +157,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     BuildNatureDebugObjectCardsV1LikeOriginal(oc, complex, NatureKindV1LikeOriginal.Complex, ref missingOc, ref _terrainBounds);
                 }
 
-                Debug.Log("[C2:NATURE V6] contract=" + C2NatureObjectsV1ContractLikeOriginal +
-                          " map='" + _mapRelativePath + "'" +
-                          " TRE2_total=" + state.Tre2Objects.Count.ToString(CultureInfo.InvariantCulture) +
-                          " GA_trees=" + ga.Count.ToString(CultureInfo.InvariantCulture) +
-                          " TS_stones=" + ts.Count.ToString(CultureInfo.InvariantCulture) +
-                          " OC_complex=" + oc.Count.ToString(CultureInfo.InvariantCulture) +
-                          " other=" + other.ToString(CultureInfo.InvariantCulture) +
-                          " realSprites=" + C2NatureObjectsV2DrawRealSpritesLikeOriginal +
-                          " debugCards=" + C2NatureObjectsV1DrawDebugCardsLikeOriginal +
-                          " realGA=" + realGa.ToString(CultureInfo.InvariantCulture) +
-                          " shadowGA=" + shadowGa.ToString(CultureInfo.InvariantCulture) +
-                          " realTS=" + realTs.ToString(CultureInfo.InvariantCulture) +
-                          " realOC=" + realOc.ToString(CultureInfo.InvariantCulture) +
-                          " fieldOC=" + fieldOc.ToString(CultureInfo.InvariantCulture) +
-                          " generatedFieldPatches=" + C2NatureObjectsV3_2DrawGeneratedFieldPatchesLikeOriginal +
-                          " fieldRows=" + _c2NatureFieldRowsV67LikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " fieldQuads=" + _c2NatureFieldQuadsV67LikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " fieldVerts=" + _c2NatureFieldVertsV67LikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " fieldStates=" + BuildNatureFieldStateAuditV68LikeOriginal(oc, complex) +
-                          " fallbackTextures=" + C2NatureObjectsV3_2DrawFallbackWhenTextureMissingLikeOriginal +
-                          " fallbackGA=" + fallbackGa.ToString(CultureInfo.InvariantCulture) +
-                          " fallbackTS=" + fallbackTs.ToString(CultureInfo.InvariantCulture) +
-                          " fallbackOC=" + fallbackOc.ToString(CultureInfo.InvariantCulture) +
-                          " missingGA=" + missingGa.ToString(CultureInfo.InvariantCulture) +
-                          " missingShadowGA=" + missingShadowGa.ToString(CultureInfo.InvariantCulture) +
-                          " missingTS=" + missingTs.ToString(CultureInfo.InvariantCulture) +
-                          " missingOC=" + missingOc.ToString(CultureInfo.InvariantCulture));
 
-                LogNatureObjectSamplesV1LikeOriginal("GA", ga, trees);
-                LogNatureObjectSamplesV1LikeOriginal("TS", ts, stones);
-                LogNatureObjectSamplesV1LikeOriginal("OC", oc, complex);
             }
             catch (Exception ex)
             {
@@ -271,7 +240,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             else
             {
-                Debug.LogWarning("[C2:NATURE CATALOG V1] missing LST for " + label + " paths=" + string.Join(",", listPaths ?? new string[0]));
             }
 
             if (TryReadGameTextV1LikeOriginal(rsrPaths, out string rsrPath, out string rsrText))
@@ -280,22 +248,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 ParseNatureRsrV1LikeOriginal(catalog, rsrText);
             }
 
-            Debug.Log("[C2:NATURE CATALOG V1] label=" + catalog.Label +
-                      " sign=" + catalog.Sign +
-                      " gp='" + catalog.GpName + "'" +
-                      " declared=" + catalog.DeclaredCount.ToString(CultureInfo.InvariantCulture) +
-                      " parsed=" + catalog.ByIndex.Count.ToString(CultureInfo.InvariantCulture) +
-                      " list='" + catalog.SourceListPath + "'" +
-                      " rsr='" + catalog.SourceRsrPath + "'" +
-                      " random=" + catalog.RandomRules.ToString(CultureInfo.InvariantCulture) +
-                      " autoAnimate=" + catalog.AutoAnimateRules.ToString(CultureInfo.InvariantCulture) +
-                      " animate=" + catalog.AnimateRules.ToString(CultureInfo.InvariantCulture) +
-                      " amplitude=" + catalog.AmplitudeRules.ToString(CultureInfo.InvariantCulture) +
-                      " fixH=" + catalog.FixHeightRules.ToString(CultureInfo.InvariantCulture) +
-                      " ground=" + catalog.GroundRules.ToString(CultureInfo.InvariantCulture) +
-                      " model=" + catalog.ModelRules.ToString(CultureInfo.InvariantCulture) +
-                      " align=" + catalog.AlignRules.ToString(CultureInfo.InvariantCulture) +
-                      " autoborn=" + catalog.AutobornRules.ToString(CultureInfo.InvariantCulture));
 
             return catalog;
         }
@@ -874,10 +826,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 {
                     if (missingTextureLog < 12)
                     {
-                        Debug.LogWarning("[C2:NATURE SHADOW V17] skip missing TreesAll shadow texture obj=" + desc.Name +
-                                         " id=" + desc.Index.ToString(CultureInfo.InvariantCulture) +
-                                         " frame=" + (desc.SpriteIndex & 4095).ToString(CultureInfo.InvariantCulture) +
-                                         " source=" + (source ?? string.Empty));
                         missingTextureLog++;
                     }
                     continue;
@@ -928,19 +876,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 meshCount++;
             }
 
-            Debug.Log("[C2:NATURE SHADOW V17] objects=" + objects.Count.ToString(CultureInfo.InvariantCulture) +
-                      " drawn=" + shadowDrawn.ToString(CultureInfo.InvariantCulture) +
-                      " meshes=" + meshCount.ToString(CultureInfo.InvariantCulture) +
-                      " verts=" + totalVerts.ToString(CultureInfo.InvariantCulture) +
-                      " firstTexture='" + firstTextureSource + "'" +
-                      " renderQueue=" + C2NatureObjectsV12TreeShadowRenderQueueLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                      " sortingOrder=" + C2NatureObjectsV14TreeShadowSortingOrderLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                      " alphaRef=" + C2NatureObjectsV16TreeShadowAlphaRefLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) +
-                      " diffuseRGBA=(" + C2NatureObjectsV17TreeShadowDiffuseRLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                      C2NatureObjectsV17TreeShadowDiffuseGLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                      C2NatureObjectsV17TreeShadowDiffuseBLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + "," +
-                      C2NatureObjectsV17TreeShadowDiffuseALikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                      " contract=" + C2NatureObjectsV12TreeShadowContractLikeOriginal);
         }
 
         private void BuildNatureRealObjectSpritesV2LikeOriginal(
@@ -1010,11 +945,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     source = "missing_real_texture_no_fallback:" + (source ?? string.Empty);
                     if (missingTextureLog < 12)
                     {
-                        Debug.LogWarning("[C2:NATURE TEX V5] skip missing real texture kind=" + kind + " catalog=" + catalog.GpName +
-                                         " obj=" + desc.Name + " id=" + desc.Index.ToString(CultureInfo.InvariantCulture) +
-                                         " gpFrame=" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                                         " source=" + source +
-                                         " fallbackEnabled=" + C2NatureObjectsV3_2DrawFallbackWhenTextureMissingLikeOriginal);
                         missingTextureLog++;
                     }
 
@@ -1073,19 +1003,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 meshCount++;
             }
 
-            Debug.Log("[C2:NATURE REAL V6] kind=" + kind +
-                      " catalog=" + catalog.GpName +
-                      " objects=" + objects.Count.ToString(CultureInfo.InvariantCulture) +
-                      " meshes=" + meshCount.ToString(CultureInfo.InvariantCulture) +
-                      " verts=" + totalVerts.ToString(CultureInfo.InvariantCulture) +
-                      " firstTexture='" + firstTextureSource + "'" +
-                      " pivotV9=" + C2NatureObjectsV6PivotContractLikeOriginal +
-                      " sortingOrder=" + GetNatureRendererSortingOrderV14LikeOriginal(false, kind).ToString(CultureInfo.InvariantCulture) +
-                      " treeAlphaRef=" + (kind == NatureKindV1LikeOriginal.Tree ? C2NatureObjectsV16TreeAlphaRefLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) : "n/a") +
-                      " animatedTreeAlphaRef=" + (kind == NatureKindV1LikeOriginal.Tree ? C2NatureObjectsV16AnimatedTreeAlphaRefLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) : "n/a") +
-                      " groundClampV14=Trees_g2d_visual_frame_visible_alpha_foot_clamp_renderQueue_3660" +
-                      " treeShadowV14=" + C2NatureObjectsV12TreeShadowContractLikeOriginal + " renderOrderV14=roads_3600_3601_then_shadow_3650_then_visible_3660_sortingOrder_32767 microDepthV23=" + C2NatureObjectsV23TreeDepthMicroSeparationLikeOriginal.ToString(CultureInfo.InvariantCulture) + "/layers=" + C2NatureObjectsV23TreeDepthMicroLayersLikeOriginal.ToString(CultureInfo.InvariantCulture) + "/stepPx=" + C2NatureObjectsV23TreeDepthMicroStepPixelsLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + " treeResolverV3=" + C2NatureObjectsV3TreeResolverContractLikeOriginal +
-                      " stoneResolverV3=" + C2NatureObjectsV3StoneResolverContractLikeOriginal);
         }
 
         private static int GetNatureRendererSortingOrderV14LikeOriginal(bool shadow, NatureKindV1LikeOriginal kind)
@@ -1887,7 +1804,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     List<string> dirs = BuildNatureG2DFrameSearchDirsV5LikeOriginal(abs, outDir, decodeAudit);
                     searchDirsJoined = JoinNatureDirsV5LikeOriginal(dirs);
                     C2NatureObjectsDecodedG2DDirsV4LikeOriginal[abs] = searchDirsJoined;
-                    Debug.Log("[C2:NATURE G2D DIRS V5] file='" + abs + "' decoded=" + decoded + " dirs=" + searchDirsJoined + " audit=" + decodeAudit);
                 }
                 else
                 {
@@ -2155,8 +2071,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                                 continue;
 
                             string sig = DescribeNatureMethodV4LikeOriginal(t, m);
-                            if (C2NatureObjectsLoggedG2DMethodsV4LikeOriginal.Add(sig))
-                                Debug.Log("[C2:NATURE G2D API V5] found " + sig);
 
                             if (TryInvokeNatureDecodeMethodV4LikeOriginal(m, abs, outDir, out string methodAudit))
                             {
@@ -2856,7 +2770,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                             " m4=" + o.HasMatrix);
             }
 
-            Debug.Log("[C2:NATURE SAMPLES V1] sign=" + sign + " count=" + objects.Count.ToString(CultureInfo.InvariantCulture) + " " + string.Join(" | ", samples.ToArray()));
         }
 
         private static string StripNatureCommentV1LikeOriginal(string line)

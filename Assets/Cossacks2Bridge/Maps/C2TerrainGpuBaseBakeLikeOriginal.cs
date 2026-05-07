@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -19,14 +19,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return false;
             if (!SystemInfo.supportsRenderTextures)
             {
-                Debug.LogWarning("[C2:GPU-BAKE BASE V1] RenderTexture is not supported; fallback to fast triangle renderer.");
                 return false;
             }
 
             Shader bakedShader = Shader.Find("Cossacks2Bridge/TerrainGpuBakedChunk");
             if (bakedShader == null)
             {
-                Debug.LogWarning("[C2:GPU-BAKE BASE V1] Missing shader Cossacks2Bridge/TerrainGpuBakedChunk; fallback to fast triangle renderer.");
                 return false;
             }
 
@@ -44,7 +42,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             bool hasBounds = false;
             int built = 0;
 
-            Debug.Log($"[C2:GPU-BAKE BASE V1] enabled. mode=gpu-rendertexture-base-cross-only stripes={stripeCount} pxPerCell={GpuBaseBakePixelsPerCellLikeOriginal} keepFactures={GpuBaseBakeKeepFacturesLikeOriginal}. This is experiment 1: base+BoundNew128 only, no HQ/facture bake yet.");
 
             BeginFactureCoverageAuditLikeAdapted(map, kernel, stripeCount);
 
@@ -102,7 +99,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogWarning($"[C2:GPU-BAKE BASE V1] facture stripe={stripe} hookup failed: {ex.GetType().Name}: {ex.Message}");
                     }
                 }
 
@@ -124,11 +120,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (!hasBounds || built <= 0)
             {
-                Debug.LogWarning("[C2:GPU-BAKE BASE V1] no baked stripes were built; fallback to fast triangle renderer.");
                 return false;
             }
 
-            Debug.Log($"[C2:GPU-BAKE BASE V1] built={built}/{stripeCount}. Result uses GPU RenderTexture bake for base+cross; HQ/factures stay on current fast no-hole path.");
             return true;
         }
 

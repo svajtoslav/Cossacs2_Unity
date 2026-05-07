@@ -55,9 +55,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 !catalog.ByIndex.TryGetValue(C2WallUniversalAnchorLineCalibratorV2SpriteIndexLikeOriginal, out _c2WallUniversalAnchorLineCalibratorDescV2LikeOriginal) ||
                 _c2WallUniversalAnchorLineCalibratorDescV2LikeOriginal == null)
             {
-                Debug.LogWarning("[C2:WALL ANCHOR LINE CAL V2] sprite W" +
-                                 C2WallUniversalAnchorLineCalibratorV2SpriteIndexLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                                 " missing; line calibrator not spawned.");
                 return;
             }
 
@@ -65,9 +62,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 TryLoadWallC2MVisualMeshV23LikeOriginal(_c2WallUniversalAnchorLineCalibratorDescV2LikeOriginal.ModelPath, out string audit);
             if (c2m == null)
             {
-                Debug.LogWarning("[C2:WALL ANCHOR LINE CAL V2] C2M load failed '" +
-                                 (_c2WallUniversalAnchorLineCalibratorDescV2LikeOriginal.ModelPath ?? string.Empty) +
-                                 "' audit='" + audit + "'");
                 return;
             }
 
@@ -111,9 +105,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ResetWallUniversalAnchorLineObjectsV2LikeOriginal();
             LoadWallUniversalAnchorLineCalibratorFileIfPresentV2LikeOriginal();
 
-            Debug.Log("[C2:WALL ANCHOR LINE CAL V2] spawned 3 objects above map center. " +
-                      "Move LEFT/CENTER/RIGHT in Scene view, align anchors, press WRITE 3 OBJECT LINK TXT. " +
-                      "anchorsLoaded=" + loadedAnchors + " source='" + _c2WallUniversalAnchorLineCalibratorLoadedAnchorPathV2LikeOriginal.Replace('\\', '/') + "'");
         }
 
         private void UpdateWallUniversalAnchorLineCalibratorV2LikeOriginal()
@@ -369,7 +360,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning("[C2:WALL ANCHOR LINE CAL V2] anchor load failed '" + path.Replace('\\', '/') + "': " + ex.Message);
                     loaded = false;
                 }
             }
@@ -411,7 +401,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Directory.CreateDirectory(Path.GetDirectoryName(projectPath));
                 File.WriteAllText(projectPath, text, Encoding.UTF8);
 
-                Debug.Log("[C2:WALL ANCHOR LINE CAL V2] wrote " + path.Replace('\\', '/') + " and " + projectPath.Replace('\\', '/'));
             }
             catch (Exception ex)
             {
@@ -591,11 +580,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         model.localRotation = rot[i];
                 }
 
-                Debug.Log("[C2:WALL ANCHOR LINE CAL V2] loaded " + path.Replace('\\', '/'));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:WALL ANCHOR LINE CAL V2] load failed '" + path.Replace('\\', '/') + "': " + ex.Message);
             }
         }
 

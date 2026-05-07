@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Cossacks2Bridge.Core;
+using Cossacks2Bridge.UnityAdapters.Maps;
 
 namespace Cossacks2Bridge.UnityAdapters.Battles
 {
@@ -1241,6 +1242,8 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
                 if (!_playerFlagColorBySlot.ContainsKey(slotIndex))
                     _playerFlagColorBySlot[slotIndex] = slotIndex;
 
+                C2PlayerColorsLikeOriginal.SetPlayerColorId(slotIndex, _playerFlagColorBySlot[slotIndex]);
+
                 img.sprite = baseSprite;
                 img.color = GetFallbackFlagTint(_playerFlagColorBySlot[slotIndex]);
 
@@ -1255,6 +1258,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
                         current = (current + 1) % colorCount;
 
                     _playerFlagColorBySlot[slotIndex] = current;
+                    C2PlayerColorsLikeOriginal.SetPlayerColorId(slotIndex, current);
                     img.sprite = baseSprite;
                     img.color = GetFallbackFlagTint(current);
 

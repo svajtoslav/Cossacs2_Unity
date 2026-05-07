@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -66,9 +66,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var generated = GenerateRoadsFromNetLikeOriginal(map, descs, out int straightRoads, out int junctionRoads, out int skippedLinks, out int skippedJunctions);
             if (generated == null || generated.Count == 0)
             {
-                UnityEngine.Debug.LogWarning(
-                    $"[C2:ROADS NET V17] no generated roads. section={map.RoadNetSectionTag} knots={map.RoadKnots.Length} " +
-                    $"straight={straightRoads} junction={junctionRoads} skippedLinks={skippedLinks} skippedJunctions={skippedJunctions}");
                 return;
             }
 
@@ -130,7 +127,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (buckets.Count == 0 || emittedVertices <= 0)
             {
-                UnityEngine.Debug.LogWarning($"[C2:ROADS NET V17] generated but nothing emitted. roads={generated.Count}");
                 return;
             }
 
@@ -208,13 +204,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 builtBuckets++;
             }
 
-            UnityEngine.Debug.Log(
-                $"[C2:ROADS NET V17] built original road-net overlay in separate file. section={map.RoadNetSectionTag} knots={map.RoadKnots.Length} " +
-                $"generated={generated.Count} emittedRoads={emittedRoads} straight={straightRoads} junction={junctionRoads} " +
-                $"skippedLinks={skippedLinks} skippedJunctions={skippedJunctions} buckets={builtBuckets} vertices={emittedVertices} tris={emittedTriangles} " +
-                $"bodyBuckets={builtBodyBuckets} bodyRoads={emittedBodyRoads} bodyVertices={emittedBodyVertices} bodyTris={emittedBodyTriangles} " +
-                $"descs={(usedFallbackDescs ? "fallback" : "Roads.dat")} " +
-                $"contract=RoadsNet.CreateNetSystem+CreateRoad/CreateRoadLR+InterpolateCurve+AddPointWeights original_indices separate_file=true shader=RoadLayerV17 body=disabled_original_InLoadRoadsNet textureFallback=TGA_RLE alpha=road_xml_TextureAlphaModulate2x wide_vflip_rgbFallback0.25 BlendOne_AlphaRef16 depth=ZTestLEqual_OffsetMinus1Minus1_ExactTerrainTriangleHeight crossSlices=8 longStep=8 yOffset={C2RoadsNetTextureYOffsetV3LikeOriginal:F2} fix=V17_reduceDepthBias_disableClipPull_keepBigHillsOccluding");
         }
 
         private static void EnsureRoadSceneDepthTextureV15LikeOriginal()

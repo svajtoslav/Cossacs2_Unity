@@ -53,8 +53,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (Unit != null)
             {
                 Unit.SetMoveDestinationLikeOriginal(targetWorld);
-                Debug.Log("[C2:GAMEPLAY TASK V1] order unit='" + Unit.SourceMonsterId + "' kind=" + kind +
-                          " targetWorld=" + Vec3(targetWorld) + " mode=move_then_work_animation_stub");
             }
         }
 
@@ -67,7 +65,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 Unit.SpriteAnimator.SetMovingLikeOriginal(false);
                 _active = false;
-                Debug.Log("[C2:GAMEPLAY TASK V1] complete unit='" + Unit.SourceMonsterId + "' kind=" + TaskKind);
                 return;
             }
 
@@ -107,12 +104,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
     public sealed class C2GameplayInteractionControllerV1 : MonoBehaviour
     {
-        private const string Contract = "V5G_CURSOR_CHANGE_DISABLED_MAIN_ONLY";
+        private const string Contract = "V6J_NO_NATURE_MESHCOLLIDER_NO_RAYCASTALL_RESOURCE_TABLE_ONLY";
         private static C2GameplayInteractionControllerV1 _active;
 
         private readonly List<C2NeutralPeasantUnitInfoV2LikeOriginal> _selected = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(64);
         private float _nextColliderScan;
         private float _nextLog;
+        private float _nextUnitScan;
+        private bool _hasBattleUnitsCached;
+        private C2BattleTerrainMode _cachedMode;
+        private float _nextModeLookup;
+        private bool _loggedColliderDisabled;
+        private bool _loggedNoPhysicsHover;
         private C2GameplayTargetKindV1 _hoverKind;
         private Vector3 _hoverWorld;
         private string _hoverSource = string.Empty;
@@ -135,7 +138,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static void AutoInstall()
         {
             if (_active != null) return;
-            GameObject go = new GameObject("C2_GameplayInteraction_OriginalHardCursor_V5F");
+            GameObject go = new GameObject("C2_GameplayInteraction_OriginalHardCursor_V6J");
             DontDestroyOnLoad(go);
             go.hideFlags = HideFlags.HideAndDontSave;
             _active = go.AddComponent<C2GameplayInteractionControllerV1>();
@@ -147,8 +150,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // V5D: cursor is applied through Unity hardware cursor API.
             // No overlay canvas and no OnGUI draw path: this is visible in GameView and costs almost nothing.
             string audit = C2OriginalHardCursorProviderV5.PrewarmOriginalHardCursors();
-            Debug.Log("[C2:GAMEPLAY INTERACTION V5G] installed contract=" + Contract +
-                      " cursorProvider=" + C2OriginalHardCursorProviderV5.Contract + " " + audit);
+            _ = audit;
         }
 
         private void OnDestroy()
@@ -162,12 +164,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Update()
         {
-            RefreshSelected();
+            RefreshSelectedCached();
 
-            bool hasBattleUnits = HasAnyBattleUnit();
+            bool hasBattleUnits = _hasBattleUnitsCached;
             if (hasBattleUnits && Time.realtimeSinceStartup >= _nextColliderScan)
             {
-                _nextColliderScan = Time.realtimeSinceStartup + 1.0f;
+                _nextColliderScan = Time.realtimeSinceStartup + 3.0f;
                 EnsureSceneInteractionColliders();
             }
 
@@ -183,14 +185,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             HandleRightClickTaskOnly();
             UpdateOriginalHardCursor();
 
-            if (Time.realtimeSinceStartup >= _nextLog)
-            {
-                _nextLog = Time.realtimeSinceStartup + 3.0f;
-                Debug.Log("[C2:GAMEPLAY INTERACTION V5G] selected=" + _selected.Count.ToString(CultureInfo.InvariantCulture) +
-                          " hover=" + _hoverKind + " src='" + _hoverSource + "' curptr=" + CursorPtrForHoverLikeOriginal(_hoverKind).ToString(CultureInfo.InvariantCulture) +
-                          " hardwareCursor=" + (_lastCursorFrame != null && _lastCursorFrame.Texture != null) +
-                          " unityCursorVisible=" + Cursor.visible);
-            }
         }
 
         private void OnGUI()
@@ -274,7 +268,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (!_loggedCursorPtrOnce.Contains(curptr))
                     {
                         _loggedCursorPtrOnce.Add(curptr);
-                        Debug.Log("[C2:ORIGINAL HARD CURSOR V5G] loaded curptr=" + curptr.ToString(CultureInfo.InvariantCulture) + " " + audit);
                     }
                 }
                 else if (!_loggedMissingCursor)
@@ -340,16 +333,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
                 if (u == null) continue;
                 u.SetMoveDestinationLikeOriginal(world);
-                Debug.Log("[C2:GAMEPLAY MOVE V5F] order unit='" + u.SourceMonsterId + "' targetWorld=" + Vec3(world));
             }
             return true;
         }
 
-        private void RefreshSelected()
+        private void RefreshSelectedCached()
         {
+            // V6H: FindObjectsOfType is not allowed every frame. Selection is refreshed 4 times/sec.
+            float now = Time.realtimeSinceStartup;
+            if (now < _nextUnitScan)
+                return;
+
+            _nextUnitScan = now + 0.25f;
             _selected.Clear();
+
             C2NeutralPeasantUnitInfoV2LikeOriginal[] all = FindObjectsOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
-            for (int i = 0; i < all.Length; i++)
+            _hasBattleUnitsCached = all != null && all.Length > 0;
+            for (int i = 0; all != null && i < all.Length; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = all[i];
                 if (u != null && u.isActiveAndEnabled && u.IsSelected && u.CanReceiveOrdersLikeOriginal())
@@ -357,42 +357,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
-        private static bool HasAnyBattleUnit()
-        {
-            C2NeutralPeasantUnitInfoV2LikeOriginal[] all = FindObjectsOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
-            return all != null && all.Length > 0;
-        }
-
         private void EnsureSceneInteractionColliders()
         {
-            int added = 0;
-            MeshFilter[] filters = FindObjectsOfType<MeshFilter>();
-            for (int i = 0; i < filters.Length; i++)
+            // V6H: disabled intentionally. Old V5G added MeshCollider to C2_Nature_GA/TS/FIELD batch meshes.
+            // Those batches are huge render meshes, not gameplay hitboxes, and Physics.RaycastAll over them freezes hover/cursor logic.
+            // Resource hover is now resolved through C2OriginalResourceMapV1 buckets below, matching original DetermineResource-style lookup.
+            if (!_loggedColliderDisabled)
             {
-                MeshFilter mf = filters[i];
-                if (mf == null || mf.sharedMesh == null || mf.gameObject == null) continue;
-                string n = mf.gameObject.name ?? string.Empty;
-                if (IsIgnoredCursorHitObjectName(n)) continue;
-                C2GameplayTargetKindV1 kind = ClassifyObjectName(n);
-                if (kind == C2GameplayTargetKindV1.Unknown || kind == C2GameplayTargetKindV1.None) continue;
-
-                C2GameplayInteractableZoneV1 zone = mf.gameObject.GetComponent<C2GameplayInteractableZoneV1>();
-                if (zone == null) zone = mf.gameObject.AddComponent<C2GameplayInteractableZoneV1>();
-                zone.Kind = kind;
-                zone.Source = n;
-
-                Collider existing = mf.gameObject.GetComponent<Collider>();
-                if (existing == null)
-                {
-                    MeshCollider mc = mf.gameObject.AddComponent<MeshCollider>();
-                    mc.sharedMesh = mf.sharedMesh;
-                    mc.convex = false;
-                    added++;
-                }
+                _loggedColliderDisabled = true;
             }
-
-            if (added > 0)
-                Debug.Log("[C2:GAMEPLAY ZONES V5G] addedMeshColliders=" + added.ToString(CultureInfo.InvariantCulture));
         }
 
         private void UpdateHover()
@@ -410,97 +383,123 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             Vector2 mp = MousePositionBottomLeft();
             Camera[] cams = BestPickCameras();
+            Vector3 world;
+            Camera usedCamera;
 
-            bool foundAny = false;
-            float bestCameraTerrainDist = float.PositiveInfinity;
-            RaycastHit bestCameraResourceHit = new RaycastHit();
-            C2GameplayTargetKindV1 bestCameraResourceKind = C2GameplayTargetKindV1.Unknown;
-            string bestCameraResourceSource = string.Empty;
-            float bestCameraResourceDist = float.PositiveInfinity;
-
-            for (int i = 0; cams != null && i < cams.Length; i++)
+            if (!TryScreenToWorldPlaneNoPhysics(mp, cams, SelectedPlaneYLikeOriginal(), out world, out usedCamera))
             {
-                Camera cam = cams[i];
-                if (cam == null) continue;
-
-                Ray ray = cam.ScreenPointToRay(mp);
-                RaycastHit[] hits = Physics.RaycastAll(ray, 20000.0f, ~0, QueryTriggerInteraction.Ignore);
-                if (hits == null || hits.Length == 0) continue;
-
-                Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
-                float terrainDist = float.PositiveInfinity;
-                RaycastHit terrainHit = new RaycastHit();
-                bool hasTerrain = false;
-
-                RaycastHit resourceHit = new RaycastHit();
-                C2GameplayTargetKindV1 resourceKind = C2GameplayTargetKindV1.Unknown;
-                string resourceSource = string.Empty;
-                float resourceDist = float.PositiveInfinity;
-
-                for (int h = 0; h < hits.Length; h++)
-                {
-                    RaycastHit hit = hits[h];
-                    if (hit.collider == null) continue;
-
-                    C2GameplayTargetKindV1 k = KindFromHit(hit);
-                    if (k == C2GameplayTargetKindV1.Unknown || k == C2GameplayTargetKindV1.None)
-                        continue;
-
-                    if (k == C2GameplayTargetKindV1.Terrain)
-                    {
-                        if (!hasTerrain)
-                        {
-                            hasTerrain = true;
-                            terrainDist = hit.distance;
-                            terrainHit = hit;
-                        }
-                        continue;
-                    }
-
-                    // Original logic calculates map cell under mouse (xmx/yreal), then DetermineResource(xmx,yreal).
-                    // It does NOT pick a tree mesh behind the ground point along the camera ray.
-                    // So resource/building/unit hits behind the first terrain hit are ignored.
-                    if (hasTerrain && hit.distance > terrainDist + 0.25f)
-                        continue;
-
-                    resourceHit = hit;
-                    resourceKind = k;
-                    resourceSource = hit.collider.gameObject.name;
-                    resourceDist = hit.distance;
-                    break;
-                }
-
-                if (resourceKind != C2GameplayTargetKindV1.Unknown)
-                {
-                    foundAny = true;
-                    if (resourceDist < bestCameraResourceDist)
-                    {
-                        bestCameraResourceDist = resourceDist;
-                        bestCameraResourceHit = resourceHit;
-                        bestCameraResourceKind = resourceKind;
-                        bestCameraResourceSource = resourceSource;
-                    }
-                }
-                else if (hasTerrain && terrainDist < bestCameraTerrainDist)
-                {
-                    foundAny = true;
-                    bestCameraTerrainDist = terrainDist;
-                    _hoverWorld = terrainHit.point;
-                    _hoverSource = terrainHit.collider != null ? terrainHit.collider.gameObject.name : string.Empty;
-                }
+                _hoverKind = C2GameplayTargetKindV1.None;
+                _hoverSource = "no_plane_hit_no_physics";
+                return;
             }
 
-            if (bestCameraResourceKind != C2GameplayTargetKindV1.Unknown)
-            {
-                _hoverKind = bestCameraResourceKind;
-                _hoverWorld = bestCameraResourceHit.point;
-                _hoverSource = bestCameraResourceSource;
-            }
-            else if (foundAny)
+            _hoverWorld = world;
+            _hoverSource = usedCamera != null ? (usedCamera.name + ":plane_no_physics") : "plane_no_physics";
+
+            C2BattleTerrainMode mode = GetBattleTerrainModeCached();
+            if (mode == null)
             {
                 _hoverKind = C2GameplayTargetKindV1.Terrain;
+                return;
             }
+
+            float oxFloat;
+            float oyFloat;
+            if (!mode.C2NeutralPeasantUnitsV2WorldToOriginalPixelV15LikeOriginal(world, out oxFloat, out oyFloat))
+            {
+                _hoverKind = C2GameplayTargetKindV1.Terrain;
+                _hoverSource += ":world_to_original_failed";
+                return;
+            }
+
+            int ox = Mathf.RoundToInt(oxFloat);
+            int oy = Mathf.RoundToInt(oyFloat);
+
+            // Build is cached inside C2OriginalResourceMapV1; after that hover uses only bucket lookup.
+            if (!mode.C2OriginalResourceMapV1IsReadyLikeOriginal())
+                mode.C2OriginalResourceMapV1TryBuildLikeOriginal("interaction-hover-v6j");
+
+            byte resourceId;
+            string audit;
+            if (mode.C2OriginalResourceMapV1TryDetermineResourceLikeOriginal(ox, oy, out resourceId, out audit))
+            {
+                C2GameplayTargetKindV1 rk = TargetKindFromOriginalResourceId(resourceId);
+                if (rk != C2GameplayTargetKindV1.Unknown && rk != C2GameplayTargetKindV1.None)
+                {
+                    _hoverKind = rk;
+                    _hoverSource = "resource_lookup_no_physics " + audit;
+                    if (!_loggedNoPhysicsHover)
+                    {
+                        _loggedNoPhysicsHover = true;
+                    }
+                    return;
+                }
+            }
+
+            _hoverKind = C2GameplayTargetKindV1.Terrain;
+        }
+
+        private C2BattleTerrainMode GetBattleTerrainModeCached()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (_cachedMode != null && now < _nextModeLookup)
+                return _cachedMode;
+
+            _nextModeLookup = now + 1.0f;
+            _cachedMode = FindObjectOfType<C2BattleTerrainMode>();
+            return _cachedMode;
+        }
+
+        private float SelectedPlaneYLikeOriginal()
+        {
+            if (_selected.Count == 0)
+                return 0.0f;
+
+            float sum = 0.0f;
+            int count = 0;
+            for (int i = 0; i < _selected.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
+                if (u == null) continue;
+                sum += u.transform.position.y;
+                count++;
+            }
+
+            return count > 0 ? sum / count : 0.0f;
+        }
+
+        private static bool TryScreenToWorldPlaneNoPhysics(Vector2 mouseBottomLeft, Camera[] cams, float planeY, out Vector3 world, out Camera usedCamera)
+        {
+            world = Vector3.zero;
+            usedCamera = null;
+            if (cams == null) return false;
+
+            Plane plane = new Plane(Vector3.up, new Vector3(0.0f, planeY, 0.0f));
+            for (int i = 0; i < cams.Length; i++)
+            {
+                Camera cam = cams[i];
+                if (cam == null || !cam.isActiveAndEnabled) continue;
+
+                Ray ray = cam.ScreenPointToRay(mouseBottomLeft);
+                float enter;
+                if (!plane.Raycast(ray, out enter) || enter < 0.0f)
+                    continue;
+
+                world = ray.GetPoint(enter);
+                world.y = planeY;
+                usedCamera = cam;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static C2GameplayTargetKindV1 TargetKindFromOriginalResourceId(byte resourceId)
+        {
+            if (resourceId == C2BattleTerrainMode.C2OriginalResourceWoodV1LikeOriginal) return C2GameplayTargetKindV1.Tree;
+            if (resourceId == C2BattleTerrainMode.C2OriginalResourceStoneV1LikeOriginal) return C2GameplayTargetKindV1.Stone;
+            if (resourceId == C2BattleTerrainMode.C2OriginalResourceFoodV1LikeOriginal) return C2GameplayTargetKindV1.Field;
+            return C2GameplayTargetKindV1.Unknown;
         }
 
         private static int TargetPriority(C2GameplayTargetKindV1 kind)

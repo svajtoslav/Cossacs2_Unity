@@ -405,7 +405,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             WallC2MParsedMeshV23LikeOriginal c2m = TryLoadWallC2MVisualMeshV23LikeOriginal(desc.ModelPath, out string loadAudit);
             if (c2m == null || c2m.Vertices == null || c2m.Vertices.Length == 0 || c2m.Triangles == null || c2m.Triangles.Length < 3)
             {
-                Debug.LogWarning("[C2:DAMBA SYNTH V93] skip run sprite=" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " c2m failed: " + loadAudit);
                 return false;
             }
 
@@ -483,28 +482,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ApplySyntheticDambaSavedPoseV93LikeOriginal(go);
             _c2WallDambaSyntheticRowsV93LikeOriginal.Add(go);
 
-            Debug.Log("[C2:DAMBA SYNTH V93] built run=" + runOrder.ToString(CultureInfo.InvariantCulture) +
-                      " sprite=" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) +
-                      " sourceCount=" + count.ToString(CultureInfo.InvariantCulture) +
-                      " syntheticCount=" + syntheticCount.ToString(CultureInfo.InvariantCulture) +
-                      " first=(" + first.x.ToString("0.###", CultureInfo.InvariantCulture) + "," + first.y.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                      " last=(" + last.x.ToString("0.###", CultureInfo.InvariantCulture) + "," + last.y.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                      " rowStep=(" + step.x.ToString("0.###", CultureInfo.InvariantCulture) + "," + step.y.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
-                      " height=" + runHeight.ToString("0.###", CultureInfo.InvariantCulture) +
-                      " internalCapsCulledV95=" + skippedInternalConnectorCapsV95.ToString(CultureInfo.InvariantCulture) +
-                      " seamCoverQuadsV96=" + seamCoverQuadsV96.ToString(CultureInfo.InvariantCulture) +
-                      " rowAxisEdgeVertsAdjustedV97=" + rowAxisEdgeVertsAdjustedV97.ToString(CultureInfo.InvariantCulture) +
-                      " internalEndFacesCulledV98=" + internalEndFacesCulledV98.ToString(CultureInfo.InvariantCulture) +
-                      " internalTopSeamFacesCulledV100=" + internalTopSeamFacesCulledV100.ToString(CultureInfo.InvariantCulture) +
-                      " dominantTopOverlapVertsAdjustedV101=" + dominantTopOverlapVertsAdjustedV101.ToString(CultureInfo.InvariantCulture) +
-                      " dominantSeamOverlapVertsAdjustedV102=" + dominantSeamOverlapVertsAdjustedV102.ToString(CultureInfo.InvariantCulture) +
-                      " internalSideSeamFacesCulledV102=" + internalSideSeamFacesCulledV102.ToString(CultureInfo.InvariantCulture) +
-                      " internalBackSeamFacesCulledV103=" + internalBackSeamFacesCulledV103.ToString(CultureInfo.InvariantCulture) +
-                      " internalBackStripFacesCulledV104=" + internalBackStripFacesCulledV104.ToString(CultureInfo.InvariantCulture) +
-                      " hardBacksideStripFacesCulledV105=" + hardBacksideStripFacesCulledV105.ToString(CultureInfo.InvariantCulture) +
-                      " textureSamplingV99=" + textureSamplingAuditV99 +
-                      " seamModeV114=final_keep_v99_v102_v111_disable_v105_hard_cull" +
-                      " contract=" + C2WallDambaSyntheticMapLineV93ContractLikeOriginal);
             return true;
         }
 
@@ -1989,7 +1966,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (TryWriteSyntheticDambaPoseFileV111LikeOriginal(persistentPath, text, out _))
                         writtenPaths.Add(persistentPath);
 
-                    Debug.LogWarning("[C2:DAMBA SYNTH V111] map-local save failed path='" + (mapSidecarPath ?? string.Empty) + "' error='" + (mapWriteError ?? string.Empty) + "'");
                 }
 
                 _c2WallDambaSyntheticSavedPosesV93LikeOriginal = null;
@@ -2001,13 +1977,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     ? "Saved rows: " + saved.ToString(CultureInfo.InvariantCulture) + " -> " + writtenPaths[0]
                     : "Save failed: no writable path";
                 _c2WallDambaSyntheticPoseStatusUntilV93LikeOriginal = Time.realtimeSinceStartup + 6.0f;
-                Debug.Log("[C2:DAMBA SYNTH V111] saved poses rows=" + saved.ToString(CultureInfo.InvariantCulture) + " paths='" + string.Join(" | ", writtenPaths.ToArray()) + "'");
             }
             catch (Exception ex)
             {
                 _c2WallDambaSyntheticPoseStatusV93LikeOriginal = "Save failed: " + ex.Message;
                 _c2WallDambaSyntheticPoseStatusUntilV93LikeOriginal = Time.realtimeSinceStartup + 6.0f;
-                Debug.LogWarning("[C2:DAMBA SYNTH V93] save poses failed: " + ex);
             }
         }
 

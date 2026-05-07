@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -220,23 +220,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 jobCount,
                 out string mapSideCacheAuditV1);
 
-            UnityEngine.Debug.Log(
-                $"[C2:REN][BASE WEIGHTED COMPOSITE V3] enabled={TerrainSoftwareBaseWeightedCompositeV3LikeAdapted} postBlur={TerrainSoftwareBaseSoftBlendEnabledLikeAdapted} " +
-                $"mode=per-pixel-weighted-source-composite overlayStrength={TerrainSoftwareBaseWeightedCompositeOverlayStrengthV3LikeAdapted} minAlpha={TerrainSoftwareBaseWeightedCompositeMinAlphaV3LikeAdapted}. " +
-                $"Old post-blur approach is disabled; base/overlay texture candidates are mixed before write.");
 
-            UnityEngine.Debug.Log(
-                $"[C2:REN] kernel=BuildStrictOldSurfaceSoftwareBakedChunksLikeOriginal mode=MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES " +
-                $"rect=({kernel.MinCellX},{kernel.MinCellY})->({kernel.MaxCellXExclusive},{kernel.MaxCellYExclusive}) " +
-                $"chunkCells={TerrainSoftwareChunkCellsLikeOriginal} pxPerCell={TerrainSoftwarePixelsPerCellLikeOriginal} " +
-                $"jobs={jobCount} workers={Mathf.Max(1, Environment.ProcessorCount - 1)} " +
-                $"rules='same middle pixels[] raster blend; no PNG cache; parallel chunk pixel buffers; main-thread Texture2D only'");
 
-            UnityEngine.Debug.Log(
-                $"[C2:REN][BASE TILE SOFT BLEND V2] enabled={TerrainSoftwareBaseSoftBlendEnabledLikeAdapted} " +
-                $"radius={TerrainSoftwareBaseTileSoftBlendRadiusLikeAdapted} passes={TerrainSoftwareBaseTileSoftBlendPassesLikeAdapted} " +
-                $"strength={TerrainSoftwareBaseTileSoftBlendStrengthLikeAdapted:0.00} overlayAlphaClip={TerrainSoftwareBaseOverlayAlphaClipLikeAdapted:0.000}. " +
-                "This pass is for BASE/UNDERLAY texture boundaries only; HQ/facture layer remains disabled.");
 
             int workerCount = Mathf.Max(1, Environment.ProcessorCount - 1);
             var options = new ParallelOptions { MaxDegreeOfParallelism = workerCount };
@@ -265,7 +250,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogWarning("[C2:REN][MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES] parallel bake failed, continuing with completed jobs where possible: " + ex.Message);
                 }
 
                 if (TrySaveTerrainSoftwareMapSideChunkCacheV1LikeOriginal(mapSideCachePathV1, mapSideCacheKeyV1, jobs, jobCount, out string saveAuditV1))
@@ -289,7 +273,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 {
                     failedChunkCount++;
                     if (!string.IsNullOrEmpty(job.Error))
-                        UnityEngine.Debug.LogWarning($"[C2:REN][MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES] chunk=({job.ChunkX},{job.ChunkY}) failed: {job.Error}");
                     continue;
                 }
 
@@ -351,10 +334,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             uploadSwV11.Stop();
             totalSwV11.Stop();
 
-            UnityEngine.Debug.Log(
-                $"[C2:REN] software baked chunks built={builtChunkCount}/{jobCount} failed={failedChunkCount} " +
-                $"path=MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES cache={(loadedAllFromMapSideCacheV1 ? "map-side-hit" : "map-side-bake-write")} cacheAudit='{mapSideCacheAuditV1}' png=disabled gapfill=queue raster=scalar upload=SetPixelData textureFilter=trilinear_mip_aniso16_bias-0.75f terrainShadowOverlay=V4_original_cast_only_global finalColorPolish=V4_GPU_SHADER textureSourceAudit=files_and_functions " +
-                $"timingMs prewarm={prewarmSwV11.ElapsedMilliseconds} parallelPixels={parallelSwV11.ElapsedMilliseconds} uploadMeshTexture={uploadSwV11.ElapsedMilliseconds} total={totalSwV11.ElapsedMilliseconds}");
         }
 
         private static void TryBuildTerrainShadowOverlayV5LikeAdapted(
@@ -418,11 +397,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!s_terrainSoftwareTerrainShadowOverlayLoggedV5LikeAdapted)
             {
                 s_terrainSoftwareTerrainShadowOverlayLoggedV5LikeAdapted = true;
-                UnityEngine.Debug.Log(
-                    $"[C2:ORIGINAL CAST SHADOW V4] built one global cast-only shadow layer from original ScanLightOffset/CreateLightMap path; no per-chunk baked shadow, no facture vertex lighting. " +
-                    $"tex={shadowWidth}x{shadowHeight} maxAlpha={TerrainSoftwareTerrainShadowOverlayMaxAlphaV5LikeAdapted} " +
-                    $"heightScale={TerrainSoftwareTerrainShadowOverlayHeightScaleV5LikeAdapted} decay={TerrainSoftwareTerrainShadowOverlayDecayV5LikeAdapted} " +
-                    $"spreadR={TerrainSoftwareTerrainShadowOverlaySpreadRadiusV5LikeAdapted} startDepth={TerrainSoftwareCastShadowStartDepthV4LikeAdapted} fullDepth={TerrainSoftwareCastShadowFullDepthV4LikeAdapted}");
             }
         }
 
@@ -845,11 +819,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string texMapCounts = BuildGroundIdCountReportLikeAdapted(map.TexMap, ids);
             string texMapExCounts = BuildGroundIdCountReportLikeAdapted(map.TexMapEx, ids);
 
-            UnityEngine.Debug.Log(
-                "[C2:GROUND-ID AUDIT] protectedIds=3,7,9,10,20,44,55 " +
-                "TexMap{" + texMapCounts + "} " +
-                "TexMapEx{" + texMapExCounts + "} " +
-                $"hasTiles={map.HasTilesChunk} hasTilesEx={map.HasTilesExChunk}");
         }
 
         private static string BuildGroundIdCountReportLikeAdapted(byte[] table, int[] ids)
@@ -909,11 +878,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 WriteTextureSourceBmpListLikeAdapted(modeA, map, inputs, resources, tables, factureTables);
                 WriteTextureSourceFunctionListLikeAdapted(modeB);
 
-                UnityEngine.Debug.Log("[C2:TEXTURE SOURCE AUDIT] files written: " + dir);
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogWarning("[C2:TEXTURE SOURCE AUDIT] failed: " + ex.GetType().Name + ": " + ex.Message);
             }
         }
 
@@ -1341,7 +1308,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
-            UnityEngine.Debug.Log($"[C2:REN][MIDDLE_PIXEL_PARALLEL_NO_PNG_V42_BASE_ONLY_NO_QUALITY_FACTURES] facture texture cache prewarmed entries={inputs.FactureCache.Count} arrayReady=256.");
         }
 
         private Color32[] BakeTerrainChunkPixelsSoftwareLikeOriginal(
@@ -1354,7 +1320,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!s_terrainSoftwareFallbackStructureFeatherPathLoggedV1LikeAdapted)
             {
                 s_terrainSoftwareFallbackStructureFeatherPathLoggedV1LikeAdapted = true;
-                UnityEngine.Debug.Log("[C2:HOLECLOSER ERODE V3] active: fallback structures use inward erosion + clustered dust alpha; no straight edge ribbons, no triangle-edge fade.");
             }
             var baseCoverage = new byte[pixels.Length];
             var tex44Protection = new byte[pixels.Length];
@@ -1421,9 +1386,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!s_terrainSoftwareFinalColorPolishLoggedV1LikeAdapted)
             {
                 s_terrainSoftwareFinalColorPolishLoggedV1LikeAdapted = true;
-                UnityEngine.Debug.Log(
-                    $"[C2:FINAL COLOR POLISH V4 GPU] enabled. CPU-fast no-Mathf.Pow. warm=({TerrainSoftwareFinalColorPolishWarmR_V1LikeAdapted:F3},{TerrainSoftwareFinalColorPolishWarmG_V1LikeAdapted:F3},{TerrainSoftwareFinalColorPolishWarmB_V1LikeAdapted:F3}) " +
-                    $"sat={TerrainSoftwareFinalColorPolishSaturationV1LikeAdapted:F3} contrast={TerrainSoftwareFinalColorPolishContrastV1LikeAdapted:F3}");
             }
 
             float warmR = TerrainSoftwareFinalColorPolishWarmR_V1LikeAdapted;
@@ -1530,12 +1492,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     readable.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
                     readable.Apply(false, false);
                     Color32[] pixels = readable.GetPixels32();
-                    UnityEngine.Debug.Log($"[C2:V51B TEX44 READABLE FIX] texture '{label}' was not readable; copied through RenderTexture. reason={directEx.GetType().Name}: {directEx.Message}");
                     return pixels;
                 }
                 catch (Exception copyEx)
                 {
-                    UnityEngine.Debug.LogWarning($"[C2:V51B TEX44 READABLE FIX] readable-copy failed for texture '{label}': {copyEx.GetType().Name}: {copyEx.Message}");
                     return null;
                 }
                 finally
@@ -1586,19 +1546,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 result.StandaloneTex44Pixels = ReadTexturePixels32SafeLikeAdapted(standaloneTex44, out result.StandaloneTex44Width, out result.StandaloneTex44Height, "tex44");
                 if (result.StandaloneTex44Pixels != null && result.StandaloneTex44Pixels.Length > 0)
                 {
-                    UnityEngine.Debug.Log($"[C2:V51B TEX44 READABLE FIX] standalone tex44 prepared via Resources path='textures/Ground/tex44' size={result.StandaloneTex44Width}x{result.StandaloneTex44Height} readableCopy={(standaloneTex44.isReadable ? 0 : 1)}");
                 }
                 else
                 {
                     result.StandaloneTex44 = null;
                     result.StandaloneTex44Width = 0;
                     result.StandaloneTex44Height = 0;
-                    UnityEngine.Debug.LogWarning("[C2:V51B TEX44 READABLE FIX] standalone tex44 pixels unavailable after readable-copy fallback; bake keeps atlas-only sampling.");
                 }
             }
             else
             {
-                UnityEngine.Debug.LogWarning("[C2:V51B TEX44 READABLE FIX] standalone tex44 not found at Resources/textures/Ground/tex44; bake keeps atlas-only sampling.");
             }
 
             return result;
@@ -1621,7 +1578,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (!s_terrainSoftwareFallbackStructureFeatherCacheLoggedV1LikeAdapted)
                 {
                     s_terrainSoftwareFallbackStructureFeatherCacheLoggedV1LikeAdapted = true;
-                    UnityEngine.Debug.Log("[C2:HOLECLOSER ERODE V3] persistent chunk cache disabled; fallback structures are freshly baked.");
                 }
                 return;
             }
@@ -1640,7 +1596,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 Directory.CreateDirectory(inputs.PersistentChunkCacheDirectory);
                 inputs.PersistentChunkCacheEnabled = true;
-                UnityEngine.Debug.Log($"[C2:REN][AR-1] software baked chunk cache enabled key={key} dir='{inputs.PersistentChunkCacheDirectory}'. First run bakes and writes PNG chunks; next run reuses them without changing terrain pixels.");
             }
             catch (Exception ex)
             {
@@ -1817,7 +1772,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return;
 
             s_terrainSoftwarePersistentCacheWarningLoggedLikeOriginal = true;
-            UnityEngine.Debug.LogWarning("[C2:REN][AR-1] software baked chunk cache warning: " + message);
         }
 
         private static void HashByte64LikeOriginal(ref ulong hash, byte value)
@@ -2010,7 +1964,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!s_terrainSoftwareFallbackStructureFeatherPathLoggedV1LikeAdapted)
             {
                 s_terrainSoftwareFallbackStructureFeatherPathLoggedV1LikeAdapted = true;
-                UnityEngine.Debug.Log("[C2:HOLECLOSER ERODE V3] active: fallback structures use inward erosion + clustered dust alpha; no straight edge ribbons, no triangle-edge fade.");
             }
             var baseCoverage = new byte[pixels.Length];
             var tex44Protection = new byte[pixels.Length];

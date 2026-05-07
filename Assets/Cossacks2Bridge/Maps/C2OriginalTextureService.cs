@@ -66,7 +66,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Texture2D tex = CreateTexture(image, debugName, policy);
                 if (tex == null)
                 {
-                    Debug.LogWarning($"[C2:TEX] Texture creation returned null rel='{resolvedPath}' abs='{absolutePath}' policy='{policy}'");
                     return null;
                 }
 
@@ -75,7 +74,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[C2:TEX] Texture load failed rel='{canonicalPath}' abs='{absolutePath}' policy='{policy}': {ex.GetType().Name}: {ex.Message}");
                 return null;
             }
         }

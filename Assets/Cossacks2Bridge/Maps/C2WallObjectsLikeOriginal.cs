@@ -1,4 +1,4 @@
-﻿﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -617,8 +617,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             int next = ((int)_c2WallObjectsV13BasisModeLikeOriginal + 1) % Mathf.Max(1, modeCount);
             _c2WallObjectsV13BasisModeLikeOriginal = (WallSpriteBasisV13LikeOriginal)next;
 
-            Debug.Log("[C2:WALL BASIS V20] hotkey=F2 selected=" + _c2WallObjectsV13BasisModeLikeOriginal +
-                      " action=rebuild_WL_layer_only camera=unchanged terrain=unchanged roads=unchanged");
 
             try
             {
@@ -646,9 +644,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
             if (!hasWallLines && !hasMapSprites)
             {
-                Debug.Log(
-                    "[C2:WALL OBJECTS V27] no WALL/LLAW lines and no 2ERT/TRE2 WL sprites to draw. " +
-                    $"catalogSprites={catalog.ByName.Count} connectors={catalog.ConnectorsCount} align={catalog.AlignCount} autoborn={catalog.AutobornCount}.");
                 return;
             }
 
@@ -671,11 +666,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             if (hasMapSprites)
                 drawnMapSprites = BuildWallSavedMapSpriteMeshesV6LikeOriginal(state.MapSprites, catalog, _c2WallObjectsRootV1LikeOriginal.transform);
 
-            Debug.Log(
-                $"[C2:WALL OBJECTS V27] built separate wall-object layer from real M3D data. map='{_mapRelativePath}' " +
-                $"edges={state.Edges.Count} lines={state.Lines.Count} generatedLinePoints={generatedLinePoints} drawnLines={drawnLines} " +
-                $"mapSpritesWL={state.MapSprites.Count} drawnMapSprites={drawnMapSprites} catalogSprites={catalog.ByName.Count} wallsMost={catalog.MostNamesCount} " +
-                $"contract=2ERT/TRE2_saved_WL_sprites_plus_OneWallsSystem_ReCreate_if_present separate_file=true version=V172_ORIGINAL_SAVED_WL_LOADSPRITES2_DRAWWSPRITE_ADDWORLDPOINT_NO_SYNTHETIC_WALS2D_LINE_ROOT basis={C2WallObjectsV23BasisContractLikeOriginal}");
         }
 
         private sealed class WallSpriteCatalogV1LikeOriginal
@@ -974,12 +964,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             LoadWallsListXmlV160LikeOriginal(catalog);
             LogMostWallCatalogV5LikeOriginal(catalog);
 
-            Debug.Log(
-                $"[C2:WALL CATALOG V161] loaded walls.lst/walls.rsr/Walls.WallsList.xml sprites={catalog.ByName.Count} " +
-                $"connectors={catalog.ConnectorsCount} align={catalog.AlignCount} autoborn={catalog.AutobornCount} most={catalog.MostNamesCount} " +
-                $"wallTypesXml={catalog.WallTypesV160.Count} wallElementsXml={catalog.WallElementsXmlCountV160} xmlBoundSprites={catalog.WallElementsBoundToSpritesV160} " +
-                $"modelRsrOrder={catalog.ModelDescsInRsrOrderV161.Count} numericModelIDResolvedV161={catalog.NumericModelIDResolvedV161} numericModelIDUnresolvedV161={catalog.NumericModelIDUnresolvedV161} realWTCycleUsableV161={catalog.RealWallTypeCycleUsableV161} " +
-                "bridgeCandidates=W48MOST1..W55MOST1 primaryG16=WALLS.g16 contract=V161_real_WallTypeDescription_parse_numeric_ModelID_bind_rsr_order_plus_CONNECTOR_fixed");
             return catalog;
         }
 
@@ -987,7 +971,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
         {
             if (catalog == null || !_bootstrap.Fs.Exists("walls.lst"))
             {
-                Debug.LogWarning("[C2:WALL CATALOG V6] Data1/walls.lst not found by CoreFileSystem.");
                 return;
             }
 
@@ -1027,7 +1010,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
         {
             if (catalog == null || !_bootstrap.Fs.Exists("walls.rsr"))
             {
-                Debug.LogWarning("[C2:WALL CATALOG V6] Data1/walls.rsr not found by CoreFileSystem.");
                 return;
             }
 
@@ -1195,7 +1177,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 sb.Append("; ");
             }
 
-            Debug.Log(sb.ToString());
         }
 
         private static void ParseWallModelV1LikeOriginal(WallSpriteDescV1LikeOriginal desc, string[] p)
@@ -1245,7 +1226,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
             if (string.IsNullOrWhiteSpace(path))
             {
-                Debug.LogWarning("[C2:WALL WLIST V160] Dialogs\\Walls.WallsList.xml not found; using walls.rsr descriptors only.");
                 return;
             }
 
@@ -1275,10 +1255,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             }
 
             BindRealWallElementsToSpriteDescriptionsV160LikeOriginal(catalog);
-            Debug.Log("[C2:WALL WLIST V160] path='" + path + "' wallTypes=" + catalog.WallTypesV160.Count.ToString(CultureInfo.InvariantCulture) +
-                      " elements=" + catalog.WallElementsXmlCountV160.ToString(CultureInfo.InvariantCulture) +
-                      " boundSprites=" + catalog.WallElementsBoundToSpritesV160.ToString(CultureInfo.InvariantCulture) +
-                      " mode=real_WallTypeDescription_OneWallElement_parse");
         }
 
         private static WallElementXmlV160LikeOriginal ParseOneWallElementXmlV160LikeOriginal(string block)
@@ -1500,7 +1476,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             byte[] data = MaybeDecompressM3d(raw, out string error);
             if (data == null || data.Length < 20)
             {
-                Debug.LogWarning("[C2:WALL MAP V6] map decompress failed: " + error);
                 return state;
             }
 
@@ -1545,11 +1520,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             }
 
             LinkWallMapStateV1LikeOriginal(state);
-            Debug.Log($"[C2:WALL MAP V6] scanned map='{_mapRelativePath}' wallXmlChunks={wallXmlChunks} edges={state.Edges.Count} lines={state.Lines.Count} savedWallSprites={state.MapSprites.Count}");
-            if (C2WallObjectsV27CoverageAuditLikeOriginal)
-                LogWallTre2MapBucketAuditV27LikeOriginal(state);
-            if (C2WallObjectsV28Tre2ObjectPipelineAuditLikeOriginal)
-                LogTre2ObjectPipelineAuditV28LikeOriginal(state);
             return state;
         }
 
@@ -1621,16 +1591,12 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:WALL SPRITES V6] parse failed section=" + sectionTag + " error=" + ex.Message);
             }
             finally
             {
                 br.BaseStream.Position = end;
             }
 
-            Debug.Log(
-                $"[C2:WALL SPRITES V6] section={sectionTag} total={total} WL={wallCount} STONES_TS={stoneCount} COMPLEX_OC={complexCount} " +
-                $"withMatrix={withMatrix} savedForDraw={state.MapSprites.Count} mode=real_M3D_2ERT_TRE2_saved_sprite_positions");
         }
 
         private static string NormalizeSpriteGroupSignV6LikeOriginal(ushort signRaw)
@@ -1727,19 +1693,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
             if (minX == int.MaxValue) { minX = minY = maxX = maxY = 0; }
 
-            Debug.Log("[C2:TRE2 OBJECT ROUTE V28] contract=" + C2WallObjectsV28ObjectContractLikeOriginal +
-                      " total=" + state.Tre2Objects.Count.ToString(CultureInfo.InvariantCulture) +
-                      " WL=" + wl.ToString(CultureInfo.InvariantCulture) + "/m4=" + wlM4.ToString(CultureInfo.InvariantCulture) +
-                      " OC=" + oc.ToString(CultureInfo.InvariantCulture) + "/m4=" + ocM4.ToString(CultureInfo.InvariantCulture) +
-                      " TS=" + ts.ToString(CultureInfo.InvariantCulture) + "/m4=" + tsM4.ToString(CultureInfo.InvariantCulture) +
-                      " GA=" + ga.ToString(CultureInfo.InvariantCulture) + "/m4=" + gaM4.ToString(CultureInfo.InvariantCulture) +
-                      " other=" + other.ToString(CultureInfo.InvariantCulture) + "/m4=" + otherM4.ToString(CultureInfo.InvariantCulture) +
-                      " bounds=(" + minX.ToString(CultureInfo.InvariantCulture) + "," + minY.ToString(CultureInfo.InvariantCulture) + ")->(" + maxX.ToString(CultureInfo.InvariantCulture) + "," + maxY.ToString(CultureInfo.InvariantCulture) + ")" +
-                      " route='WL already handled by C2WallObjects; OC/TS/GA require separate object renderer, not OneWallsSystem/ReCreate'");
 
-            Debug.Log("[C2:TRE2 OBJECT INDEX V28] " + BuildTre2ObjectIndexLineV28LikeOriginal(nonWlIndexCounts));
-            Debug.Log("[C2:TRE2 OBJECT SAMPLES V28] " + (samples.Count > 0 ? string.Join(" | ", samples.ToArray()) : "none"));
-            Debug.Log("[C2:WALL STATUS V28] bridges_and_walls_data_route=OK_FOR_SKIRMISH2 savedWL=626 drawn=626 chainAdjusted=0 ReCreateSavedWL=0 connectorResnap=0; visual_1to1_requires_screenshot_check; nonWL_object_renderer_pending=OC:" + oc.ToString(CultureInfo.InvariantCulture) + ",TS:" + ts.ToString(CultureInfo.InvariantCulture) + ",GA:" + ga.ToString(CultureInfo.InvariantCulture));
         }
 
         private static string BuildTre2ObjectIndexLineV28LikeOriginal(Dictionary<string, Dictionary<int, int>> nonWlIndexCounts)
@@ -1803,11 +1757,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 indexParts.Add(signKv.Key + "[" + string.Join(",", local.ToArray()) + "]");
             }
 
-            Debug.Log("[C2:WALL TRE2 COVERAGE V27] total=" + state.Tre2ObjectsTotal.ToString(CultureInfo.InvariantCulture) +
-                      " withMatrix=" + state.Tre2ObjectsWithMatrix.ToString(CultureInfo.InvariantCulture) +
-                      " signs=" + (signParts.Count > 0 ? string.Join(",", signParts.ToArray()) : "none") +
-                      " indices=" + (indexParts.Count > 0 ? string.Join(" | ", indexParts.ToArray()) : "none") +
-                      " note='WL is wall saved-object layer; TS/OC/other signs belong to separate map object pipelines and are audited here so missing wheat/objects are not blamed on WL renderer blindly'");
         }
 
         private static void RecordWallTre2ObjectForCoverageV27LikeOriginal(WallMapStateV1LikeOriginal state, string sign, int spriteIndex, bool hasMatrix)
@@ -1977,9 +1926,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             state.Edges.Add(b);
             state.Lines.Add(l);
 
-            Debug.Log(
-                $"[C2:WALL DEBUG LINE V6] injected W48MOST1 test line because map has no WALL/LLAW records. " +
-                $"A=({a.X},{a.Y}) B=({b.X},{b.Y}) sprite='{name}' mode=editor_fallback_no_map_write");
         }
 
         private List<WallVisualPointV1LikeOriginal> ReCreateWallObjectsV1LikeOriginal(WallMapStateV1LikeOriginal state, WallSpriteCatalogV1LikeOriginal catalog)
@@ -2105,9 +2051,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
             if (desc.AutobornChildren.Count > 0)
             {
-                Debug.Log(
-                    $"[C2:WALL AUTOBORN V6] root={desc.Name} chainMain={line.Points.Count} childrenPerMain={desc.AutobornChildren.Count} " +
-                    $"generatedChildren={autobornTotal} mode=grouped_children_same_anchor_not_line_cycle");
             }
         }
 
@@ -2299,10 +2242,6 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                 drawn++;
             }
 
-            Debug.Log($"[C2:WALL DRAW V6] drawn={drawn} autobornDrawn={autobornDrawnV5} missingTextures={missingTextures} resourceMode=STRICT_Melinoja_WALLS_g16_first_preserve_saved_M4_no_U_align_autoborn_group");
-            if (sourceAuditV3.Count > 0)
-                Debug.Log("[C2:WALL SOURCE V6] " + string.Join(" | ", sourceAuditV3.ToArray()));
-            Debug.Log("[C2:WALL ALIGN V10] Saved M3D Matrix4D is debug-only; Unity wall meshes are rebuilt from original pivot/align/terrain formulas.");
             return drawn;
         }
 
@@ -6894,190 +6833,9 @@ if (ShouldFlipVerticalAlignedPropUvV122LikeOriginal(s, desc, route))
                 drawn++;
             }
 
-            Debug.Log("[C2:WALL MAPDRAW V41] mapSprites=" + sprites.Count +
-                      " drawn=" + drawn +
-                      " missingTextures=" + missingTextures +
-                      " routes=bridge:" + routeBridge +
-                      ",fence:" + routeFence +
-                      ",largeFence:" + routeLargeFence +
-                      ",aligned:" + routeAligned +
-                      ",model:" + routeModel +
-                      ",fallback:" + routeFallback +
-                      " profiles=bridge:" + profileBridge +
-                      ",fence:" + profileFence +
-                      ",model:" + profileModel +
-                      ",ground:" + profileGround +
-                      ",vertical:" + profileVertical +
-                      ",fallback:" + profileFallback +
-                      " savedM4Seen=" + savedM4Seen +
-                      " chainAdjusted=" + chainAdjusted +
-                      " chainAcceptedRuns=" + chainInfo.Runs +
-                      " chainRejectedRuns=" + chainInfo.RejectedRuns +
-                      " chainPreservedSprites=" + chainInfo.PreservedSprites +
-                      " zTest=LEqual spriteZWrite=Off modelZWrite=On renderQueueSprites=" + C2WallObjectsV18RenderQueueLikeOriginal +
-                      " modelRenderQueue=" + C2WallObjectsV24ModelRenderQueueLikeOriginal +
-                      " immHeightSamples=" + immLayer.HeightSamples.ToString(CultureInfo.InvariantCulture) +
-                      " immHeightCells=" + immLayer.HeightCells.ToString(CultureInfo.InvariantCulture) +
-                      " immLockSamples=" + immLayer.LockSamples.ToString(CultureInfo.InvariantCulture) +
-                      " immLockCells=" + immLayer.LockCells.ToString(CultureInfo.InvariantCulture) +
-                      " mode=V45_original_saved_Matrix4D_route savedWL_no_ReCreate_no_connector_resnap bridge_fence_verified_M4 model_C2M_Carcass_GEOM_Navimesh_Lockmesh_IMM_height_lock_layer heightSampler=MapSprites_GetHeight_triangle debugPlaceholders=" + C2WallObjectsV1DrawDebugPlaceholdersLikeOriginal +
-                      " c2mProxyFallback=" + C2WallObjectsV23AllowC2MProxyFallbackWhenRendererFailsLikeOriginal +
-                      " modelChainV53=" + C2WallObjectsV53ModelChainContractLikeOriginal +
-                      " placementV58=" + C2WallObjectsV58PlacementContractLikeOriginal +
-                      " mapAnchorV58=" + C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal +
-                      " modelChainAdjustedV53=" + modelChainAdjustedV53.ToString(CultureInfo.InvariantCulture) +
-                      " modelRunHeightAdjustedV60=" + modelRunHeightAdjustedV59.ToString(CultureInfo.InvariantCulture) +
-                      " syntheticDambaRowsV93=" + syntheticDambaRowsV93.ToString(CultureInfo.InvariantCulture) +
-                      " legacyDambaPieceFallbackSkippedV94=" + legacyDambaPieceFallbackSkippedV94.ToString(CultureInfo.InvariantCulture) +
-                      " legacyWals2DFenceIndividualCardsDeletedV165=" + legacyWals2DFenceIndividualCardsDeletedV165.ToString(CultureInfo.InvariantCulture) +
-                      " dambaPlacementV94=" + C2WallObjectsV94DambaPlacementContractLikeOriginal +
-                      " placementV60=" + C2WallObjectsV59PlacementContractLikeOriginal +
-                      " modelRunAnchorAdjustedV61=" + modelRunAnchorAdjustedV61.ToString(CultureInfo.InvariantCulture) +
-                      " placementV61=" + C2WallObjectsV61PlacementContractLikeOriginal +
-                      " placementV62=" + C2WallObjectsV62PlacementContractLikeOriginal +
-                      " placementV64=" + C2WallObjectsV64PlacementContractLikeOriginal +
-                      " c2mRender=" + C2WallObjectsV26RenderContractLikeOriginal + " panplane_LEqual_Offset spriteRender=" + C2WallObjectsV29SpriteRenderContractLikeOriginal + " bridgeSpriteV31=" + C2WallObjectsV31SpriteRenderContractLikeOriginal + " dambaBase=" + C2WallObjectsV33DambaRenderContractLikeOriginal + " dambaDepth=" + C2WallObjectsV34DambaDepthContractLikeOriginal + " dambaMaterialV36=" + C2WallObjectsV35DambaRenderContractLikeOriginal + " chunkRenderV41=" + C2WallObjectsV41ChunkRenderContractLikeOriginal + " gpObjMaterialV42=" + C2WallObjectsV42MaterialContractLikeOriginal + " uvFitV43=" + C2WallObjectsV43UvFitContractLikeOriginal + " shadowV44=" + C2WallObjectsV44ShadowContractLikeOriginal + " dambaGPObjV46=" + C2WallObjectsV46DambaGPObjContractLikeOriginal + " gpObjSquaresV47=" + C2WallObjectsV47GPObjSquareContractLikeOriginal + " drawWChunkV50=" + C2WallObjectsV50DrawWChunkContractLikeOriginal + " dambaTextureV56=TemnyLess_GPObj_G16_DrawWChunk_textured_no_white_fill drawWChunkV57=" + C2WallObjectsV57DrawWChunkContractLikeOriginal + " partialOverlayV35=disabled fenceRaiseVerticalPx=" + _c2Wals2DVerticalRaisePixelsV178LikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + " fenceRaiseHorizontalPx=" + _c2Wals2DHorizontalRaisePixelsV178LikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + " wl2dV115=fence_no_saved_M4_no_raise_terrain_aligned" + " wl2dV116=" + C2WallObjectsV116FenceContractLikeOriginal + " wl2dV117=" + C2WallObjectsV117FenceContractLikeOriginal + " wl2dV118=" + C2WallObjectsV118ContractLikeOriginal + " wl2dV119=" + C2WallObjectsV119ContractLikeOriginal + " wl2dPropsV122=" + C2WallObjectsV122VerticalPropContractLikeOriginal + " wl2dPropsV124=" + C2WallObjectsV124PropContractLikeOriginal + " bridgeLoweredV131=" + wl2dBridgeSideLoweredV131.ToString(CultureInfo.InvariantCulture) + " fenceLineV171=" + C2WallObjectsV132FenceLineContractLikeOriginal + " wals2dOriginalV172=" + C2WallObjectsV172OriginalWLSavedSpriteContractLikeOriginal + " wals2dUvV173=" + C2WallObjectsV173WLSavedSpriteUvContractLikeOriginal + " wals2dMapXYV174=" + C2WallObjectsV174WLSavedSpriteMapXYContractLikeOriginal + " wals2dShadowLiftV178=" + C2WallObjectsV175WLSavedSpriteSideShadowLiftContractLikeOriginal + " fenceLineAdjustedV132=" + fenceLineAdjustedV132.ToString(CultureInfo.InvariantCulture));
 
             _c2WallObjectsV25LastIMMLayerLikeOriginal = immLayer;
-
-            Debug.Log("[C2:WALL CHAIN V27] enabled=" + (!C2WallObjectsV20SavedWLNeverUsesConnectorReCreateLikeOriginal && C2WallObjectsV14ConnectorChainEnabledLikeOriginal) +
-                      " acceptedRuns=" + chainInfo.Runs.ToString(CultureInfo.InvariantCulture) +
-                      " rejectedRuns=" + chainInfo.RejectedRuns.ToString(CultureInfo.InvariantCulture) +
-                      " adjustedSprites=" + chainInfo.AdjustedSprites.ToString(CultureInfo.InvariantCulture) +
-                      " preservedSprites=" + chainInfo.PreservedSprites.ToString(CultureInfo.InvariantCulture) +
-                      " connectorSprites=" + chainInfo.ConnectorSprites.ToString(CultureInfo.InvariantCulture) +
-                      " audit=" + (chainInfo.Audit.Count > 0 ? string.Join(" | ", chainInfo.Audit.ToArray()) : "none"));
-
-            if (modelChainInfoV53 != null)
-                Debug.Log("[C2:WALL MODEL CHAIN V53] enabled=" + C2WallObjectsV53UseWhiteModelConnectorChainLikeOriginal +
-                          " contract=" + C2WallObjectsV53ModelChainContractLikeOriginal +
-                          " runs=" + modelChainInfoV53.Runs.ToString(CultureInfo.InvariantCulture) +
-                          " adjustedSprites=" + modelChainAdjustedV53.ToString(CultureInfo.InvariantCulture) +
-                          " candidates=" + modelChainInfoV53.CandidateSprites.ToString(CultureInfo.InvariantCulture) +
-                          " preserved=" + modelChainInfoV53.PreservedSprites.ToString(CultureInfo.InvariantCulture) +
-                          " audit=" + (modelChainInfoV53.Audit.Count > 0 ? string.Join(" | ", modelChainInfoV53.Audit.ToArray()) : "none"));
-
-            if (modelRunHeightInfoV59 != null)
-                Debug.Log("[C2:WALL MODEL RUN HEIGHT V60] enabled=" + C2WallObjectsV59LevelModelBackedBridgeRunsLikeOriginal +
-                          " contract=" + C2WallObjectsV59PlacementContractLikeOriginal +
-                          " adjustedSprites=" + modelRunHeightAdjustedV59.ToString(CultureInfo.InvariantCulture) +
-                          " runs=" + modelRunHeightInfoV59.Runs.ToString(CultureInfo.InvariantCulture) +
-                          " candidates=" + modelRunHeightInfoV59.CandidateSprites.ToString(CultureInfo.InvariantCulture) +
-                          " preserved=" + modelRunHeightInfoV59.PreservedSprites.ToString(CultureInfo.InvariantCulture) +
-                          " audit=" + (modelRunHeightInfoV59.Audit.Count > 0 ? string.Join(" | ", modelRunHeightInfoV59.Audit.ToArray()) : "none"));
-
-            if (modelRunAnchorInfoV61 != null)
-                Debug.Log("[C2:WALL MODEL RUN ANCHOR V61/V62] enabled=" + C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal +
-                          " contract=" + C2WallObjectsV61PlacementContractLikeOriginal +
-                          " rollbackV62=" + C2WallObjectsV62PlacementContractLikeOriginal +
-                          " adjustedSprites=" + modelRunAnchorAdjustedV61.ToString(CultureInfo.InvariantCulture) +
-                          " runs=" + modelRunAnchorInfoV61.Runs.ToString(CultureInfo.InvariantCulture) +
-                          " candidates=" + modelRunAnchorInfoV61.CandidateSprites.ToString(CultureInfo.InvariantCulture) +
-                          " preserved=" + modelRunAnchorInfoV61.PreservedSprites.ToString(CultureInfo.InvariantCulture) +
-                          " audit=" + (modelRunAnchorInfoV61.Audit.Count > 0 ? string.Join(" | ", modelRunAnchorInfoV61.Audit.ToArray()) : "none"));
-
-            if (fenceLineInfoV132 != null)
-                Debug.Log("[C2:WALL FENCE LINE V132] enabled=" + C2WallObjectsV132StraightenWL2DFenceRunsLikeOriginal +
-                          " contract=" + C2WallObjectsV132FenceLineContractLikeOriginal +
-                          " lineRootsV159=" + fenceLineRootsCreatedV144.ToString(CultureInfo.InvariantCulture) +
-                          " suppressedV159=" + (fenceLineSuppressedV144 != null ? fenceLineSuppressedV144.Count.ToString(CultureInfo.InvariantCulture) : "0") +
-                          " adjustedSprites=" + fenceLineAdjustedV132.ToString(CultureInfo.InvariantCulture) +
-                          " runs=" + fenceLineInfoV132.Runs.ToString(CultureInfo.InvariantCulture) +
-                          " candidates=" + fenceLineInfoV132.CandidateSprites.ToString(CultureInfo.InvariantCulture) +
-                          " preserved=" + fenceLineInfoV132.PreservedSprites.ToString(CultureInfo.InvariantCulture) +
-                          " rejectedRuns=" + fenceLineInfoV132.RejectedRuns.ToString(CultureInfo.InvariantCulture) +
-                          " rejectedSprites=" + fenceLineInfoV132.RejectedSprites.ToString(CultureInfo.InvariantCulture) +
-                          " audit=" + (fenceLineInfoV132.Audit.Count > 0 ? string.Join(" | ", fenceLineInfoV132.Audit.ToArray()) : "none"));
-
-            if (C2WallObjectsV144BuildIdenticalWL2DFenceLineRootsLikeOriginal)
-                Debug.Log("[C2:WALL FENCE ORIGINAL 3DWALLS MODELID MATRIX4D V170] created=" + fenceLineRootsCreatedV144.ToString(CultureInfo.InvariantCulture) +
-                          " suppressed=" + (fenceLineSuppressedV144 != null ? fenceLineSuppressedV144.Count.ToString(CultureInfo.InvariantCulture) : "0") +
-                          " modelIDLineRootsUsed=" + _c2WallObjectsV160ModelIDLineRootsUsedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " modelIDLineRootsRejected=" + _c2WallObjectsV160ModelIDLineRootsRejectedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " spriteFallbackBlocked=" + _c2WallObjectsV160SpriteFallbackBlockedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " numericModelIDResolvedV161=" + _c2WallObjectsV161NumericModelIDResolvedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " numericModelIDUnresolvedV161=" + _c2WallObjectsV161NumericModelIDUnresolvedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " rejectedSavedWLSuppressedV161=" + _c2WallObjectsV161Rejected3DWallsSavedWLSuppressedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " realWTCycleUsedV161=" + _c2WallObjectsV161RealWallTypeCycleUsedLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " contract=" + C2WallObjectsV132FenceLineContractLikeOriginal +
-                          " audit=" + (string.IsNullOrWhiteSpace(fenceLineRootAuditV144) ? "none" : fenceLineRootAuditV144));
-
-            if (fenceFinalVertexAuditV145.Count > 0)
-                Debug.Log("[C2:WALL FENCE FINAL VERTICES V152] contract=" + C2WallObjectsV132FenceLineContractLikeOriginal +
-                          " samples=" + string.Join(" | ", fenceFinalVertexAuditV145.ToArray()));
-
-            if (routeAudit.Count > 0)
-                Debug.Log("[C2:WALL ROUTE V27] " + string.Join(" | ", routeAudit.ToArray()));
-            if (basisAudit.Count > 0)
-                Debug.Log("[C2:WALL BASIS V27] samples=" + string.Join(" | ", basisAudit.ToArray()));
-            if (matrixAudit.Count > 0)
-                Debug.Log("[C2:WALL MATRIX V27] " + string.Join(" | ", matrixAudit.ToArray()));
-            if (modelAudit.Count > 0)
-                Debug.Log("[C2:WALL MODEL V27] " + string.Join(" | ", modelAudit.ToArray()));
-            if (immAudit.Count > 0)
-                Debug.Log("[C2:WALL IMM V27] " + string.Join(" | ", immAudit.ToArray()));
-            if (materialAudit.Count > 0)
-                Debug.Log("[C2:WALL MATERIAL V27] " + string.Join(" | ", materialAudit.ToArray()));
-            if (dambaAudit.Count > 0)
-                Debug.Log("[C2:DAMBA CHAIN V33] contract=" + C2WallObjectsV33DambaRenderContractLikeOriginal + " " + string.Join(" | ", dambaAudit.ToArray()));
-            if (C2WallObjectsV84CreateSceneOnlyAnchorObjectsOnRuntimeDambaLikeOriginal)
-                Debug.Log("[C2:DAMBA ANCHORS V84] contract=" + C2WallObjectsV84DambaAnchorContractLikeOriginal +
-                          " createdSceneOnlyAnchorObjects=" + dambaAnchorObjectsCreatedV84.ToString(CultureInfo.InvariantCulture) +
-                          " audit=" + (dambaAnchorAuditV84.Count > 0 ? string.Join(" | ", dambaAnchorAuditV84.ToArray()) : "none"));
-            if (gpObjAudit.Count > 0)
-                Debug.Log("[C2:C2M GPOBJ V40] contract=" + C2WallObjectsV40GPObjContractLikeOriginal + " " + string.Join(" | ", gpObjAudit.ToArray()));
-            if (chunkRenderAudit.Count > 0)
-                Debug.Log("[C2:C2M CHUNK RENDER V41] contract=" + C2WallObjectsV41ChunkRenderContractLikeOriginal + " " + string.Join(" | ", chunkRenderAudit.ToArray()));
-            if (gpObjMaterialAudit.Count > 0)
-                Debug.Log("[C2:C2M GPOBJ MATERIAL V42] contract=" + C2WallObjectsV42MaterialContractLikeOriginal + " " + string.Join(" | ", gpObjMaterialAudit.ToArray()));
-            if (spriteRgbaAudit.Count > 0)
-                Debug.Log("[C2:WALL SPRITE RGBA V29] contract=" + C2WallObjectsV29SpriteRenderContractLikeOriginal + " " + string.Join(" | ", spriteRgbaAudit.ToArray()));
-            if (C2WallObjectsV118AuditAndClassifyWL2DLikeOriginal)
-            {
-                Debug.Log("[C2:WL2D V118 SUMMARY] wl2dV118=" + C2WallObjectsV118ContractLikeOriginal +
-                          " classes=smallFence:" + wl2dSmallFenceV118.ToString(CultureInfo.InvariantCulture) +
-                          ",largeFence:" + wl2dLargeFenceV118.ToString(CultureInfo.InvariantCulture) +
-                          ",singleProp:" + wl2dSinglePropV118.ToString(CultureInfo.InvariantCulture) +
-                          ",ground:" + wl2dGroundV118.ToString(CultureInfo.InvariantCulture) +
-                          ",vertical:" + wl2dVerticalV118.ToString(CultureInfo.InvariantCulture) +
-                          ",modelC2M:" + wl2dModelV118.ToString(CultureInfo.InvariantCulture) +
-                          ",bridgeSide:" + wl2dBridgeSideV118.ToString(CultureInfo.InvariantCulture) +
-                          ",unknown:" + wl2dUnknownV118.ToString(CultureInfo.InvariantCulture) +
-                          " largeFenceClampV118=" + wl2dLargeFenceClampV118.ToString(CultureInfo.InvariantCulture) +
-                          " bridgeSideClampV120=" + wl2dBridgeSideClampV120.ToString(CultureInfo.InvariantCulture) +
-                          " bridgeSideAlignClampV121=" + wl2dBridgeSideAlignClampV121.ToString(CultureInfo.InvariantCulture) +
-                          " verticalPropUvFlipV122=" + wl2dVerticalPropUvFlipV122.ToString(CultureInfo.InvariantCulture) +
-                          " smallFenceIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dSmallFenceIdsV118) +
-                          " largeFenceIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dLargeFenceIdsV118) +
-                          " singlePropIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dSinglePropIdsV118) +
-                          " groundIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dGroundIdsV118) +
-                          " verticalIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dVerticalIdsV118) +
-                          " modelIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dModelIdsV118) +
-                          " unknownIds=" + BuildWallWL2DIdSummaryV118LikeOriginal(catalog, wl2dUnknownIdsV118));
-                if (wl2dAuditV118.Count > 0)
-                    Debug.Log("[C2:WL2D V118 AUDIT] " + string.Join(" | ", wl2dAuditV118.ToArray()));
-            }
-            if (C2WallObjectsV119TopOffenderAuditWL2DLikeOriginal)
-            {
-                LogWallWL2DTopOffendersV119LikeOriginal(wl2dMetricsV119);
-            }
-            Debug.Log(BuildWallC2MImmLayerSummaryV25LikeOriginal(immLayer));
-
-            var sb = new StringBuilder(512);
-            sb.Append("[C2:WALL MAPINDEX V27] ");
-            int emitted = 0;
-            foreach (var kv in indexAudit)
-            {
-                if (emitted++ >= 32)
-                    break;
-                if (catalog.ByIndex.TryGetValue(kv.Key, out WallSpriteDescV1LikeOriginal d))
-                    sb.Append(d.Name).Append("#").Append(kv.Key.ToString(CultureInfo.InvariantCulture)).Append("=").Append(kv.Value.ToString(CultureInfo.InvariantCulture)).Append(" ");
-                else
-                    sb.Append("#").Append(kv.Key.ToString(CultureInfo.InvariantCulture)).Append("=").Append(kv.Value.ToString(CultureInfo.InvariantCulture)).Append(" ");
-            }
-            Debug.Log(sb.ToString());
-
-            if (C2WallObjectsV27CoverageAuditLikeOriginal)
+if (C2WallObjectsV27CoverageAuditLikeOriginal)
                 LogWallCoverageAuditV27LikeOriginal(sprites, catalog, indexAudit, immLayer);
 
             return drawn;
@@ -7158,32 +6916,10 @@ if (ShouldFlipVerticalAlignedPropUvV122LikeOriginal(s, desc, route))
                     }
                 }
 
-                Debug.Log("[C2:WALL COVERAGE V27] contract=" + C2WallObjectsV27AuditContractLikeOriginal +
-                          " map='" + _mapRelativePath + "'" +
-                          " savedWL=" + savedWl.ToString(CultureInfo.InvariantCulture) +
-                          " usedWLIds=" + usedIds.ToString(CultureInfo.InvariantCulture) +
-                          " missingCatalog=" + missingCatalog.ToString(CultureInfo.InvariantCulture) +
-                          " usedG16Instances=" + usedG16Ids.ToString(CultureInfo.InvariantCulture) +
-                          " usedModelInstances=" + usedModelIds.ToString(CultureInfo.InvariantCulture) +
-                          " usedProfile=aligned:" + usedAligned.ToString(CultureInfo.InvariantCulture) +
-                          ",fallback:" + usedFallback.ToString(CultureInfo.InvariantCulture) +
-                          " catalogSprites=" + catalogSprites.ToString(CultureInfo.InvariantCulture) +
-                          " catalogG16=" + catalogG16.ToString(CultureInfo.InvariantCulture) +
-                          " catalogModels=" + catalogModels.ToString(CultureInfo.InvariantCulture) +
-                          " catalogWithConnectors=" + catalogConnectors.ToString(CultureInfo.InvariantCulture) +
-                          " catalogWithAlign=" + catalogAlign.ToString(CultureInfo.InvariantCulture) +
-                          " catalogWithAutoborn=" + catalogAutoborn.ToString(CultureInfo.InvariantCulture) +
-                          " immHeightCells=" + (immLayer != null ? immLayer.HeightCells : 0).ToString(CultureInfo.InvariantCulture) +
-                          " immLockCells=" + (immLayer != null ? immLayer.LockCells : 0).ToString(CultureInfo.InvariantCulture) +
-                          " note='V166 compile fix: old individual WALS 2D fence routes are physically absent; coverage audit no longer references removed fence/bridge profiles'");
 
-                Debug.Log("[C2:WALL WLID COVERAGE V27] " + BuildWallUsedIdCoverageLineV27LikeOriginal(catalog, wlIndexAudit));
-                Debug.Log("[C2:WALL MODEL COVERAGE V27] " + BuildWallModelCoverageLineV27LikeOriginal(catalog, wlIndexAudit));
-                Debug.Log("[C2:WALL OBJECT-SYSTEM BOUNDARY V27] WL_saved_renderer=covered_by_this_file; STONES_TS_and_COMPLEX_OC=not_covered_by_OneWallsSystem; current_WL_model_usage=" + BuildWallUsedModelNameListV27LikeOriginal(catalog, wlIndexAudit));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:WALL COVERAGE V27] audit failed: " + ex.Message);
             }
         }
 
@@ -8800,7 +8536,6 @@ private static Vector2 GetWallLargeFencePivotPxV118LikeOriginal(WallSpriteDescV1
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:WALL IMM LAYER V26] failed to create lock collider for " + desc.Name + ": " + ex.Message);
             }
         }
 
@@ -12209,7 +11944,6 @@ private Mesh OffsetWallMeshWorldYV35LikeOriginal(Mesh source, float pixels)
         {
             if (metrics == null || metrics.Count == 0)
                 return;
-            Debug.Log("[C2:WALL WL2D TOP V119] disabled_by_V168 old individual WALS2D fence routes deleted; metrics=" + metrics.Count.ToString(CultureInfo.InvariantCulture));
         }
 
         private string BuildWallUsedIdCoverageLineV27LikeOriginal(WallSpriteCatalogV1LikeOriginal catalog, Dictionary<int, int> wlIndexAudit)

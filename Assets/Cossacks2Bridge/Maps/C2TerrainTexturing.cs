@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -936,7 +936,6 @@ private static void TryLoadFactureMaterialTablesLikeAdapted(string dataRoot, Fac
             tables.SourceKind = "fallback-default40";
     }
 
-    LogFactureMaterialTablesSummaryLikeAdapted(dataRoot, tables);
 }
 
 private static IEnumerable<string> EnumerateFactureMetadataCandidatesLikeAdapted(string dataRoot, string fileName)
@@ -1085,7 +1084,6 @@ private static int ApplyObservedFactureFallbackOverridesLikeAdapted(FactureMater
         tables.ActiveEntryCount = Mathf.Max(tables.ActiveEntryCount, idx + 1);
 
         if (idx == 40)
-            Debug.Log($"[C2:V55 FACTURE40 LOCK] fixed mapping applied: factureBucket=40 diffuse='{normalizedPath}' mode=always-on no-f8 muted=41,43,44,48,49,50,52,53,58,62,67,68,74,75,76,79");
 
         applied++;
     }
@@ -1095,42 +1093,8 @@ private static int ApplyObservedFactureFallbackOverridesLikeAdapted(FactureMater
 
 private static void LogFactureMaterialTablesSummaryLikeAdapted(string dataRoot, FactureMaterialTablesLikeAdapted tables)
 {
-    if (tables == null)
-        return;
-
-    string reportKey = (dataRoot ?? string.Empty) + "|" + (tables.SourceKind ?? string.Empty) + "|" + (tables.SourceXmlPath ?? string.Empty) + "|" + (tables.SourceDatPath ?? string.Empty);
-    if (!s_factureMetadataLoadReportsLikeAdapted.Add(reportKey))
-        return;
-
-    var sb = new StringBuilder(2048);
-    sb.Append("[C2:FACT] tables source='").Append(tables.SourceKind)
-      .Append("' active=").Append(tables.ActiveEntryCount)
-      .Append(" xml='").Append(tables.SourceXmlPath)
-      .Append("' texturesXml='").Append(tables.SourceTexturesXmlPath)
-      .Append("' dat='").Append(tables.SourceDatPath)
-      .Append("' dataRoot='").Append(dataRoot ?? string.Empty).Append("'");
-
-    int listed = 0;
-    for (int i = 0; i < tables.DiffuseTexturePath.Length; i++)
-    {
-        string diffuse = tables.DiffuseTexturePath[i];
-        if (string.IsNullOrWhiteSpace(diffuse))
-            continue;
-
-        if (listed == 0)
-            sb.Append("\n");
-        sb.Append("  [").Append(i).Append("] usage=").Append(tables.Usage[i]).Append(" diffuse='").Append(diffuse).Append("'");
-        if (!string.IsNullOrWhiteSpace(tables.BumpTexturePath[i]))
-            sb.Append(" bump='").Append(tables.BumpTexturePath[i]).Append("'");
-        sb.Append("\n");
-        listed++;
-    }
-
-    if (listed == 0)
-        sb.Append("\n  <no diffuse entries>");
-
-    UnityEngine.Debug.Log(sb.ToString());
 }
+
 
 private static void InitializeFactureFallbackLikeOriginal(FactureMaterialTablesLikeAdapted tables)
 {
@@ -1757,7 +1721,6 @@ private static void GetFactureUvwLikeAdapted(ParsedMap map, int vertexIndex, int
             if (!s_terrainSoftwareVerticalFactureStretchLoggedV1LikeAdapted)
             {
                 s_terrainSoftwareVerticalFactureStretchLoggedV1LikeAdapted = true;
-                UnityEngine.Debug.Log($"[C2:VERTICAL FACTURE V1] limiting height-driven vertical UV stretch. heightStrength={TerrainSoftwareVerticalFactureHeightUvStrengthV1LikeAdapted}");
             }
 
             vv = Mathf.Lerp(footprintDrivenV, heightDrivenV, Mathf.Clamp01(TerrainSoftwareVerticalFactureHeightUvStrengthV1LikeAdapted));
@@ -2956,14 +2919,6 @@ private string[] BuildFactureTextureCandidatesLikeAdapted(int bucketTextureId, F
 
             if (tex == null)
             {
-                string warningKey = $"{cacheKey}|{metaPath}";
-                if (s_factureMetadataWarningsLikeAdapted.Add(warningKey))
-                {
-                    UnityEngine.Debug.LogWarning(
-                        $"[C2:FACT] unresolved {(bump ? "bump" : (dot3Diffuse ? "dot3-diffuse" : "diffuse"))} texture idx={bucketTextureId} source='{tables.SourceKind}' " +
-                        $"metaPath='{metaPath}' candidates='{string.Join(" | ", candidates)}'");
-                }
-
                 return null;
             }
 
@@ -3278,8 +3233,6 @@ private void BuildFactureStripeLayerLikeAdapted(
 
     if (skipped.Count > 0)
     {
-        UnityEngine.Debug.Log(
-            $"[C2:FACT] stripe={stripeIndex} fix='triangle-winner-smooth-crossfade-strip-v2' rendered={renderableBucketIds.Count} skipped='{string.Join(",", skipped)}'");
     }
 
     var go = new GameObject($"FactureStripe_{stripeIndex:000}");
@@ -3336,7 +3289,6 @@ private Material CreateTerrainMaterialCoreLikeOriginal(ParsedMap map)
                     return mat;
                 }
 
-                UnityEngine.Debug.LogWarning("[C2:TEX] GroundTex.bmp was not loaded. Terrain stays on fallback material until atlas decode succeeds.");
             }
 
             return CreateFallbackTerrainMaterialLikeOriginal();
@@ -3401,9 +3353,7 @@ private Material CreateTerrainMaterialCoreLikeOriginal(ParsedMap map)
                 out resources.CrossTexPath);
 
             if (resources.GroundAtlas == null)
-                UnityEngine.Debug.LogWarning("[C2:TEX] GroundTex.bmp candidates not found or decode failed.");
             if (resources.CrossTex == null)
-                UnityEngine.Debug.LogWarning("[C2:TEX] BoundNew128.tga was not loaded. Overlay will fall back to weight-only blend.");
 
             s_surfaceTextureCacheLikeOriginal[cacheKey] = resources;
             return resources;
@@ -3447,11 +3397,9 @@ private Material CreateTerrainMaterialCoreLikeOriginal(ParsedMap map)
                         return tex;
                     }
 
-                    UnityEngine.Debug.LogWarning($"[C2:TEX] decode returned null path='{rel}'");
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogWarning($"[C2:TEX] texture load failed path='{rel}': {ex.GetType().Name}: {ex.Message}");
                 }
             }
 

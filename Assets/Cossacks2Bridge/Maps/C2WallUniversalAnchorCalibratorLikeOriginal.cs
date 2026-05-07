@@ -58,9 +58,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 !catalog.ByIndex.TryGetValue(C2WallUniversalAnchorCalibratorV1SpriteIndexLikeOriginal, out _c2WallUniversalAnchorCalibratorDescV1LikeOriginal) ||
                 _c2WallUniversalAnchorCalibratorDescV1LikeOriginal == null)
             {
-                Debug.LogWarning("[C2:WALL ANCHOR CAL V1] sprite W" +
-                                 C2WallUniversalAnchorCalibratorV1SpriteIndexLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                                 " missing; universal anchor calibrator not spawned.");
                 return;
             }
 
@@ -68,9 +65,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 TryLoadWallC2MVisualMeshV23LikeOriginal(_c2WallUniversalAnchorCalibratorDescV1LikeOriginal.ModelPath, out string audit);
             if (c2m == null)
             {
-                Debug.LogWarning("[C2:WALL ANCHOR CAL V1] C2M load failed '" +
-                                 (_c2WallUniversalAnchorCalibratorDescV1LikeOriginal.ModelPath ?? string.Empty) +
-                                 "' audit='" + audit + "'");
                 return;
             }
 
@@ -110,9 +104,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             CreateWallUniversalAnchorPointsV1LikeOriginal();
             LoadWallUniversalAnchorCalibratorFileIfPresentV1LikeOriginal();
 
-            Debug.Log("[C2:WALL ANCHOR CAL V1] spawned one main object with 4 scene-only anchors. " +
-                      "Move colored points in Scene view, press WRITE button or Enter. contract=" +
-                      C2WallUniversalAnchorCalibratorV1ContractLikeOriginal);
         }
 
         private void UpdateWallUniversalAnchorCalibratorV1LikeOriginal()
@@ -304,8 +295,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 File.WriteAllText(projectPath, text, Encoding.UTF8);
 
                 _c2WallUniversalAnchorCalibratorLastWriteTimeV1LikeOriginal = Time.realtimeSinceStartup;
-                Debug.Log("[C2:WALL ANCHOR CAL V1] wrote " + path.Replace('\\', '/') +
-                          " and " + projectPath.Replace('\\', '/'));
             }
             catch (Exception ex)
             {
@@ -457,12 +446,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         t.localPosition = parsed[i];
                 }
 
-                Debug.Log("[C2:WALL ANCHOR CAL V1] loaded " + path.Replace('\\', '/'));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:WALL ANCHOR CAL V1] load failed '" +
-                                 path.Replace('\\', '/') + "': " + ex.Message);
             }
         }
     }

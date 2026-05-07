@@ -1,4 +1,4 @@
-
+﻿
 // C2SettlementBuildings3INUParserLikeOriginal.cs
 // V64: kill C2_Nature_TS_V2_batch_* roots directly; V63 missed because renderers live under child paths.
  //      Keeps V57 layer-composite visuals, V55 cache, V53 windmill work sort, V52 part sorting, V50 NDS aliases.
@@ -1597,7 +1597,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     Texture2D partTex;
                     string partAudit;
                     C2Settlement3InuMdV2AnimFrame frameRef = sourceFrames[i];
-                    if (C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frameRef, kind, out partTex, out partAudit) && partTex != null)
+                    if (C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(md, frameRef, kind, r.Nation, out partTex, out partAudit) && partTex != null)
                     {
                         var loaded = new C2Settlement3InuMdV2LoadedFrame(partTex, frameRef, sourceAnim != null ? sourceAnim.Name : "#STANDLO", false);
                         if (sourceAnim != null && sourceAnim.LineSort != null && i < sourceAnim.LineSort.Count)
@@ -1620,7 +1620,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     Texture2D workTex;
                     string workAudit;
                     int wf = md.WorkFrames[0].SpriteId;
-                    if (C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, md.WorkFrames[0], kind, out workTex, out workAudit) && workTex != null)
+                    if (C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(md, md.WorkFrames[0], kind, r.Nation, out workTex, out workAudit) && workTex != null)
                     {
                         loadedFrames.Add(new C2Settlement3InuMdV2LoadedFrame(workTex, md.WorkFrames[0], "#WORK", true));
                         workLoaded = 1;
@@ -1643,7 +1643,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Texture2D tex;
             string oneAudit;
             int frame = C2Settlement3InuMdV2SpriteFrameLikeOriginal(md, r, kind);
-            bool ok = C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frame, kind, out tex, out oneAudit);
+            bool ok = C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(md, frame, kind, r.Nation, out tex, out oneAudit);
             audit = oneAudit;
             if (ok && tex != null) loadedFrames.Add(new C2Settlement3InuMdV2LoadedFrame(tex, new C2Settlement3InuMdV2AnimFrame(0, frame), "#FRAME", false));
             return loadedFrames.Count > 0;
@@ -1653,6 +1653,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             string packageOverride = C2Settlement3InuMdV2PackageForFileRefLikeOriginal(md, frameRef.FileRef);
             return C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frameRef.SpriteId, kind, out tex, out audit, packageOverride, frameRef.FileRef);
+        }
+
+        private bool C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2AnimFrame frameRef, C2Settlement3InuMdV2Kind kind, int ownerPlayerIndex, out Texture2D tex, out string audit)
+        {
+            string packageOverride = C2Settlement3InuMdV2PackageForFileRefLikeOriginal(md, frameRef.FileRef);
+            return C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frameRef.SpriteId, kind, out tex, out audit, packageOverride, frameRef.FileRef, ownerPlayerIndex, true);
         }
 
         private static string C2Settlement3InuMdV2PackageForFileRefLikeOriginal(C2Settlement3InuMdV2Info md, int fileRef)
@@ -1834,12 +1840,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frame, kind, out tex, out audit, null, -1);
         }
 
-        private bool C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(C2Settlement3InuMdV2Info md, int frame, C2Settlement3InuMdV2Kind kind, out Texture2D tex, out string audit, string packageOverride, int fileRef)
+        private bool C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(C2Settlement3InuMdV2Info md, int frame, C2Settlement3InuMdV2Kind kind, int ownerPlayerIndex, out Texture2D tex, out string audit)
+        {
+            return C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frame, kind, out tex, out audit, null, -1, ownerPlayerIndex, true);
+        }
+
+        private bool C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(C2Settlement3InuMdV2Info md, int frame, C2Settlement3InuMdV2Kind kind, out Texture2D tex, out string audit, string packageOverride, int fileRef, int ownerPlayerIndex = -1, bool useNationColor = false)
         {
             tex = null;
             audit = string.Empty;
             string pkg = !string.IsNullOrEmpty(packageOverride) ? packageOverride : (md != null ? md.Package : null);
             if (md == null || string.IsNullOrEmpty(pkg)) { audit = "no_package"; return false; }
+            bool useNatColor = useNationColor && C2Settlement3InuMdV2ShouldUseNationColorLikeOriginal(kind);
+            int colorId = C2PlayerColorsLikeOriginal.GetPlayerColorId(ownerPlayerIndex);
+            Color32 nationColor = C2PlayerColorsLikeOriginal.GetNatColorByColorId(colorId);
+            string nationCacheSuffix = useNatColor ? ("|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex)) : "|nat=none";
             string[] exts = kind == C2Settlement3InuMdV2Kind.Unit || kind == C2Settlement3InuMdV2Kind.Animal
                 ? new[] { ".g2d", ".G2D", ".g17", ".G17", ".g16", ".G16" }
                 : new[] { ".g17", ".G17", ".g16", ".G16", ".g2d", ".G2D" };
@@ -1854,10 +1869,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (!exists) continue;
                 if (!s_C2Settlement3InuMdV2VisualPathCacheV55.ContainsKey(visualPathKey))
                     s_C2Settlement3InuMdV2VisualPathCacheV55[visualPathKey] = p;
-                string source;
+                string source = string.Empty;
                 try
                 {
-                    string cacheKey = C2Settlement3InuMdV2TextureCacheKeyV54(p, pkg, fileRef, frame);
+                    string cacheKey = C2Settlement3InuMdV2TextureCacheKeyV54(p, pkg, fileRef, frame) + nationCacheSuffix;
                     C2Settlement3InuMdV2TextureCacheEntryV54 cached;
                     if (s_C2Settlement3InuMdV2TextureCacheV54.TryGetValue(cacheKey, out cached) && cached != null && cached.Texture != null)
                     {
@@ -1868,27 +1883,72 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
 
                     s_C2Settlement3InuMdV2TextureCacheMissesV54++;
-                    string diskSource;
-                    tex = C2Settlement3InuMdV2TryReadFrameDiskCacheV55(p, pkg, fileRef, frame, out diskSource);
-                    if (tex != null)
+                    if (!useNatColor)
                     {
-                        source = diskSource;
-                        var ceDisk = new C2Settlement3InuMdV2TextureCacheEntryV54();
-                        ceDisk.Texture = tex;
-                        ceDisk.Source = source;
-                        ceDisk.Size = tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture);
-                        s_C2Settlement3InuMdV2TextureCacheV54[cacheKey] = ceDisk;
-                        audit = C2Settlement3InuMdV2TextureAuditV54(fileRef.ToString(CultureInfo.InvariantCulture), p, frame, tex, source, false);
-                        return true;
+                        string diskSource;
+                        tex = C2Settlement3InuMdV2TryReadFrameDiskCacheV55(p, pkg, fileRef, frame, out diskSource);
+                        if (tex != null)
+                        {
+                            source = diskSource;
+                            var ceDisk = new C2Settlement3InuMdV2TextureCacheEntryV54();
+                            ceDisk.Texture = tex;
+                            ceDisk.Source = source;
+                            ceDisk.Size = tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture);
+                            s_C2Settlement3InuMdV2TextureCacheV54[cacheKey] = ceDisk;
+                            audit = C2Settlement3InuMdV2TextureAuditV54(fileRef.ToString(CultureInfo.InvariantCulture), p, frame, tex, source, false);
+                            return true;
+                        }
                     }
 
                     string e = Path.GetExtension(p).ToLowerInvariant();
-                    if (e == ".g2d") tex = TryLoadG2DFrameViaMelinojaV3LikeOriginal(p, frame, out source);
-                    else tex = TryLoadBuildingGpFrameViaMelinojaV23LikeOriginal(p, frame, out source, pkg);
+                    bool nationFallbackV3 = false;
+                    if (useNatColor)
+                    {
+                        if (e == ".g2d")
+                        {
+                            tex = TryLoadG2DFrameViaMelinojaNationColorV1LikeOriginal(p, frame, nationColor, out source);
+                            if (tex == null)
+                            {
+                                // V5: keep gameplay visible if the nation-color DLL/bridge is not ready.
+                                // We still log the exact nation-color failure, but fall back to the normal G2D frame
+                                // instead of making the peasant disappear.
+                                string natFailV4 = source ?? string.Empty;
+                                string fallbackSource;
+                                tex = TryLoadG2DFrameViaMelinojaV3LikeOriginal(p, frame, out fallbackSource);
+                                nationFallbackV3 = true;
+                                source = "g2d_nat_failed_fallback_normal_frame color=" + colorId.ToString(CultureInfo.InvariantCulture) +
+                                         " rgb=" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "," +
+                                         nationColor.g.ToString(CultureInfo.InvariantCulture) + "," +
+                                         nationColor.b.ToString(CultureInfo.InvariantCulture) +
+                                         " natFail=[" + natFailV4 + "] fallback=[" + fallbackSource + "]";
+                            }
+                        }
+                        else
+                        {
+                            tex = TryLoadBuildingGpFrameViaMelinojaNationColorV1LikeOriginal(p, frame, nationColor, out source, pkg);
+                            if (tex == null)
+                            {
+                                string natFailV3 = source ?? string.Empty;
+                                tex = TryLoadBuildingGpFrameViaMelinojaV23LikeOriginal(p, frame, out source, pkg);
+                                nationFallbackV3 = true;
+                                source = "nation_color_fallback_non_g2d color=" + colorId.ToString(CultureInfo.InvariantCulture) + " natFail=[" + natFailV3 + "] fallback=[" + source + "]";
+                            }
+                        }
+
+                        if (tex != null)
+                        {
+                            source = "nation_color color=" + colorId.ToString(CultureInfo.InvariantCulture) + " rgb=" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "," + nationColor.g.ToString(CultureInfo.InvariantCulture) + "," + nationColor.b.ToString(CultureInfo.InvariantCulture) + " " + source;
+                        }
+                    }
+                    else
+                    {
+                        if (e == ".g2d") tex = TryLoadG2DFrameViaMelinojaV3LikeOriginal(p, frame, out source);
+                        else tex = TryLoadBuildingGpFrameViaMelinojaV23LikeOriginal(p, frame, out source, pkg);
+                    }
                     if (tex != null)
                     {
                         tex = C2Settlement3InuMdV2PrepareLoadedTextureLikeOriginal(tex);
-                        C2Settlement3InuMdV2TryWriteFrameDiskCacheV55(p, pkg, fileRef, frame, tex);
+                        if (!useNatColor) C2Settlement3InuMdV2TryWriteFrameDiskCacheV55(p, pkg, fileRef, frame, tex);
                         var ce = new C2Settlement3InuMdV2TextureCacheEntryV54();
                         ce.Texture = tex;
                         ce.Source = source;
@@ -1922,12 +1982,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 string p = files[i];
                 if (i < 12) tried.Add((File.Exists(p) ? "EXISTS:" : "MISS:") + p);
                 if (!File.Exists(p)) continue;
-                string source;
+                string source = string.Empty;
                 try
                 {
                     string e = Path.GetExtension(p).ToLowerInvariant();
-                    if (e == ".g2d") tex = TryLoadG2DFrameViaMelinojaV3LikeOriginal(p, frame, out source);
-                    else tex = TryLoadBuildingGpFrameViaMelinojaV23LikeOriginal(p, frame, out source, md.Package);
+                    if (C2Settlement3InuMdV2ShouldUseNationColorLikeOriginal(kind))
+                    {
+                        Color32 nat = C2PlayerColorsLikeOriginal.GetNatColorByPlayer(r.Nation);
+                        if (e == ".g2d") tex = TryLoadG2DFrameViaMelinojaNationColorV1LikeOriginal(p, frame, nat, out source);
+                        else tex = TryLoadBuildingGpFrameViaMelinojaNationColorV1LikeOriginal(p, frame, nat, out source, md.Package);
+                    }
+                    if (tex == null)
+                    {
+                        if (e == ".g2d") tex = TryLoadG2DFrameViaMelinojaV3LikeOriginal(p, frame, out source);
+                        else tex = TryLoadBuildingGpFrameViaMelinojaV23LikeOriginal(p, frame, out source, md.Package);
+                    }
                     if (tex != null)
                     {
                         tex = C2Settlement3InuMdV2PrepareLoadedTextureLikeOriginal(tex);
@@ -2303,7 +2372,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2Settlement3InuMdV2AnimFrame frameRef = md.WorkFrames[i];
                 Texture2D tex;
                 string workAudit;
-                if (!C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frameRef, kind, out tex, out workAudit) || tex == null) continue;
+                if (!C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(md, frameRef, kind, r.Nation, out tex, out workAudit) || tex == null) continue;
 
                 C2Settlement3InuMdV2PreparePartTextureLikeOriginal(tex, false);
                 float lx, rx, by, ty;
@@ -2981,18 +3050,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 string outPath = Path.Combine(outDir, "C2MineNearbyShadowCull_V62_" + C2Settlement3InuMdV2SanitizeNameLikeOriginal(mapName) + ".txt");
                 File.WriteAllText(outPath, sb.ToString(), Encoding.UTF8);
 
-                Debug.Log("[C2:MINE NEARBY TERRAIN SHADOW CULL V62] mines=" + mineRecords.Length.ToString(CultureInfo.InvariantCulture) +
-                          " renderers=" + renderers.Length.ToString(CultureInfo.InvariantCulture) +
-                          " candidates=" + candidates.ToString(CultureInfo.InvariantCulture) +
-                          " disabled=" + disabled.ToString(CultureInfo.InvariantCulture) +
-                          " radiusWorld=" + radius.ToString(CultureInfo.InvariantCulture) +
-                          " file='" + outPath + "'" +
-                          " materials=" + C2Settlement3InuMdV2TopNamesLikeOriginal(materialCounts, 12) +
-                          " textures=" + C2Settlement3InuMdV2TopNamesLikeOriginal(textureCounts, 12));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:MINE NEARBY TERRAIN SHADOW CULL V62] failed: " + ex.GetType().Name + ":" + ex.Message);
             }
         }
 
@@ -3121,20 +3181,9 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
                 string outPath = Path.Combine(outDir, "C2MineNearbyTSBatchKill_V64_" + C2Settlement3InuMdV2SanitizeNameLikeOriginal(mapName) + ".txt");
                 File.WriteAllText(outPath, sb.ToString(), Encoding.UTF8);
 
-                Debug.Log("[C2:MINE NEARBY TS BATCH KILL V64] mines=" +
-                          (mineRecords != null ? mineRecords.Length.ToString(CultureInfo.InvariantCulture) : "0") +
-                          " transforms=" + (allTransforms != null ? allTransforms.Length.ToString(CultureInfo.InvariantCulture) : "0") +
-                          " batchRoots=" + batchRoots.ToString(CultureInfo.InvariantCulture) +
-                          " rootDisabled=" + rootDisabled.ToString(CultureInfo.InvariantCulture) +
-                          " renderersInside=" + renderersInside.ToString(CultureInfo.InvariantCulture) +
-                          " rendererDisabled=" + rendererDisabled.ToString(CultureInfo.InvariantCulture) +
-                          " file='" + outPath + "'" +
-                          " materials=" + C2Settlement3InuMdV2TopNamesLikeOriginal(materialCounts, 12) +
-                          " textures=" + C2Settlement3InuMdV2TopNamesLikeOriginal(textureCounts, 12));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:MINE NEARBY TS BATCH KILL V64] failed: " + ex.GetType().Name + ":" + ex.Message);
             }
         }
 
@@ -3266,18 +3315,9 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
                 string outPath = Path.Combine(outDir, "C2MineNearbyCull_V61_" + C2Settlement3InuMdV2SanitizeNameLikeOriginal(mapName) + ".txt");
                 File.WriteAllText(outPath, sb.ToString(), Encoding.UTF8);
 
-                Debug.Log("[C2:MINE NEARBY NATURE CULL V61] mines=" + mineRecords.Length.ToString(CultureInfo.InvariantCulture) +
-                          " renderers=" + renderers.Length.ToString(CultureInfo.InvariantCulture) +
-                          " candidates=" + candidates.ToString(CultureInfo.InvariantCulture) +
-                          " disabled=" + disabled.ToString(CultureInfo.InvariantCulture) +
-                          " radiusWorld=" + radius.ToString(CultureInfo.InvariantCulture) +
-                          " file='" + outPath + "'" +
-                          " materials=" + C2Settlement3InuMdV2TopNamesLikeOriginal(materialCounts, 12) +
-                          " textures=" + C2Settlement3InuMdV2TopNamesLikeOriginal(textureCounts, 12));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:MINE NEARBY NATURE CULL V61] failed: " + ex.GetType().Name + ":" + ex.Message);
             }
         }
 
@@ -3516,24 +3556,9 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
                 string outPath = Path.Combine(outDir, "C2MineNearbyAudit_V61_" + C2Settlement3InuMdV2SanitizeNameLikeOriginal(mapName) + ".txt");
                 File.WriteAllText(outPath, sb.ToString(), Encoding.UTF8);
 
-                Debug.Log("[C2:MINE NEARBY TERRAIN AUDIT V61] mines=" + mineRecords.Length.ToString(CultureInfo.InvariantCulture) +
-                          " renderers=" + (renderers != null ? renderers.Length : 0).ToString(CultureInfo.InvariantCulture) +
-                          " totalNearRaw=" + totalNearRaw.ToString(CultureInfo.InvariantCulture) +
-                          " settlementNear=" + totalSettlementNear.ToString(CultureInfo.InvariantCulture) +
-                          " smallNonBuilding=" + totalSmallNonBuilding.ToString(CultureInfo.InvariantCulture) +
-                          " excludedNonBuilding=" + totalExcludedNonBuilding.ToString(CultureInfo.InvariantCulture) +
-                          " radiusWorld=" + Settlement3InuMdV2MineNearbyAuditRadiusWorldV58.ToString(CultureInfo.InvariantCulture) +
-                          " file='" + outPath + "'" +
-                          " roots=" + C2Settlement3InuMdV2TopNamesLikeOriginal(rootCounts, 24) +
-                          " textures=" + C2Settlement3InuMdV2TopNamesLikeOriginal(textureCounts, 24) +
-                          " terrainRoots=" + C2Settlement3InuMdV2TopNamesLikeOriginal(terrainGroundRootCounts, 16) +
-                          " terrainTextures=" + C2Settlement3InuMdV2TopNamesLikeOriginal(terrainGroundTextureCounts, 16) +
-                          " terrainMaterials=" + C2Settlement3InuMdV2TopNamesLikeOriginal(terrainGroundMaterialCounts, 16) +
-                          " excluded=" + C2Settlement3InuMdV2TopNamesLikeOriginal(excludedReasonCounts, 12));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:MINE NEARBY TERRAIN AUDIT V61] failed: " + ex.GetType().Name + ":" + ex.Message);
             }
         }
 
@@ -3911,6 +3936,228 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
         }
 
         private static readonly HashSet<string> C2SettlementBuildingsLoadedGpV23LikeOriginal = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static bool C2Settlement3InuMdV2ShouldUseNationColorLikeOriginal(C2Settlement3InuMdV2Kind kind)
+        {
+            // Nation-color is safe for units now.
+            // Buildings keep the old exact loader for V2: the direct nation-color G16 path returns raw frame orientation
+            // and can flip/rotate some building sprites. Building nation color needs a separate exact-orientation adapter.
+            return kind == C2Settlement3InuMdV2Kind.Unit;
+        }
+
+        private static MethodInfo ResolveMelinojaNationColorMethodV2LikeOriginal(string methodName)
+        {
+            Type bridgeType = ResolveMelinojaBridgeTypeV2LikeOriginal();
+            if (bridgeType != null)
+            {
+                MethodInfo mi = bridgeType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+                if (mi != null) return mi;
+            }
+
+            Type facadeType = Type.GetType("TemnyLessCodec.CodecFacade, Melinoja");
+            if (facadeType == null) facadeType = Type.GetType("TemnyLessCodec.CodecFacade");
+            if (facadeType != null)
+            {
+                MethodInfo mi = facadeType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+                if (mi != null) return mi;
+            }
+
+            try
+            {
+                Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                for (int i = 0; i < assemblies.Length; i++)
+                {
+                    Assembly asm = assemblies[i];
+                    if (asm == null) continue;
+                    Type t = asm.GetType("TemnyLessCodec.CodecFacade", false);
+                    if (t == null) continue;
+                    MethodInfo mi = t.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+                    if (mi != null) return mi;
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        private static Texture2D TryLoadBuildingGpFrameViaMelinojaNationColorV1LikeOriginal(string abs, int frameIndex, Color32 nationColor, out string source, string logicalPackage = null)
+        {
+            source = string.Empty;
+
+            int melinojaFrameIndex;
+            string exactAudit;
+            if (C2Settlement3InuMdV2ResolveMelinojaCompactFrameV46LikeOriginal(!string.IsNullOrEmpty(logicalPackage) ? logicalPackage : abs, frameIndex, out melinojaFrameIndex, out exactAudit))
+            {
+                Texture2D tex = TryLoadG16FrameViaMelinojaNationColorV1LikeOriginal(abs, melinojaFrameIndex, nationColor, out string g16Source);
+                if (tex != null)
+                {
+                    source = "G16NationColor exactFrame=" + frameIndex.ToString(CultureInfo.InvariantCulture) +
+                             " melinojaFrame=" + melinojaFrameIndex.ToString(CultureInfo.InvariantCulture) +
+                             " " + exactAudit + " " + g16Source;
+                    return tex;
+                }
+            }
+
+            Texture2D g2dTex = TryLoadG2DFrameViaMelinojaNationColorV1LikeOriginal(abs, frameIndex, nationColor, out string g2dSource);
+            if (g2dTex != null)
+            {
+                source = "G2DNationColorFallback " + g2dSource;
+                return g2dTex;
+            }
+
+            source = "nation_color_decode_failed abs=" + (abs ?? string.Empty) + " logical=" + (logicalPackage ?? string.Empty) + " frame=" + frameIndex.ToString(CultureInfo.InvariantCulture) + " g2d=" + g2dSource;
+            return null;
+        }
+
+        private static Texture2D TryLoadG16FrameViaMelinojaNationColorV1LikeOriginal(string abs, int frameIndex, Color32 nationColor, out string source)
+        {
+            source = string.Empty;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(abs) || !File.Exists(abs))
+                {
+                    source = "g16_nat_path_not_found:" + (abs ?? string.Empty);
+                    return null;
+                }
+
+                MethodInfo load = ResolveMelinojaNationColorMethodV2LikeOriginal("LoadG16ToMemoryNationColor");
+                if (load != null)
+                {
+                    ParameterInfo[] lps = load.GetParameters();
+                    object[] largs = lps.Length == 6
+                        ? new object[] { abs, nationColor.r, nationColor.g, nationColor.b, null, false }
+                        : null;
+                    if (largs != null)
+                    {
+                        try { load.Invoke(null, largs); } catch { }
+                    }
+                }
+
+                MethodInfo mi = ResolveMelinojaNationColorMethodV2LikeOriginal("TryGetG16FrameRGBANationColor");
+                if (mi == null)
+                {
+                    source = "TryGetG16FrameRGBANationColor not found on bridge or CodecFacade";
+                    return null;
+                }
+
+                object[] args = { abs, frameIndex, nationColor.r, nationColor.g, nationColor.b, 0, 0, null, null };
+                object result = mi.Invoke(null, args);
+                if (!(result is bool ok) || !ok)
+                {
+                    source = "TryGetG16FrameRGBANationColor false: " + (args[8] as string ?? string.Empty);
+                    return null;
+                }
+
+                int w = args[5] is int iw ? iw : 0;
+                int h = args[6] is int ih ? ih : 0;
+                byte[] rgba = args[7] as byte[];
+                if (w <= 0 || h <= 0 || rgba == null || rgba.Length < w * h * 4)
+                {
+                    source = "g16_nat_invalid_frame " + w.ToString(CultureInfo.InvariantCulture) + "x" + h.ToString(CultureInfo.InvariantCulture);
+                    return null;
+                }
+
+                Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+                tex.name = "C2_NAT_G16_" + Path.GetFileNameWithoutExtension(abs) + "_frame_" + frameIndex.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.g.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.b.ToString(CultureInfo.InvariantCulture);
+                tex.LoadRawTextureData(rgba);
+                tex.Apply(false, false);
+                tex.filterMode = FilterMode.Point;
+                tex.wrapMode = TextureWrapMode.Clamp;
+                source = "g16_nat_ok " + tex.name;
+                return tex;
+            }
+            catch (Exception ex)
+            {
+                source = "g16_nat_exception " + ex.GetType().Name + ":" + ex.Message;
+                return null;
+            }
+        }
+
+        private static readonly Dictionary<string, string> C2Settlement3InuMdV2DecodedG2DNationDirsV1LikeOriginal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        private static Texture2D TryLoadG2DFrameViaMelinojaNationColorV1LikeOriginal(string abs, int frameIndex, Color32 nationColor, out string source)
+        {
+            source = string.Empty;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(abs) || !File.Exists(abs))
+                {
+                    source = "g2d_nat_path_not_found:" + (abs ?? string.Empty);
+                    return null;
+                }
+
+                string key = Path.GetFullPath(abs) + "|nat=" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "," + nationColor.g.ToString(CultureInfo.InvariantCulture) + "," + nationColor.b.ToString(CultureInfo.InvariantCulture);
+                string searchDirsJoined;
+                string decodeAudit = string.Empty;
+                string outDir = Path.Combine(GetNatureG2DDecodeCacheDirV4LikeOriginal(abs), "nat_" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.g.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.b.ToString(CultureInfo.InvariantCulture));
+                if (!Directory.Exists(outDir)) Directory.CreateDirectory(outDir);
+
+                if (!C2Settlement3InuMdV2DecodedG2DNationDirsV1LikeOriginal.TryGetValue(key, out searchDirsJoined) || string.IsNullOrWhiteSpace(searchDirsJoined))
+                {
+                    MethodInfo mi = ResolveMelinojaNationColorMethodV2LikeOriginal("DecodeG2DToLogAndFramesNationColor");
+                    if (mi == null)
+                    {
+                        source = "DecodeG2DToLogAndFramesNationColor not found on bridge or CodecFacade";
+                        return null;
+                    }
+
+                    object[] args = { abs, nationColor.r, nationColor.g, nationColor.b, null, null, false };
+                    object result = mi.Invoke(null, args);
+                    bool ok = result is bool b && b;
+                    string logPath = args[4] as string ?? string.Empty;
+                    string err = args[5] as string ?? string.Empty;
+                    decodeAudit = "ok=" + ok.ToString() + " log=" + logPath + " err=" + err;
+
+                    List<string> dirs = new List<string>();
+                    string srcDir = Path.GetDirectoryName(abs) ?? string.Empty;
+                    string baseNoExt = Path.GetFileNameWithoutExtension(abs) ?? string.Empty;
+
+                    // V4: STRICT nation-color search.
+                    // Do not add BuildNatureG2DFrameSearchDirsV5LikeOriginal() here: it contains ordinary
+                    // ENGKRIC_frames/ENGKRIG_frames folders and masks a failed nation-color decode.
+                    string natSuffix = "_nat_" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "_" +
+                                       nationColor.g.ToString(CultureInfo.InvariantCulture) + "_" +
+                                       nationColor.b.ToString(CultureInfo.InvariantCulture);
+                    AddNatureDirV5LikeOriginal(dirs, outDir);
+                    AddNatureDirV5LikeOriginal(dirs, Path.Combine(srcDir, baseNoExt + natSuffix + "_frames"));
+                    AddNatureDirV5LikeOriginal(dirs, Path.Combine(srcDir, baseNoExt + natSuffix));
+
+                    searchDirsJoined = JoinNatureDirsV5LikeOriginal(dirs);
+                    C2Settlement3InuMdV2DecodedG2DNationDirsV1LikeOriginal[key] = searchDirsJoined;
+
+                }
+
+                string existing = FindNatureDecodedG2DFrameFileInDirsV5LikeOriginal(searchDirsJoined, frameIndex);
+                if (string.IsNullOrWhiteSpace(existing))
+                {
+                    source = "g2d_nat_failed_no_colored_frame frame=" + frameIndex.ToString(CultureInfo.InvariantCulture) +
+                             " rgb=" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "," +
+                             nationColor.g.ToString(CultureInfo.InvariantCulture) + "," +
+                             nationColor.b.ToString(CultureInfo.InvariantCulture) +
+                             " strictDirs=" + searchDirsJoined +
+                             " audit=" + decodeAudit;
+                    return null;
+                }
+
+                Texture2D tex = LoadNatureDecodedFrameTextureV4LikeOriginal(existing, out string loadAudit);
+                if (tex == null)
+                {
+                    source = "g2d_nat_load_failed file=" + existing + " " + loadAudit;
+                    return null;
+                }
+
+                tex.name = "C2_NAT_G2D_" + Path.GetFileNameWithoutExtension(abs) + "_frame_" + frameIndex.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.g.ToString(CultureInfo.InvariantCulture) + "_" + nationColor.b.ToString(CultureInfo.InvariantCulture);
+                tex.filterMode = FilterMode.Point;
+                tex.wrapMode = TextureWrapMode.Clamp;
+                source = "g2d_nat_ok_strict frameFile=" + existing + " loaded=" + loadAudit;
+                return tex;
+            }
+            catch (Exception ex)
+            {
+                source = "g2d_nat_exception " + ex.GetType().Name + ":" + ex.Message;
+                return null;
+            }
+        }
 
         private static Texture2D TryLoadBuildingGpFrameViaMelinojaV23LikeOriginal(string abs, int frameIndex, out string source, string logicalPackage = null)
         {

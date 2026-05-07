@@ -61,12 +61,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 ? resources.CrossTex.width.ToString() + "x" + resources.CrossTex.height.ToString()
                 : "NULL";
 
-            UnityEngine.Debug.Log(
-                $"[C2:FAST V9] textured no-bake runtime terrain active. " +
-                $"rect=({kernel.MinCellX},{kernel.MinCellY})->({kernel.MaxCellXExclusive},{kernel.MaxCellYExclusive}) " +
-                $"stripeWidth={stripeWidth} stripes={stripeCount} " +
-                $"groundAtlas={groundAtlasText} cross={crossAtlasText} " +
-                $"mode=runtime-mesh+original-uv; noCPUChunkBake noTexturePictures noPNGCache noSoftwareRasterLoop");
 
             for (int stripe = 0; stripe < stripeCount; stripe++)
             {
@@ -115,8 +109,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (usedFallback)
                 {
                     fallbackStripes++;
-                    if (fallbackStripes <= 4)
-                        UnityEngine.Debug.LogWarning($"[C2:FAST V9] stripe={stripe} direct atlas fallback reason={fallbackReason}");
                 }
                 else
                 {
@@ -132,11 +124,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!hasBounds)
                 terrainBounds = new Bounds(Vector3.zero, Vector3.one);
 
-            UnityEngine.Debug.Log(
-                $"[C2:FAST V9] built textured runtime stripes={built}/{stripeCount} skipped={skipped} " +
-                $"originalPayloadStripes={runtimePayloadStripes} directAtlasFallbackStripes={fallbackStripes} " +
-                $"vertices={totalVertices} baseTris={totalBaseTriangles} overlayTris={totalOverlayTriangles}. " +
-                $"Old software chunk bake was NOT called.");
         }
 
         // Compatibility alias: if an older patched C2BattleTerrainMode.cs still calls V7,

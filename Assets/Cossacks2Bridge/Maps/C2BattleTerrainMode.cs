@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Cossacks2Bridge.UnityAdapters.Maps.InternalBZip2;
 using System.IO;
@@ -304,7 +304,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _freeCameraMode = false;
             ApplyActiveBattleCameraMode(forceLog: true);
             UpdateCameraTransform();
-            UnityEngine.Debug.Log($"[C2:REN] clean mode active path=strict-runtime-literal-irs build=once dispatch={GetSurfaceDispatchNameLikeOriginal(_map)} traversal=hybrid-whole-map-stripes");
         }
 
         private void CreateTerrainObject(string selectedId)
@@ -324,7 +323,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             sw.Stop();
 
             _terrainBuilt = true;
-            UnityEngine.Debug.Log($"[C2:REN] terrain built path=strict-runtime-literal-irs mode=build-once dispatch={GetSurfaceDispatchNameLikeOriginal(_map)} stripes cols={StripeColumnWidth} bounds={_terrainBounds.min}->{_terrainBounds.max} timeMs={sw.ElapsedMilliseconds}");
         }
 
         private void CreateCamera()
@@ -1045,7 +1043,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_freeCameraMode)
                 return;
 
-            Debug.Log($"[C2:CAM] strictMap=({_strictMapX:0.###},{_strictMapY:0.###}) zoom={_strictZoom:0.###} focus={_pivot} dist={_distance:0.###} camPos={_camera.transform.position} camForward={_camera.transform.forward} lookDot={lookDot:0.###}");
         }
 
         private ParsedMap ResolveLiteralITerraRuntimeMapLikeOriginal()
@@ -1276,7 +1273,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
                     catch (Exception ex)
                     {
-                        UnityEngine.Debug.LogWarning($"[C2:V50 CANDIDATE TEX44 MASK] stripe={stripe} build failed: {ex.GetType().Name}: {ex.Message}");
                     }
 
                     if (mesh == null || mesh.vertexCount == 0)
@@ -1320,9 +1316,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 terrainBounds.Encapsulate(overlayBounds.max);
             }
 
-            UnityEngine.Debug.Log(
-                $"[C2:V50 CANDIDATE TEX44 MASK] active=fast-software-base-plus-candidate-old-surface-standalone-tex44-overlay " +
-                $"areaMask=candidate_tile_ids sampleSource=standalone_tex44_bmp tex44Loaded={(tex44 != null ? 1 : 0)} candidateIds=3,7,9,10,20,21,44,55 alphaForce=255 materialForceOpaque=1 crossAlpha=off clip=off fullColor=1 brightness=1.20 standaloneLocalUv=frac_atlas8 filter=resolved+vertexSupport tileRemap=enabled yOffset=0 zTest=Always zWrite=Off stageSplit=off queues=3600/3601 stripes={builtStripes}/{stripeCount} skipped={skippedStripes} vertices={totalVertices} {GetV44OldSurfaceTileFilterStatsLikeAdapted()}");
         }
 
         private static Texture2D TryLoadV48BridgeCobbleTex44LikeAdapted()
@@ -1341,12 +1334,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Texture2D tex = Resources.Load<Texture2D>(resourcePaths[i]);
                 if (tex != null)
                 {
-                    Debug.Log($"[C2:V50 CANDIDATE TEX44 MASK] standalone texture loaded via Resources path='{resourcePaths[i]}' size={tex.width}x{tex.height}");
                     return tex;
                 }
             }
 
-            Debug.LogWarning("[C2:V50 CANDIDATE TEX44 MASK] standalone tex44.bmp not found via Resources.Load. Overlay will fall back to source GroundTex atlas; check Assets/Resources/textures/Ground/tex44.bmp.");
             return null;
         }
 

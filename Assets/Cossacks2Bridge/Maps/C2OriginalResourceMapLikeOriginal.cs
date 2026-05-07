@@ -32,15 +32,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         // V1G: runtime identity layer. Rendering may stay batched, but gameplay reads OneSprite runtime objects.
         // This mirrors original engine logic: OneSprite -> ObjCharacter -> ResType.
-        public bool C2OriginalResourceMapV1AutoLinkAuditLikeOriginal = true;
-        public bool C2OriginalResourceMapV1CreateMarkerObjectsLikeOriginal = true; // legacy V1F marker, kept for debug compatibility
-        public bool C2OriginalResourceMapV1CreateOneSpriteRuntimeLikeOriginal = true;
+        public bool C2OriginalResourceMapV1AutoLinkAuditLikeOriginal = false; // V1H: no delayed scene scan in runtime FPS path.
+        public bool C2OriginalResourceMapV1CreateMarkerObjectsLikeOriginal = false; // V1H: no debug marker GameObjects in runtime path.
+        public bool C2OriginalResourceMapV1CreateOneSpriteRuntimeLikeOriginal = false; // V1H: table-only, no C2_OneSprites_Runtime GameObjects.
         public int C2OriginalResourceMapV1StoneLinkAuditLimitLikeOriginal = 50;
 
         private const int C2OriginalResourceMapV1CellShiftLikeOriginal = 7;
         private const int C2OriginalResourceMapV1SearchRadiusCellsLikeOriginal = 2;
         private const int C2OriginalResourceMapV1AcceptDistanceLikeOriginal = 160;
-        private const string C2OriginalResourceMapV1ContractLikeOriginal = "V1G_Sprites_SpRefs_DetermineResource_OneSprite_Runtime";
+        private const string C2OriginalResourceMapV1ContractLikeOriginal = "V1H_Sprites_SpRefs_DetermineResource_TableOnly_NoRuntimeGameObjects";
 
         private bool _c2OriginalResourceMapV1BuiltLikeOriginal;
         private C2OriginalResourceMapStateV1LikeOriginal _c2OriginalResourceMapV1StateLikeOriginal;
@@ -115,13 +115,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                           " skippedNoDefinition=" + resState.SkippedNoDefinition.ToString(CultureInfo.InvariantCulture) +
                           " skippedNoResource=" + resState.SkippedNoResource.ToString(CultureInfo.InvariantCulture));
 
-                if (C2OriginalResourceMapV1CreateOneSpriteRuntimeLikeOriginal)
-                {
-                    int oneSpriteCreated;
-                    int oneSpriteReused;
-                    C2OriginalResourceMapV1EnsureOneSpriteRuntimeObjectsLikeOriginal(resState, out oneSpriteCreated, out oneSpriteReused);
-                    C2OriginalResourceMapV1LogOneSpriteRuntimeSummaryLikeOriginal(resState, "build_" + source, oneSpriteCreated, oneSpriteReused, 0, 0);
-                }
+                // V1H: gameplay hover/order code reads the TRE2 -> ResourceEntry bucket table directly.
+                // Do not create C2_OneSprites_Runtime / marker GameObject layers: they add thousands of Transforms.
+                int oneSpriteCreated;
+                int oneSpriteReused;
+                C2OriginalResourceMapV1EnsureOneSpriteRuntimeObjectsLikeOriginal(resState, out oneSpriteCreated, out oneSpriteReused);
+                C2OriginalResourceMapV1LogOneSpriteRuntimeSummaryLikeOriginal(resState, "build_" + source, oneSpriteCreated, oneSpriteReused, 0, 0);
 
                 return true;
             }
@@ -150,12 +149,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (state == null)
                 return false;
 
-            if (C2OriginalResourceMapV1CreateOneSpriteRuntimeLikeOriginal)
-            {
-                int created;
-                int reused;
-                C2OriginalResourceMapV1EnsureOneSpriteRuntimeObjectsLikeOriginal(state, out created, out reused);
-            }
+            // V1H: no MonoBehaviour OneSprite runtime layer. Keep this method for old callers,
+            // but resource determination below uses the pure table and will not spawn GameObjects.
+            int created;
+            int reused;
+            C2OriginalResourceMapV1EnsureOneSpriteRuntimeObjectsLikeOriginal(state, out created, out reused);
 
             C2OriginalResourceEntryV1LikeOriginal entry;
             resourceId = C2OriginalResourceMapV1DetermineResourceLikeOriginal(originalX, originalY, out entry, out bestDist);
@@ -791,12 +789,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (w < 6.0f && h < 6.0f)
             {
-                Debug.Log("[C2:RESOURCE SELECT V1G] sel=" + selectionId.ToString(CultureInfo.InvariantCulture) +
-                          " ignored small_rect gui=(" +
-                          x0.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                          y0.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                          w.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                          h.ToString("0.0", CultureInfo.InvariantCulture) + ")");
                 return;
             }
 
@@ -809,8 +801,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (cam == null)
             {
-                Debug.Log("[C2:RESOURCE SELECT V1G] sel=" + selectionId.ToString(CultureInfo.InvariantCulture) +
-                          " failed no_camera");
                 return;
             }
 
@@ -868,18 +858,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return ay.CompareTo(by);
             });
 
-            Debug.Log("[C2:RESOURCE SELECT V1G] sel=" + selectionId.ToString(CultureInfo.InvariantCulture) +
-                      " rectGui=(" +
-                      x0.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                      y0.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                      w.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                      h.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
-                      " total=" + hits.Count.ToString(CultureInfo.InvariantCulture) +
-                      " WOOD=" + wood.ToString(CultureInfo.InvariantCulture) +
-                      " STONE=" + stone.ToString(CultureInfo.InvariantCulture) +
-                      " FOOD=" + food.ToString(CultureInfo.InvariantCulture) +
-                      " OTHER=" + other.ToString(CultureInfo.InvariantCulture) +
-                      " mode=project_resource_entries_to_screen");
 
             C2OriginalResourceMapV1DebugStoneNearestToSelectionLikeOriginal(state, cam, rect, selectionId, x0, y0, w, h);
 
@@ -910,9 +888,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 if (sb.Length + token.Length > 3200)
                 {
-                    Debug.Log("[C2:RESOURCE SELECT V1G] sel=" + selectionId.ToString(CultureInfo.InvariantCulture) +
-                              " part=" + part.ToString(CultureInfo.InvariantCulture) +
-                              " entries=" + sb.ToString());
                     sb.Length = 0;
                     part++;
                     totalParts++;
@@ -923,9 +898,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (sb.Length > 0)
             {
-                Debug.Log("[C2:RESOURCE SELECT V1G] sel=" + selectionId.ToString(CultureInfo.InvariantCulture) +
-                          " part=" + part.ToString(CultureInfo.InvariantCulture) +
-                          " entries=" + sb.ToString());
             }
         }
 
@@ -1013,17 +985,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return ay.CompareTo(by);
             });
 
-            Debug.Log("[C2:RESOURCE STONE PROBE V1G] sel=" + selectionId.ToString(CultureInfo.InvariantCulture) +
-                      " rectGui=(" +
-                      x0.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                      y0.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                      w.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                      h.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
-                      " stoneTotal=" + totalStone.ToString(CultureInfo.InvariantCulture) +
-                      " stoneProjected=" + projectedStone.ToString(CultureInfo.InvariantCulture) +
-                      " stoneInside=" + insideStone.ToString(CultureInfo.InvariantCulture) +
-                      " nearestLogged=" + Mathf.Min(16, nearest.Count).ToString(CultureInfo.InvariantCulture) +
-                      " mode=nearest_STONE_to_rect_edge_and_center");
 
             if (nearest.Count == 0)
                 return;
@@ -1062,8 +1023,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 sb.Append("; ");
             }
 
-            Debug.Log("[C2:RESOURCE STONE PROBE V1G] sel=" + selectionId.ToString(CultureInfo.InvariantCulture) +
-                      " nearest=" + sb.ToString());
         }
 
 
@@ -1215,101 +1174,50 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void C2OriginalResourceMapV1EnsureOneSpriteRuntimeObjectsLikeOriginal(C2OriginalResourceMapStateV1LikeOriginal state, out int created, out int reused)
         {
+            // V1H: table-only runtime. This function intentionally does NOT instantiate
+            // C2_OneSprites_Runtime children, renderers, markers, colliders, or Transforms.
+            // The original identity stays in C2OriginalResourceEntryV1LikeOriginal and Buckets.
             created = 0;
             reused = 0;
-            if (state == null || state.Entries == null)
+
+            C2OriginalResourceMapV1DestroyRuntimeGameObjectLayerLikeOriginal(ref _c2OriginalResourceMapV1OneSpriteRootLikeOriginal, "C2_OneSprites_Runtime");
+            C2OriginalResourceMapV1DestroyRuntimeGameObjectLayerLikeOriginal(ref _c2OriginalResourceMapV1MarkerRootLikeOriginal, "C2_OriginalResourceMarkers_V1F");
+
+            if (state == null)
                 return;
 
-            if (_c2OriginalResourceMapV1OneSpriteRootLikeOriginal == null)
-            {
-                GameObject old = GameObject.Find("C2_OneSprites_Runtime");
-                if (old != null) _c2OriginalResourceMapV1OneSpriteRootLikeOriginal = old;
-            }
+            if (state.OneSpritesByExactKey != null)
+                state.OneSpritesByExactKey.Clear();
+            if (state.OneSpriteBuckets != null)
+                state.OneSpriteBuckets.Clear();
 
-            if (_c2OriginalResourceMapV1OneSpriteRootLikeOriginal == null)
-            {
-                _c2OriginalResourceMapV1OneSpriteRootLikeOriginal = new GameObject("C2_OneSprites_Runtime");
-                _c2OriginalResourceMapV1OneSpriteRootLikeOriginal.hideFlags = HideFlags.DontSave;
-            }
-
-            Transform root = _c2OriginalResourceMapV1OneSpriteRootLikeOriginal.transform;
+            if (state.Entries == null)
+                return;
 
             for (int i = 0; i < state.Entries.Count; i++)
             {
                 C2OriginalResourceEntryV1LikeOriginal e = state.Entries[i];
-                if (e == null || e.Definition == null)
+                if (e == null)
                     continue;
-
-                if (e.OneSpriteRuntime != null)
-                {
-                    reused++;
-                    continue;
-                }
-
-                C2OriginalOneSpriteRuntimeLikeOriginal existing;
-                if (state.OneSpritesByExactKey.TryGetValue(e.ExactKey, out existing) && existing != null)
-                {
-                    e.OneSpriteRuntime = existing;
-                    reused++;
-                    continue;
-                }
-
-                string resName = C2OriginalResourceMapV1ResourceNameLikeOriginal(e.Definition.ResType);
-                string objectId = string.IsNullOrWhiteSpace(e.Definition.ObjectId) ? ("sg" + e.SpriteIndex.ToString(CultureInfo.InvariantCulture)) : e.Definition.ObjectId;
-                string oneSpriteName = e.Sign + "_" + objectId + "_" +
-                                       e.OriginalX.ToString(CultureInfo.InvariantCulture) + "_" +
-                                       e.OriginalY.ToString(CultureInfo.InvariantCulture) + "_" + resName;
-
-                GameObject go = new GameObject(oneSpriteName);
-                go.hideFlags = HideFlags.DontSave;
-                go.transform.SetParent(root, false);
-
-                Vector3 world = C2NeutralPeasantUnitsV2OriginalPixelToWorldV15LikeOriginal(e.OriginalX, e.OriginalY);
-                go.transform.position = world;
-
-                C2OriginalOneSpriteRuntimeLikeOriginal os = go.AddComponent<C2OriginalOneSpriteRuntimeLikeOriginal>();
-                os.ConfigureLikeOriginal(
-                    e.ExactKey,
-                    e.SignSpriteKey,
-                    e.Sign,
-                    e.SpriteIndex,
-                    objectId,
-                    e.OriginalX,
-                    e.OriginalY,
-                    e.OriginalZ,
-                    e.Order,
-                    e.Section,
-                    e.NIndex,
-                    e.Locking,
-                    e.HasMatrix,
-                    e.Definition.ResType,
-                    resName,
-                    e.Definition.ResPerWork,
-                    e.Definition.WorkRadius,
-                    e.Definition.WorkAmount,
-                    e.Definition.WorkNextIndex,
-                    e.Definition.TimeAmount,
-                    e.Definition.TimeNextIndex,
-                    e.Definition.IsFieldPath,
-                    e.Definition.FieldWidth,
-                    e.Definition.FieldHeight,
-                    e.Definition.FieldGrowStage,
-                    e.Definition.FieldYScale,
-                    world,
-                    null);
-
-                e.OneSpriteRuntime = os;
-                state.OneSpritesByExactKey[e.ExactKey] = os;
-                long bucketKey = C2OriginalResourceMapV1BucketKeyLikeOriginal(e.OriginalX >> C2OriginalResourceMapV1CellShiftLikeOriginal, e.OriginalY >> C2OriginalResourceMapV1CellShiftLikeOriginal);
-                List<C2OriginalOneSpriteRuntimeLikeOriginal> bucket;
-                if (!state.OneSpriteBuckets.TryGetValue(bucketKey, out bucket) || bucket == null)
-                {
-                    bucket = new List<C2OriginalOneSpriteRuntimeLikeOriginal>();
-                    state.OneSpriteBuckets[bucketKey] = bucket;
-                }
-                bucket.Add(os);
-                created++;
+                e.OneSpriteRuntime = null;
+                e.Marker = null;
             }
+        }
+
+        private static void C2OriginalResourceMapV1DestroyRuntimeGameObjectLayerLikeOriginal(ref GameObject cachedRoot, string rootName)
+        {
+            GameObject root = cachedRoot;
+            if (root == null && !string.IsNullOrEmpty(rootName))
+                root = GameObject.Find(rootName);
+
+            cachedRoot = null;
+            if (root == null)
+                return;
+
+            if (Application.isPlaying)
+                UnityEngine.Object.Destroy(root);
+            else
+                UnityEngine.Object.DestroyImmediate(root);
         }
 
         private void C2OriginalResourceMapV1UpdateOneSpriteRuntimeLinksLikeOriginal(C2OriginalResourceMapStateV1LikeOriginal state, List<Renderer> natureRenderers, out int linked, out int unlinked)
@@ -1348,10 +1256,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             int runtimeTotal = state.OneSpritesByExactKey != null ? state.OneSpritesByExactKey.Count : 0;
             int runtimeBuckets = state.OneSpriteBuckets != null ? state.OneSpriteBuckets.Count : 0;
-            int runtimeWood = 0;
-            int runtimeStone = 0;
-            int runtimeFood = 0;
-            int runtimeOther = 0;
+            int tableBuckets = state.Buckets != null ? state.Buckets.Count : 0;
+            int tableWood = 0;
+            int tableStone = 0;
+            int tableFood = 0;
+            int tableOther = 0;
             int gaStone = 0;
             int tsStone = 0;
             int ocFood = 0;
@@ -1361,14 +1270,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 for (int i = 0; i < state.Entries.Count; i++)
                 {
                     C2OriginalResourceEntryV1LikeOriginal e = state.Entries[i];
-                    if (e == null || e.Definition == null || e.OneSpriteRuntime == null)
+                    if (e == null || e.Definition == null)
                         continue;
 
                     byte res = e.Definition.ResType;
-                    if (res == C2OriginalResourceWoodV1LikeOriginal) runtimeWood++;
-                    else if (res == C2OriginalResourceStoneV1LikeOriginal) runtimeStone++;
-                    else if (res == C2OriginalResourceFoodV1LikeOriginal) runtimeFood++;
-                    else runtimeOther++;
+                    if (res == C2OriginalResourceWoodV1LikeOriginal) tableWood++;
+                    else if (res == C2OriginalResourceStoneV1LikeOriginal) tableStone++;
+                    else if (res == C2OriginalResourceFoodV1LikeOriginal) tableFood++;
+                    else tableOther++;
 
                     if (res == C2OriginalResourceStoneV1LikeOriginal && string.Equals(e.Sign, "GA", StringComparison.OrdinalIgnoreCase)) gaStone++;
                     if (res == C2OriginalResourceStoneV1LikeOriginal && string.Equals(e.Sign, "TS", StringComparison.OrdinalIgnoreCase)) tsStone++;
@@ -1376,81 +1285,42 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
-            Debug.Log("[C2:ONESPRITE RUNTIME V1G] reason=" + reason +
+            Debug.Log("[C2:ONESPRITE TABLE V1H] reason=" + reason +
                       " contract=" + C2OriginalResourceMapV1ContractLikeOriginal +
-                      " root='C2_OneSprites_Runtime'" +
+                      " root='NONE_TABLE_ONLY'" +
                       " entries=" + (state.Entries != null ? state.Entries.Count.ToString(CultureInfo.InvariantCulture) : "0") +
-                      " runtime=" + runtimeTotal.ToString(CultureInfo.InvariantCulture) +
-                      " created=" + created.ToString(CultureInfo.InvariantCulture) +
-                      " reused=" + reused.ToString(CultureInfo.InvariantCulture) +
-                      " buckets=" + runtimeBuckets.ToString(CultureInfo.InvariantCulture) +
-                      " WOOD=" + runtimeWood.ToString(CultureInfo.InvariantCulture) +
-                      " STONE=" + runtimeStone.ToString(CultureInfo.InvariantCulture) +
-                      " FOOD=" + runtimeFood.ToString(CultureInfo.InvariantCulture) +
-                      " OTHER=" + runtimeOther.ToString(CultureInfo.InvariantCulture) +
+                      " buckets=" + tableBuckets.ToString(CultureInfo.InvariantCulture) +
+                      " runtimeGameObjects=" + runtimeTotal.ToString(CultureInfo.InvariantCulture) +
+                      " runtimeBuckets=" + runtimeBuckets.ToString(CultureInfo.InvariantCulture) +
+                      " createdGameObjects=" + created.ToString(CultureInfo.InvariantCulture) +
+                      " reusedGameObjects=" + reused.ToString(CultureInfo.InvariantCulture) +
+                      " WOOD=" + tableWood.ToString(CultureInfo.InvariantCulture) +
+                      " STONE=" + tableStone.ToString(CultureInfo.InvariantCulture) +
+                      " FOOD=" + tableFood.ToString(CultureInfo.InvariantCulture) +
+                      " OTHER=" + tableOther.ToString(CultureInfo.InvariantCulture) +
                       " GA_STONE=" + gaStone.ToString(CultureInfo.InvariantCulture) +
                       " TS_STONE=" + tsStone.ToString(CultureInfo.InvariantCulture) +
                       " OC_FOOD=" + ocFood.ToString(CultureInfo.InvariantCulture) +
                       " linkedBatch=" + linked.ToString(CultureInfo.InvariantCulture) +
                       " unlinkedBatch=" + unlinked.ToString(CultureInfo.InvariantCulture) +
-                      " note='gameplay must read this OneSprite runtime layer, not the batched renderers'");
+                      " note='gameplay reads TRE2 ResourceEntry buckets directly; no C2_OneSprites_Runtime GameObject layer'");
         }
 
         private void C2OriginalResourceMapV1EnsureMarkerObjectsLikeOriginal(C2OriginalResourceMapStateV1LikeOriginal state, out int created, out int reused)
         {
+            // V1H: runtime must not spawn debug/resource marker GameObjects either.
             created = 0;
             reused = 0;
+            C2OriginalResourceMapV1DestroyRuntimeGameObjectLayerLikeOriginal(ref _c2OriginalResourceMapV1MarkerRootLikeOriginal, "C2_OriginalResourceMarkers_V1F");
+
             if (state == null || state.Entries == null)
                 return;
 
-            if (_c2OriginalResourceMapV1MarkerRootLikeOriginal == null)
-            {
-                GameObject old = GameObject.Find("C2_OriginalResourceMarkers_V1F");
-                if (old != null) _c2OriginalResourceMapV1MarkerRootLikeOriginal = old;
-            }
-
-            if (_c2OriginalResourceMapV1MarkerRootLikeOriginal == null)
-            {
-                _c2OriginalResourceMapV1MarkerRootLikeOriginal = new GameObject("C2_OriginalResourceMarkers_V1F");
-                _c2OriginalResourceMapV1MarkerRootLikeOriginal.hideFlags = HideFlags.DontSave;
-            }
-
-            Transform root = _c2OriginalResourceMapV1MarkerRootLikeOriginal.transform;
             for (int i = 0; i < state.Entries.Count; i++)
             {
                 C2OriginalResourceEntryV1LikeOriginal e = state.Entries[i];
-                if (e == null || e.Definition == null)
-                    continue;
-
-                if (e.Marker != null)
-                {
-                    reused++;
-                    continue;
-                }
-
-                string markerName = "RES_" + C2OriginalResourceMapV1ResourceNameLikeOriginal(e.Definition.ResType) + "_" +
-                                    e.Sign + "_" + e.Definition.ObjectId + "_sg" + e.SpriteIndex.ToString(CultureInfo.InvariantCulture) + "_" +
-                                    e.OriginalX.ToString(CultureInfo.InvariantCulture) + "_" + e.OriginalY.ToString(CultureInfo.InvariantCulture);
-                GameObject go = new GameObject(markerName);
-                go.hideFlags = HideFlags.HideInHierarchy | HideFlags.DontSave;
-                go.transform.SetParent(root, false);
-                go.transform.position = C2NeutralPeasantUnitsV2OriginalPixelToWorldV15LikeOriginal(e.OriginalX, e.OriginalY);
-                C2OriginalResourceMarkerLikeOriginal marker = go.AddComponent<C2OriginalResourceMarkerLikeOriginal>();
-                marker.ConfigureLikeOriginal(
-                    e.ExactKey,
-                    e.SignSpriteKey,
-                    e.Sign,
-                    e.SpriteIndex,
-                    e.Definition != null ? e.Definition.ObjectId : string.Empty,
-                    e.OriginalX,
-                    e.OriginalY,
-                    e.Definition != null ? e.Definition.ResType : C2OriginalResourceEmptyV1LikeOriginal,
-                    C2OriginalResourceMapV1ResourceNameLikeOriginal(e.Definition != null ? e.Definition.ResType : C2OriginalResourceEmptyV1LikeOriginal),
-                    e.Definition != null ? e.Definition.WorkRadius : 0,
-                    e.Definition != null ? e.Definition.ResPerWork : 0,
-                    e.Order);
-                e.Marker = marker;
-                created++;
+                if (e != null)
+                    e.Marker = null;
             }
         }
 

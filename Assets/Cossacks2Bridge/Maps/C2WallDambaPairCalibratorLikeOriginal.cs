@@ -73,7 +73,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 !catalog.ByIndex.TryGetValue(C2WallDambaPairCalibratorV1PrimarySprite, out _c2WallDambaPairCalibratorDescAV1LikeOriginal) ||
                 !catalog.ByIndex.TryGetValue(C2WallDambaPairCalibratorV1SecondarySprite, out _c2WallDambaPairCalibratorDescBV1LikeOriginal))
             {
-                Debug.LogWarning("[C2:DAMBA PAIR CAL V1] W60/W63 catalog entries missing; calibrator not spawned.");
                 return;
             }
 
@@ -81,7 +80,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             WallC2MParsedMeshV23LikeOriginal c2mB = TryLoadWallC2MVisualMeshV23LikeOriginal(_c2WallDambaPairCalibratorDescBV1LikeOriginal.ModelPath, out string auditB);
             if (c2mA == null || c2mB == null)
             {
-                Debug.LogWarning("[C2:DAMBA PAIR CAL V1] C2M load failed A='" + auditA + "' B='" + auditB + "'");
                 return;
             }
 
@@ -115,7 +113,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             AttachWallDambaCalibratorMeshV1LikeOriginal(_c2WallDambaPairCalibratorAnchorAV1LikeOriginal.gameObject, _c2WallDambaPairCalibratorDescAV1LikeOriginal, c2mA, "A");
             AttachWallDambaCalibratorMeshV1LikeOriginal(_c2WallDambaPairCalibratorAnchorBV1LikeOriginal.gameObject, _c2WallDambaPairCalibratorDescBV1LikeOriginal, c2mB, "B");
             UpdateWallDambaPairCalibratorTransformsV1LikeOriginal();
-            Debug.Log("[C2:DAMBA PAIR CAL V1] spawned above map center. Select A/B with Tab, move arrows, +/- along height, Enter writes TXT. deltaPixels=" + FormatVector2V1LikeOriginal(_c2WallDambaPairCalibratorDeltaPixelsV1LikeOriginal));
         }
 
         private void UpdateWallDambaPairCalibratorV1LikeOriginal()
@@ -173,9 +170,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (changed)
             {
                 UpdateWallDambaPairCalibratorTransformsV1LikeOriginal();
-                Debug.Log("[C2:DAMBA PAIR CAL V1] selected=" + (_c2WallDambaPairCalibratorSelectedV1LikeOriginal == 0 ? "A" : "B") +
-                          " deltaPixels=" + FormatVector2V1LikeOriginal(_c2WallDambaPairCalibratorDeltaPixelsV1LikeOriginal) +
-                          " deltaHeightPixels=" + _c2WallDambaPairCalibratorDeltaHeightPixelsV1LikeOriginal.ToString("0.###", CultureInfo.InvariantCulture));
             }
         }
 
@@ -417,7 +411,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 string projectPath = ResolveWallDambaPairCalibratorProjectOutputPathV1LikeOriginal();
                 Directory.CreateDirectory(Path.GetDirectoryName(projectPath));
                 File.WriteAllText(projectPath, sb.ToString(), Encoding.UTF8);
-                Debug.Log("[C2:DAMBA PAIR CAL V1] wrote " + path.Replace('\\', '/') + " and " + projectPath.Replace('\\', '/') + " deltaPixels=" + FormatVector2V1LikeOriginal(delta));
             }
             catch (Exception ex)
             {
@@ -497,11 +490,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 _c2WallDambaPairCalibratorDeltaPixelsV1LikeOriginal = new Vector2(dx, dy);
                 _c2WallDambaPairCalibratorDeltaHeightPixelsV1LikeOriginal = dh;
-                Debug.Log("[C2:DAMBA PAIR CAL V1] loaded " + path.Replace('\\', '/') + " deltaPixels=" + FormatVector2V1LikeOriginal(_c2WallDambaPairCalibratorDeltaPixelsV1LikeOriginal));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[C2:DAMBA PAIR CAL V1] load failed '" + path.Replace('\\', '/') + "': " + ex.Message);
             }
         }
 
