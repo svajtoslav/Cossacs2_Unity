@@ -1,4 +1,5 @@
 ﻿// C2NeutralPeasantUnitsLikeOriginal.cs
+// V53: dynamic shared Y-sort with building LINESORT parts; units can pass behind/under front building sprites.
 // V19: widens V18 from UnitKri-only to saved Unit* records through original NDS->MD aliases,
 // caches MD directional visuals, and keeps original-style ground selection markers.
 // Reads saved 3INU/UNI3 unit records, resolves MD/USERLC/G2D frames,
@@ -26,7 +27,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
     {
         private const bool C2NeutralPeasantUnitsV2EnabledLikeOriginal = true;
         private const string C2NeutralPeasantUnitsV2ContractLikeOriginal =
-            "V50_SHADER_SELECTED_PULSE_AND_SELECTION_PATCH_DEPTH";
+            "V51_BUILDING_LOCKPOINTS_STEP_BLOCK";
         private const string C2NeutralPeasantUnitsV2RootPrefixLikeOriginal =
             "C2_NeutralPeasantUnits_3INU_MD_G2D_V50_";
         private const bool C2NeutralPeasantUnitsV45VerboseLogLikeOriginal = false; // V45: disable noisy unit logs; warnings/errors stay enabled.
@@ -2205,7 +2206,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             mrend.receiveShadows = false;
             mrend.lightProbeUsage = LightProbeUsage.Off;
             mrend.reflectionProbeUsage = ReflectionProbeUsage.Off;
-            mrend.sortingOrder = C2NeutralPeasantUnitsV2SortOrderLikeOriginal(r);
+            mrend.sortingOrder = C2NeutralPeasantUnitsV53SortOrderLikeOriginal(r.RealX, r.RealY);
 
             var mesh = new Mesh();
             mesh.name = parent.name + "_SpriteMesh";
@@ -2230,6 +2231,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var info = parent.AddComponent<C2NeutralPeasantUnitInfoV2LikeOriginal>();
             info.OwnerMode = this;
             info.SpriteAnimator = animator;
+            info.SpriteMeshRenderer = mrend;
             info.SourceMonsterId = r.MonsterId ?? "";
             info.ResolvedMd = alias ?? "";
             info.RecordIndex = r.Index;
@@ -2243,7 +2245,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             info.RealXFloat = r.RealX;
             info.RealYFloat = r.RealY;
             info.RealDirPrecise = (r.RealDir & 255) << 8;
-            info.SortKey = C2NeutralPeasantUnitsV2SortOrderLikeOriginal(r);
+            info.SortKey = C2NeutralPeasantUnitsV53SortOrderLikeOriginal(r.RealX, r.RealY);
             info.FrameCount = frames.Count;
             info.FirstFileRef = frames[0].FileRef;
             info.FirstExactSprite = frames[0].ExactSprite;
@@ -2291,11 +2293,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static int C2NeutralPeasantUnitsV2SortOrderLikeOriginal(C2Settlement3InuMdV2Record r)
         {
-            // Same line idea as original AddAnimation / visible GP registration:
-            // larger map Y is later/front, X only breaks ties.
-            int yLine = r.RealY >> 5;
-            int xTie = (r.RealX >> 9) & 31;
-            return 24000 + yLine * 32 + xTie;
+            return C2NeutralPeasantUnitsV53SortOrderLikeOriginal(r.RealX, r.RealY);
+        }
+
+        private static int C2NeutralPeasantUnitsV53SortOrderLikeOriginal(float realX, float realY)
+        {
+            // V53: units and building parts now share one Unity sorting scale.
+            // Building parts use:
+            //   6000 + (building.RealY >> 4) + (LINESORT/localY >> 2)
+            // A unit uses its current foot RealY. This allows:
+            //   rear/ground building parts  < unit foot < front/top building parts.
+            int mapY = Mathf.FloorToInt(realY) >> 4;
+            int xTie = (Mathf.FloorToInt(realX) >> 10) & 7;
+            return Mathf.Clamp(6000 + mapY + 24 + xTie, -30000, 30000);
         }
 
         private static Material C2NeutralPeasantUnitsV2GetMaterialLikeOriginal(Texture2D tex)
@@ -2539,6 +2549,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private MeshRenderer _selectedOverlayRenderer;
         private Material _selectedOverlayMaterial;
         private int _selectedOverlayLastSprite = int.MinValue;
+
+        public void SetRendererSortingOrderLikeOriginal(int order)
+        {
+            if (_meshRenderer != null)
+                _meshRenderer.sortingOrder = order;
+            if (_selectedOverlayRenderer != null)
+                _selectedOverlayRenderer.sortingOrder = Mathf.Clamp(order + 1, -30000, 30000);
+        }
 
         public int CurrentFrameIndex { get { return _currentIndex; } }
 
@@ -3302,6 +3320,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
     {
         public C2BattleTerrainMode OwnerMode;
         public C2NeutralPeasantUnitSpriteAnimatorV2LikeOriginal SpriteAnimator;
+        public MeshRenderer SpriteMeshRenderer;
 
         public string SourceMonsterId;
         public string ResolvedMd;
@@ -3749,9 +3768,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private byte _finalFacingDir;
         private float _destRealX;
         private float _destRealY;
+        private List<Vector2> _v52PathWaypointsLikeOriginal;
+        private int _v52PathIndexLikeOriginal;
+        private float _v52FinalDestRealXLikeOriginal;
+        private float _v52FinalDestRealYLikeOriginal;
+        private bool _v52PathActiveLikeOriginal;
         private float _totalPathReal;
         private float _moveSpeedOriginalPixelsPerSecond = 42.0f;
 
+        // V52: building LOCKPOINT path layer can now route through waypoints around blocked cells.
         // V33: V31 foot-lock was wrong and V32 only smoothed Y. The V32 log proved the
         // remaining side/diagonal jump is a 16-world-unit XZ parity discontinuity from
         // OriginalPixelToWorld/WallOriginalXYToWorld when RealX crosses a staggered terrain column.
@@ -3852,10 +3877,110 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             SetMoveDestinationRealLikeOriginal(destRealX, destRealY, speedOriginalPixelsPerSecond, false, 0);
         }
+        private static bool C2NeutralPeasantUnitsV51TryRedirectBlockedDestinationLikeOriginal(ref float destRealX, ref float destRealY)
+        {
+            // Step 1 of gameplay passability: do not accept an RMB target inside a building LOCKPOINT cell.
+            // Original uses MotionField/CheckBar pathing; full pathfinding comes later.
+            if (!C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedRealLikeOriginal(destRealX, destRealY))
+                return false;
+
+            float freeX;
+            float freeY;
+            if (!C2BattleTerrainMode.C2BuildingMotionFieldV1TryFindNearestFreeRealLikeOriginal(destRealX, destRealY, out freeX, out freeY, 10))
+                return false;
+
+            destRealX = freeX;
+            destRealY = freeY;
+            return true;
+        }
+
+        private static bool C2NeutralPeasantUnitsV51CanStepToRealLikeOriginal(float currentRealX, float currentRealY, float nextRealX, float nextRealY)
+        {
+            bool nextBlocked = C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedRealLikeOriginal(nextRealX, nextRealY);
+            if (!nextBlocked) return true;
+
+            // If a unit was spawned/loaded inside a blocked cell, do not freeze it forever.
+            // This only prevents entering a new blocked cell from a free cell.
+            bool currentBlocked = C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedRealLikeOriginal(currentRealX, currentRealY);
+            return currentBlocked;
+        }
+
+
+        private void C2NeutralPeasantUnitsV52BuildBuildingAvoidancePathLikeOriginal(float finalRealX, float finalRealY)
+        {
+            _v52PathActiveLikeOriginal = false;
+            _v52PathWaypointsLikeOriginal = null;
+            _v52PathIndexLikeOriginal = 0;
+            _v52FinalDestRealXLikeOriginal = finalRealX;
+            _v52FinalDestRealYLikeOriginal = finalRealY;
+
+            Vector2[] path;
+            if (!C2BattleTerrainMode.C2BuildingMotionFieldV1TryBuildPathRealLikeOriginal(
+                    RealXFloat,
+                    RealYFloat,
+                    finalRealX,
+                    finalRealY,
+                    out path,
+                    20000))
+                return;
+
+            if (path == null || path.Length == 0)
+                return;
+
+            _v52PathWaypointsLikeOriginal = new List<Vector2>(path);
+            _v52PathIndexLikeOriginal = 0;
+            _v52PathActiveLikeOriginal = true;
+        }
+
+        private bool C2NeutralPeasantUnitsV52ApplyCurrentPathWaypointLikeOriginal()
+        {
+            if (!_v52PathActiveLikeOriginal || _v52PathWaypointsLikeOriginal == null || _v52PathWaypointsLikeOriginal.Count == 0)
+                return false;
+
+            if (_v52PathIndexLikeOriginal < 0)
+                _v52PathIndexLikeOriginal = 0;
+            if (_v52PathIndexLikeOriginal >= _v52PathWaypointsLikeOriginal.Count)
+            {
+                _v52PathActiveLikeOriginal = false;
+                return false;
+            }
+
+            Vector2 wp = _v52PathWaypointsLikeOriginal[_v52PathIndexLikeOriginal];
+            _destRealX = wp.x;
+            _destRealY = wp.y;
+            return true;
+        }
+
+        private bool C2NeutralPeasantUnitsV52AdvancePathWaypointLikeOriginal()
+        {
+            if (!_v52PathActiveLikeOriginal || _v52PathWaypointsLikeOriginal == null)
+                return false;
+
+            _v52PathIndexLikeOriginal++;
+            if (_v52PathIndexLikeOriginal >= _v52PathWaypointsLikeOriginal.Count)
+            {
+                _v52PathActiveLikeOriginal = false;
+                _v52PathWaypointsLikeOriginal = null;
+                return false;
+            }
+
+            return C2NeutralPeasantUnitsV52ApplyCurrentPathWaypointLikeOriginal();
+        }
+
+        private bool C2NeutralPeasantUnitsV52RepathFromCurrentToFinalLikeOriginal()
+        {
+            float fx = _v52PathActiveLikeOriginal ? _v52FinalDestRealXLikeOriginal : _destRealX;
+            float fy = _v52PathActiveLikeOriginal ? _v52FinalDestRealYLikeOriginal : _destRealY;
+
+            C2NeutralPeasantUnitsV52BuildBuildingAvoidancePathLikeOriginal(fx, fy);
+            return C2NeutralPeasantUnitsV52ApplyCurrentPathWaypointLikeOriginal();
+        }
+
 
         public void SetMoveDestinationRealLikeOriginal(float destRealX, float destRealY, float speedOriginalPixelsPerSecond, bool hasFinalFacingDir, byte finalFacingDir)
         {
             SetMoveSpeedLikeOriginal(speedOriginalPixelsPerSecond);
+            C2NeutralPeasantUnitsV51TryRedirectBlockedDestinationLikeOriginal(ref destRealX, ref destRealY);
 
             Vector3 beforeWorld = transform.position;
             if (!_v33VisualHeightReady) C2NeutralPeasantUnitsV33ResetVisualHeightLikeOriginal();
@@ -3865,8 +3990,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             byte beforeGraphDir = GraphDir;
             C2NeutralPeasantUnitFrameV2LikeOriginal beforeFrame = SpriteAnimator != null ? SpriteAnimator.CurrentFrame : null;
 
+            C2NeutralPeasantUnitsV52BuildBuildingAvoidancePathLikeOriginal(destRealX, destRealY);
+
             _destRealX = destRealX;
             _destRealY = destRealY;
+            C2NeutralPeasantUnitsV52ApplyCurrentPathWaypointLikeOriginal();
+
             _hasFinalFacingDir = hasFinalFacingDir;
             _finalFacingDir = finalFacingDir;
             _hasMoveTarget = true;
@@ -3936,8 +4065,28 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        private static int C2NeutralPeasantUnitsV53SortOrderLikeOriginal(float realX, float realY)
+        {
+            // Same shared building/unit sort formula as C2NeutralPeasantUnitsLikeOriginal.
+            // This class is separate, so it needs its own local helper for per-frame sorting.
+            int mapY = Mathf.FloorToInt(realY) >> 4;
+            int xTie = (Mathf.FloorToInt(realX) >> 10) & 7;
+            return Mathf.Clamp(6000 + mapY + 24 + xTie, -30000, 30000);
+        }
+
+        private void C2NeutralPeasantUnitsV53UpdateSharedBuildingSortLikeOriginal()
+        {
+            int order = C2NeutralPeasantUnitsV53SortOrderLikeOriginal(RealXFloat, RealYFloat);
+            SortKey = order;
+            if (SpriteMeshRenderer != null)
+                SpriteMeshRenderer.sortingOrder = order;
+            if (SpriteAnimator != null)
+                SpriteAnimator.SetRendererSortingOrderLikeOriginal(order);
+        }
+
         private void Update()
         {
+            C2NeutralPeasantUnitsV53UpdateSharedBuildingSortLikeOriginal();
             UpdateSelectionMarkerWorldV36LikeOriginal();
 
             if (!_hasMoveTarget) return;
@@ -3972,7 +4121,22 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     RealYFloat,
                     true);
                 Vector3 afterWorldSnap = transform.position;
+
+                if (C2NeutralPeasantUnitsV52AdvancePathWaypointLikeOriginal())
+                {
+                    if (SpriteAnimator != null)
+                    {
+                        SpriteAnimator.SetMovingLikeOriginal(true);
+                        SpriteAnimator.SetWalkPathFrameLikeOriginal(_totalPathReal, Mathf.Max(1.0f, MotionDist));
+                    }
+                    UpdateSelectionMarkerWorldV36LikeOriginal();
+                    C2NeutralPeasantUnitsV29LogMoveTickLikeOriginal(0, GraphDir, dx, dy, dis, 0.0f, beforeRealX, beforeRealY, RealXFloat, RealYFloat, beforeWorld, afterWorldSnap, true);
+                    return;
+                }
+
                 _hasMoveTarget = false;
+                _v52PathActiveLikeOriginal = false;
+                _v52PathWaypointsLikeOriginal = null;
                 if (SpriteAnimator != null) SpriteAnimator.SetMovingLikeOriginal(false);
                 if (_hasFinalFacingDir)
                 {
@@ -4006,8 +4170,32 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (stepReal > dis) stepReal = dis;
 
             float inv = 1.0f / Mathf.Max(dis, 0.0001f);
-            RealXFloat += dx * inv * stepReal;
-            RealYFloat += dy * inv * stepReal;
+            float nextRealX = RealXFloat + dx * inv * stepReal;
+            float nextRealY = RealYFloat + dy * inv * stepReal;
+
+            if (!C2NeutralPeasantUnitsV51CanStepToRealLikeOriginal(RealXFloat, RealYFloat, nextRealX, nextRealY))
+            {
+                if (C2NeutralPeasantUnitsV52RepathFromCurrentToFinalLikeOriginal())
+                {
+                    if (SpriteAnimator != null)
+                    {
+                        SpriteAnimator.SetMovingLikeOriginal(true);
+                        SpriteAnimator.SetWalkPathFrameLikeOriginal(_totalPathReal, Mathf.Max(1.0f, MotionDist));
+                    }
+                    return;
+                }
+
+                _hasMoveTarget = false;
+                _hasFinalFacingDir = false;
+                _v52PathActiveLikeOriginal = false;
+                _v52PathWaypointsLikeOriginal = null;
+                if (SpriteAnimator != null) SpriteAnimator.SetMovingLikeOriginal(false);
+                UpdateSelectionMarkerWorldV36LikeOriginal();
+                return;
+            }
+
+            RealXFloat = nextRealX;
+            RealYFloat = nextRealY;
             RealX = Mathf.RoundToInt(RealXFloat);
             RealY = Mathf.RoundToInt(RealYFloat);
             _totalPathReal += stepReal;

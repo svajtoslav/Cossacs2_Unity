@@ -1,5 +1,6 @@
 ﻿
 // C2SettlementBuildings3INUParserLikeOriginal.cs
+// V65: unify building part renderQueue/sorting with units so LINESORT parts can be behind/in front of units.
 // V64: kill C2_Nature_TS_V2_batch_* roots directly; V63 missed because renderers live under child paths.
  //      Keeps V57 layer-composite visuals, V55 cache, V53 windmill work sort, V52 part sorting, V50 NDS aliases.
  //      Does not touch building MD/G16 frames, forests, trees, stones, roads, water or terrain chunks.
@@ -43,7 +44,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // ZEnable=1, ZWriteEnable=1, ZFunc=4 (LEqual), alpha blend SrcAlpha/InvSrcAlpha,
         // point sampling (Mag/Min=1) and no Unity lighting/fog.
         private const float Settlement3InuMdV2AlphaRefV49LikeOriginal = 4.0f / 255.0f;
-        private const int Settlement3InuMdV2RenderQueueV49LikeOriginal = (int)RenderQueue.Overlay - 10; // V23 temporary Unity adapter: screen-sprite pass, before full 3-point depth is ported
+        // V65: buildings and units must share the same transparent queue; otherwise Unity draws all buildings after units regardless sortingOrder.
+        private const int Settlement3InuMdV2RenderQueueV49LikeOriginal = 3670; // same queue as C2NeutralPeasantUnitsV2RenderQueueLikeOriginal
         private const bool Settlement3InuMdV2UseVisibleBottomLiftHack = false;
         // V54: production-fast path. Heavy audit (full lists, per-part sorting spam and RGBA hashes)
         // is kept available but disabled by default because it repeatedly reads texture pixels and
@@ -188,6 +190,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int SetAnmParamDy;
             public int SetAnmParamParts = 1;
             public int SetAnmParamPartSize = 96;
+            public readonly C2Settlement3InuMdV2ZoneSetLikeOriginal Zones = new C2Settlement3InuMdV2ZoneSetLikeOriginal();
             public bool Use3pAlign;
             public int AlignPt1x;
             public int AlignPt1y;
@@ -425,6 +428,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             long buildStartMsV54 = swTotalV54.ElapsedMilliseconds;
             var root = new GameObject(Settlement3InuMdV2RootPrefix + Path.GetFileNameWithoutExtension(abs));
             root.transform.SetParent(transform, true);
+            C2Settlement3InuMdV2BeginBuildingZonesLikeOriginal(mapPath, root.transform);
 
             int mdFound = 0, mdMissing = 0, visualFound = 0, visualMissing = 0;
             int buildings = 0, resources = 0, settlements = 0, units = 0, animals = 0, unknown = 0;
@@ -460,6 +464,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     case C2Settlement3InuMdV2Kind.Unit: units++; break;
                     case C2Settlement3InuMdV2Kind.Animal: animals++; break;
                     default: unknown++; break;
+                }
+
+                if (md.Found)
+                {
+                    C2Settlement3InuMdV2RegisterBuildingZonesLikeOriginal(r, md, kind);
                 }
 
                 string strictMineAlias = C2Settlement3InuMdV2MineMdAliasForAuditV50LikeOriginal(r.MonsterId);
@@ -557,6 +566,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     sample.Add("#" + r.Index.ToString(CultureInfo.InvariantCulture) + " kind=" + kind + " name='" + r.MonsterId + "' md=" + (md.Found ? Path.GetFileName(md.MdPath) : "<missing>") + " pkg='" + (md.Package ?? "") + "' frame=" + md.SpriteId + "/parts=" + (md.StandLoFrames != null ? md.StandLoFrames.Count : 0) + "/work=" + (md.WorkFrames != null ? md.WorkFrames.Count : 0) + " real=(" + r.RealX + "," + r.RealY + ") map=(" + (r.RealX >> 4) + "," + (r.RealY >> 4) + ") dir=" + r.RealDir);
                 }
             }
+
+            C2Settlement3InuMdV2FinalizeBuildingZonesLikeOriginal(root.transform);
 
             long buildMsV54 = swTotalV54.ElapsedMilliseconds - buildStartMsV54;
             Debug.Log("[C2:SETTLEMENT 3INU V59 FAST] contract=V57_LAYER_COMPOSITE_DUPLICATE100_OVER_V55_CACHE source=" + source + " map='" + mapPath + "' records=" + records.Count + " mdFound=" + mdFound + " mdMissing=" + mdMissing + " visualFound=" + visualFound + " visualMissing=" + visualMissing + " settlements=" + settlements + " buildings=" + buildings + " resourceBuildings=" + resources + " units=" + units + " animals=" + animals + " unknown=" + unknown + " drawn=" + drawn + " skipped=" + skipped + " parseMs=" + parseMsV54.ToString(CultureInfo.InvariantCulture) + " buildMs=" + buildMsV54.ToString(CultureInfo.InvariantCulture) + " totalMs=" + swTotalV54.ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture) + " texCacheHits=" + s_C2Settlement3InuMdV2TextureCacheHitsV54.ToString(CultureInfo.InvariantCulture) + " texCacheMisses=" + s_C2Settlement3InuMdV2TextureCacheMissesV54.ToString(CultureInfo.InvariantCulture) + " diskHits=" + s_C2Settlement3InuMdV2DiskCacheHitsV55.ToString(CultureInfo.InvariantCulture) + " diskMisses=" + s_C2Settlement3InuMdV2DiskCacheMissesV55.ToString(CultureInfo.InvariantCulture) + " diskWrites=" + s_C2Settlement3InuMdV2DiskCacheWritesV55.ToString(CultureInfo.InvariantCulture) + " diskWriteFails=" + s_C2Settlement3InuMdV2DiskCacheWriteFailsV55.ToString(CultureInfo.InvariantCulture) + " pathHits=" + s_C2Settlement3InuMdV2VisualPathCacheHitsV55.ToString(CultureInfo.InvariantCulture) + " pathMisses=" + s_C2Settlement3InuMdV2VisualPathCacheMissesV55.ToString(CultureInfo.InvariantCulture) + " matCacheHits=" + s_C2Settlement3InuMdV2MaterialCacheHitsV54.ToString(CultureInfo.InvariantCulture) + " matCacheMisses=" + s_C2Settlement3InuMdV2MaterialCacheMissesV54.ToString(CultureInfo.InvariantCulture) + " layerBlendFrames=" + s_C2Settlement3InuMdV2LayerBlendFramesV57.ToString(CultureInfo.InvariantCulture) + " layerBlendPixels=" + s_C2Settlement3InuMdV2LayerBlendPixelsV57.ToString(CultureInfo.InvariantCulture) + " layerBlendOpaquePixels=" + s_C2Settlement3InuMdV2LayerBlendOpaquePixelsV57.ToString(CultureInfo.InvariantCulture) + " chunkAudit=" + chunkAudit + " names=" + C2Settlement3InuMdV2TopNamesLikeOriginal(nameCounts, 96));
@@ -1256,6 +1267,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     info.SetAnmParamDy = C2Settlement3InuMdV2ToInt(t[2]);
                     info.SetAnmParamParts = C2Settlement3InuMdV2ToInt(t[3]);
                     info.SetAnmParamPartSize = C2Settlement3InuMdV2ToInt(t[4]);
+                }
+                else if (C2Settlement3InuMdV2TryParseBuildingZoneCommandLikeOriginal(cmd, t, lines, ref i, info))
+                {
+                    // MD building zones are parsed in C2BuildingPassabilityZonesLikeOriginal.cs.
                 }
                 else if (cmd == "BUILDSTAGES" && t.Length >= 2)
                 {
@@ -2892,9 +2907,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static int C2Settlement3InuMdV2SortOrderLikeOriginal(C2Settlement3InuMdV2Record r, C2Settlement3InuMdV2LoadedFrame loaded, int partIndex, Texture2D tex)
         {
-            // V52: V51 ranked the whole building by root mapY. That is not enough for mines/houses
-            // standing nearly on the same camera line: original MD uses LINESORT for separate body
-            // strips. Keep order compact, but let every part carry its own effective local contact Y.
+            // V65: same sorting scale as units.
+            // Original buildings are registered part-by-part through AddAnimation/LINESORT.
+            // Each part receives an effective Y-line. Units receive their own foot Y-line.
+            // Parts with lower LINESORT localY go behind units, front/top parts go in front.
             int mapY = r.RealY >> 4;
             int localY = C2Settlement3InuMdV2LineSortLocalYV52(loaded, tex, partIndex);
             int tie = Mathf.Clamp(partIndex, 0, 3);
@@ -3728,7 +3744,7 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
             if (sh == null) sh = Shader.Find("Standard");
 
             var mat = new Material(sh);
-            mat.name = Settlement3InuMdV2MaterialName + "_UNITY_SAFE_DEPTH_" + (tex != null ? tex.name : "null");
+            mat.name = Settlement3InuMdV2MaterialName + "_V65_UNIT_SHARED_QUEUE_" + (tex != null ? tex.name : "null");
             mat.mainTexture = mainTex;
             mat.renderQueue = Settlement3InuMdV2RenderQueueV49LikeOriginal;
             mat.SetOverrideTag("RenderType", "TransparentCutout");
