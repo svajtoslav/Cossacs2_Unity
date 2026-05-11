@@ -76,6 +76,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static bool s_terrainSoftwareFallbackStructureFeatherPathLoggedV1LikeAdapted;
         private static bool s_terrainSoftwarePersistentCacheWarningLoggedLikeOriginal;
         private static readonly object s_terrainSoftwareFactureCacheBuildLockLikeOriginal = new object();
+        // V103 SMP freeze fix: facture pixels are immutable after readback, so share them across
+        // every new TerrainSoftwareBakeInputsLikeOriginal. Otherwise SMP overlay creates fresh
+        // empty caches, worker bake touches Texture2D.GetPixels32, then old code falls back to
+        // a heavy main-thread bake and freezes placement.
+        private static readonly TerrainSoftwareFactureBakeCacheEntryLikeOriginal[] s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal = new TerrainSoftwareFactureBakeCacheEntryLikeOriginal[256];
+        private static readonly bool[] s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal = new bool[256];
 
         private struct TerrainSoftwareChunkRegionLikeOriginal
         {
@@ -277,6 +283,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
 
                 Texture2D chunkTexture = CreateTerrainSoftwareChunkTextureFromPixelsLikeOriginal(job.Region, job.Pixels, job.ChunkX, job.ChunkY);
+                C2SmpRememberTerrainChunkShadowV87LikeOriginal(job.ChunkX, job.ChunkY, job.Pixels, job.Region.WidthPixels, job.Region.HeightPixels);
                 if (chunkTexture == null)
                 {
                     failedChunkCount++;
@@ -3966,6 +3973,20 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return inputs.FactureCacheArray[bucketTextureId];
             }
 
+            if (s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal != null &&
+                s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal != null &&
+                bucketTextureId >= 0 && bucketTextureId < s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal.Length &&
+                s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal[bucketTextureId])
+            {
+                TerrainSoftwareFactureBakeCacheEntryLikeOriginal globalCached = s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal[bucketTextureId];
+                inputs.FactureCache[bucketTextureId] = globalCached;
+                if (inputs.FactureCacheArray != null && bucketTextureId < inputs.FactureCacheArray.Length)
+                    inputs.FactureCacheArray[bucketTextureId] = globalCached;
+                if (inputs.FactureCacheInitialized != null && bucketTextureId < inputs.FactureCacheInitialized.Length)
+                    inputs.FactureCacheInitialized[bucketTextureId] = true;
+                return globalCached;
+            }
+
             lock (s_terrainSoftwareFactureCacheBuildLockLikeOriginal)
             {
                 if (inputs.FactureCacheInitialized != null &&
@@ -3974,6 +3995,20 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     inputs.FactureCacheInitialized[bucketTextureId])
                 {
                     return inputs.FactureCacheArray[bucketTextureId];
+                }
+
+                if (s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal != null &&
+                    s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal != null &&
+                    bucketTextureId >= 0 && bucketTextureId < s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal.Length &&
+                    s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal[bucketTextureId])
+                {
+                    TerrainSoftwareFactureBakeCacheEntryLikeOriginal globalCached = s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal[bucketTextureId];
+                    inputs.FactureCache[bucketTextureId] = globalCached;
+                    if (inputs.FactureCacheArray != null && bucketTextureId < inputs.FactureCacheArray.Length)
+                        inputs.FactureCacheArray[bucketTextureId] = globalCached;
+                    if (inputs.FactureCacheInitialized != null && bucketTextureId < inputs.FactureCacheInitialized.Length)
+                        inputs.FactureCacheInitialized[bucketTextureId] = true;
+                    return globalCached;
                 }
 
                 if (inputs.FactureCache.TryGetValue(bucketTextureId, out TerrainSoftwareFactureBakeCacheEntryLikeOriginal cached))
@@ -4014,6 +4049,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     inputs.FactureCacheArray[bucketTextureId] = entry;
                 if (inputs.FactureCacheInitialized != null && bucketTextureId < inputs.FactureCacheInitialized.Length)
                     inputs.FactureCacheInitialized[bucketTextureId] = true;
+                if (s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal != null && bucketTextureId < s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal.Length)
+                    s_terrainSoftwareGlobalFactureCacheArrayLikeOriginal[bucketTextureId] = entry;
+                if (s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal != null && bucketTextureId < s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal.Length)
+                    s_terrainSoftwareGlobalFactureCacheInitializedLikeOriginal[bucketTextureId] = true;
                 return entry;
             }
         }
@@ -4030,12 +4069,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (texture == null)
                 return;
 
-            width = texture.width;
-            height = texture.height;
-            if (width <= 0 || height <= 0)
-                return;
-
-            pixels = texture.GetPixels32();
+            // V105/V104: never let a lazy facture-cache miss throw GetPixels32 out of a worker bake.
+            // Correct path is still main-thread prewarm/global CPU cache; this guard prevents one missed
+            // bucket from killing the whole SMP underlay.
+            pixels = ReadTexturePixels32SafeLikeAdapted(texture, out width, out height, texture.name ?? "facture");
         }
 
         private static Color32 SampleTexturePointLikeOriginal(Color32[] pixels, int width, int height, Vector2 uv, bool repeat)

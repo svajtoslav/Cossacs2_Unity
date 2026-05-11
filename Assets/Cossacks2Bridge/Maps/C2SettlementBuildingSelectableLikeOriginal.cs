@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -21,10 +22,57 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public float SelectionHalfPixelsY = 32.0f;
         public float MarkerYOffset = 0.022f;
 
+        // V155: original OB->DstX/DstY rally/exit destination for produced units.
+        public bool HasRallyPointV155LikeOriginal;
+        public int RallyRealXV155LikeOriginal;
+        public int RallyRealYV155LikeOriginal;
+
+        private const float HoverBrightnessV2LikeOriginal = 1.40f;   // user-scale 100 -> 140
+        private const float SelectedPulseMinV2LikeOriginal = 0.80f; // user-scale 100 -> 80
+        private const float SelectedPulseMaxV2LikeOriginal = 1.40f; // user-scale 100 -> 140
+        // Original selected building blink uses sin(GetTickCount()/200.0f).
+        // In shader time this is Time.y * 5.0.
+        private const float SelectedPulseSpeedV2LikeOriginal = 5.0f;
+
         private bool _selected;
+        private bool _hovered;
         private GameObject _selectionMarker;
+        private Renderer[] _pulseRenderers;
+        private MaterialPropertyBlock _pulseBlock;
+        private readonly Dictionary<Renderer, Color> _baseRendererColorV110LikeOriginal =
+            new Dictionary<Renderer, Color>();
+        private bool _suppressVisualResetOnDisableV111LikeOriginal;
 
         public bool IsSelected { get { return _selected; } }
+        public bool IsHovered { get { return _hovered; } }
+
+        public void SetRallyPointV155LikeOriginal(int realX, int realY, string source)
+        {
+            HasRallyPointV155LikeOriginal = true;
+            RallyRealXV155LikeOriginal = realX;
+            RallyRealYV155LikeOriginal = realY;
+            C2BuildingRallyPointRuntimeV155LikeOriginal.AttachOrUpdateMarker(this, source);
+        }
+
+        public bool TryGetRallyPointRealV155LikeOriginal(out int realX, out int realY)
+        {
+            realX = RallyRealXV155LikeOriginal;
+            realY = RallyRealYV155LikeOriginal;
+            return HasRallyPointV155LikeOriginal;
+        }
+
+        public void ClearRallyPointV155LikeOriginal()
+        {
+            HasRallyPointV155LikeOriginal = false;
+            RallyRealXV155LikeOriginal = 0;
+            RallyRealYV155LikeOriginal = 0;
+            C2BuildingRallyPointRuntimeV155LikeOriginal.AttachOrUpdateMarker(this, "clear");
+        }
+
+        public void SetSuppressVisualResetOnDisableV111LikeOriginal(bool suppress)
+        {
+            _suppressVisualResetOnDisableV111LikeOriginal = suppress;
+        }
 
         public void Configure(
             C2BattleTerrainMode ownerMode,
@@ -54,6 +102,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         public void SetSelected(bool selected)
         {
+            if (NotSelectable)
+                selected = false;
+
             _selected = selected;
 
             if (_selectionMarker == null)
@@ -61,6 +112,167 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (_selectionMarker != null)
                 _selectionMarker.SetActive(selected);
+
+            ApplySelectedPulseLikeOriginal(true);
+        }
+
+        public void SetHovered(bool hovered)
+        {
+            if (NotSelectable)
+                hovered = false;
+
+            if (_hovered == hovered)
+                return;
+
+            _hovered = hovered;
+            ApplySelectedPulseLikeOriginal(true);
+        }
+
+        private void LateUpdate()
+        {
+            if (_selected || _hovered)
+                ApplySelectedPulseLikeOriginal(false);
+        }
+
+        private void OnDisable()
+        {
+            _hovered = false;
+            _selected = false;
+            if (_selectionMarker != null) _selectionMarker.SetActive(false);
+
+            // V111: build-placement ghost uses this same composite renderer path.
+            // The preview code tints it red/white through MaterialPropertyBlock, then disables
+            // this selectable component. V110's OnDisable immediately wrote the base _Color back
+            // over that tint, so the cursor showed a normal opaque building until the next refresh.
+            // For preview ghosts, never reset renderer color from OnDisable.
+            if (_suppressVisualResetOnDisableV111LikeOriginal || IsInsideBuildPreviewGhostV111LikeOriginal())
+                return;
+
+            ApplySelectedPulseLikeOriginal(true);
+        }
+
+        private void OnDestroy()
+        {
+            _hovered = false;
+            _selected = false;
+        }
+
+        private bool IsInsideBuildPreviewGhostV111LikeOriginal()
+        {
+            Transform t = transform;
+            while (t != null)
+            {
+                string n = t.name ?? string.Empty;
+                if (n.IndexOf("C2_BuildingPlacementPreview", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    n.IndexOf("BuildPreview", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    n.IndexOf("Ghost", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+                t = t.parent;
+            }
+            return false;
+        }
+
+        private void ApplySelectedPulseLikeOriginal(bool force)
+        {
+            if (_pulseBlock == null) _pulseBlock = new MaterialPropertyBlock();
+            if (_pulseRenderers == null || force)
+                _pulseRenderers = GetComponentsInChildren<Renderer>(true);
+
+            float selectedPulse = _selected ? 1.0f : 0.0f;
+            float hoverHighlight = (!_selected && _hovered) ? 1.0f : 0.0f;
+
+            for (int i = 0; _pulseRenderers != null && i < _pulseRenderers.Length; i++)
+            {
+                Renderer r = _pulseRenderers[i];
+                if (r == null) continue;
+                if (r.transform != null && r.transform.name.IndexOf("selection_marker", StringComparison.OrdinalIgnoreCase) >= 0)
+                    continue;
+
+                float brightness = 1.0f;
+                if (_selected)
+                {
+                    float wave = (Mathf.Sin(Time.realtimeSinceStartup * SelectedPulseSpeedV2LikeOriginal) + 1.0f) * 0.5f;
+                    brightness = Mathf.Lerp(SelectedPulseMinV2LikeOriginal, SelectedPulseMaxV2LikeOriginal, wave);
+                }
+                else if (_hovered)
+                {
+                    brightness = HoverBrightnessV2LikeOriginal;
+                }
+
+                Color baseColor = GetBaseRendererColorV110LikeOriginal(r);
+                Color finalColor = baseColor;
+                if (!IsLikelyShadowRendererV110LikeOriginal(r))
+                {
+                    finalColor.r = baseColor.r * brightness;
+                    finalColor.g = baseColor.g * brightness;
+                    finalColor.b = baseColor.b * brightness;
+                }
+
+                r.GetPropertyBlock(_pulseBlock);
+                // Do not write Color.white here: building shadow materials often store transparency in _Color.a.
+                // V109 overwrote that alpha and made shadows opaque.
+                _pulseBlock.SetColor("_Color", finalColor);
+                r.SetPropertyBlock(_pulseBlock);
+            }
+        }
+
+        private Color GetBaseRendererColorV110LikeOriginal(Renderer r)
+        {
+            if (r == null)
+                return Color.white;
+
+            Color c;
+            if (_baseRendererColorV110LikeOriginal.TryGetValue(r, out c))
+                return c;
+
+            c = Color.white;
+            Material mat = r.sharedMaterial;
+            if (mat != null && mat.HasProperty("_Color"))
+                c = mat.GetColor("_Color");
+
+            _baseRendererColorV110LikeOriginal[r] = c;
+            return c;
+        }
+
+        private static bool IsLikelyShadowRendererV110LikeOriginal(Renderer r)
+        {
+            if (r == null)
+                return false;
+
+            string rn = r.name ?? string.Empty;
+            if (rn.IndexOf("shadow", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                rn.IndexOf("тень", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                rn.IndexOf("ten", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            Material mat = r.sharedMaterial;
+            if (mat != null)
+            {
+                string mn = mat.name ?? string.Empty;
+                if (mn.IndexOf("shadow", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    mn.IndexOf("тень", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    mn.IndexOf("ten", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+
+                if (mat.HasProperty("_Color"))
+                {
+                    Color c = mat.GetColor("_Color");
+                    if (c.a > 0.001f && c.a < 0.98f)
+                        return true;
+                }
+
+                Texture tex = mat.mainTexture;
+                if (tex != null)
+                {
+                    string tn = tex.name ?? string.Empty;
+                    if (tn.IndexOf("shadow", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        tn.IndexOf("тень", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        tn.IndexOf("ten", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         public bool TryPickScreenPointLikeOriginal(Camera cam, Vector3 screenPosition, out Rect screenRect, out float distPx)

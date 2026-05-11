@@ -674,13 +674,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             Quaternion rotation = BuildStrictIsoRotationLikeOriginal(dir);
             _strictIsoCamera.transform.SetPositionAndRotation(pos, rotation);
-            _strictIsoCamera.orthographic = false;
+            // V81: strict-isometric gameplay camera uses orthographic projection.
+            // Reason: buildings/units are sprite meshes in Unity world. With perspective camera they
+            // stretch/compress against each other when the camera height/zoom changes. Original engine
+            // compensates this in DrawSpriteBuilding via GetPseudoProjectionTM/ALIGN_WITH_3POINTS in
+            // screen space. Until the full screen-space sprite renderer is ported, orthographic strict
+            // camera is the safe non-destructive fix: it removes perspective deformation for all sprites
+            // without moving building logical roots, passability, cursors, selection or LineSort.
             _strictIsoCamera.rect = new Rect(0.0f, 0.0f, 1.0f, 1.0f);
 
             float aspect = Mathf.Max(1.0f, _strictIsoCamera.pixelRect.width) / Mathf.Max(1.0f, _strictIsoCamera.pixelRect.height);
             float fovxRad = StrictIsoBaseFovXDegrees * Mathf.Deg2Rad;
             float fovyRad = 2.0f * Mathf.Atan(Mathf.Tan(fovxRad * 0.5f) / Mathf.Max(0.0001f, aspect));
             _strictIsoCamera.fieldOfView = Mathf.Clamp(fovyRad * Mathf.Rad2Deg, 1.0f, 179.0f);
+            _strictIsoCamera.orthographic = true;
+            _strictIsoCamera.orthographicSize = Mathf.Max(1.0f, Mathf.Tan(fovyRad * 0.5f) * strictDistance);
 
             Bounds sceneBounds = _terrainBuilt
                 ? _terrainBounds

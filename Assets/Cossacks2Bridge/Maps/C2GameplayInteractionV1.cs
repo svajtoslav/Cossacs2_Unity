@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -119,6 +119,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private C2GameplayTargetKindV1 _hoverKind;
         private Vector3 _hoverWorld;
         private string _hoverSource = string.Empty;
+        private C2SettlementBuildingSelectableV1LikeOriginal _hoverBuilding;
+        private C2RuntimeConstructionSiteProxyLikeOriginal _hoverConstruction;
 
         private Canvas _cursorCanvas;
         private Image _cursorImage;
@@ -328,12 +330,43 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (_selected.Count == 0) return false;
 
+            C2BattleTerrainMode mode = null;
+            for (int i = 0; i < _selected.Count && mode == null; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
+                if (u != null && u.isActiveAndEnabled && u.CanReceiveOrdersLikeOriginal())
+                    mode = u.OwnerMode;
+            }
+
+            if (mode != null)
+            {
+                float destPxX;
+                float destPxY;
+                if (mode.C2NeutralPeasantUnitsV2WorldToOriginalPixelV15LikeOriginal(world, out destPxX, out destPxY))
+                {
+                    string audit;
+                    int issued = C2GameplayLooseGroupMoveLikeOriginal.IssueMoveLikeOriginal(
+                        _selected,
+                        destPxX * 16.0f,
+                        destPxY * 16.0f,
+                        false,
+                        0,
+                        "move_order_interaction_v68",
+                        out audit);
+
+                    if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:GAMEPLAY INTERACTION MOVE V68] " + audit);
+                    return issued > 0;
+                }
+            }
+
             for (int i = 0; i < _selected.Count; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
                 if (u == null) continue;
+                C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(u, "move_order_interaction_fallback_v68");
                 u.SetMoveDestinationLikeOriginal(world);
             }
+
             return true;
         }
 
@@ -373,6 +406,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _hoverKind = C2GameplayTargetKindV1.Terrain;
             _hoverWorld = Vector3.zero;
             _hoverSource = string.Empty;
+            _hoverBuilding = null;
+            _hoverConstruction = null;
 
             // UI only cancels gameplay-hover; it must not force a resource cursor.
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
@@ -400,6 +435,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (mode == null)
             {
                 _hoverKind = C2GameplayTargetKindV1.Terrain;
+                return;
+            }
+
+            C2SettlementBuildingSelectableV1LikeOriginal hoverBuilding;
+            float hoverBuildingDist;
+            string hoverBuildingMode;
+            if (TryPickBuildingAtScreenPointLikeOriginal(new Vector3(mp.x, mp.y, 0.0f), BestPickCameras(), out hoverBuilding, out hoverBuildingDist, out hoverBuildingMode))
+            {
+                _hoverBuilding = hoverBuilding;
+                _hoverConstruction = hoverBuilding != null ? hoverBuilding.GetComponentInParent<C2RuntimeConstructionSiteProxyLikeOriginal>() : null;
+                _hoverKind = C2GameplayTargetKindV1.Building;
+                _hoverSource = "building_pick " + hoverBuildingMode;
                 return;
             }
 
@@ -531,6 +578,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
                 if (u == null) continue;
+                C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(u, "new_task_interaction_v67");
                 C2GameplayUnitTaskV1 task = u.GetComponent<C2GameplayUnitTaskV1>();
                 if (task == null) task = u.gameObject.AddComponent<C2GameplayUnitTaskV1>();
                 task.Begin(u, kind, targetWorld, kind == C2GameplayTargetKindV1.Enemy ? 5.0f : 8.0f);
@@ -606,10 +654,70 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private int CursorPtrForHoverLikeOriginal(C2GameplayTargetKindV1 kind)
         {
-            // V5G: cursor switching is intentionally disabled for now.
-            // Keep one standard Cossacks cursor: s_cursor.c2m curptr=0 -> Cursors/Hard/main.cur.
-            // Hover/selection/task logic below can still work, but it no longer changes the cursor.
-            return 0;
+            // V67: only enable the original repair/build cursor for unfinished construction sites.
+            // Other gameplay cursors stay conservative for now.
+            if (kind == C2GameplayTargetKindV1.Building &&
+                _hoverConstruction != null &&
+                _hoverConstruction.CanAcceptBuildersLikeOriginal &&
+                CanSelectedRepairLikeOriginal())
+                return 3; // Cursors/Hard/mend.cur
+
+            return 0; // Cursors/Hard/main.cur
+        }
+
+        private bool TryPickBuildingAtScreenPointLikeOriginal(
+            Vector3 mousePosition,
+            Camera[] cameras,
+            out C2SettlementBuildingSelectableV1LikeOriginal hit,
+            out float hitDist,
+            out string hitMode)
+        {
+            hit = null;
+            hitDist = float.PositiveInfinity;
+            hitMode = "screenRect";
+
+            C2SettlementBuildingSelectableV1LikeOriginal[] buildings = FindObjectsOfType<C2SettlementBuildingSelectableV1LikeOriginal>();
+            if (buildings == null || buildings.Length == 0 || cameras == null)
+                return false;
+
+            Array.Sort(buildings, (a, b) =>
+            {
+                int sa = a != null ? a.SortKey : 0;
+                int sb = b != null ? b.SortKey : 0;
+                int c = sb.CompareTo(sa);
+                if (c != 0) return c;
+                int ia = a != null ? a.RecordIndex : 0;
+                int ib = b != null ? b.RecordIndex : 0;
+                return ib.CompareTo(ia);
+            });
+
+            for (int c = 0; c < cameras.Length; c++)
+            {
+                Camera cam = cameras[c];
+                if (cam == null || !cam.isActiveAndEnabled) continue;
+
+                for (int i = 0; i < buildings.Length; i++)
+                {
+                    C2SettlementBuildingSelectableV1LikeOriginal b = buildings[i];
+                    if (b == null || !b.isActiveAndEnabled || b.NotSelectable) continue;
+
+                    Rect rect;
+                    float dist;
+                    if (!b.TryPickScreenPointLikeOriginal(cam, mousePosition, out rect, out dist))
+                        continue;
+
+                    hit = b;
+                    hitDist = dist;
+                    hitMode = "camera='" + cam.name + "' rect=(" +
+                              rect.xMin.ToString("0", CultureInfo.InvariantCulture) + "," +
+                              rect.yMin.ToString("0", CultureInfo.InvariantCulture) + "," +
+                              rect.xMax.ToString("0", CultureInfo.InvariantCulture) + "," +
+                              rect.yMax.ToString("0", CultureInfo.InvariantCulture) + ")";
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool HasSelectedOrderUnitsLikeOriginal()
@@ -714,7 +822,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             int ok = 0;
             string first = string.Empty;
-            int[] ptrs = new[] { 0, 1, 2, 4, 5, 6, 7, 9, 15 };
+            int[] ptrs = new[] { 0, 1, 2, 3, 4, 5, 6, 7, 9, 15 };
             for (int i = 0; i < ptrs.Length; i++)
             {
                 C2OriginalHardCursorFrameV5 f = LoadCursor(ptrs[i], out string audit);

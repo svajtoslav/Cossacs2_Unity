@@ -1,0 +1,27 @@
+﻿G16 Analysis for: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Soldaty.g16
+Magic: GN16
+NSprites: 23 NPackSegments: 2
+
+    Frame 0: squares=12/12
+    Frame 1: squares=11/11
+    Frame 2: squares=9/9
+    Frame 3: squares=11/11
+    Frame 4: squares=9/9
+    Frame 5: squares=11/11
+    Frame 6: squares=10/10
+    Frame 7: squares=11/11
+    Frame 8: squares=11/11
+    Frame 9: squares=8/8
+    Frame 10: squares=10/10
+    Frame 11: squares=12/12
+    Frame 12: squares=12/12
+    Frame 13: squares=11/11
+    Frame 14: squares=8/8
+    Frame 15: squares=12/12
+    Frame 16: squares=7/7
+    Frame 17: squares=7/7
+    Frame 18: squares=8/8
+    Frame 19: squares=8/8
+    Frame 20: squares=9/9
+    Frame 21: squares=8/8
+    Frame 22: squares=8/8

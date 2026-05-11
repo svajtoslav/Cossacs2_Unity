@@ -773,6 +773,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public readonly List<Vector2> FieldOriginalXY = new List<Vector2>();
             public readonly List<float> FieldTopMask = new List<float>();
             public readonly List<float> FieldHeightOriginal = new List<float>();
+            // V39: original build placement EraseTreesInPoint/BSetPt equivalent for batched nature.
+            // One entry per rendered sprite quad; fields are intentionally not erasable here because fieldFood blocks placement.
+            public readonly List<Vector2> BuildEraseCentersOriginal = new List<Vector2>();
+            public readonly List<int> BuildEraseKinds = new List<int>();
             public int Count;
         }
 
@@ -866,6 +870,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 ApplyNatureRendererOrderingV14LikeOriginal(mr, true, NatureKindV1LikeOriginal.Tree);
                 AttachNatureTreeSwayAnimatorV12LikeOriginal(go, mesh, b);
                 AttachNatureFieldSwayAnimatorV68LikeOriginal(go, mesh, b, WallOriginalXYUnitToWorldScaleV8LikeOriginal());
+                AttachNatureBuildEraseMaskV39LikeOriginal(go, mesh, b);
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 mr.lightProbeUsage = LightProbeUsage.Off;
@@ -993,6 +998,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 ApplyNatureRendererOrderingV14LikeOriginal(mr, false, kind);
                 AttachNatureTreeSwayAnimatorV12LikeOriginal(go, mesh, b);
                 AttachNatureFieldSwayAnimatorV68LikeOriginal(go, mesh, b, WallOriginalXYUnitToWorldScaleV8LikeOriginal());
+                AttachNatureBuildEraseMaskV39LikeOriginal(go, mesh, b);
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 mr.lightProbeUsage = LightProbeUsage.Off;
@@ -1070,6 +1076,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                    desc != null &&
                    (desc.Amplitude > 0 || desc.AutoAnimateFrames > 1 ||
                     (desc.TimeAnimationSpriteIndices != null && desc.TimeAnimationSpriteIndices.Count > 0));
+        }
+
+
+        private static void AttachNatureBuildEraseMaskV39LikeOriginal(GameObject go, Mesh mesh, NatureMeshBatchV2LikeOriginal batch)
+        {
+            if (go == null || mesh == null || batch == null)
+                return;
+            if (batch.BuildEraseCentersOriginal == null || batch.BuildEraseCentersOriginal.Count == 0)
+                return;
+
+            C2NatureBuildEraseMaskV39LikeOriginal mask = go.AddComponent<C2NatureBuildEraseMaskV39LikeOriginal>();
+            mask.Configure(mesh, batch.BuildEraseCentersOriginal.ToArray(), batch.BuildEraseKinds.ToArray());
         }
 
         private static float GetNatureTreeSwayAmountWorldV12LikeOriginal(NatureSpriteDescV1LikeOriginal desc, NatureKindV1LikeOriginal kind, float pixelToWorld)
@@ -1338,6 +1356,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             batch.SwayPivots.Add(rollPivot);
             if (sway > 0.000001f)
                 batch.HasSway = true;
+
+            batch.BuildEraseCentersOriginal.Add(new Vector2(obj.X, obj.Y));
+            batch.BuildEraseKinds.Add((int)kind);
+
             batch.Triangles.Add(v0 + 0); batch.Triangles.Add(v0 + 2); batch.Triangles.Add(v0 + 1);
             batch.Triangles.Add(v0 + 0); batch.Triangles.Add(v0 + 3); batch.Triangles.Add(v0 + 2);
             batch.Count++;
@@ -2792,4 +2814,107 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out v);
         }
     }
+
+    public sealed class C2NatureBuildEraseMaskV39LikeOriginal : MonoBehaviour
+    {
+        private Mesh _mesh;
+        private Vector3[] _baseVertices;
+        private Vector3[] _workVertices;
+        private Vector2[] _centersOriginal;
+        private int[] _kinds;
+        private bool[] _erased;
+        private bool _dirty;
+
+        public void Configure(Mesh mesh, Vector2[] centersOriginal, int[] kinds)
+        {
+            _mesh = mesh;
+            _centersOriginal = centersOriginal;
+            _kinds = kinds;
+            if (_mesh == null || _centersOriginal == null || _centersOriginal.Length == 0)
+                return;
+
+            _baseVertices = _mesh.vertices;
+            if (_baseVertices == null || _baseVertices.Length < _centersOriginal.Length * 4)
+                return;
+
+            _workVertices = new Vector3[_baseVertices.Length];
+            Array.Copy(_baseVertices, _workVertices, _baseVertices.Length);
+            _erased = new bool[_centersOriginal.Length];
+        }
+
+        public int EraseCellsLikeOriginal(HashSet<long> cells, int expandCells)
+        {
+            if (_mesh == null || _centersOriginal == null || _erased == null || cells == null || cells.Count == 0)
+                return 0;
+
+            int hidden = 0;
+            int expand = Mathf.Max(0, expandCells);
+            for (int i = 0; i < _centersOriginal.Length; i++)
+            {
+                if (_erased[i])
+                    continue;
+
+                int cx = Mathf.FloorToInt(_centersOriginal[i].x / 16.0f);
+                int cy = Mathf.FloorToInt(_centersOriginal[i].y / 16.0f);
+                bool inside = false;
+                for (int dy = -expand; dy <= expand && !inside; dy++)
+                {
+                    for (int dx = -expand; dx <= expand; dx++)
+                    {
+                        if (cells.Contains(PackCellKeyLikeOriginal(cx + dx, cy + dy)))
+                        {
+                            inside = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!inside)
+                    continue;
+
+                _erased[i] = true;
+                hidden++;
+                _dirty = true;
+            }
+
+            if (_dirty)
+                ApplyEraseNowLikeOriginal();
+
+            return hidden;
+        }
+
+        private void LateUpdate()
+        {
+            if (_dirty)
+                ApplyEraseNowLikeOriginal();
+        }
+
+        private void ApplyEraseNowLikeOriginal()
+        {
+            if (_mesh == null || _baseVertices == null || _workVertices == null || _erased == null)
+                return;
+
+            Vector3 sink = new Vector3(0.0f, -10000.0f, 0.0f);
+            Array.Copy(_mesh.vertices, _workVertices, Mathf.Min(_mesh.vertexCount, _workVertices.Length));
+            for (int i = 0; i < _erased.Length; i++)
+            {
+                if (!_erased[i]) continue;
+                int v0 = i * 4;
+                if (v0 + 3 >= _workVertices.Length) continue;
+                _workVertices[v0 + 0] = sink;
+                _workVertices[v0 + 1] = sink;
+                _workVertices[v0 + 2] = sink;
+                _workVertices[v0 + 3] = sink;
+            }
+
+            _mesh.vertices = _workVertices;
+            _dirty = true;
+        }
+
+        public static long PackCellKeyLikeOriginal(int x, int y)
+        {
+            unchecked { return ((long)x << 32) ^ (uint)y; }
+        }
+    }
+
 }

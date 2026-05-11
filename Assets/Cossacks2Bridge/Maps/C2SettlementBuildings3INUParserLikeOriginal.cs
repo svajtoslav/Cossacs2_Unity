@@ -1,5 +1,7 @@
-﻿
+
 // C2SettlementBuildings3INUParserLikeOriginal.cs
+// V68: ALIGN_WITH_3POINTS original audit + sprite aspect ratio diagnostics.
+// V66: run original #WORK animation overlay for mills, including EgpMel, with isolated material/property-block texture switching.
 // V65: unify building part renderQueue/sorting with units so LINESORT parts can be behind/in front of units.
 // V64: kill C2_Nature_TS_V2_batch_* roots directly; V63 missed because renderers live under child paths.
  //      Keeps V57 layer-composite visuals, V55 cache, V53 windmill work sort, V52 part sorting, V50 NDS aliases.
@@ -15,6 +17,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -39,7 +42,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // V21: restore V19 behavior: draw the first WORK frame so mines/mills keep their visible moving/extra element.
         // This is the user-confirmed better visual baseline.
         private const bool Settlement3InuMdV2DrawWorkStaticPreview = false;
+        // V66: #WORK is not a static body part. Original mills switch these sprites over time.
+        private const bool Settlement3InuMdV2DrawWorkAnimationOverlay = true;
         private const float Settlement3InuMdV2WorkAnimationFps = 12.0f;
+        private const int Settlement3InuMdV2WorkAnimationMaxFrames = 4096;
+        private const bool Settlement3InuMdV2WorkAnimationAuditV66 = true;
+        private const bool Settlement3InuMdV2Align3PointAspectAuditV68 = true;
+        private const bool Settlement3InuMdV2Align3PointVerboseEveryObjectV68 = false;
+        // Keep old V68 flag as audit history. V71 below is the real experimental switch.
+        private const bool Settlement3InuMdV2Apply3PointProjectionV68 = false;
+        private const bool Settlement3InuMdV2Apply3PointProjectionV71 = true;
+        // Safety: first test only ghost/runtime construction objects (their Index starts at 900000).
+        // Static saved-map buildings stay on the old flat path until the visual test is confirmed.
+        private const bool Settlement3InuMdV2Apply3PointProjectionRuntimeOnlyV71 = true;
+        private static readonly HashSet<string> s_C2Settlement3InuMdV2AspectAuditLoggedV68 = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly HashSet<string> s_C2Settlement3InuMdV2ProjectionAuditLoggedV71 = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // V22 / V49 audit: shader sprite_buildings uses alpha-test with AlphaRef=4,
         // ZEnable=1, ZWriteEnable=1, ZFunc=4 (LEqual), alpha blend SrcAlpha/InvSrcAlpha,
         // point sampling (Mag/Min=1) and no Unity lighting/fog.
@@ -203,6 +220,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int AlignPt3z;
             public int BuildStages;
             public string DestructRaw;
+            public string PieceName;
             public bool Building;
             public bool SpriteObject;
             public bool Peasant;
@@ -951,14 +969,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 add(suffix + baseName);
                 add(suffix + "_" + baseName);
 
-                // SaveNewMap stores logical IDs like BldMel(FR), but MD dump may contain
-                // nation-specific files like FrnMel.md / RusMel.md.
+                // SaveNewMap stores logical IDs like BldMel(FR/RU/SPN), but MD dump may contain
+                // nation-specific files with different historical names:
+                //   France -> FrnMel, Russia -> RusMel, Spain -> SpnMil.
                 string nat = C2Settlement3InuMdV2NationPrefixLikeOriginal(suffix);
                 if (!string.IsNullOrEmpty(nat) && string.Equals(baseName, "BldMel", StringComparison.OrdinalIgnoreCase))
                 {
-                    add(nat + "Mel");
-                    add(nat + "MelN");
-                    add("N" + nat + "Mel");
+                    if (string.Equals(nat, "Spn", StringComparison.OrdinalIgnoreCase))
+                    {
+                        add("SpnMil");
+                        add("SpnMilN");
+                    }
+                    else
+                    {
+                        add(nat + "Mel");
+                        add(nat + "MelN");
+                        add("N" + nat + "Mel");
+                    }
                 }
             }
 
@@ -1184,6 +1211,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (s == "EN" || s == "ENG") return "Eng";
             if (s == "AU" || s == "AUS") return "Aus";
             if (s == "EG" || s == "EGP") return "Egp";
+            if (s == "SP" || s == "SPN" || s == "ES" || s == "ESP") return "Spn";
             if (s == "PR" || s == "PRU") return "Pru";
             return "";
         }
@@ -1279,6 +1307,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 else if (cmd == "DESTRUCT" && t.Length >= 2)
                 {
                     info.DestructRaw = line;
+                }
+                else if (cmd == "PIECE" && t.Length >= 2)
+                {
+                    // Original NewMonster::PieceName. Used by RM_GetObjVector/RM_LoadNotObj
+                    // to patch the terrain under a building at runtime.
+                    info.PieceName = t[1].Trim().Trim('"');
                 }
                 else if (cmd == "ALIGN_WITH_3POINTS" && t.Length >= 10)
                 {
@@ -1603,10 +1637,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (compositeBuilding && sourceFrames != null && sourceFrames.Count > 0)
             {
                 var partsAudit = new List<string>();
-                bool frnMelLineSortV31 = C2Settlement3InuMdV2IsFrnMelLikeOriginal(md, r);
+                bool windmillLineSortV60 = C2Settlement3InuMdV2IsWindmillLikeOriginal(md, r);
                 int standLimitV28 = sourceFrames.Count;
-                if (frnMelLineSortV31)
-                    partsAudit.Add("FRNMEL_V32_LINESORT_SORT_ONLY_NO_DEFORM sourceFrames=" + sourceFrames.Count.ToString(CultureInfo.InvariantCulture) + " lineSort=" + (sourceAnim != null && sourceAnim.LineSort != null ? sourceAnim.LineSort.Count : 0).ToString(CultureInfo.InvariantCulture));
+                if (windmillLineSortV60)
+                    partsAudit.Add("WINDMILL_V60_LINESORT_SORT_ONLY_NO_DEFORM sourceFrames=" + sourceFrames.Count.ToString(CultureInfo.InvariantCulture) + " lineSort=" + (sourceAnim != null && sourceAnim.LineSort != null ? sourceAnim.LineSort.Count : 0).ToString(CultureInfo.InvariantCulture));
                 for (int i = 0; i < standLimitV28; i++)
                 {
                     Texture2D partTex;
@@ -1850,6 +1884,356 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        // V138 UNIT G2D CACHE:
+        // External cache requested outside Assets. Stores already nation-colored G2D unit frames as raw RGBA32.
+        // This avoids Unity asset import/.meta churn and lets later map loads hydrate RAM textures without re-decoding G2D.
+        private const bool Settlement3InuMdV2UnitG2DNationDiskCacheV138 = true;
+        private const int Settlement3InuMdV2UnitG2DNationDiskCacheVersionV138 = 1;
+        private static int s_C2Settlement3InuMdV2UnitG2DNationDiskCacheHitsV138;
+        private static int s_C2Settlement3InuMdV2UnitG2DNationDiskCacheMissesV138;
+        private static int s_C2Settlement3InuMdV2UnitG2DNationDiskCacheWritesV138;
+        private static int s_C2Settlement3InuMdV2UnitG2DNationDiskCacheWriteFailsV138;
+
+        // V139: second cache layer over V138. V138 writes decoded RGBA frames to disk.
+        // V139 hydrates selected nation folders into RAM at map start so spawn/menu-bank warmups do not hit File IO.
+        private static readonly Dictionary<string, Texture2D> s_C2Settlement3InuMdV2UnitG2DNationDiskPathRamCacheV139 =
+            new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+        private static readonly HashSet<string> s_C2Settlement3InuMdV2UnitG2DNationPreloadedFoldersV139 =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static string C2Settlement3InuMdV2UnitG2DNationDiskCacheRootV138()
+        {
+            // Important: not inside Assets/ and not inside Library/. User-owned persistent decoded cache.
+            return @"C:\Users\Koshey\My project\Kozaks\C2Cache\G2DUnits";
+        }
+
+        private static string C2Settlement3InuMdV2UnitG2DNationFrameDiskCachePathV138(
+            string abs,
+            string logicalPackage,
+            int fileRef,
+            int frame,
+            int ownerPlayerIndex,
+            Color32 nationColor)
+        {
+            if (!Settlement3InuMdV2UnitG2DNationDiskCacheV138 || string.IsNullOrEmpty(abs) || !File.Exists(abs)) return null;
+            try
+            {
+                FileInfo fi = new FileInfo(abs);
+                string key =
+                    Path.GetFullPath(abs) +
+                    "|len=" + fi.Length.ToString(CultureInfo.InvariantCulture) +
+                    "|ticks=" + fi.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture) +
+                    "|pkg=" + (logicalPackage ?? string.Empty) +
+                    "|fileRef=" + fileRef.ToString(CultureInfo.InvariantCulture) +
+                    "|frame=" + frame.ToString(CultureInfo.InvariantCulture) +
+                    "|player=" + ownerPlayerIndex.ToString(CultureInfo.InvariantCulture) +
+                    "|nat=" + nationColor.r.ToString(CultureInfo.InvariantCulture) + "," +
+                              nationColor.g.ToString(CultureInfo.InvariantCulture) + "," +
+                              nationColor.b.ToString(CultureInfo.InvariantCulture) +
+                    "|v138_unit_g2d_nat_rgba32";
+                ulong h = C2Settlement3InuMdV2Fnv1a64V55(key);
+                string fileSafePkg = string.IsNullOrEmpty(logicalPackage)
+                    ? Path.GetFileNameWithoutExtension(abs)
+                    : Regex.Replace(logicalPackage, @"[^A-Za-z0-9_\-]+", "_");
+                string dir = Path.Combine(C2Settlement3InuMdV2UnitG2DNationDiskCacheRootV138(), fileSafePkg ?? "_pkg");
+                return Path.Combine(dir, h.ToString("X16", CultureInfo.InvariantCulture) + ".c2g2draw");
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Texture2D C2Settlement3InuMdV2TryReadUnitG2DNationFrameDiskCacheV138(
+            string abs,
+            string logicalPackage,
+            int fileRef,
+            int frame,
+            int ownerPlayerIndex,
+            Color32 nationColor,
+            out string source)
+        {
+            source = "unit_g2d_nat_disk_cache_disabled";
+            string path = C2Settlement3InuMdV2UnitG2DNationFrameDiskCachePathV138(abs, logicalPackage, fileRef, frame, ownerPlayerIndex, nationColor);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                s_C2Settlement3InuMdV2UnitG2DNationDiskCacheMissesV138++;
+                source = "unit_g2d_nat_disk_cache_miss";
+                return null;
+            }
+
+            Texture2D ramTexV139;
+            if (s_C2Settlement3InuMdV2UnitG2DNationDiskPathRamCacheV139.TryGetValue(path, out ramTexV139) && ramTexV139 != null)
+            {
+                s_C2Settlement3InuMdV2UnitG2DNationDiskCacheHitsV138++;
+                source = "unit_g2d_nat_ram_preload_hit:" + path;
+                return ramTexV139;
+            }
+
+            try
+            {
+                using (BinaryReader br = new BinaryReader(File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)))
+                {
+                    int magic = br.ReadInt32();
+                    int version = br.ReadInt32();
+                    int w = br.ReadInt32();
+                    int h = br.ReadInt32();
+                    int len = br.ReadInt32();
+                    if (magic != unchecked((int)0xC2A2D138) ||
+                        version != Settlement3InuMdV2UnitG2DNationDiskCacheVersionV138 ||
+                        w <= 0 || h <= 0 || len < w * h * 4 || len > 268435456)
+                    {
+                        s_C2Settlement3InuMdV2UnitG2DNationDiskCacheMissesV138++;
+                        source = "unit_g2d_nat_disk_cache_bad_header";
+                        return null;
+                    }
+
+                    byte[] rgba = br.ReadBytes(len);
+                    if (rgba == null || rgba.Length < w * h * 4)
+                    {
+                        s_C2Settlement3InuMdV2UnitG2DNationDiskCacheMissesV138++;
+                        source = "unit_g2d_nat_disk_cache_bad_payload";
+                        return null;
+                    }
+
+                    Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+                    tex.name = "C2_UNIT_G2D_DISKCACHE_" + Path.GetFileNameWithoutExtension(abs) +
+                               "_frame_" + frame.ToString(CultureInfo.InvariantCulture) +
+                               "_p" + ownerPlayerIndex.ToString(CultureInfo.InvariantCulture);
+                    tex.LoadRawTextureData(rgba);
+                    tex.Apply(false, false);
+                    tex.filterMode = FilterMode.Point;
+                    tex.wrapMode = TextureWrapMode.Clamp;
+
+                    s_C2Settlement3InuMdV2UnitG2DNationDiskCacheHitsV138++;
+                    s_C2Settlement3InuMdV2UnitG2DNationDiskPathRamCacheV139[path] = tex;
+                    source = "unit_g2d_nat_disk_cache_hit:" + path;
+                    return tex;
+                }
+            }
+            catch (Exception ex)
+            {
+                s_C2Settlement3InuMdV2UnitG2DNationDiskCacheMissesV138++;
+                source = "unit_g2d_nat_disk_cache_read_error:" + ex.GetType().Name;
+                return null;
+            }
+        }
+
+        private static Texture2D C2Settlement3InuMdV2ReadUnitG2DNationFrameDiskCacheFileV139(string path, string texName, out string error)
+        {
+            error = string.Empty;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                error = "missing";
+                return null;
+            }
+
+            try
+            {
+                using (BinaryReader br = new BinaryReader(File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)))
+                {
+                    int magic = br.ReadInt32();
+                    int version = br.ReadInt32();
+                    int w = br.ReadInt32();
+                    int h = br.ReadInt32();
+                    int len = br.ReadInt32();
+                    if (magic != unchecked((int)0xC2A2D138) ||
+                        version != Settlement3InuMdV2UnitG2DNationDiskCacheVersionV138 ||
+                        w <= 0 || h <= 0 || len < w * h * 4 || len > 268435456)
+                    {
+                        error = "bad_header";
+                        return null;
+                    }
+
+                    byte[] rgba = br.ReadBytes(len);
+                    if (rgba == null || rgba.Length < w * h * 4)
+                    {
+                        error = "bad_payload";
+                        return null;
+                    }
+
+                    Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+                    tex.name = string.IsNullOrEmpty(texName) ? ("C2_UNIT_G2D_V139_" + Path.GetFileNameWithoutExtension(path)) : texName;
+                    tex.LoadRawTextureData(rgba);
+                    tex.Apply(false, false);
+                    tex.filterMode = FilterMode.Point;
+                    tex.wrapMode = TextureWrapMode.Clamp;
+                    return tex;
+                }
+            }
+            catch (Exception ex)
+            {
+                error = ex.GetType().Name;
+                return null;
+            }
+        }
+
+        private static bool C2Settlement3InuMdV2FolderMatchesPrefixesV139(string folderName, List<string> prefixes)
+        {
+            if (string.IsNullOrEmpty(folderName)) return false;
+            if (prefixes == null || prefixes.Count == 0) return true;
+            for (int i = 0; i < prefixes.Count; i++)
+            {
+                string p = prefixes[i];
+                if (string.IsNullOrEmpty(p)) continue;
+                if (folderName.StartsWith(p, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        public static int C2Settlement3InuMdV2PreloadUnitG2DNationDiskCacheFoldersV139LikeOriginal(
+            List<string> packageFolderPrefixes,
+            int maxFiles,
+            out string audit)
+        {
+            audit = "not_started";
+            string root = C2Settlement3InuMdV2UnitG2DNationDiskCacheRootV138();
+            if (string.IsNullOrEmpty(root) || !Directory.Exists(root))
+            {
+                audit = "root_missing root='" + (root ?? string.Empty) + "'";
+                return 0;
+            }
+
+            if (maxFiles <= 0) maxFiles = 20000;
+
+            int foldersSeen = 0;
+            int foldersMatched = 0;
+            int filesSeen = 0;
+            int loaded = 0;
+            int alreadyRam = 0;
+            int failed = 0;
+            List<string> folderSample = new List<string>();
+            List<string> failSample = new List<string>();
+
+            string[] dirs;
+            try { dirs = Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly); }
+            catch (Exception ex)
+            {
+                audit = "dir_error root='" + root + "' err=" + ex.GetType().Name;
+                return 0;
+            }
+
+            for (int d = 0; dirs != null && d < dirs.Length; d++)
+            {
+                string dir = dirs[d];
+                string folder = Path.GetFileName(dir) ?? string.Empty;
+                foldersSeen++;
+                if (!C2Settlement3InuMdV2FolderMatchesPrefixesV139(folder, packageFolderPrefixes)) continue;
+                foldersMatched++;
+
+                // Folder-level done gate avoids re-reading the whole nation every time a helper wakes up.
+                if (s_C2Settlement3InuMdV2UnitG2DNationPreloadedFoldersV139.Contains(dir))
+                {
+                    if (folderSample.Count < 16) folderSample.Add(folder + ":already_folder");
+                    continue;
+                }
+
+                string[] files;
+                try { files = Directory.GetFiles(dir, "*.c2g2draw", SearchOption.TopDirectoryOnly); }
+                catch (Exception ex)
+                {
+                    failed++;
+                    if (failSample.Count < 8) failSample.Add(folder + ":list:" + ex.GetType().Name);
+                    continue;
+                }
+
+                int folderLoaded = 0;
+                int folderAlready = 0;
+                for (int i = 0; files != null && i < files.Length; i++)
+                {
+                    if (filesSeen >= maxFiles) break;
+                    string path = files[i];
+                    filesSeen++;
+
+                    Texture2D cached;
+                    if (s_C2Settlement3InuMdV2UnitG2DNationDiskPathRamCacheV139.TryGetValue(path, out cached) && cached != null)
+                    {
+                        alreadyRam++;
+                        folderAlready++;
+                        continue;
+                    }
+
+                    string err;
+                    Texture2D tex = C2Settlement3InuMdV2ReadUnitG2DNationFrameDiskCacheFileV139(
+                        path,
+                        "C2_UNIT_G2D_V139_" + folder + "_" + Path.GetFileNameWithoutExtension(path),
+                        out err);
+                    if (tex != null)
+                    {
+                        s_C2Settlement3InuMdV2UnitG2DNationDiskPathRamCacheV139[path] = tex;
+                        loaded++;
+                        folderLoaded++;
+                    }
+                    else
+                    {
+                        failed++;
+                        if (failSample.Count < 8) failSample.Add(folder + ":" + Path.GetFileName(path) + ":" + err);
+                    }
+                }
+
+                s_C2Settlement3InuMdV2UnitG2DNationPreloadedFoldersV139.Add(dir);
+                if (folderSample.Count < 16)
+                    folderSample.Add(folder + ":loaded=" + folderLoaded.ToString(CultureInfo.InvariantCulture) + ":already=" + folderAlready.ToString(CultureInfo.InvariantCulture));
+
+                if (filesSeen >= maxFiles) break;
+            }
+
+            audit = "root='" + root + "'" +
+                    " prefixes=" + (packageFolderPrefixes != null ? string.Join(",", packageFolderPrefixes.ToArray()) : "<all>") +
+                    " foldersSeen=" + foldersSeen.ToString(CultureInfo.InvariantCulture) +
+                    " foldersMatched=" + foldersMatched.ToString(CultureInfo.InvariantCulture) +
+                    " filesSeen=" + filesSeen.ToString(CultureInfo.InvariantCulture) +
+                    " loaded=" + loaded.ToString(CultureInfo.InvariantCulture) +
+                    " alreadyRam=" + alreadyRam.ToString(CultureInfo.InvariantCulture) +
+                    " failed=" + failed.ToString(CultureInfo.InvariantCulture) +
+                    " ramTotal=" + s_C2Settlement3InuMdV2UnitG2DNationDiskPathRamCacheV139.Count.ToString(CultureInfo.InvariantCulture) +
+                    (folderSample.Count > 0 ? " folders=[" + string.Join(";", folderSample.ToArray()) + "]" : string.Empty) +
+                    (failSample.Count > 0 ? " fails=[" + string.Join(";", failSample.ToArray()) + "]" : string.Empty);
+            return loaded + alreadyRam;
+        }
+
+        private static void C2Settlement3InuMdV2TryWriteUnitG2DNationFrameDiskCacheV138(
+            string abs,
+            string logicalPackage,
+            int fileRef,
+            int frame,
+            int ownerPlayerIndex,
+            Color32 nationColor,
+            Texture2D tex)
+        {
+            if (!Settlement3InuMdV2UnitG2DNationDiskCacheV138 || tex == null) return;
+            string path = C2Settlement3InuMdV2UnitG2DNationFrameDiskCachePathV138(abs, logicalPackage, fileRef, frame, ownerPlayerIndex, nationColor);
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                string dir = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                byte[] raw = tex.GetRawTextureData();
+                if (raw == null || raw.Length < tex.width * tex.height * 4) return;
+
+                string tmp = path + ".tmp";
+                using (BinaryWriter bw = new BinaryWriter(File.Open(tmp, FileMode.Create, FileAccess.Write, FileShare.None)))
+                {
+                    bw.Write(unchecked((int)0xC2A2D138));
+                    bw.Write(Settlement3InuMdV2UnitG2DNationDiskCacheVersionV138);
+                    bw.Write(tex.width);
+                    bw.Write(tex.height);
+                    bw.Write(raw.Length);
+                    bw.Write(raw);
+                }
+
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tmp, path);
+                s_C2Settlement3InuMdV2UnitG2DNationDiskCacheWritesV138++;
+            }
+            catch
+            {
+                s_C2Settlement3InuMdV2UnitG2DNationDiskCacheWriteFailsV138++;
+            }
+        }
+
         private bool C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(C2Settlement3InuMdV2Info md, int frame, C2Settlement3InuMdV2Kind kind, out Texture2D tex, out string audit)
         {
             return C2Settlement3InuMdV2TryLoadSpecificFrameLikeOriginal(md, frame, kind, out tex, out audit, null, -1);
@@ -1871,8 +2255,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Color32 nationColor = C2PlayerColorsLikeOriginal.GetNatColorByColorId(colorId);
             string nationCacheSuffix = useNatColor ? ("|" + C2PlayerColorsLikeOriginal.CacheSuffixForPlayer(ownerPlayerIndex)) : "|nat=none";
             string[] exts = kind == C2Settlement3InuMdV2Kind.Unit || kind == C2Settlement3InuMdV2Kind.Animal
-                ? new[] { ".g2d", ".G2D", ".g17", ".G17", ".g16", ".G16" }
-                : new[] { ".g17", ".G17", ".g16", ".G16", ".g2d", ".G2D" };
+                ? new[] { ".g2d", ".G2D", ".g16", ".G16", ".g17", ".G17" }
+                : new[] { ".g16", ".G16", ".g17", ".G17", ".g2d", ".G2D" };
             string visualPathKey = C2Settlement3InuMdV2VisualPathCacheKeyV55(pkg, md.MdPath, exts);
             var files = C2Settlement3InuMdV2VisualCandidatesCachedV55(pkg, md.MdPath, exts, visualPathKey);
             List<string> tried = Settlement3InuMdV2VerboseAuditV54 ? new List<string>() : null;
@@ -1882,8 +2266,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 bool exists = File.Exists(p);
                 if (tried != null && i < 12) tried.Add((exists ? "EXISTS:" : "MISS:") + p);
                 if (!exists) continue;
-                if (!s_C2Settlement3InuMdV2VisualPathCacheV55.ContainsKey(visualPathKey))
-                    s_C2Settlement3InuMdV2VisualPathCacheV55[visualPathKey] = p;
                 string source = string.Empty;
                 try
                 {
@@ -1898,6 +2280,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
 
                     s_C2Settlement3InuMdV2TextureCacheMissesV54++;
+                    string e = Path.GetExtension(p).ToLowerInvariant();
+
+                    if (useNatColor && e == ".g2d")
+                    {
+                        string diskSource;
+                        tex = C2Settlement3InuMdV2TryReadUnitG2DNationFrameDiskCacheV138(p, pkg, fileRef, frame, ownerPlayerIndex, nationColor, out diskSource);
+                        if (tex != null)
+                        {
+                            source = diskSource;
+                            var ceDiskNat = new C2Settlement3InuMdV2TextureCacheEntryV54();
+                            ceDiskNat.Texture = tex;
+                            ceDiskNat.Source = source;
+                            ceDiskNat.Size = tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture);
+                            s_C2Settlement3InuMdV2TextureCacheV54[cacheKey] = ceDiskNat;
+                            if (!s_C2Settlement3InuMdV2VisualPathCacheV55.ContainsKey(visualPathKey))
+                                s_C2Settlement3InuMdV2VisualPathCacheV55[visualPathKey] = p;
+                            audit = C2Settlement3InuMdV2TextureAuditV54(fileRef.ToString(CultureInfo.InvariantCulture), p, frame, tex, source, false);
+                            return true;
+                        }
+                    }
+
                     if (!useNatColor)
                     {
                         string diskSource;
@@ -1910,12 +2313,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                             ceDisk.Source = source;
                             ceDisk.Size = tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture);
                             s_C2Settlement3InuMdV2TextureCacheV54[cacheKey] = ceDisk;
+                            if (!s_C2Settlement3InuMdV2VisualPathCacheV55.ContainsKey(visualPathKey))
+                                s_C2Settlement3InuMdV2VisualPathCacheV55[visualPathKey] = p;
                             audit = C2Settlement3InuMdV2TextureAuditV54(fileRef.ToString(CultureInfo.InvariantCulture), p, frame, tex, source, false);
                             return true;
                         }
                     }
 
-                    string e = Path.GetExtension(p).ToLowerInvariant();
                     bool nationFallbackV3 = false;
                     if (useNatColor)
                     {
@@ -1963,12 +2367,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (tex != null)
                     {
                         tex = C2Settlement3InuMdV2PrepareLoadedTextureLikeOriginal(tex);
-                        if (!useNatColor) C2Settlement3InuMdV2TryWriteFrameDiskCacheV55(p, pkg, fileRef, frame, tex);
+                        if (useNatColor && e == ".g2d")
+                            C2Settlement3InuMdV2TryWriteUnitG2DNationFrameDiskCacheV138(p, pkg, fileRef, frame, ownerPlayerIndex, nationColor, tex);
+                        else if (!useNatColor)
+                            C2Settlement3InuMdV2TryWriteFrameDiskCacheV55(p, pkg, fileRef, frame, tex);
                         var ce = new C2Settlement3InuMdV2TextureCacheEntryV54();
                         ce.Texture = tex;
                         ce.Source = source;
                         ce.Size = tex.width.ToString(CultureInfo.InvariantCulture) + "x" + tex.height.ToString(CultureInfo.InvariantCulture);
                         s_C2Settlement3InuMdV2TextureCacheV54[cacheKey] = ce;
+                        if (!s_C2Settlement3InuMdV2VisualPathCacheV55.ContainsKey(visualPathKey))
+                            s_C2Settlement3InuMdV2VisualPathCacheV55[visualPathKey] = p;
                         audit = C2Settlement3InuMdV2TextureAuditV54(fileRef.ToString(CultureInfo.InvariantCulture), p, frame, tex, source, false);
                         return true;
                     }
@@ -1988,7 +2397,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             audit = "";
             if (md == null || !md.Found || string.IsNullOrEmpty(md.Package)) { audit = "no_md_or_package"; return false; }
             int frame = C2Settlement3InuMdV2SpriteFrameLikeOriginal(md, r, kind);
-            string[] exts = kind == C2Settlement3InuMdV2Kind.Unit || kind == C2Settlement3InuMdV2Kind.Animal ? new[] { ".g2d", ".G2D", ".g17", ".G17", ".g16", ".G16" } : new[] { ".g17", ".G17", ".g16", ".G16", ".g2d", ".G2D" };
+            string[] exts = kind == C2Settlement3InuMdV2Kind.Unit || kind == C2Settlement3InuMdV2Kind.Animal ? new[] { ".g2d", ".G2D", ".g16", ".G16", ".g17", ".G17" } : new[] { ".g16", ".G16", ".g17", ".G17", ".g2d", ".G2D" };
             var files = C2Settlement3InuMdV2VisualCandidatesLikeOriginal(md.Package, md.MdPath, exts);
             C2Settlement3InuMdV2AddIndexedVisualCandidatesLikeOriginal(files, md.Package, exts);
             var tried = new List<string>();
@@ -2219,6 +2628,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Vector3 basePos = C2Settlement3InuMdV2WorldLikeOriginal(r);
             float s = WallOriginalXYUnitToWorldScaleV8LikeOriginal() * Settlement3InuMdV2SpriteScaleCompensator;
 
+            // V70 compile fix:
+            // Composite renderer needs the same UV flip decision that older single-frame path had.
+            // Default building G16/G17 path uses vertical UV flip; FrnMel/BldArs-Tkon exceptions use no-vflip.
+            bool flipVForG16 = !C2Settlement3InuMdV2NeedsNoVerticalFlipLikeOriginal(md, r);
+
             bool hasLineSortV32 = false;
             for (int i = 0; i < loadedFrames.Count; i++)
             {
@@ -2228,7 +2642,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     break;
                 }
             }
-            bool flipVForG16Building = !C2Settlement3InuMdV2NeedsNoVerticalFlipLikeOriginal(md, r);
+            C2Settlement3InuMdV2LogAlign3PointAspectAuditV68(md, r, loadedFrames, s, hasLineSortV32, flipVForG16);
 
             if (Settlement3InuMdV2UseVisibleBottomLiftHack)
             {
@@ -2238,7 +2652,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (loadedFrames[i] == null || loadedFrames[i].Texture == null) continue;
                     float plx, prx, pby, pty;
                     C2Settlement3InuMdV2FrameRectLikeOriginal(md, loadedFrames[i].Texture, loadedFrames[i].Frame, s, out plx, out prx, out pby, out pty);
-                    float vb = C2Settlement3InuMdV2VisibleBottomLocalYLikeOriginal(loadedFrames[i].Texture, pby, pty, flipVForG16Building);
+                    float vb = C2Settlement3InuMdV2VisibleBottomLocalYLikeOriginal(loadedFrames[i].Texture, pby, pty, flipVForG16);
                     if (vb < visibleBottom) visibleBottom = vb;
                 }
                 if (float.IsInfinity(visibleBottom)) visibleBottom = 0f;
@@ -2314,9 +2728,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 float lx, rx, by, ty;
                 C2Settlement3InuMdV2FrameRectLikeOriginal(md, tex, loaded.Frame, s, out lx, out rx, out by, out ty);
 
-                // V32: keep LINESORT parsed and post-processed exactly, but do not reapply the failed V30
-                // deformation until the full DrawSpriteBuilding matrix path is ported.
-                Vector3[] vertices = new[]
+                // V71: keep the old flat quad as a baseline, then optionally apply ALIGN_WITH_3POINTS
+                // pseudo-projection test only to runtime/preview buildings.
+                Vector3[] flatVertices = new[]
                 {
                     new Vector3(lx, by, 0f),
                     new Vector3(rx, by, 0f),
@@ -2324,10 +2738,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     new Vector3(lx, ty, 0f)
                 };
 
+                string projectionAuditV71;
+                Vector3[] vertices = C2Settlement3InuMdV2BuildProjectionVerticesV71LikeOriginal(
+                    md,
+                    r,
+                    kind,
+                    flatVertices,
+                    s,
+                    out projectionAuditV71);
+
+                C2Settlement3InuMdV2LogProjectionAuditV71(md, r, loaded, i, flatVertices, vertices, projectionAuditV71);
+
                 var mesh = new Mesh();
                 mesh.name = go.name + "_Mesh";
                 mesh.vertices = vertices;
-                mesh.uv = flipVForG16Building
+                mesh.uv = flipVForG16
                     ? new[]
                     {
                         new Vector2(0f, 1f),
@@ -2347,10 +2772,355 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mf.sharedMesh = mesh;
             }
 
-            C2Settlement3InuMdV2CreateWorkAnimationOverlayLikeOriginal(parent.transform, r, md, kind, loadedFrames.Count, s, flipVForG16Building, compositeMaxSortingOrderV53);
+            C2Settlement3InuMdV2CreateWorkAnimationOverlayLikeOriginal(parent.transform, r, md, kind, loadedFrames.Count, s, flipVForG16, compositeMaxSortingOrderV53);
             selectable.SortKey = compositeMaxSortingOrderV53 != int.MinValue
                 ? compositeMaxSortingOrderV53
                 : C2Settlement3InuMdV2SortOrderLikeOriginal(r, loadedFrames[0], 0, loadedFrames[0].Texture);
+        }
+
+        private static Vector3[] C2Settlement3InuMdV2BuildProjectionVerticesV71LikeOriginal(
+            C2Settlement3InuMdV2Info md,
+            C2Settlement3InuMdV2Record r,
+            C2Settlement3InuMdV2Kind kind,
+            Vector3[] flatVertices,
+            float scale,
+            out string audit)
+        {
+            audit = "flat";
+
+            if (flatVertices == null || flatVertices.Length != 4)
+                return flatVertices;
+
+            if (!C2Settlement3InuMdV2ShouldApply3PointProjectionV71LikeOriginal(md, r, kind))
+                return flatVertices;
+
+            Vector3[] projected;
+            if (!C2Settlement3InuMdV2TryBuildAlign3PointAffineVerticesV71LikeOriginal(md, flatVertices, scale, out projected, out audit))
+                return flatVertices;
+
+            return projected != null && projected.Length == 4 ? projected : flatVertices;
+        }
+
+        private static bool C2Settlement3InuMdV2ShouldApply3PointProjectionV71LikeOriginal(
+            C2Settlement3InuMdV2Info md,
+            C2Settlement3InuMdV2Record r,
+            C2Settlement3InuMdV2Kind kind)
+        {
+            if (!Settlement3InuMdV2Apply3PointProjectionV71)
+                return false;
+
+            if (md == null || !md.Found || !md.Use3pAlign)
+                return false;
+
+            if (Settlement3InuMdV2Apply3PointProjectionRuntimeOnlyV71 && r.Index < 900000)
+                return false;
+
+            return kind == C2Settlement3InuMdV2Kind.SettlementBuilding ||
+                   kind == C2Settlement3InuMdV2Kind.Building ||
+                   kind == C2Settlement3InuMdV2Kind.ResourceBuilding ||
+                   kind == C2Settlement3InuMdV2Kind.SpriteObject;
+        }
+
+        private static bool C2Settlement3InuMdV2TryBuildAlign3PointAffineVerticesV71LikeOriginal(
+            C2Settlement3InuMdV2Info md,
+            Vector3[] flatVertices,
+            float scale,
+            out Vector3[] projected,
+            out string audit)
+        {
+            projected = null;
+            audit = "align3p_failed";
+
+            if (md == null || flatVertices == null || flatVertices.Length != 4)
+                return false;
+
+            Vector2 s1 = C2Settlement3InuMdV2AlignSource2DV71LikeOriginal(md, md.AlignPt1x, md.AlignPt1y, scale);
+            Vector2 s2 = C2Settlement3InuMdV2AlignSource2DV71LikeOriginal(md, md.AlignPt2x, md.AlignPt2y, scale);
+            Vector2 s3 = C2Settlement3InuMdV2AlignSource2DV71LikeOriginal(md, md.AlignPt3x, md.AlignPt3y, scale);
+
+            Vector2 t1 = C2Settlement3InuMdV2AlignTarget2DV71LikeOriginal(md, md.AlignPt1x, md.AlignPt1y, md.AlignPt1z, scale);
+            Vector2 t2 = C2Settlement3InuMdV2AlignTarget2DV71LikeOriginal(md, md.AlignPt2x, md.AlignPt2y, md.AlignPt2z, scale);
+            Vector2 t3 = C2Settlement3InuMdV2AlignTarget2DV71LikeOriginal(md, md.AlignPt3x, md.AlignPt3y, md.AlignPt3z, scale);
+
+            float det = (s2.x - s1.x) * (s3.y - s1.y) - (s3.x - s1.x) * (s2.y - s1.y);
+            if (Mathf.Abs(det) < 0.00001f)
+            {
+                audit = "align3p_failed_degenerate det=" + det.ToString("0.######", CultureInfo.InvariantCulture);
+                return false;
+            }
+
+            projected = new Vector3[flatVertices.Length];
+            for (int i = 0; i < flatVertices.Length; i++)
+            {
+                Vector2 p = new Vector2(flatVertices[i].x, flatVertices[i].y);
+                Vector2 q = C2Settlement3InuMdV2ApplyAffineFrom3PointsV71LikeOriginal(p, s1, s2, s3, t1, t2, t3, det);
+                projected[i] = new Vector3(q.x, q.y, flatVertices[i].z);
+            }
+
+            float beforeW;
+            float beforeH;
+            float beforeAspect;
+            float afterW;
+            float afterH;
+            float afterAspect;
+            C2Settlement3InuMdV2BoundsAspectV71LikeOriginal(flatVertices, out beforeW, out beforeH, out beforeAspect);
+            C2Settlement3InuMdV2BoundsAspectV71LikeOriginal(projected, out afterW, out afterH, out afterAspect);
+
+            audit = "align3p_affine_oppositeHeight_SkewPtHalf_V73" +
+                    " before=" + beforeW.ToString("0.###", CultureInfo.InvariantCulture) + "x" + beforeH.ToString("0.###", CultureInfo.InvariantCulture) +
+                    " beforeAspect=" + beforeAspect.ToString("0.######", CultureInfo.InvariantCulture) +
+                    " after=" + afterW.ToString("0.###", CultureInfo.InvariantCulture) + "x" + afterH.ToString("0.###", CultureInfo.InvariantCulture) +
+                    " projectedAspect=" + afterAspect.ToString("0.######", CultureInfo.InvariantCulture) +
+                    " heightGain=" + (afterH - beforeH).ToString("0.###", CultureInfo.InvariantCulture) +
+                    " pts=(" + md.AlignPt1x.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt1y.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt1z.ToString(CultureInfo.InvariantCulture) + ")(" +
+                               md.AlignPt2x.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt2y.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt2z.ToString(CultureInfo.InvariantCulture) + ")(" +
+                               md.AlignPt3x.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt3y.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt3z.ToString(CultureInfo.InvariantCulture) + ")";
+
+            return true;
+        }
+
+        private static Vector2 C2Settlement3InuMdV2AlignSource2DV71LikeOriginal(C2Settlement3InuMdV2Info md, int px, int py, float scale)
+        {
+            // Current flat sprite local mapping:
+            // screen pixel x -> (PicDx + x) * scale
+            // screen pixel y -> -(PicDy + y) * scale
+            return new Vector2(((md != null ? md.PicDx : 0) + px) * scale,
+                               -(((md != null ? md.PicDy : 0) + py) * scale));
+        }
+
+        private static Vector2 C2Settlement3InuMdV2AlignTarget2DV71LikeOriginal(C2Settlement3InuMdV2Info md, int px, int py, int pz, float scale)
+        {
+            // V73 opposite-height test.
+            //
+            // V71 used:
+            //   localY = -((PicDy + py) + 0.75*z)
+            // and log showed AusKaz 801x538 -> 801x278, so the Z anchor moved in the wrong
+            // Unity-local direction and compressed the building.
+            //
+            // Test the opposite direction:
+            //   localY = -((PicDy + py) - 0.75*z)
+            // This moves the Z anchor UP in Unity local Y and should restore/increase vertical volume.
+            return new Vector2(((md != null ? md.PicDx : 0) + px) * scale,
+                               -((((md != null ? md.PicDy : 0) + py) - 0.35f * pz) * scale));
+        }
+
+        private static Vector2 C2Settlement3InuMdV2ApplyAffineFrom3PointsV71LikeOriginal(
+            Vector2 p,
+            Vector2 s1,
+            Vector2 s2,
+            Vector2 s3,
+            Vector2 t1,
+            Vector2 t2,
+            Vector2 t3,
+            float det)
+        {
+            float u = ((p.x - s1.x) * (s3.y - s1.y) - (s3.x - s1.x) * (p.y - s1.y)) / det;
+            float v = ((s2.x - s1.x) * (p.y - s1.y) - (p.x - s1.x) * (s2.y - s1.y)) / det;
+            return t1 + (t2 - t1) * u + (t3 - t1) * v;
+        }
+
+        private static void C2Settlement3InuMdV2BoundsAspectV71LikeOriginal(Vector3[] v, out float w, out float h, out float aspect)
+        {
+            w = 0f;
+            h = 0f;
+            aspect = 0f;
+            if (v == null || v.Length == 0) return;
+
+            float minX = v[0].x;
+            float maxX = v[0].x;
+            float minY = v[0].y;
+            float maxY = v[0].y;
+
+            for (int i = 1; i < v.Length; i++)
+            {
+                if (v[i].x < minX) minX = v[i].x;
+                if (v[i].x > maxX) maxX = v[i].x;
+                if (v[i].y < minY) minY = v[i].y;
+                if (v[i].y > maxY) maxY = v[i].y;
+            }
+
+            w = Mathf.Abs(maxX - minX);
+            h = Mathf.Abs(maxY - minY);
+            aspect = h > 0.00001f ? w / h : 0f;
+        }
+
+        private static void C2Settlement3InuMdV2LogProjectionAuditV71(
+            C2Settlement3InuMdV2Info md,
+            C2Settlement3InuMdV2Record r,
+            C2Settlement3InuMdV2LoadedFrame loaded,
+            int partIndex,
+            Vector3[] before,
+            Vector3[] after,
+            string projectionAudit)
+        {
+            if (md == null || r.Index < 900000 || partIndex != 0)
+                return;
+
+            string key = (md.MdName ?? string.Empty) + "|" + (r.MonsterId ?? string.Empty) + "|V71";
+            if (s_C2Settlement3InuMdV2ProjectionAuditLoggedV71.Contains(key))
+                return;
+            s_C2Settlement3InuMdV2ProjectionAuditLoggedV71.Add(key);
+
+            float beforeW;
+            float beforeH;
+            float beforeAspect;
+            float afterW;
+            float afterH;
+            float afterAspect;
+            C2Settlement3InuMdV2BoundsAspectV71LikeOriginal(before, out beforeW, out beforeH, out beforeAspect);
+            C2Settlement3InuMdV2BoundsAspectV71LikeOriginal(after, out afterW, out afterH, out afterAspect);
+
+            Debug.Log("[C2:SETTLEMENT 3INU V71 ALIGN3P PROJECTION TEST] obj=" +
+                      r.Index.ToString(CultureInfo.InvariantCulture) +
+                      " unit='" + (r.MonsterId ?? string.Empty) + "'" +
+                      " md='" + (md.MdName ?? string.Empty) + "'" +
+                      " package='" + (md.Package ?? string.Empty) + "'" +
+                      " part=" + partIndex.ToString(CultureInfo.InvariantCulture) +
+                      " frame=" + (loaded != null ? ("file" + loaded.Frame.FileRef.ToString(CultureInfo.InvariantCulture) + "/spr" + loaded.Frame.SpriteId.ToString(CultureInfo.InvariantCulture)) : "<null>") +
+                      " runtimeOnly=" + Settlement3InuMdV2Apply3PointProjectionRuntimeOnlyV71 +
+                      " use3pAlign=" + md.Use3pAlign +
+                      " apply3pProjection=" + C2Settlement3InuMdV2ShouldApply3PointProjectionV71LikeOriginal(md, r, C2Settlement3InuMdV2Kind.Building) +
+                      " before=" + beforeW.ToString("0.###", CultureInfo.InvariantCulture) + "x" + beforeH.ToString("0.###", CultureInfo.InvariantCulture) +
+                      " beforeAspect=" + beforeAspect.ToString("0.######", CultureInfo.InvariantCulture) +
+                      " after=" + afterW.ToString("0.###", CultureInfo.InvariantCulture) + "x" + afterH.ToString("0.###", CultureInfo.InvariantCulture) +
+                      " projectedAspect=" + afterAspect.ToString("0.######", CultureInfo.InvariantCulture) +
+                      " heightGain=" + (afterH - beforeH).ToString("0.###", CultureInfo.InvariantCulture) +
+                      " audit='" + (projectionAudit ?? string.Empty) + "'");
+        }
+
+        private static void C2Settlement3InuMdV2LogAlign3PointAspectAuditV68(
+            C2Settlement3InuMdV2Info md,
+            C2Settlement3InuMdV2Record r,
+            List<C2Settlement3InuMdV2LoadedFrame> loadedFrames,
+            float scale,
+            bool hasLineSort,
+            bool flipVForG16)
+        {
+            if (!Settlement3InuMdV2Align3PointAspectAuditV68 || md == null || loadedFrames == null || loadedFrames.Count == 0)
+                return;
+
+            string mdName = md.MdName ?? string.Empty;
+            string unit = r.MonsterId ?? string.Empty;
+            string key = mdName + "|" + unit;
+            if (!Settlement3InuMdV2Align3PointVerboseEveryObjectV68 && s_C2Settlement3InuMdV2AspectAuditLoggedV68.Contains(key))
+                return;
+            s_C2Settlement3InuMdV2AspectAuditLoggedV68.Add(key);
+
+            int sampleIndex = -1;
+            C2Settlement3InuMdV2LoadedFrame sample = null;
+            for (int i = 0; i < loadedFrames.Count; i++)
+            {
+                if (loadedFrames[i] != null && loadedFrames[i].Texture != null)
+                {
+                    sampleIndex = i;
+                    sample = loadedFrames[i];
+                    break;
+                }
+            }
+
+            if (sample == null || sample.Texture == null)
+                return;
+
+            float lx;
+            float rx;
+            float by;
+            float ty;
+            C2Settlement3InuMdV2FrameRectLikeOriginal(md, sample.Texture, sample.Frame, scale, out lx, out rx, out by, out ty);
+
+            float rawW = Mathf.Max(1.0f, sample.Texture.width);
+            float rawH = Mathf.Max(1.0f, sample.Texture.height);
+            float quadW = Mathf.Abs(rx - lx);
+            float quadH = Mathf.Abs(ty - by);
+            float rawAspect = rawW / rawH;
+            float quadAspect = quadH > 0.00001f ? quadW / quadH : 0.0f;
+            float aspectDiff = Mathf.Abs(rawAspect - quadAspect);
+            bool aspectPreserved = aspectDiff < 0.01f;
+
+            int pivotDx;
+            int pivotDy;
+            C2Settlement3InuMdV2FramePivotLikeOriginal(md, sample.Frame, out pivotDx, out pivotDy);
+
+            string alignAudit = md.Use3pAlign
+                ? C2Settlement3InuMdV2Align3PointAuditStringV68(md)
+                : "none";
+
+            string lineSortAudit = hasLineSort
+                ? C2Settlement3InuMdV2LineSortAuditLikeOriginal(md)
+                : "none";
+
+            string verdict;
+            if (aspectPreserved && md.Use3pAlign)
+                verdict = "aspect_ok_check_camera_or_missing_3p_projection";
+            else if (!aspectPreserved)
+                verdict = "aspect_mismatch_fix_quad_generation";
+            else
+                verdict = "aspect_ok_no_3p_align";
+
+            Debug.Log("[C2:SETTLEMENT 3INU V68 ALIGN3P/ASPECT] obj=" + r.Index.ToString(CultureInfo.InvariantCulture) +
+                      " unit='" + unit + "'" +
+                      " md='" + mdName + "'" +
+                      " package='" + (md.Package ?? string.Empty) + "'" +
+                      " samplePart=" + sampleIndex.ToString(CultureInfo.InvariantCulture) +
+                      " tex=" + sample.Texture.width.ToString(CultureInfo.InvariantCulture) + "x" + sample.Texture.height.ToString(CultureInfo.InvariantCulture) +
+                      " frame=file" + sample.Frame.FileRef.ToString(CultureInfo.InvariantCulture) + "/spr" + sample.Frame.SpriteId.ToString(CultureInfo.InvariantCulture) +
+                      " pivot=" + pivotDx.ToString(CultureInfo.InvariantCulture) + "/" + pivotDy.ToString(CultureInfo.InvariantCulture) +
+                      " scale=" + scale.ToString("0.######", CultureInfo.InvariantCulture) +
+                      " rawAspect=" + rawAspect.ToString("0.######", CultureInfo.InvariantCulture) +
+                      " quad=" + quadW.ToString("0.######", CultureInfo.InvariantCulture) + "x" + quadH.ToString("0.######", CultureInfo.InvariantCulture) +
+                      " quadAspect=" + quadAspect.ToString("0.######", CultureInfo.InvariantCulture) +
+                      " aspectPreserved=" + aspectPreserved +
+                      " flipV=" + flipVForG16 +
+                      " location=" + md.PicDx.ToString(CultureInfo.InvariantCulture) + "," + md.PicDy.ToString(CultureInfo.InvariantCulture) + "," +
+                                      md.PicLx.ToString(CultureInfo.InvariantCulture) + "," + md.PicLy.ToString(CultureInfo.InvariantCulture) +
+                      " setAnmParam=" + md.SetAnmParamDx.ToString(CultureInfo.InvariantCulture) + "," + md.SetAnmParamDy.ToString(CultureInfo.InvariantCulture) + "," +
+                                          md.SetAnmParamParts.ToString(CultureInfo.InvariantCulture) + "," + md.SetAnmParamPartSize.ToString(CultureInfo.InvariantCulture) +
+                      " use3pAlign=" + md.Use3pAlign +
+                      " apply3pProjection=" + Settlement3InuMdV2Apply3PointProjectionV68 +
+                      " align3p='" + alignAudit + "'" +
+                      " lineSort='" + lineSortAudit + "'" +
+                      " lineSortTransform=V154_base5_geometry_dy_bucket_depth_only" +
+                      " verdict='" + verdict + "'");
+        }
+
+        private static string C2Settlement3InuMdV2Align3PointAuditStringV68(C2Settlement3InuMdV2Info md)
+        {
+            if (md == null || !md.Use3pAlign)
+                return "none";
+
+            Vector3 v1 = C2Settlement3InuMdV2SkewAlignPointV68(md, md.AlignPt1x, md.AlignPt1y, md.AlignPt1z);
+            Vector3 v2 = C2Settlement3InuMdV2SkewAlignPointV68(md, md.AlignPt2x, md.AlignPt2y, md.AlignPt2z);
+            Vector3 v3 = C2Settlement3InuMdV2SkewAlignPointV68(md, md.AlignPt3x, md.AlignPt3y, md.AlignPt3z);
+
+            float minX = Mathf.Min(v1.x, Mathf.Min(v2.x, v3.x));
+            float maxX = Mathf.Max(v1.x, Mathf.Max(v2.x, v3.x));
+            float minY = Mathf.Min(v1.y, Mathf.Min(v2.y, v3.y));
+            float maxY = Mathf.Max(v1.y, Mathf.Max(v2.y, v3.y));
+            float minZ = Mathf.Min(v1.z, Mathf.Min(v2.z, v3.z));
+            float maxZ = Mathf.Max(v1.z, Mathf.Max(v2.z, v3.z));
+
+            int rawMinZ = Math.Min(md.AlignPt1z, Math.Min(md.AlignPt2z, md.AlignPt3z));
+            int rawMaxZ = Math.Max(md.AlignPt1z, Math.Max(md.AlignPt2z, md.AlignPt3z));
+
+            return "pts=(" +
+                   md.AlignPt1x.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt1y.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt1z.ToString(CultureInfo.InvariantCulture) + ")(" +
+                   md.AlignPt2x.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt2y.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt2z.ToString(CultureInfo.InvariantCulture) + ")(" +
+                   md.AlignPt3x.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt3y.ToString(CultureInfo.InvariantCulture) + "," + md.AlignPt3z.ToString(CultureInfo.InvariantCulture) + ")" +
+                   " rawZDelta=" + (rawMaxZ - rawMinZ).ToString(CultureInfo.InvariantCulture) +
+                   " skewBounds=" + (maxX - minX).ToString("0.###", CultureInfo.InvariantCulture) + "x" +
+                                     (maxY - minY).ToString("0.###", CultureInfo.InvariantCulture) + "x" +
+                                     (maxZ - minZ).ToString("0.###", CultureInfo.InvariantCulture) +
+                   " originalFormula=SkewPt(dx+px,(dy+py+pz)*2,pz)";
+        }
+
+        private static Vector3 C2Settlement3InuMdV2SkewAlignPointV68(C2Settlement3InuMdV2Info md, int px, int py, int pz)
+        {
+            // Original MiniMap4X.cpp:
+            // V = SkewPt(dx+AlignPtX, (dy+AlignPtY+AlignPtZ)*2, AlignPtZ)
+            // SkewPt(x,y,z) returns Vector3D(x, y - 0.5*z, z*cos(pi/6)).
+            float x = (md != null ? md.PicDx : 0) + px;
+            float y = (((md != null ? md.PicDy : 0) + py + pz) * 2.0f);
+            float z = pz;
+            return new Vector3(x, y - 0.5f * z, z * 0.8660254037844386f);
         }
 
         private static void C2Settlement3InuMdV2SelectionHalfPixelsLikeOriginal(C2Settlement3InuMdV2Kind kind, out float halfX, out float halfY)
@@ -2373,26 +3143,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             halfY = 40.0f;
         }
 
-        private void C2Settlement3InuMdV2CreateWorkAnimationOverlayLikeOriginal(Transform parent, C2Settlement3InuMdV2Record r, C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Kind kind, int basePartCount, float s, bool flipVForG16Building, int baseMaxSortingOrderV53)
+        private void C2Settlement3InuMdV2CreateWorkAnimationOverlayLikeOriginal(Transform parent, C2Settlement3InuMdV2Record r, C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Kind kind, int basePartCount, float s, bool flipVForG16, int baseMaxSortingOrderV53)
         {
             if (!C2Settlement3InuMdV2ShouldDrawWorkAnimationLikeOriginal(md, r, kind)) return;
 
             var textures = new List<Texture2D>();
             var vertices = new List<Vector3[]>();
+            var loadedFrameIds = new List<int>();
             int totalWorkFrames = md.WorkFrames.Count;
-            int frameCount = totalWorkFrames; // V46: no artificial 24-frame cap. MD frame list is the only limit.
+            int frameCount = Settlement3InuMdV2WorkAnimationMaxFrames > 0
+                ? Math.Min(totalWorkFrames, Settlement3InuMdV2WorkAnimationMaxFrames)
+                : totalWorkFrames; // V66: no 24-frame preview cap; follow MD #WORK list.
 
+            int missed = 0;
+            string firstMissAudit = string.Empty;
             for (int i = 0; i < frameCount; i++)
             {
                 C2Settlement3InuMdV2AnimFrame frameRef = md.WorkFrames[i];
                 Texture2D tex;
                 string workAudit;
-                if (!C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(md, frameRef, kind, r.Nation, out tex, out workAudit) || tex == null) continue;
+                if (!C2Settlement3InuMdV2TryLoadSpecificFrameNationColorLikeOriginal(md, frameRef, kind, r.Nation, out tex, out workAudit) || tex == null)
+                {
+                    missed++;
+                    if (string.IsNullOrEmpty(firstMissAudit)) firstMissAudit = "frame=" + frameRef.SpriteId.ToString(CultureInfo.InvariantCulture) + " " + (workAudit ?? string.Empty);
+                    continue;
+                }
 
                 C2Settlement3InuMdV2PreparePartTextureLikeOriginal(tex, false);
                 float lx, rx, by, ty;
                 C2Settlement3InuMdV2FrameRectLikeOriginal(md, tex, frameRef, s, out lx, out rx, out by, out ty);
                 textures.Add(tex);
+                loadedFrameIds.Add(frameRef.SpriteId);
                 vertices.Add(new[]
                 {
                     new Vector3(lx, by, 0f),
@@ -2402,7 +3183,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 });
             }
 
-            if (textures.Count == 0) return;
+            if (textures.Count == 0)
+            {
+                if (Settlement3InuMdV2WorkAnimationAuditV66 && C2Settlement3InuMdV2LooksLikeMillOrMineLikeOriginal(md, r))
+                {
+                    Debug.Log("[C2:SETTLEMENT 3INU V66 WORK ANIM MISS] obj=" + r.Index.ToString(CultureInfo.InvariantCulture) +
+                              " name='" + (r.MonsterId ?? "") + "' md=" + (md != null ? (md.MdName ?? "") : "") +
+                              " pkg=" + (md != null ? (md.Package ?? "") : "") +
+                              " workFrames=" + totalWorkFrames.ToString(CultureInfo.InvariantCulture) +
+                              " missed=" + missed.ToString(CultureInfo.InvariantCulture) +
+                              " firstMiss=[" + firstMissAudit + "]");
+                }
+                return;
+            }
 
             var go = new GameObject("work_anim_#WORK_" + textures.Count.ToString(CultureInfo.InvariantCulture));
             go.transform.SetParent(parent, false);
@@ -2410,13 +3203,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             var mf = go.AddComponent<MeshFilter>();
             var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = C2Settlement3InuMdV2GetMaterialLikeOriginal(textures[0], false);
+            // V66: use a private material for the animated overlay. Do not mutate cached/shared materials used by static body parts.
+            Material workMat = C2Settlement3InuMdV2GetMaterialLikeOriginal(textures[0], false);
+            mr.sharedMaterial = workMat != null ? new Material(workMat) : null;
+            if (mr.sharedMaterial != null) mr.sharedMaterial.mainTexture = textures[0];
             mr.shadowCastingMode = ShadowCastingMode.Off;
             mr.receiveShadows = false;
             mr.lightProbeUsage = LightProbeUsage.Off;
             mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
             int workFallbackOrderV53 = C2Settlement3InuMdV2SortOrderLikeOriginal(r, null, basePartCount + 1, textures.Count > 0 ? textures[0] : null);
-            bool windmillWorkFrontV53 = C2Settlement3InuMdV2IsFrnMelLikeOriginal(md, r) && baseMaxSortingOrderV53 > int.MinValue / 2;
+            bool windmillWorkFrontV53 = C2Settlement3InuMdV2IsWindmillLikeOriginal(md, r) && baseMaxSortingOrderV53 > int.MinValue / 2;
             mr.sortingOrder = windmillWorkFrontV53 ? Mathf.Clamp(baseMaxSortingOrderV53 + 8, -30000, 30000) : workFallbackOrderV53;
             if (Settlement3InuMdV2VerboseAuditV54 && windmillWorkFrontV53)
             {
@@ -2432,7 +3228,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var mesh = new Mesh();
             mesh.name = go.name + "_Mesh";
             mesh.vertices = vertices[0];
-            mesh.uv = flipVForG16Building
+            mesh.uv = flipVForG16
                 ? new[]
                 {
                     new Vector2(0f, 1f),
@@ -2456,12 +3252,43 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             animator.Vertices = vertices.ToArray();
             animator.Mesh = mesh;
             animator.Renderer = mr;
-            animator.FrameRate = Settlement3InuMdV2WorkAnimationFps;
+            float workFpsV71 = C2Settlement3InuMdV2WorkAnimationFpsV71LikeOriginal(md, r);
+            animator.FrameRate = workFpsV71;
+
+            if (Settlement3InuMdV2WorkAnimationAuditV66 && C2Settlement3InuMdV2LooksLikeMillOrMineLikeOriginal(md, r))
+            {
+                Debug.Log("[C2:SETTLEMENT 3INU V66 WORK ANIM OK] obj=" + r.Index.ToString(CultureInfo.InvariantCulture) +
+                          " name='" + (r.MonsterId ?? "") + "' md=" + (md != null ? (md.MdName ?? "") : "") +
+                          " pkg=" + (md != null ? (md.Package ?? "") : "") +
+                          " loaded=" + textures.Count.ToString(CultureInfo.InvariantCulture) +
+                          "/" + totalWorkFrames.ToString(CultureInfo.InvariantCulture) +
+                          " missed=" + missed.ToString(CultureInfo.InvariantCulture) +
+                          " fps=" + workFpsV71.ToString(CultureInfo.InvariantCulture) +
+                          " firstFrame=" + (loadedFrameIds.Count > 0 ? loadedFrameIds[0].ToString(CultureInfo.InvariantCulture) : "<none>") +
+                          " lastFrame=" + (loadedFrameIds.Count > 0 ? loadedFrameIds[loadedFrameIds.Count - 1].ToString(CultureInfo.InvariantCulture) : "<none>") +
+                          " rule=md_#WORK_overlay");
+            }
+        }
+
+        private static float C2Settlement3InuMdV2WorkAnimationFpsV71LikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Record r)
+        {
+            // V71: only Egyptian mill donkey/work loop is intentionally sped up x2; C2Settlement3InuMdV2Record is a struct, so no null compare.
+            // Other mills/mines stay on the original V66 default 12 fps.
+            string key = ((md != null ? ((md.MdName ?? string.Empty) + " " + (md.Package ?? string.Empty)) : string.Empty) +
+                          " " + (r.MonsterId ?? string.Empty));
+            if (key.IndexOf("EgpMel", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                key.IndexOf("BldMel(EG)", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return Settlement3InuMdV2WorkAnimationFps * 5.0f;
+            }
+            return Settlement3InuMdV2WorkAnimationFps;
         }
 
         private static bool C2Settlement3InuMdV2ShouldDrawWorkAnimationLikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Record r, C2Settlement3InuMdV2Kind kind)
         {
+            if (!Settlement3InuMdV2DrawWorkAnimationOverlay) return false;
             if (md == null || md.WorkFrames == null || md.WorkFrames.Count == 0) return false;
+            if (!(kind == C2Settlement3InuMdV2Kind.SettlementBuilding || kind == C2Settlement3InuMdV2Kind.Building || kind == C2Settlement3InuMdV2Kind.ResourceBuilding || kind == C2Settlement3InuMdV2Kind.SpriteObject)) return false;
             return C2Settlement3InuMdV2LooksLikeMillOrMineLikeOriginal(md, r);
         }
 
@@ -2532,37 +3359,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static Vector3[] C2Settlement3InuMdV2BuildLineSortVerticesLikeOriginal(Texture2D tex, int dx, int dy, C2Settlement3InuMdV2LineSortInfo li, float s, float fallbackLx, float fallbackRx, float fallbackBy, float fallbackTy)
         {
-            int w = tex != null ? tex.width : 64;
-            int h = tex != null ? tex.height : 64;
-
-            if (li.IsGround)
-            {
-                return new[]
-                {
-                    C2Settlement3InuMdV2GroundPointLikeOriginal(0f, h, dx, dy, s),
-                    C2Settlement3InuMdV2GroundPointLikeOriginal(w, h, dx, dy, s),
-                    C2Settlement3InuMdV2GroundPointLikeOriginal(w, 0f, dx, dy, s),
-                    C2Settlement3InuMdV2GroundPointLikeOriginal(0f, 0f, dx, dy, s)
-                };
-            }
-
-            if (li.IsTop)
-            {
-                return new[]
-                {
-                    new Vector3(fallbackLx, fallbackBy, 0f),
-                    new Vector3(fallbackRx, fallbackBy, 0f),
-                    new Vector3(fallbackRx, fallbackTy, 0f),
-                    new Vector3(fallbackLx, fallbackTy, 0f)
-                };
-            }
-
+            // V149: forbidden path. LINESORT in the current Unity adapter is ONLY a per-part
+            // bucket tag: GROUND / LINE / TOP. The LINE coordinates must not cut, crop,
+            // slice or deform the sprite. If this helper is accidentally called by an older
+            // switch, return the full original flat quad so sprite 9/11/13 stay whole.
             return new[]
             {
-                C2Settlement3InuMdV2LinePointLikeOriginal(0f, h, dx, dy, li, s),
-                C2Settlement3InuMdV2LinePointLikeOriginal(w, h, dx, dy, li, s),
-                C2Settlement3InuMdV2LinePointLikeOriginal(w, 0f, dx, dy, li, s),
-                C2Settlement3InuMdV2LinePointLikeOriginal(0f, 0f, dx, dy, li, s)
+                new Vector3(fallbackLx, fallbackBy, 0f),
+                new Vector3(fallbackRx, fallbackBy, 0f),
+                new Vector3(fallbackRx, fallbackTy, 0f),
+                new Vector3(fallbackLx, fallbackTy, 0f)
             };
         }
 
@@ -2614,10 +3420,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             // G16 RGBA returned by Melinoja is top-left ordered for these GP frames.
             // Unity quad bottom must sample V=1 and top must sample V=0, otherwise buildings appear upside down.
-            const bool flipVForG16Building = true;
+            const bool flipVForG16 = true;
             if (Settlement3InuMdV2UseVisibleBottomLiftHack)
             {
-                float visibleBottom = C2Settlement3InuMdV2VisibleBottomLocalYLikeOriginal(tex, by, ty, flipVForG16Building);
+                float visibleBottom = C2Settlement3InuMdV2VisibleBottomLocalYLikeOriginal(tex, by, ty, flipVForG16);
                 basePos.y -= visibleBottom;
             }
 
@@ -2670,7 +3476,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
-        private static bool C2Settlement3InuMdV2IsFrnMelLikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Record r)
+        private static bool C2Settlement3InuMdV2IsWindmillLikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Record r)
         {
             string a = r.MonsterId ?? string.Empty;
             string b = md != null ? (md.MdName ?? string.Empty) : string.Empty;
@@ -2678,16 +3484,63 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string d = md != null ? (md.MdPath ?? string.Empty) : string.Empty;
             return a.IndexOf("BldMel", StringComparison.OrdinalIgnoreCase) >= 0
                 || b.IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || b.IndexOf("RusMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || b.IndexOf("SpnMil", StringComparison.OrdinalIgnoreCase) >= 0
+                || b.IndexOf("EgpMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || c.IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || c.IndexOf("RusMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || c.IndexOf("SpnMil", StringComparison.OrdinalIgnoreCase) >= 0
+                || c.IndexOf("EgpMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("RusMel", StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("SpnMil", StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("EgpMel", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool C2Settlement3InuMdV2IsFrenchMillVisualLikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Record r)
+        {
+            string a = r.MonsterId ?? string.Empty;
+            string b = md != null ? (md.MdName ?? string.Empty) : string.Empty;
+            string c = md != null ? (md.Package ?? string.Empty) : string.Empty;
+            string d = md != null ? (md.MdPath ?? string.Empty) : string.Empty;
+
+            // Only the French mill needs the no-vflip path.
+            // EgpMel is visually similar, but its Interf3\EgpMel frames use the ordinary building row convention.
+            bool logicalFrench =
+                a.IndexOf("BldMel(FR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                a.IndexOf("BldMel(SFR", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            return logicalFrench
+                || b.IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0
                 || c.IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0
                 || d.IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static bool C2Settlement3InuMdV2NeedsNoVerticalFlipLikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Record r)
         {
-            // UNITSG17_FRNMEL.g16 comes through the Melinoja GP alias path with the opposite row convention
-            // compared with the ordinary settlement-house frames. Keeping the generic G16 v-flip makes the
-            // mill body/cap appear upside down. Limit the exception to the French mill only.
-            return C2Settlement3InuMdV2IsFrnMelLikeOriginal(md, r);
+            // FrnMel: no-vflip.
+            // EgpMel/RusMel/SpnMil: keep the ordinary G16/G17 vertical flip.
+            // EgpMel was briefly grouped with FrnMel by visual guess, but the real map test showed it upside down.
+            //
+            // V56: BldKonHC/Ткон uses UnitsG17\BldArs. After Melinoja V50 this package is decoded
+            // through the same orientation as TemnyLess viewer/TGA output, so applying the ordinary
+            // building vertical UV flip turns it upside down. Keep this exception literal and cheap:
+            // no filesystem checks, no source-aware probing, only MD/package name checks.
+            return C2Settlement3InuMdV2IsFrenchMillVisualLikeOriginal(md, r)
+                || C2Settlement3InuMdV2IsBldArsTkonNoVFlipLikeOriginal(md, r);
+        }
+
+        private static bool C2Settlement3InuMdV2IsBldArsTkonNoVFlipLikeOriginal(C2Settlement3InuMdV2Info md, C2Settlement3InuMdV2Record r)
+        {
+            string a = r.MonsterId ?? string.Empty;
+            string b = md != null ? (md.MdName ?? string.Empty) : string.Empty;
+            string c = md != null ? (md.Package ?? string.Empty) : string.Empty;
+            string d = md != null ? (md.MdPath ?? string.Empty) : string.Empty;
+
+            return a.IndexOf("BldKonHC", StringComparison.OrdinalIgnoreCase) >= 0
+                || b.IndexOf("BldKonHC", StringComparison.OrdinalIgnoreCase) >= 0
+                || c.IndexOf("BldArs", StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("BldKonHC", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static float C2Settlement3InuMdV2VisibleBottomLocalYLikeOriginal(Texture2D tex, float bottom, float top, bool bottomSamplesV1)
@@ -2867,14 +3720,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if ((entries[rank].Name ?? "").IndexOf("BldRud", StringComparison.OrdinalIgnoreCase) >= 0 ||
                     (entries[rank].Md ?? "").IndexOf("BldRud", StringComparison.OrdinalIgnoreCase) >= 0 ||
                     (entries[rank].Name ?? "").IndexOf("BldMel", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    (entries[rank].Md ?? "").IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0)
+                    (entries[rank].Md ?? "").IndexOf("FrnMel", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    (entries[rank].Md ?? "").IndexOf("RusMel", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    (entries[rank].Md ?? "").IndexOf("SpnMil", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     auditMines.Add(one);
                 }
             }
 
             s_C2Settlement3InuMdV2SortRankAuditV51 =
-                "contract=original_AddAnimation_YL_rank_V53_part_linesort_windmill_work_front formula='partOrder=6000+mapY+(partLocalLineSortY/4)+partTie; windmillWorkOrder=max(millBodyPartOrder)+8; V51 whole-object rank kept only for audit' " +
+                "contract=V149_LINESORT_FULL_SPRITE_PART_BUCKET_NO_LINE_CUT formula='GROUND=6000+mapY-512+tie; UNIT=6000+unitY+24+xTie; LINE=6000+mapY+2048+tie; TOP=6000+mapY+4096+tie; LINE coordinates parsed for audit only; NEVER slice/crop/deform by LINESORT' " +
                 "drawnBuildingRanks=" + entries.Count.ToString(CultureInfo.InvariantCulture) +
                 " first=" + string.Join(" | ", auditFirst.ToArray()) +
                 " minesAndMills=" + string.Join(" | ", auditMines.ToArray());
@@ -2907,13 +3762,44 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static int C2Settlement3InuMdV2SortOrderLikeOriginal(C2Settlement3InuMdV2Record r, C2Settlement3InuMdV2LoadedFrame loaded, int partIndex, Texture2D tex)
         {
-            // V65: same sorting scale as units.
-            // Original buildings are registered part-by-part through AddAnimation/LINESORT.
-            // Each part receives an effective Y-line. Units receive their own foot Y-line.
-            // Parts with lower LINESORT localY go behind units, front/top parts go in front.
+            // V154: BASE-5 visual geometry preserved. Only the proven AusKaz LINESORT depth fix is applied.
+            // IMPORTANT: no mesh/projection/scale/quad changes here.
+            //
+            // LINESORT is indexed 1:1 by animation part, not by sprite id alone.
+            // AusKaz:
+            //   #STANDLO sprites: 8,9,10,11,12,13
+            //   LINESORT:         GROUND, LINE, GROUND, LINE, GROUND, LINE
+            //
+            // Verified rule for the current flat Unity emulation:
+            //   GROUND      -> back bucket
+            //   TOP         -> top bucket
+            //   LINE dy<=0  -> front bucket
+            //   LINE dy>0   -> back-facing bucket
+            //
+            // This fixes AusKaz sprite 13:
+            //   LINE 620,372 -> 691,395 has dy=+23, so it must stay behind units.
             int mapY = r.RealY >> 4;
+            int tie = Mathf.Clamp(partIndex, 0, 31);
+
+            if (loaded != null && loaded.HasLineSort)
+            {
+                C2Settlement3InuMdV2LineSortInfo li = loaded.LineSort;
+                if (li.IsGround)
+                    return Mathf.Clamp(6000 + mapY - 512 + tie, -30000, 30000);
+
+                if (li.IsTop)
+                    return Mathf.Clamp(6000 + mapY + 4096 + tie, -30000, 30000);
+
+                int lineDy = li.Y2 - li.Y1;
+                if (lineDy > 0)
+                    return Mathf.Clamp(6000 + mapY - 256 + tie, -30000, 30000);
+
+                return Mathf.Clamp(6000 + mapY + 2048 + tie, -30000, 30000);
+            }
+
+            // No explicit LINESORT: keep the old adapted Y-based fallback for one-piece objects
+            // and legacy/special MDs that do not provide per-part original sort descriptors.
             int localY = C2Settlement3InuMdV2LineSortLocalYV52(loaded, tex, partIndex);
-            int tie = Mathf.Clamp(partIndex, 0, 3);
             int order = 6000 + mapY + (localY >> 2) + tie;
             return Mathf.Clamp(order, -30000, 30000);
         }
@@ -3751,6 +4637,13 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
 
             if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", mainTex);
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+            if (mat.HasProperty("_SelectedPulse")) mat.SetFloat("_SelectedPulse", 0.0f);
+            if (mat.HasProperty("_HoverHighlight")) mat.SetFloat("_HoverHighlight", 0.0f);
+            if (mat.HasProperty("_BaseBrightness")) mat.SetFloat("_BaseBrightness", 1.0f);
+            if (mat.HasProperty("_HoverBrightness")) mat.SetFloat("_HoverBrightness", 1.40f);
+            if (mat.HasProperty("_PulseMinBrightness")) mat.SetFloat("_PulseMinBrightness", 0.80f);
+            if (mat.HasProperty("_PulseMaxBrightness")) mat.SetFloat("_PulseMaxBrightness", 1.40f);
+            if (mat.HasProperty("_PulseSpeed")) mat.SetFloat("_PulseSpeed", 5.0f);
             if (mat.HasProperty("_AlphaCutoff")) mat.SetFloat("_AlphaCutoff", Settlement3InuMdV2AlphaRefV49LikeOriginal);
             if (mat.HasProperty("_Cutoff")) mat.SetFloat("_Cutoff", Settlement3InuMdV2AlphaRefV49LikeOriginal);
             if (mat.HasProperty("_AlphaClip")) mat.SetFloat("_AlphaClip", 1.0f);
@@ -4816,6 +5709,9 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
         public float FrameRate = 12.0f;
 
         private int _lastFrame = -1;
+        private MaterialPropertyBlock _block;
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
+        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
 
         private void Update()
         {
@@ -4826,7 +5722,17 @@ private void C2Settlement3InuMdV2CullNatureTreeShadowBatchesNearMinesV63(string 
 
             _lastFrame = frame;
             Texture2D tex = Textures[frame];
-            if (Renderer.sharedMaterial != null && tex != null) Renderer.sharedMaterial.mainTexture = tex;
+            if (tex != null)
+            {
+                if (_block == null) _block = new MaterialPropertyBlock();
+                Renderer.GetPropertyBlock(_block);
+                _block.SetTexture(MainTexId, tex);
+                _block.SetTexture(BaseMapId, tex);
+                Renderer.SetPropertyBlock(_block);
+
+                if (Renderer.sharedMaterial != null)
+                    Renderer.sharedMaterial.mainTexture = tex;
+            }
             if (Vertices != null && frame < Vertices.Length && Vertices[frame] != null)
             {
                 Mesh.vertices = Vertices[frame];

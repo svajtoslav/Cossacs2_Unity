@@ -1,4 +1,4 @@
-﻿// C2NeutralPeasantUnitsLikeOriginal.cs
+// C2NeutralPeasantUnitsLikeOriginal.cs
 // V53: dynamic shared Y-sort with building LINESORT parts; units can pass behind/under front building sprites.
 // V19: widens V18 from UnitKri-only to saved Unit* records through original NDS->MD aliases,
 // caches MD directional visuals, and keeps original-style ground selection markers.
@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace Cossacks2Bridge.UnityAdapters.Maps
 {
@@ -286,6 +287,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 _lastMode = mode;
                 _lastMap = map;
+
+                // V139: before gameplay can spawn produced units, hydrate already-decoded unit G2D cache
+                // for the active/player nation from C:\Users\Koshey\My project\Kozaks\C2Cache\G2DUnits into RAM.
+                mode.C2NeutralPeasantUnitsV139PreloadPlayerNationG2DCacheFromDiskAndNdsLikeOriginal(map, "auto-runner-v2-before-unit-build");
+
                 mode.BuildNeutralPeasantUnitsFrom3InuMdV2LikeOriginal(map, "auto-runner-v2");
             }
         }
@@ -522,6 +528,260 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (sample.Count > 0) if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNITS V44 SAMPLE] " + string.Join(" | ", sample.ToArray()));
             if (mdMiss.Count > 0) Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V33 MD MISS] " + string.Join(" | ", mdMiss.ToArray()));
             if (visMiss.Count > 0) Debug.LogWarning("[C2:NEUTRAL PEASANT UNITS V33 VISUAL MISS] " + string.Join(" | ", visMiss.ToArray()));
+
+            C2NeutralPeasantUnitsV138PrewarmProducedNationG2DUnitsFromBuildingsLikeOriginal(mapPath, source);
+        }
+
+        private static readonly HashSet<string> C2NeutralPeasantUnitsV138ProducedG2DPrewarmDoneLikeOriginal =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private void C2NeutralPeasantUnitsV138PrewarmProducedNationG2DUnitsFromBuildingsLikeOriginal(string mapPath, string source)
+        {
+            string mapKey = (mapPath ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(mapKey)) mapKey = "<map>";
+            mapKey = mapKey + "|V138_UNIT_G2D_PRODUCED_BANKS";
+            if (C2NeutralPeasantUnitsV138ProducedG2DPrewarmDoneLikeOriginal.Contains(mapKey))
+                return;
+
+            C2SettlementBuildingSelectableV1LikeOriginal[] buildings = UnityEngine.Object.FindObjectsOfType<C2SettlementBuildingSelectableV1LikeOriginal>();
+            if (buildings == null || buildings.Length == 0)
+            {
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose)
+                    Debug.Log("[C2:UNIT G2D CACHE V138] produced-unit preload skipped: no buildings source=" + (source ?? string.Empty));
+                return;
+            }
+
+            C2NeutralPeasantUnitsV138ProducedG2DPrewarmDoneLikeOriginal.Add(mapKey);
+
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int buildingsSeen = 0;
+            int itemsSeen = 0;
+            int unitTypes = 0;
+            int okCount = 0;
+            int failCount = 0;
+            List<string> sample = new List<string>();
+
+            for (int b = 0; b < buildings.Length; b++)
+            {
+                C2SettlementBuildingSelectableV1LikeOriginal building = buildings[b];
+                if (building == null) continue;
+                buildingsSeen++;
+
+                string produceAudit;
+                List<C2OriginalProduceItemV13> items = C2OriginalProduceCatalogV13.BuildForSelectedBuilding(building, out produceAudit);
+                if (items == null || items.Count == 0) continue;
+
+                for (int i = 0; i < items.Count; i++)
+                {
+                    C2OriginalProduceItemV13 item = items[i];
+                    if (item == null || item.Building) continue;
+                    itemsSeen++;
+
+                    string key = (item.UnitId ?? string.Empty) + "|" + (item.MdName ?? string.Empty) + "|nation=" + item.Nation.ToString(CultureInfo.InvariantCulture);
+                    if (seen.Contains(key)) continue;
+                    seen.Add(key);
+                    unitTypes++;
+
+                    string audit0;
+                    bool ok0 = C2BuildingProductionPrewarmUnitVisualsV128LikeOriginal(item.UnitId, item.MdName, item.Nation, 0, out audit0);
+
+                    // Direction 19 matches the old two-direction warmup path. It catches dir-specific idle/walk visual keys
+                    // while motion/walk banks themselves are already all-direction banks.
+                    string audit19;
+                    bool ok19 = C2BuildingProductionPrewarmUnitVisualsV128LikeOriginal(item.UnitId, item.MdName, item.Nation, 19, out audit19);
+
+                    bool ok = ok0 || ok19;
+                    if (ok) okCount++; else failCount++;
+                    if (sample.Count < 12)
+                    {
+                        sample.Add((ok ? "OK " : "FAIL ") +
+                                   "unit='" + (item.UnitId ?? string.Empty) +
+                                   "' md='" + (item.MdName ?? string.Empty) +
+                                   "' nation=" + item.Nation.ToString(CultureInfo.InvariantCulture) +
+                                   " a0=[" + (audit0 ?? string.Empty) + "] a19=[" + (audit19 ?? string.Empty) + "]");
+                    }
+                }
+            }
+
+            Debug.Log("[C2:UNIT G2D CACHE V138 PRELOAD] source=" + (source ?? string.Empty) +
+                      " map='" + (mapPath ?? string.Empty) + "'" +
+                      " buildings=" + buildingsSeen.ToString(CultureInfo.InvariantCulture) +
+                      " produceItems=" + itemsSeen.ToString(CultureInfo.InvariantCulture) +
+                      " unitTypes=" + unitTypes.ToString(CultureInfo.InvariantCulture) +
+                      " ok=" + okCount.ToString(CultureInfo.InvariantCulture) +
+                      " fail=" + failCount.ToString(CultureInfo.InvariantCulture) +
+                      " cacheRoot='C:\\Users\\Koshey\\My project\\Kozaks\\C2Cache\\G2DUnits'" +
+                      (sample.Count > 0 ? " sample=" + string.Join(" || ", sample.ToArray()) : string.Empty));
+        }
+
+        private static readonly HashSet<string> C2NeutralPeasantUnitsV139NationG2DPreloadDoneLikeOriginal =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private void C2NeutralPeasantUnitsV139PreloadPlayerNationG2DCacheFromDiskAndNdsLikeOriginal(string mapPath, string source)
+        {
+            List<int> nations = C2NeutralPeasantUnitsV139CollectLikelyActiveNationsLikeOriginal();
+            List<string> packagePrefixes = new List<string>();
+            List<string> mdPrefixes = new List<string>();
+
+            for (int i = 0; i < nations.Count; i++)
+            {
+                string[] p = C2NeutralPeasantUnitsV139MdPrefixesForNationLikeOriginal(nations[i]);
+                for (int k = 0; k < p.Length; k++)
+                {
+                    C2NeutralPeasantUnitsV139AddUniqueLikeOriginal(mdPrefixes, p[k]);
+                    C2NeutralPeasantUnitsV139AddUniqueLikeOriginal(packagePrefixes, "UnitsG17_" + p[k]);
+                }
+            }
+
+            if (packagePrefixes.Count == 0)
+            {
+                // Last-resort default mirrors current HUD default nation in this project: AU -> Aus*.
+                C2NeutralPeasantUnitsV139AddUniqueLikeOriginal(mdPrefixes, "Aus");
+                C2NeutralPeasantUnitsV139AddUniqueLikeOriginal(packagePrefixes, "UnitsG17_Aus");
+            }
+
+            string nationKey = string.Join(",", packagePrefixes.ToArray());
+            string doneKey = (mapPath ?? string.Empty) + "|" + nationKey + "|V139_START_RAM_G2D_CACHE";
+            if (C2NeutralPeasantUnitsV139NationG2DPreloadDoneLikeOriginal.Contains(doneKey))
+                return;
+            C2NeutralPeasantUnitsV139NationG2DPreloadDoneLikeOriginal.Add(doneKey);
+
+            string diskAudit;
+            int diskLoaded = C2Settlement3InuMdV2PreloadUnitG2DNationDiskCacheFoldersV139LikeOriginal(
+                packagePrefixes,
+                30000,
+                out diskAudit);
+
+            int nation = nations.Count > 0 ? nations[0] : C2GameplayHudV1.C2GameplayHudV13SelectedBuildNationLikeOriginal;
+            string ndsAudit;
+            List<C2OriginalProduceItemV13> items = C2OriginalProduceCatalogV13.BuildAllProducedUnitsForNationPrefixesV139LikeOriginal(
+                nation,
+                mdPrefixes.ToArray(),
+                out ndsAudit);
+
+            int unitTypes = 0;
+            int okCount = 0;
+            int failCount = 0;
+            List<string> sample = new List<string>();
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; items != null && i < items.Count; i++)
+            {
+                C2OriginalProduceItemV13 item = items[i];
+                if (item == null || item.Building) continue;
+                string key = (item.UnitId ?? string.Empty) + "|" + (item.MdName ?? string.Empty) + "|nation=" + item.Nation.ToString(CultureInfo.InvariantCulture);
+                if (seen.Contains(key)) continue;
+                seen.Add(key);
+                unitTypes++;
+
+                string audit0;
+                bool ok0 = C2BuildingProductionPrewarmUnitVisualsV128LikeOriginal(item.UnitId, item.MdName, item.Nation, 0, out audit0);
+                string audit19;
+                bool ok19 = C2BuildingProductionPrewarmUnitVisualsV128LikeOriginal(item.UnitId, item.MdName, item.Nation, 19, out audit19);
+
+                bool ok = ok0 || ok19;
+                if (ok) okCount++; else failCount++;
+                if (sample.Count < 10)
+                {
+                    sample.Add((ok ? "OK " : "FAIL ") +
+                               "unit='" + (item.UnitId ?? string.Empty) +
+                               "' md='" + (item.MdName ?? string.Empty) +
+                               "' nation=" + item.Nation.ToString(CultureInfo.InvariantCulture) +
+                               " a0=[" + (audit0 ?? string.Empty) + "]" +
+                               " a19=[" + (audit19 ?? string.Empty) + "]");
+                }
+            }
+
+            Debug.Log("[C2:UNIT G2D CACHE V139 START PRELOAD] source=" + (source ?? string.Empty) +
+                      " map='" + (mapPath ?? string.Empty) + "'" +
+                      " nations=" + C2NeutralPeasantUnitsV139JoinIntsLikeOriginal(nations) +
+                      " mdPrefixes=" + string.Join(",", mdPrefixes.ToArray()) +
+                      " diskLoadedOrAlready=" + diskLoaded.ToString(CultureInfo.InvariantCulture) +
+                      " ndsUnitTypes=" + unitTypes.ToString(CultureInfo.InvariantCulture) +
+                      " warmOk=" + okCount.ToString(CultureInfo.InvariantCulture) +
+                      " warmFail=" + failCount.ToString(CultureInfo.InvariantCulture) +
+                      " disk=[" + diskAudit + "]" +
+                      " nds=[" + ndsAudit + "]" +
+                      (sample.Count > 0 ? " sample=" + string.Join(" || ", sample.ToArray()) : string.Empty));
+        }
+
+        private static List<int> C2NeutralPeasantUnitsV139CollectLikelyActiveNationsLikeOriginal()
+        {
+            List<int> nations = new List<int>();
+            C2NeutralPeasantUnitsV139AddUniqueIntLikeOriginal(nations, C2GameplayHudV1.C2GameplayHudV13SelectedBuildNationLikeOriginal);
+
+            C2SettlementBuildingSelectableV1LikeOriginal[] buildings = UnityEngine.Object.FindObjectsOfType<C2SettlementBuildingSelectableV1LikeOriginal>();
+            for (int i = 0; buildings != null && i < buildings.Length; i++)
+            {
+                C2SettlementBuildingSelectableV1LikeOriginal b = buildings[i];
+                if (b == null) continue;
+                int n;
+                if (C2NeutralPeasantUnitsV139TryNationFromSuffixLikeOriginal(b.SourceMonsterId, out n))
+                    C2NeutralPeasantUnitsV139AddUniqueIntLikeOriginal(nations, n);
+            }
+            return nations;
+        }
+
+        private static bool C2NeutralPeasantUnitsV139TryNationFromSuffixLikeOriginal(string objectId, out int nation)
+        {
+            nation = -1;
+            if (string.IsNullOrEmpty(objectId)) return false;
+            int a = objectId.LastIndexOf('(');
+            int b = objectId.LastIndexOf(')');
+            if (a < 0 || b <= a + 1) return false;
+            string s = objectId.Substring(a + 1, b - a - 1).Trim().ToUpperInvariant();
+            if (s == "AU") { nation = 0; return true; }
+            if (s == "EG") { nation = 1; return true; }
+            if (s == "EN") { nation = 2; return true; }
+            if (s == "PO") { nation = 3; return true; }
+            if (s == "RE") { nation = 4; return true; }
+            if (s == "SP") { nation = 5; return true; }
+            if (s == "FR") { nation = 6; return true; }
+            if (s == "PR") { nation = 7; return true; }
+            if (s == "RU") { nation = 8; return true; }
+            return false;
+        }
+
+        private static string[] C2NeutralPeasantUnitsV139MdPrefixesForNationLikeOriginal(int nation)
+        {
+            switch (nation)
+            {
+                case 0: return new[] { "Aus" };
+                case 1: return new[] { "Egp", "Eg" };
+                case 2: return new[] { "Eng" };
+                case 3: return new[] { "Pol", "Po" };
+                case 4: return new[] { "Re", "Reb" };
+                case 5: return new[] { "Spn", "Spa", "Sp" };
+                case 6: return new[] { "Frn", "Fra", "Fr" };
+                case 7: return new[] { "Prs", "Pr" };
+                case 8: return new[] { "Rus" };
+                default: return new[] { "Aus" };
+            }
+        }
+
+        private static void C2NeutralPeasantUnitsV139AddUniqueLikeOriginal(List<string> list, string value)
+        {
+            if (list == null || string.IsNullOrWhiteSpace(value)) return;
+            string v = value.Trim();
+            for (int i = 0; i < list.Count; i++)
+                if (string.Equals(list[i], v, StringComparison.OrdinalIgnoreCase)) return;
+            list.Add(v);
+        }
+
+        private static void C2NeutralPeasantUnitsV139AddUniqueIntLikeOriginal(List<int> list, int value)
+        {
+            if (list == null || value < 0) return;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i] == value) return;
+            list.Add(value);
+        }
+
+        private static string C2NeutralPeasantUnitsV139JoinIntsLikeOriginal(List<int> values)
+        {
+            if (values == null || values.Count == 0) return "<none>";
+            string[] a = new string[values.Count];
+            for (int i = 0; i < values.Count; i++) a[i] = values[i].ToString(CultureInfo.InvariantCulture);
+            return string.Join(",", a);
         }
 
         private string C2NeutralPeasantUnitsV2TryGetCurrentMapPathLikeOriginal()
@@ -1232,16 +1492,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string auditR;
             string auditLB;
             string auditRB;
+            string auditWork;
 
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] bankL;
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] bankR;
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] bankLB;
             C2NeutralPeasantUnitFrameV2LikeOriginal[][] bankRB;
+            C2NeutralPeasantUnitFrameV2LikeOriginal[][] bankWork;
 
             motionBanks.HasMotionL = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_L", r.Nation, out bankL, out auditL);
             motionBanks.HasMotionR = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_R", r.Nation, out bankR, out auditR);
             motionBanks.HasMotionLB = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_LB", r.Nation, out bankLB, out auditLB);
             motionBanks.HasMotionRB = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#MOTION_RB", r.Nation, out bankRB, out auditRB);
+            motionBanks.HasWork = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "@WORK", r.Nation, out bankWork, out auditWork);
+            if (!motionBanks.HasWork)
+                motionBanks.HasWork = C2NeutralPeasantUnitsV20BuildMotionDirectionBanksLikeOriginal(md, "#WORK", r.Nation, out bankWork, out auditWork);
 
             // Original TryToMove selects L/R and LB/RB. Many MDs do not provide all four names.
             // Keep strict first-choice selection, but fill missing banks from the closest existing
@@ -1254,6 +1519,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             motionBanks.MotionLB = bankLB ?? bankL ?? primary;
             motionBanks.MotionRB = bankRB ?? bankR ?? bankL ?? primary;
             motionBanks.FallbackWalkFramesByDir = primary;
+            motionBanks.Work = bankWork;
 
             motionBanks.Audit =
                 "motionBanksV20 " +
@@ -1261,10 +1527,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 " R=" + motionBanks.HasMotionR +
                 " LB=" + motionBanks.HasMotionLB +
                 " RB=" + motionBanks.HasMotionRB +
+                " WORK=" + motionBanks.HasWork +
                 " | " + auditL +
                 " | " + auditR +
                 " | " + auditLB +
-                " | " + auditRB;
+                " | " + auditRB +
+                " | " + auditWork;
 
             audit = motionBanks.Audit;
 
@@ -2093,6 +2361,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return 40;
         }
 
+        private static int C2NeutralPeasantUnitsV62ParseGeometryRadius2RealLikeOriginal(C2Settlement3InuMdV2Info md)
+        {
+            // Original NewMon.cpp: GEOMETRY r1 r2 motionDist stores Radius2 = r2 << 4.
+            // GroupSendSelectedTo later spaces loose selected units from Radius2.
+            if (md == null || string.IsNullOrEmpty(md.MdPath) || !File.Exists(md.MdPath))
+                return 160;
+
+            try
+            {
+                string[] lines = File.ReadAllLines(md.MdPath);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = C2NeutralPeasantUnitsV2StripMdCommentLikeOriginal(lines[i]).Trim();
+                    if (line.Length == 0) continue;
+
+                    string[] t = line.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+                    if (t.Length >= 3 && string.Equals(t[0], "GEOMETRY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int radius2;
+                        if (int.TryParse(t[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out radius2))
+                            return Mathf.Clamp(radius2 << 4, 16, 8192);
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return 160;
+        }
+
         private static C2NeutralPeasantUnitsV2SelectionMdInfoLikeOriginal C2NeutralPeasantUnitsV2ParseSelectionInfoLikeOriginal(C2Settlement3InuMdV2Info md)
         {
             var info = new C2NeutralPeasantUnitsV2SelectionMdInfoLikeOriginal();
@@ -2257,6 +2556,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             info.ControllableByPlayer = !info.NotSelectable;
             info.UnitRadius = md != null ? Mathf.Max(1, md.UnitRadius) : 16;
             info.MotionDist = C2NeutralPeasantUnitsV30ParseMotionDistFromMdLikeOriginal(md);
+            info.GeometryRadius2Real = C2NeutralPeasantUnitsV62ParseGeometryRadius2RealLikeOriginal(md);
             info.SelectionTypeName = selInfo.HasSelType ? selInfo.SelTypeName : "RoundFallback";
             info.SelectionScaleX = Mathf.Max(0.05f, selInfo.HasSelType ? selInfo.ScaleX : 1.0f);
             info.SelectionScaleY = Mathf.Max(0.05f, selInfo.HasSelType ? selInfo.ScaleY : 1.0f);
@@ -2402,12 +2702,20 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public C2NeutralPeasantUnitFrameV2LikeOriginal[][] MotionLB;
         public C2NeutralPeasantUnitFrameV2LikeOriginal[][] MotionRB;
         public C2NeutralPeasantUnitFrameV2LikeOriginal[][] FallbackWalkFramesByDir;
+        public C2NeutralPeasantUnitFrameV2LikeOriginal[][] Work;
 
         public bool HasMotionL;
         public bool HasMotionR;
         public bool HasMotionLB;
         public bool HasMotionRB;
+        public bool HasWork;
         public string Audit;
+
+        public C2NeutralPeasantUnitFrameV2LikeOriginal[] SelectWorkFramesLikeOriginal(byte realDir)
+        {
+            C2NeutralPeasantUnitFrameV2LikeOriginal[] bank = GetBankLikeOriginal(Work, realDir & 255);
+            return bank != null && bank.Length > 0 ? bank : null;
+        }
 
         public C2NeutralPeasantUnitFrameV2LikeOriginal[] SelectFramesLikeOriginal(
             byte realDir,
@@ -2532,6 +2840,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private bool _restPlaying;
         private bool _forceStand;
         private bool _moving;
+        private bool _working;
         private bool _leftLeg = true;
         private bool _backMotion;
         private int _activeWalkDir = -1;
@@ -2562,6 +2871,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private C2NeutralPeasantUnitFrameV2LikeOriginal[] ActiveFramesLikeOriginal()
         {
+            if (_working)
+            {
+                int workDir = _activeWalkDir >= 0 ? (_activeWalkDir & 255) : 0;
+                if (MotionBanks != null)
+                {
+                    C2NeutralPeasantUnitFrameV2LikeOriginal[] workBank = MotionBanks.SelectWorkFramesLikeOriginal((byte)workDir);
+                    if (workBank != null && workBank.Length > 0) return workBank;
+                }
+            }
+
             if (_moving)
             {
                 int dir = _activeWalkDir >= 0 ? (_activeWalkDir & 255) : 0;
@@ -2764,6 +3083,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _restPlaying = false;
             _forceStand = false;
             _moving = false;
+            _working = false;
             _leftLeg = true;
             _backMotion = false;
             _activeWalkDir = initialGraphDir & 255;
@@ -2804,6 +3124,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_forceStand)
             {
                 _moving = false;
+                _working = false;
                 _restPlaying = false;
                 _phase = 0.0f;
                 ApplyFrame(0, true);
@@ -2843,12 +3164,49 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (_moving == moving) return;
             _moving = moving;
+            _working = false;
             _forceStand = false;
             _restPlaying = false;
             _phase = 0.0f;
             _leftLeg = true;
             _backMotion = false;
             _pathDrivenWalk = moving;
+            ApplyFrame(0, true);
+        }
+
+
+        public int GetWorkFrameCountLikeOriginal(byte realDir)
+        {
+            if (MotionBanks == null) return 0;
+            C2NeutralPeasantUnitFrameV2LikeOriginal[] bank = MotionBanks.SelectWorkFramesLikeOriginal(realDir);
+            return bank != null ? bank.Length : 0;
+        }
+
+        public bool SetWorkFramePhaseLikeOriginal(byte realDir, float phase, bool force)
+        {
+            if (MotionBanks == null) return false;
+            C2NeutralPeasantUnitFrameV2LikeOriginal[] bank = MotionBanks.SelectWorkFramesLikeOriginal(realDir);
+            if (bank == null || bank.Length == 0) return false;
+
+            _working = true;
+            _moving = false;
+            _forceStand = false;
+            _restPlaying = false;
+            _pathDrivenWalk = false;
+            _activeWalkDir = realDir & 255;
+            _phase = Mathf.Max(0.0f, phase);
+
+            int idx = Mathf.FloorToInt(_phase) % bank.Length;
+            if (idx < 0) idx += bank.Length;
+            ApplyFrame(idx, force);
+            return true;
+        }
+
+        public void StopWorkAnimationLikeOriginal()
+        {
+            if (!_working) return;
+            _working = false;
+            _phase = 0.0f;
             ApplyFrame(0, true);
         }
 
@@ -2893,6 +3251,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             C2NeutralPeasantUnitFrameV2LikeOriginal[] active = ActiveFramesLikeOriginal();
             if (active == null || active.Length == 0) return;
+
+            if (_working)
+            {
+                // BuildObjLink drives @WORK by frame-completion; do not let idle/rest timer override it.
+                return;
+            }
 
             if (_moving)
             {
@@ -3347,6 +3711,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public bool ControllableByPlayer = true;
         public int UnitRadius = 16;
         public int MotionDist = 40;
+        public int GeometryRadius2Real = 160;
 
         public string SelectionTypeName;
         public float SelectionScaleX = 1.0f;
@@ -4065,6 +4430,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        public void StopMoveAndFaceDirectionLikeOriginal(byte realDir)
+        {
+            // V45 building worker fix. Original BuildObjLink sets InMotion=false/BackMotion=false
+            // and then keeps RealDir/GraphDir while anm_Work is active. Unity movement order must be
+            // cancelled here, otherwise the walking controller can continue changing GraphDir under WORK.
+            _hasMoveTarget = false;
+            _hasFinalFacingDir = false;
+            _v52PathActiveLikeOriginal = false;
+            _v52PathWaypointsLikeOriginal = null;
+            _v52PathIndexLikeOriginal = 0;
+            SetFacingDirectionLikeOriginal(realDir);
+        }
+
         private static int C2NeutralPeasantUnitsV53SortOrderLikeOriginal(float realX, float realY)
         {
             // Same shared building/unit sort formula as C2NeutralPeasantUnitsLikeOriginal.
@@ -4375,6 +4753,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private readonly List<C2SettlementBuildingSelectableV1LikeOriginal> _selectedBuildings =
             new List<C2SettlementBuildingSelectableV1LikeOriginal>(64);
 
+        private C2SettlementBuildingSelectableV1LikeOriginal _hoverBuildingV108LikeOriginal;
+
         private bool _prevLeftPressed;
         private bool _prevRightPressed;
         private bool _loggedReady;
@@ -4494,8 +4874,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private bool HasBattleUnitsForOverlayV16LikeOriginal()
         {
+            Camera cam = C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal();
+            if (cam == null)
+                return false;
+
             var units = C2NeutralPeasantUnitsV2FindUnitsLikeOriginal();
-            if (units != null && units.Length > 0 && C2NeutralPeasantUnitsV2BestIsoCameraLikeOriginal() != null)
+            if (units != null && units.Length > 0)
+                return true;
+
+            // V108: buildings are valid selectable gameplay objects too.
+            var buildings = C2NeutralPeasantUnitsV2FindBuildingsLikeOriginal();
+            if (buildings != null && buildings.Length > 0)
                 return true;
 
             return false;
@@ -4585,6 +4974,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (!HasBattleUnitsForOverlayV16LikeOriginal())
             {
+                ClearHoveredBuildingV108LikeOriginal();
                 _dragActive = false;
                 _dragExceeded = false;
                 _strelActive = false;
@@ -4601,7 +4991,32 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!C2NeutralPeasantUnitsV2ReadMouseStateLikeOriginal(out mouse))
                 return;
 
+            if (C2NeutralPeasantUnitsV135EscapePressedLikeOriginal())
+            {
+                SetSelectionLikeOriginal(new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(0), new List<C2SettlementBuildingSelectableV1LikeOriginal>(0), false);
+                _dragActive = false;
+                _dragExceeded = false;
+                _strelActive = false;
+                _strelExceeded = false;
+                ClearHoveredBuildingV108LikeOriginal();
+                return;
+            }
+
+            // V126: HUD produce-card clicks are UI commands. The map picker must not treat
+            // the same LMB up/down as a world selection, otherwise produced/under-cursor units
+            // can steal selection and close the building menu.
+            if (C2NeutralPeasantUnitsV126PointerOverHudOrSuppressedLikeOriginal())
+            {
+                _dragActive = false;
+                _dragExceeded = false;
+                _strelActive = false;
+                _strelExceeded = false;
+                ClearHoveredBuildingV108LikeOriginal();
+                return;
+            }
+
             CleanupSelectionListLikeOriginal();
+            UpdateHoveredBuildingV108LikeOriginal(mouse.Position);
 
             if (mouse.LeftDown)
             {
@@ -4680,6 +5095,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     return;
                 }
 
+                if (TryAssignSelectedBuildersToConstructionAtPointV67LikeOriginal(_strelCurrent, cameras))
+                {
+                    _strelActive = false;
+                    _strelExceeded = false;
+                    return;
+                }
+
                 byte finalDir = _strelExceeded ? C2NeutralPeasantUnitsV44DirectionFromStrelScreenDeltaLikeOriginal(_strelStart, _strelCurrent) : (byte)0;
                 MoveSelectedGroupLikeOriginal(_strelExceeded ? _strelStart : _strelCurrent, cameras, _strelExceeded, finalDir);
                 if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT STREL V44] command start=(" +
@@ -4697,6 +5119,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_duplicateDead) return;
             if (!HasBattleUnitsForOverlayV16LikeOriginal())
             {
+                ClearHoveredBuildingV108LikeOriginal();
                 if (_screenOverlayRoot != null) _screenOverlayRoot.gameObject.SetActive(false);
                 if (_cameraOverlayRootV45 != null) _cameraOverlayRootV45.SetActive(false);
                 return;
@@ -4746,6 +5169,69 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             DrawStrelModeGuiV34LikeOriginal();
         }
 
+        private void ClearHoveredBuildingV108LikeOriginal()
+        {
+            if (_hoverBuildingV108LikeOriginal != null)
+            {
+                _hoverBuildingV108LikeOriginal.SetHovered(false);
+                _hoverBuildingV108LikeOriginal = null;
+            }
+        }
+
+        private void SetHoveredBuildingV108LikeOriginal(C2SettlementBuildingSelectableV1LikeOriginal building)
+        {
+            if (_hoverBuildingV108LikeOriginal == building)
+                return;
+
+            if (_hoverBuildingV108LikeOriginal != null)
+                _hoverBuildingV108LikeOriginal.SetHovered(false);
+
+            _hoverBuildingV108LikeOriginal = building;
+
+            if (_hoverBuildingV108LikeOriginal != null)
+                _hoverBuildingV108LikeOriginal.SetHovered(true);
+        }
+
+        private void UpdateHoveredBuildingV108LikeOriginal(Vector3 mousePosition)
+        {
+            // Original uses visible GP hit-testing, so a visible unit over a building wins.
+            // Do not leave a building highlighted while the player is dragging a selection/strel arrow.
+            if (_dragActive || _strelActive)
+            {
+                ClearHoveredBuildingV108LikeOriginal();
+                return;
+            }
+
+            Camera[] cameras = C2NeutralPeasantUnitsV2GetPickCamerasLikeOriginal(mousePosition);
+            if (cameras == null || cameras.Length == 0)
+            {
+                ClearHoveredBuildingV108LikeOriginal();
+                return;
+            }
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal unitHit;
+            float unitAlpha;
+            Vector2 unitUv;
+            string unitMode;
+            PickMissInfoLikeOriginal missInfo;
+            if (TryPickUnitAtScreenPointLikeOriginal(mousePosition, cameras, out unitHit, out unitAlpha, out unitUv, out unitMode, out missInfo))
+            {
+                ClearHoveredBuildingV108LikeOriginal();
+                return;
+            }
+
+            C2SettlementBuildingSelectableV1LikeOriginal buildingHit;
+            float buildingDist;
+            string buildingMode;
+            if (TryPickBuildingAtScreenPointLikeOriginal(mousePosition, cameras, out buildingHit, out buildingDist, out buildingMode))
+            {
+                SetHoveredBuildingV108LikeOriginal(buildingHit);
+                return;
+            }
+
+            ClearHoveredBuildingV108LikeOriginal();
+        }
+
         private void SelectSingleAtPointLikeOriginal(Vector3 mousePosition, Camera[] cameras, bool additive)
         {
             C2NeutralPeasantUnitInfoV2LikeOriginal hit;
@@ -4764,10 +5250,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return;
             }
 
+            C2SettlementBuildingSelectableV1LikeOriginal buildingHit;
+            float buildingDist;
+            string buildingMode;
+            if (TryPickBuildingAtScreenPointLikeOriginal(mousePosition, cameras, out buildingHit, out buildingDist, out buildingMode))
+            {
+                var buildings = new List<C2SettlementBuildingSelectableV1LikeOriginal>(1);
+                buildings.Add(buildingHit);
+                SetSelectionLikeOriginal(new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(0), buildings, additive);
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log(buildingHit.DebugPickLineLikeOriginal(buildingDist) +
+                          " mode=" + buildingMode +
+                          " selectedBuildings=" + _selectedBuildings.Count.ToString(CultureInfo.InvariantCulture));
+                return;
+            }
+
+            if (_selectedBuildings.Count > 0 && TrySetRallyPointForSelectedBuildingsV155LikeOriginal(mousePosition, cameras))
+                return;
+
             if (!additive)
                 SetSelectionLikeOriginal(new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(0), new List<C2SettlementBuildingSelectableV1LikeOriginal>(0), false);
 
-            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V44] miss pixelAlpha=no_visible_unit mouse=(" +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT PICK V67] miss pixelAlpha=no_visible_unit_or_building mouse=(" +
                       mousePosition.x.ToString("0", CultureInfo.InvariantCulture) + "," +
                       mousePosition.y.ToString("0", CultureInfo.InvariantCulture) + ") units=" +
                       C2NeutralPeasantUnitsV2FindUnitsLikeOriginal().Length.ToString(CultureInfo.InvariantCulture) +
@@ -4783,6 +5286,61 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       " nearestCam='" + missInfo.NearestCam + "'");
         }
 
+        private bool TrySetRallyPointForSelectedBuildingsV155LikeOriginal(Vector3 mousePosition, Camera[] cameras)
+        {
+            CleanupSelectionListLikeOriginal();
+            if (_selectedBuildings.Count == 0)
+                return false;
+
+            float planeY = 0.0f;
+            int planeCount = 0;
+            C2BattleTerrainMode mode = null;
+            for (int i = 0; i < _selectedBuildings.Count; i++)
+            {
+                C2SettlementBuildingSelectableV1LikeOriginal b = _selectedBuildings[i];
+                if (b == null || !b.isActiveAndEnabled || !b.IsSelected) continue;
+                planeY += b.transform.position.y;
+                planeCount++;
+                if (mode == null && b.OwnerMode != null) mode = b.OwnerMode;
+            }
+            if (planeCount == 0)
+                return false;
+            planeY /= planeCount;
+
+            if (mode == null)
+                mode = UnityEngine.Object.FindObjectOfType<C2BattleTerrainMode>();
+            if (mode == null)
+                return false;
+
+            Vector3 world;
+            Camera cam;
+            if (!C2NeutralPeasantUnitsV2TryScreenToMovePointLikeOriginal(mousePosition, cameras, planeY, out world, out cam))
+                return false;
+
+            float ox;
+            float oy;
+            if (!mode.C2NeutralPeasantUnitsV2WorldToOriginalPixelV15LikeOriginal(world, out ox, out oy))
+                return false;
+
+            int realX = Mathf.RoundToInt(ox * 16.0f);
+            int realY = Mathf.RoundToInt(oy * 16.0f);
+            int applied = 0;
+            for (int i = 0; i < _selectedBuildings.Count; i++)
+            {
+                C2SettlementBuildingSelectableV1LikeOriginal b = _selectedBuildings[i];
+                if (b == null || !b.isActiveAndEnabled || !b.IsSelected) continue;
+                b.SetRallyPointV155LikeOriginal(realX, realY, "lmb_map_selected_building_v155");
+                applied++;
+            }
+
+            Debug.Log("[C2:BUILD RALLY V155 SET] buildings=" + applied.ToString(CultureInfo.InvariantCulture) +
+                      " targetOriginalPx=(" + ox.ToString("0.0", CultureInfo.InvariantCulture) + "," + oy.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
+                      " targetReal=(" + realX.ToString(CultureInfo.InvariantCulture) + "," + realY.ToString(CultureInfo.InvariantCulture) + ")" +
+                      " camera='" + (cam != null ? cam.name : "<none>") + "'" +
+                      " gp='Interf3\\exitpoint' command=CmdSetDst_like_original_lmb");
+            return applied > 0;
+        }
+
         private void SelectDragRectLikeOriginal(Rect selectionRectScreen, Camera[] cameras, bool additive)
         {
             var result = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(64);
@@ -4792,13 +5350,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var units = C2NeutralPeasantUnitsV2FindUnitsLikeOriginal();
             if (units == null || units.Length == 0)
             {
-                if (!additive) SetSelectionLikeOriginal(result, buildingResult, false);
-                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V44] miss no_units rect=" +
+                // V108: building-only rectangle selection is valid. Do not return here.
+                if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V108] no_units_try_buildings rect=" +
                           C2NeutralPeasantUnitsV2RectToLogLikeOriginal(selectionRectScreen));
-                return;
             }
 
-            if (units != null) Array.Sort(units, C2NeutralPeasantUnitPickerV2SortLikeOriginal);
+            if (units != null && units.Length > 0) Array.Sort(units, C2NeutralPeasantUnitPickerV2SortLikeOriginal);
 
             for (int c = 0; c < cameras.Length; c++)
             {
@@ -4828,9 +5385,40 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
+            // Original GoodSelectNewMonsters keeps buildings only when no normal units were caught
+            // by the frame. This prevents a rectangle over a unit + nearby house from selecting both.
+            if (result.Count == 0)
+            {
+                var buildings = C2NeutralPeasantUnitsV2FindBuildingsLikeOriginal();
+                var seenBuildings = new HashSet<C2SettlementBuildingSelectableV1LikeOriginal>();
+                if (buildings != null) Array.Sort(buildings, C2NeutralPeasantUnitPickerV2BuildingSortLikeOriginal);
+
+                for (int c = 0; c < cameras.Length; c++)
+                {
+                    Camera cam = cameras[c];
+                    if (cam == null) continue;
+
+                    for (int i = 0; buildings != null && i < buildings.Length; i++)
+                    {
+                        C2SettlementBuildingSelectableV1LikeOriginal b = buildings[i];
+                        if (b == null || !b.isActiveAndEnabled || b.NotSelectable || seenBuildings.Contains(b)) continue;
+
+                        Rect buildingRect;
+                        if (!b.TryGetScreenRectLikeOriginal(cam, out buildingRect))
+                            continue;
+
+                        if (!selectionRectScreen.Overlaps(buildingRect, true))
+                            continue;
+
+                        seenBuildings.Add(b);
+                        buildingResult.Add(b);
+                    }
+                }
+            }
+
             SetSelectionLikeOriginal(result, buildingResult, additive);
 
-            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V19] units=" +
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT GROUP SELECT V108] units=" +
                       result.Count.ToString(CultureInfo.InvariantCulture) +
                       " buildings=" + buildingResult.Count.ToString(CultureInfo.InvariantCulture) +
                       " selectedUnits=" + _selectedUnits.Count.ToString(CultureInfo.InvariantCulture) +
@@ -5018,6 +5606,25 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (b != null && b.isActiveAndEnabled) nextBuildings.Add(b);
             }
 
+            if (!additive)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal[] allUnits = C2NeutralPeasantUnitsV2FindUnitsLikeOriginal();
+                for (int i = 0; allUnits != null && i < allUnits.Length; i++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal u = allUnits[i];
+                    if (u != null && u.IsSelected && !next.Contains(u))
+                        u.SetSelected(false);
+                }
+
+                C2SettlementBuildingSelectableV1LikeOriginal[] allBuildings = C2NeutralPeasantUnitsV2FindBuildingsLikeOriginal();
+                for (int i = 0; allBuildings != null && i < allBuildings.Length; i++)
+                {
+                    C2SettlementBuildingSelectableV1LikeOriginal b = allBuildings[i];
+                    if (b != null && b.IsSelected && !nextBuildings.Contains(b))
+                        b.SetSelected(false);
+                }
+            }
+
             for (int i = 0; i < _selectedUnits.Count; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = _selectedUnits[i];
@@ -5095,6 +5702,49 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        private bool TryAssignSelectedBuildersToConstructionAtPointV67LikeOriginal(Vector3 mousePosition, Camera[] cameras)
+        {
+            CleanupSelectionListLikeOriginal();
+
+            bool hasBuilder = false;
+            for (int i = 0; i < _selectedUnits.Count; i++)
+            {
+                if (C2BattleTerrainMode.C2BuildRuntimeUnitCanBuildLikeOriginal(_selectedUnits[i]))
+                {
+                    hasBuilder = true;
+                    break;
+                }
+            }
+
+            if (!hasBuilder)
+                return false;
+
+            C2SettlementBuildingSelectableV1LikeOriginal building;
+            float dist;
+            string mode;
+            if (!TryPickBuildingAtScreenPointLikeOriginal(mousePosition, cameras, out building, out dist, out mode))
+                return false;
+
+            C2RuntimeConstructionSiteProxyLikeOriginal proxy =
+                building != null ? building.GetComponentInParent<C2RuntimeConstructionSiteProxyLikeOriginal>() : null;
+
+            if (proxy == null || !proxy.CanAcceptBuildersLikeOriginal)
+                return false;
+
+            string audit;
+            int assigned = proxy.AssignSelectedBuildersLikeOriginal("right_click_mend_v67", out audit);
+
+            if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:BUILD RUNTIME V67 ASSIGN_BY_CLICK] building='" +
+                      (building != null ? building.SourceMonsterId : "<null>") +
+                      "' md='" + (proxy != null ? proxy.MdName : "<null>") +
+                      "' selected=" + _selectedUnits.Count.ToString(CultureInfo.InvariantCulture) +
+                      " assigned=" + assigned.ToString(CultureInfo.InvariantCulture) +
+                      " audit='" + audit + "' pickMode='" + mode + "'");
+
+            // Consume the click if it was a valid unfinished building command, even if no free BUILDPOINT remained.
+            return true;
+        }
+
         private void MoveSelectedGroupLikeOriginal(Vector3 mousePosition, Camera[] cameras, bool hasFinalFacingDir, byte finalFacingDir)
         {
             CleanupSelectionListLikeOriginal();
@@ -5165,22 +5815,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _lastMoveFeedbackUntil = Time.realtimeSinceStartup + 1.35f;
             _lastMoveFeedbackText = "MOVE " + count.ToString(CultureInfo.InvariantCulture);
 
-            for (int i = 0; i < _selectedUnits.Count; i++)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal u = _selectedUnits[i];
-                if (u == null || !u.CanReceiveOrdersLikeOriginal()) continue;
-
-                float offX = u.RealXFloat - centroidRealX;
-                float offY = u.RealYFloat - centroidRealY;
-                u.SetMoveDestinationRealLikeOriginal(destRealCenterX + offX,
-                                                     destRealCenterY + offY,
-                                                     C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                                                     hasFinalFacingDir,
-                                                     finalFacingDir);
-            }
+            string looseAudit;
+            int issued = C2GameplayLooseGroupMoveLikeOriginal.IssueMoveLikeOriginal(
+                _selectedUnits,
+                destRealCenterX,
+                destRealCenterY,
+                hasFinalFacingDir,
+                finalFacingDir,
+                "move_order_v68",
+                out looseAudit);
 
             if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose) Debug.Log("[C2:NEUTRAL PEASANT UNIT MOVE V44] selected=" +
                       count.ToString(CultureInfo.InvariantCulture) +
+                      " issued=" + issued.ToString(CultureInfo.InvariantCulture) +
                       " targetOriginalPx=(" + destPxX.ToString("0.0", CultureInfo.InvariantCulture) + "," +
                       destPxY.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
                       " targetReal=(" + destRealCenterX.ToString("0", CultureInfo.InvariantCulture) + "," +
@@ -5190,7 +5837,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) +
                       " anim=#MOTION_L direction=targetSegment_noTurnSmoothing cameraDoesNotControlDirection=true screenGuiSelectionOnly=true" +
                       " strelFinalFacing=" + hasFinalFacingDir +
-                      " finalDir=" + finalFacingDir.ToString(CultureInfo.InvariantCulture));
+                      " finalDir=" + finalFacingDir.ToString(CultureInfo.InvariantCulture) +
+                      " looseAudit='" + looseAudit + "'");
         }
 
         private static byte C2NeutralPeasantUnitsV44DirectionFromStrelScreenDeltaLikeOriginal(Vector3 startBottomLeft, Vector3 endBottomLeft)
@@ -6541,6 +7189,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return false;
         }
 
+
+        private static bool C2NeutralPeasantUnitsV126PointerOverHudOrSuppressedLikeOriginal()
+        {
+            if (C2BuildingProductionCardsRuntimeV114.ShouldSuppressMapSelectionFromHudClickV126LikeOriginal())
+                return true;
+
+            try
+            {
+                EventSystem es = EventSystem.current;
+                if (es == null) return false;
+
+#if ENABLE_INPUT_SYSTEM
+                var mouse = UnityEngine.InputSystem.Mouse.current;
+                if (mouse != null && es.IsPointerOverGameObject(mouse.deviceId))
+                    return true;
+#endif
+                return es.IsPointerOverGameObject();
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private bool C2NeutralPeasantUnitsV2ReadMouseStateLikeOriginal(out MouseStateLikeOriginal state)
         {
             state = new MouseStateLikeOriginal();
@@ -6613,6 +7285,20 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
 #elif ENABLE_LEGACY_INPUT_MANAGER
             return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+#else
+            return false;
+#endif
+        }
+
+        private static bool C2NeutralPeasantUnitsV135EscapePressedLikeOriginal()
+        {
+#if ENABLE_INPUT_SYSTEM
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame)
+                return true;
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+            return Input.GetKeyDown(KeyCode.Escape);
 #else
             return false;
 #endif

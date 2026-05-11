@@ -92,8 +92,53 @@ namespace Cossacks2Bridge.UnityAdapters
             MenuActionSink.SingleBattlesArcadeModeEnabled = false;
             MenuActionSink.SingleBattlesSelectedId = "Skirmish2";
             Debug.Log("[C2:HOTKEY] F12 -> debugOpen map=Skirmish2 alias='Пересечь Рубикон' mode=terrain-view");
+            KillMenuCanvasesBeforeBattleLikeOriginal();
             Cossacks2Bridge.UnityAdapters.Maps.C2MapLoadLighting.ApplyMapLoadDefaultsLikeOriginal();
             Cossacks2Bridge.UnityAdapters.Maps.C2BattleTerrainMode.OpenFromBattles(this);
+        }
+
+        private static void KillMenuCanvasesBeforeBattleLikeOriginal()
+        {
+            int killed = 0;
+            try
+            {
+                Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+                for (int i = 0; i < canvases.Length; i++)
+                {
+                    Canvas c = canvases[i];
+                    if (c == null) continue;
+
+                    GameObject go = c.gameObject;
+                    if (go == null) continue;
+
+                    string n = go.name ?? string.Empty;
+                    bool kill =
+                        n.StartsWith("C2_", StringComparison.Ordinal) ||
+                        n.IndexOf("MainMenu", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("Options", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("AddProfile", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("Mbattles", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    if (!kill)
+                        continue;
+
+                    c.enabled = false;
+
+                    UnityEngine.UI.GraphicRaycaster gr = go.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+                    if (gr != null) gr.enabled = false;
+
+                    Destroy(go);
+                    killed++;
+                }
+
+                Cossacks2Bridge.UnityAdapters.Maps.C2GameplayHudV1.KillForeignBattleUiRoots();
+
+                Debug.Log("[C2:HOTKEY] battle-ui cleanup before map load killed=" + killed.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[C2:HOTKEY] battle-ui cleanup failed: " + ex.GetType().Name + ": " + ex.Message);
+            }
         }
 
         private void InitializeCore()

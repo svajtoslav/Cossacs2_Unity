@@ -3,6 +3,7 @@ Shader "Cossacks2Bridge/SettlementBuildingSpriteV23LikeOriginal"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _Color ("Tint", Color) = (1,1,1,1)
         _Cutoff ("Alpha cutoff", Range(0,1)) = 0.0156863
     }
 
@@ -30,6 +31,7 @@ Shader "Cossacks2Bridge/SettlementBuildingSpriteV23LikeOriginal"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            fixed4 _Color;
             float _Cutoff;
 
             struct appdata
@@ -54,7 +56,7 @@ Shader "Cossacks2Bridge/SettlementBuildingSpriteV23LikeOriginal"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                fixed4 c = tex2D(_MainTex, i.uv);
+                fixed4 c = tex2D(_MainTex, i.uv) * _Color;
                 clip(c.a - _Cutoff);
                 return c;
             }

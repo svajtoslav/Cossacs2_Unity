@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -11560,17 +11560,44 @@ private Mesh OffsetWallMeshWorldYV35LikeOriginal(Mesh source, float pixels)
 
         private static Type ResolveMelinojaBridgeTypeV2LikeOriginal()
         {
-            Type bridgeType = Type.GetType("TemnyLessCodec.MelinojaCodecBridge, TemnyLessCodec.Runtime", false)
-                              ?? Type.GetType("TemnyLessCodec.MelinojaCodecBridge, Assembly-CSharp", false);
-            if (bridgeType != null)
-                return bridgeType;
-
-            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+            // V66 FIX:
+            // The current Assets/Plugins/Melinoja.dll exposes TemnyLessCodec.CodecFacade,
+            // not TemnyLessCodec.MelinojaCodecBridge. Without this fallback all normal
+            // G16 building loads fail with "bridge type not found", including:
+            // UnitsG17\FrnMel -> Data\Cash\UNITSG17_FRNMEL.g16 frames 8..12.
+            string[] directTypes =
             {
-                bridgeType = asm.GetType("TemnyLessCodec.MelinojaCodecBridge", false);
-                if (bridgeType != null)
-                    return bridgeType;
+                "TemnyLessCodec.MelinojaCodecBridge, TemnyLessCodec.Runtime",
+                "TemnyLessCodec.MelinojaCodecBridge, Assembly-CSharp",
+                "TemnyLessCodec.MelinojaCodecBridge, Melinoja",
+                "TemnyLessCodec.MelinojaCodecBridge",
+                "TemnyLessCodec.CodecFacade, Melinoja",
+                "TemnyLessCodec.CodecFacade, Assembly-CSharp",
+                "TemnyLessCodec.CodecFacade"
+            };
+
+            for (int i = 0; i < directTypes.Length; i++)
+            {
+                Type t = Type.GetType(directTypes[i], false);
+                if (t != null) return t;
             }
+
+            try
+            {
+                Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                for (int i = 0; i < assemblies.Length; i++)
+                {
+                    Assembly asm = assemblies[i];
+                    if (asm == null) continue;
+
+                    Type bridgeType = asm.GetType("TemnyLessCodec.MelinojaCodecBridge", false);
+                    if (bridgeType != null) return bridgeType;
+
+                    Type facadeType = asm.GetType("TemnyLessCodec.CodecFacade", false);
+                    if (facadeType != null) return facadeType;
+                }
+            }
+            catch { }
 
             return null;
         }

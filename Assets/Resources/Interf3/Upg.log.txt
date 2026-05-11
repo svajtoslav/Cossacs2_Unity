@@ -1,0 +1,902 @@
+G16 Analysis for: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg.g16
+Magic: GU16
+BlockSize: 3065493 FramesPerSeg: 16 NSprites: 410 Size: 58x58 MaxWorkbuf: 119595 NPackSegments: 26
+
+Seg 0: Off=945 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 0: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0000.tga
+    Frame 1: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0001.tga
+    Frame 2: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0002.tga
+    Frame 3: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0003.tga
+    Frame 4: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0004.tga
+    Frame 5: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0005.tga
+    Frame 6: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0006.tga
+    Frame 7: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0007.tga
+    Frame 8: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0008.tga
+    Frame 9: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0009.tga
+    Frame 10: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0010.tga
+    Frame 11: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0011.tga
+    Frame 12: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0012.tga
+    Frame 13: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0013.tga
+    Frame 14: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0014.tga
+    Frame 15: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0015.tga
+
+Seg 1: Off=120541 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 16: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0016.tga
+    Frame 17: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0017.tga
+    Frame 18: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0018.tga
+    Frame 19: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0019.tga
+    Frame 20: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0020.tga
+    Frame 21: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0021.tga
+    Frame 22: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0022.tga
+    Frame 23: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0023.tga
+    Frame 24: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0024.tga
+    Frame 25: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0025.tga
+    Frame 26: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0026.tga
+    Frame 27: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0027.tga
+    Frame 28: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0028.tga
+    Frame 29: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0029.tga
+    Frame 30: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0030.tga
+    Frame 31: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0031.tga
+
+Seg 2: Off=240137 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 32: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0032.tga
+    Frame 33: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0033.tga
+    Frame 34: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0034.tga
+    Frame 35: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0035.tga
+    Frame 36: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0036.tga
+    Frame 37: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0037.tga
+    Frame 38: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0038.tga
+    Frame 39: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0039.tga
+    Frame 40: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0040.tga
+    Frame 41: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0041.tga
+    Frame 42: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0042.tga
+    Frame 43: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0043.tga
+    Frame 44: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0044.tga
+    Frame 45: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0045.tga
+    Frame 46: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0046.tga
+    Frame 47: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0047.tga
+
+Seg 3: Off=359733 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 48: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0048.tga
+    Frame 49: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0049.tga
+    Frame 50: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0050.tga
+    Frame 51: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0051.tga
+    Frame 52: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0052.tga
+    Frame 53: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0053.tga
+    Frame 54: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0054.tga
+    Frame 55: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0055.tga
+    Frame 56: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0056.tga
+    Frame 57: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0057.tga
+    Frame 58: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0058.tga
+    Frame 59: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0059.tga
+    Frame 60: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0060.tga
+    Frame 61: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0061.tga
+    Frame 62: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0062.tga
+    Frame 63: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0063.tga
+
+Seg 4: Off=479329 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 64: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0064.tga
+    Frame 65: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0065.tga
+    Frame 66: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0066.tga
+    Frame 67: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0067.tga
+    Frame 68: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0068.tga
+    Frame 69: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0069.tga
+    Frame 70: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0070.tga
+    Frame 71: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0071.tga
+    Frame 72: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0072.tga
+    Frame 73: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0073.tga
+    Frame 74: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0074.tga
+    Frame 75: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0075.tga
+    Frame 76: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0076.tga
+    Frame 77: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0077.tga
+    Frame 78: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0078.tga
+    Frame 79: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0079.tga
+
+Seg 5: Off=598925 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 80: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0080.tga
+    Frame 81: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0081.tga
+    Frame 82: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0082.tga
+    Frame 83: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0083.tga
+    Frame 84: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0084.tga
+    Frame 85: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0085.tga
+    Frame 86: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0086.tga
+    Frame 87: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0087.tga
+    Frame 88: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0088.tga
+    Frame 89: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0089.tga
+    Frame 90: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0090.tga
+    Frame 91: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0091.tga
+    Frame 92: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0092.tga
+    Frame 93: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0093.tga
+    Frame 94: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0094.tga
+    Frame 95: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0095.tga
+
+Seg 6: Off=718521 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 96: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0096.tga
+    Frame 97: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0097.tga
+    Frame 98: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0098.tga
+    Frame 99: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0099.tga
+    Frame 100: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0100.tga
+    Frame 101: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0101.tga
+    Frame 102: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0102.tga
+    Frame 103: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0103.tga
+    Frame 104: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0104.tga
+    Frame 105: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0105.tga
+    Frame 106: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0106.tga
+    Frame 107: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0107.tga
+    Frame 108: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0108.tga
+    Frame 109: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0109.tga
+    Frame 110: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0110.tga
+    Frame 111: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0111.tga
+
+Seg 7: Off=838117 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 112: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0112.tga
+    Frame 113: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0113.tga
+    Frame 114: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0114.tga
+    Frame 115: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0115.tga
+    Frame 116: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0116.tga
+    Frame 117: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0117.tga
+    Frame 118: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0118.tga
+    Frame 119: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0119.tga
+    Frame 120: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0120.tga
+    Frame 121: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0121.tga
+    Frame 122: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0122.tga
+    Frame 123: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0123.tga
+    Frame 124: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0124.tga
+    Frame 125: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0125.tga
+    Frame 126: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0126.tga
+    Frame 127: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0127.tga
+
+Seg 8: Off=957713 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 128: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0128.tga
+    Frame 129: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0129.tga
+    Frame 130: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0130.tga
+    Frame 131: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0131.tga
+    Frame 132: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0132.tga
+    Frame 133: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0133.tga
+    Frame 134: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0134.tga
+    Frame 135: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0135.tga
+    Frame 136: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0136.tga
+    Frame 137: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0137.tga
+    Frame 138: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0138.tga
+    Frame 139: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0139.tga
+    Frame 140: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0140.tga
+    Frame 141: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0141.tga
+    Frame 142: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0142.tga
+    Frame 143: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0143.tga
+
+Seg 9: Off=1077309 Len=119492 Flags=0xc Frames=16
+  OK
+    Frame 144: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0144.tga
+    Frame 145: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0145.tga
+    Frame 146: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0146.tga
+    Frame 147: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0147.tga
+    Frame 148: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0148.tga
+    Frame 149: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0149.tga
+    Frame 150: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0150.tga
+    Frame 151: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0151.tga
+    Frame 152: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0152.tga
+    Frame 153: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0153.tga
+    Frame 154: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0154.tga
+    Frame 155: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0155.tga
+    Frame 156: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0156.tga
+    Frame 157: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0157.tga
+    Frame 158: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0158.tga
+    Frame 159: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0159.tga
+
+Seg 10: Off=1196801 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 160: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0160.tga
+    Frame 161: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0161.tga
+    Frame 162: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0162.tga
+    Frame 163: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0163.tga
+    Frame 164: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0164.tga
+    Frame 165: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0165.tga
+    Frame 166: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0166.tga
+    Frame 167: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0167.tga
+    Frame 168: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0168.tga
+    Frame 169: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0169.tga
+    Frame 170: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0170.tga
+    Frame 171: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0171.tga
+    Frame 172: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0172.tga
+    Frame 173: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0173.tga
+    Frame 174: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0174.tga
+    Frame 175: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0175.tga
+
+Seg 11: Off=1316397 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 176: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0176.tga
+    Frame 177: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0177.tga
+    Frame 178: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0178.tga
+    Frame 179: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0179.tga
+    Frame 180: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0180.tga
+    Frame 181: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0181.tga
+    Frame 182: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0182.tga
+    Frame 183: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0183.tga
+    Frame 184: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0184.tga
+    Frame 185: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0185.tga
+    Frame 186: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0186.tga
+    Frame 187: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0187.tga
+    Frame 188: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0188.tga
+    Frame 189: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0189.tga
+    Frame 190: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0190.tga
+    Frame 191: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0191.tga
+
+Seg 12: Off=1435993 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 192: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0192.tga
+    Frame 193: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0193.tga
+    Frame 194: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0194.tga
+    Frame 195: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0195.tga
+    Frame 196: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0196.tga
+    Frame 197: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0197.tga
+    Frame 198: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0198.tga
+    Frame 199: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0199.tga
+    Frame 200: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0200.tga
+    Frame 201: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0201.tga
+    Frame 202: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0202.tga
+    Frame 203: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0203.tga
+    Frame 204: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0204.tga
+    Frame 205: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0205.tga
+    Frame 206: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0206.tga
+    Frame 207: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0207.tga
+
+Seg 13: Off=1555589 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 208: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0208.tga
+    Frame 209: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0209.tga
+    Frame 210: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0210.tga
+    Frame 211: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0211.tga
+    Frame 212: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0212.tga
+    Frame 213: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0213.tga
+    Frame 214: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0214.tga
+    Frame 215: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0215.tga
+    Frame 216: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0216.tga
+    Frame 217: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0217.tga
+    Frame 218: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0218.tga
+    Frame 219: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0219.tga
+    Frame 220: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0220.tga
+    Frame 221: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0221.tga
+    Frame 222: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0222.tga
+    Frame 223: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0223.tga
+
+Seg 14: Off=1675185 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 224: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0224.tga
+    Frame 225: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0225.tga
+    Frame 226: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0226.tga
+    Frame 227: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0227.tga
+    Frame 228: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0228.tga
+    Frame 229: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0229.tga
+    Frame 230: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0230.tga
+    Frame 231: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0231.tga
+    Frame 232: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0232.tga
+    Frame 233: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0233.tga
+    Frame 234: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0234.tga
+    Frame 235: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0235.tga
+    Frame 236: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0236.tga
+    Frame 237: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0237.tga
+    Frame 238: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0238.tga
+    Frame 239: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0239.tga
+
+Seg 15: Off=1794781 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 240: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0240.tga
+    Frame 241: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0241.tga
+    Frame 242: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0242.tga
+    Frame 243: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0243.tga
+    Frame 244: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0244.tga
+    Frame 245: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0245.tga
+    Frame 246: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0246.tga
+    Frame 247: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0247.tga
+    Frame 248: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0248.tga
+    Frame 249: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0249.tga
+    Frame 250: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0250.tga
+    Frame 251: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0251.tga
+    Frame 252: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0252.tga
+    Frame 253: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0253.tga
+    Frame 254: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0254.tga
+    Frame 255: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0255.tga
+
+Seg 16: Off=1914377 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 256: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0256.tga
+    Frame 257: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0257.tga
+    Frame 258: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0258.tga
+    Frame 259: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0259.tga
+    Frame 260: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0260.tga
+    Frame 261: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0261.tga
+    Frame 262: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0262.tga
+    Frame 263: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0263.tga
+    Frame 264: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0264.tga
+    Frame 265: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0265.tga
+    Frame 266: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0266.tga
+    Frame 267: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0267.tga
+    Frame 268: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0268.tga
+    Frame 269: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0269.tga
+    Frame 270: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0270.tga
+    Frame 271: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0271.tga
+
+Seg 17: Off=2033973 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 272: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0272.tga
+    Frame 273: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0273.tga
+    Frame 274: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0274.tga
+    Frame 275: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0275.tga
+    Frame 276: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0276.tga
+    Frame 277: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0277.tga
+    Frame 278: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0278.tga
+    Frame 279: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0279.tga
+    Frame 280: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0280.tga
+    Frame 281: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0281.tga
+    Frame 282: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0282.tga
+    Frame 283: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0283.tga
+    Frame 284: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0284.tga
+    Frame 285: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0285.tga
+    Frame 286: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0286.tga
+    Frame 287: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0287.tga
+
+Seg 18: Off=2153569 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 288: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0288.tga
+    Frame 289: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0289.tga
+    Frame 290: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0290.tga
+    Frame 291: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0291.tga
+    Frame 292: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0292.tga
+    Frame 293: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0293.tga
+    Frame 294: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0294.tga
+    Frame 295: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0295.tga
+    Frame 296: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0296.tga
+    Frame 297: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0297.tga
+    Frame 298: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0298.tga
+    Frame 299: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0299.tga
+    Frame 300: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0300.tga
+    Frame 301: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0301.tga
+    Frame 302: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0302.tga
+    Frame 303: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0303.tga
+
+Seg 19: Off=2273165 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 304: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0304.tga
+    Frame 305: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0305.tga
+    Frame 306: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0306.tga
+    Frame 307: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0307.tga
+    Frame 308: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0308.tga
+    Frame 309: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0309.tga
+    Frame 310: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0310.tga
+    Frame 311: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0311.tga
+    Frame 312: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0312.tga
+    Frame 313: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0313.tga
+    Frame 314: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0314.tga
+    Frame 315: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0315.tga
+    Frame 316: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0316.tga
+    Frame 317: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0317.tga
+    Frame 318: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0318.tga
+    Frame 319: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0319.tga
+
+Seg 20: Off=2392761 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 320: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0320.tga
+    Frame 321: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0321.tga
+    Frame 322: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0322.tga
+    Frame 323: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0323.tga
+    Frame 324: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0324.tga
+    Frame 325: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0325.tga
+    Frame 326: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0326.tga
+    Frame 327: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0327.tga
+    Frame 328: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0328.tga
+    Frame 329: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0329.tga
+    Frame 330: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0330.tga
+    Frame 331: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0331.tga
+    Frame 332: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0332.tga
+    Frame 333: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0333.tga
+    Frame 334: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0334.tga
+    Frame 335: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0335.tga
+
+Seg 21: Off=2512357 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 336: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0336.tga
+    Frame 337: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0337.tga
+    Frame 338: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0338.tga
+    Frame 339: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0339.tga
+    Frame 340: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0340.tga
+    Frame 341: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0341.tga
+    Frame 342: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0342.tga
+    Frame 343: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0343.tga
+    Frame 344: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0344.tga
+    Frame 345: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0345.tga
+    Frame 346: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0346.tga
+    Frame 347: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0347.tga
+    Frame 348: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0348.tga
+    Frame 349: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0349.tga
+    Frame 350: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0350.tga
+    Frame 351: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0351.tga
+
+Seg 22: Off=2631953 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 352: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0352.tga
+    Frame 353: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0353.tga
+    Frame 354: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0354.tga
+    Frame 355: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0355.tga
+    Frame 356: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0356.tga
+    Frame 357: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0357.tga
+    Frame 358: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0358.tga
+    Frame 359: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0359.tga
+    Frame 360: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0360.tga
+    Frame 361: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0361.tga
+    Frame 362: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0362.tga
+    Frame 363: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0363.tga
+    Frame 364: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0364.tga
+    Frame 365: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0365.tga
+    Frame 366: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0366.tga
+    Frame 367: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0367.tga
+
+Seg 23: Off=2751549 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 368: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0368.tga
+    Frame 369: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0369.tga
+    Frame 370: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0370.tga
+    Frame 371: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0371.tga
+    Frame 372: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0372.tga
+    Frame 373: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0373.tga
+    Frame 374: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0374.tga
+    Frame 375: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0375.tga
+    Frame 376: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0376.tga
+    Frame 377: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0377.tga
+    Frame 378: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0378.tga
+    Frame 379: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0379.tga
+    Frame 380: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0380.tga
+    Frame 381: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0381.tga
+    Frame 382: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0382.tga
+    Frame 383: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0383.tga
+
+Seg 24: Off=2871145 Len=119596 Flags=0xc Frames=16
+  OK
+    Frame 384: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0384.tga
+    Frame 385: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0385.tga
+    Frame 386: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0386.tga
+    Frame 387: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0387.tga
+    Frame 388: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0388.tga
+    Frame 389: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0389.tga
+    Frame 390: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0390.tga
+    Frame 391: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0391.tga
+    Frame 392: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0392.tga
+    Frame 393: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0393.tga
+    Frame 394: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0394.tga
+    Frame 395: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0395.tga
+    Frame 396: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0396.tga
+    Frame 397: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0397.tga
+    Frame 398: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0398.tga
+    Frame 399: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0399.tga
+
+Seg 25: Off=2990741 Len=74752 Flags=0xc Frames=10
+  OK
+    Frame 400: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0400.tga
+    Frame 401: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0401.tga
+    Frame 402: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0402.tga
+    Frame 403: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0403.tga
+    Frame 404: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0404.tga
+    Frame 405: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0405.tga
+    Frame 406: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0406.tga
+    Frame 407: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0407.tga
+    Frame 408: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0408.tga
+    Frame 409: squares=4/4
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Upg_frames\frame_0409.tga
+

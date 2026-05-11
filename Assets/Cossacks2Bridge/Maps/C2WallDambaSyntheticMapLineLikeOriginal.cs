@@ -1832,6 +1832,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void DrawSyntheticDambaSavePoseButtonV93LikeOriginal(bool wrapHandles)
         {
+            // V13J gameplay HUD isolation:
+            // this editor calibration overlay must not draw over the runtime battle/game HUD.
+            if (Application.isPlaying)
+                return;
+
             if (_c2WallDambaSyntheticRowsV93LikeOriginal == null ||
                 _c2WallDambaSyntheticRowsV93LikeOriginal.Count == 0)
             {
