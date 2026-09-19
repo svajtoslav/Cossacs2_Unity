@@ -1,21 +1,40 @@
-using Cossacks2Bridge.Core;
+﻿using Cossacks2Bridge.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Cossacks2Bridge.UnityAdapters.AddProfile;
+using Cossacks2Bridge.UnityAdapters;
+
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem.UI;
+#endif
 
 namespace Cossacks2Bridge.UnityAdapters.Renderers
 {
     public sealed class OptionsRenderer : BaseUiRenderer
     {
         private const bool EnableVitLogs = false; // set true only when debugging VitButtonTiled
+        private const bool VerboseLayoutLogs = false; // old GPT-era layout spam; keep errors/warnings visible
         private static int s_lastBuildFrame = -1;
+        private static string s_lastBuildSource = string.Empty;
         private static object parent;
+
+        // V395O: EW2 campaign statistics must use the final 1.4 shkala.jpg
+        // from the effective game DataRoot, not a stale StreamingAssets copy.
+        private static Texture2D s_campaignStatsBackgroundTextureV395O;
+        private static Sprite s_campaignStatsBackgroundSpriteV395O;
+        private static string s_campaignStatsBackgroundPathV395O = string.Empty;
+
+        // V387B3: original 1.1/1.4 runtime state behind
+        // cva_Multi_ManualServer / cva_Multi_ManualIPServer.
+        private static bool s_multiManualServerV387B3 = false;
+        private static string s_multiManualIpV387B3 = "";
 
         public override void Render(UiDesk desk, CoreFileSystem fs, RenderOptions opt, IUiActionSink sink, LocDb loc)
         {
@@ -23,24 +42,63 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             // ЗАЩИТА ОТ ПОВТОРНЫХ ВЫЗОВОВ В ТОТ ЖЕ FRAME
             // ═══════════════════════════════════════════════════════════
             int frame = Time.frameCount;
-            if (s_lastBuildFrame == frame) return;
+            string buildSource = desk?.SourcePath ?? string.Empty;
+            if (s_lastBuildFrame == frame && string.Equals(s_lastBuildSource, buildSource, StringComparison.OrdinalIgnoreCase)) return;
             s_lastBuildFrame = frame;
+            s_lastBuildSource = buildSource;
 
             RenderCounter++;
 
             // 1) Найти/создать Canvas
             RectTransform root = EnsureOptionsCanvas(opt);
+            bool isMulti = !string.IsNullOrEmpty(desk?.SourcePath) &&
+                           desk.SourcePath.IndexOf("M_Multi", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool isEW2CampaignStatsV395M = !string.IsNullOrEmpty(desk?.SourcePath) &&
+                           desk.SourcePath.IndexOf("EW2_CampaignStats.DialogsSystem.xml", StringComparison.OrdinalIgnoreCase) >= 0;
+            long campaignStatsRenderStartV395Q = isEW2CampaignStatsV395M
+                ? System.Diagnostics.Stopwatch.GetTimestamp()
+                : 0L;
 
 
             // 2) Очистить Canvas
             DestroyAllChildrenImmediate(root);
 
-            // 3) Чистка кэша ресурсов
-            ResFrames.ClearCache();
+            // V395P: the EW2 statistics screen is expensive to rebuild and all of
+            // its Resources sprites are immutable during the session.  Clearing the
+            // renderer cache here forced the same GP/UI frames to be resolved again
+            // every time Statistics was opened.  Keep the cache for this one screen;
+            // preserve the previous behavior everywhere else.
+            if (!isEW2CampaignStatsV395M)
+                ResFrames.ClearCache();
+            else
+                Debug.Log("[C2:CAMPSTAT PERF V395P] ResFrames cache preserved=1");
+
+            // V391: begin one common action/state runtime for the XML screen.
+            // This keeps SetFrameState-style actions bound to the exact UiNode
+            // instances produced by Menu14UnifiedLoader instead of duplicating
+            // the state logic inside individual screen controllers.
+            Menu14ActionStateRuntime.BeginScreen(desk, fs, loc);
+
+            // V395O: final 1.4 EW2 statistics background is an external bitmap:
+            //   Data\Interf3\background\shkala.jpg
+            // The project can contain an older 1.1 bitmap under StreamingAssets,
+            // so this screen explicitly resolves the XML asset from the effective
+            // game DataRoot first.  Existing generic BitPicture behavior is kept as
+            // fallback if the real 1.4 file is unavailable.
+            bool campaignStatsBackgroundFromDataRootV395O = false;
+            if (isEW2CampaignStatsV395M)
+                campaignStatsBackgroundFromDataRootV395O = TryCreateCampaignStatsBackgroundFromDataRootV395O(root, fs);
 
             // 4) Фон
             bool hasBackground = desk?.Children != null && desk.Children.Any(n => n is UiBitPicture);
-            if (!hasBackground)
+            if (isMulti)
+            {
+                // Original M_Multi background is INTERF3\ELEMENTS\BACKGROUND sprite 6.
+                // Draw it explicitly before all controls so this screen never falls back
+                // to the Unity camera/sky gradient if generic GP resource routing changes.
+                CreateMultiBackgroundV387A3(root);
+            }
+            else if (!hasBackground)
             {
                 var bgPic = new UiBitPicture
                 {
@@ -56,63 +114,142 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
 
             if (desk?.Children == null) return;
 
+            // V389: XML-driven visual ancestry.  The unified V388 parser preserves
+            // SourceId/ParentSourceId, so child editors can use the exact original
+            // parent VitButton GP/sprite surface instead of Unity-picked colors.
+            var nodesBySourceId = desk.Children
+                .Where(n => n != null && n.SourceId >= 0)
+                .GroupBy(n => n.SourceId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // V396A7R2: the profile-delete confirmation is a hidden source subtree
+            // whose root visibility is controlled by cva_ProfDel_Desk.  Render it
+            // in XML/source order after the normal profile screen, rather than
+            // flattening it into the type-grouped passes below.
+            UiNode profileDeleteRootV396A7R2 = FindNodeWithActionV396A7R2(desk, "cva_ProfDel_Desk");
+            HashSet<int> profileDeleteSubtreeV396A7R2 = BuildSubtreeIdsV396A7R2(desk, profileDeleteRootV396A7R2);
+
+            // V395Q: Menu14's current model is flattened, but original DialogsSystem
+            // visibility is hierarchical. A child with Visible=true must still NOT be
+            // rendered when any ancestor DialogsDesk is Visible=false. EW2 statistics
+            // contains a large hidden post-game/template subtree: 109 TextButtons,
+            // 25 DialogsDesks and 3 GPPictures are individually visible but live
+            // below hidden parents. V395P was instantiating those controls anyway,
+            // which dominated the opening delay although the actual stats pass was
+            // only a few milliseconds.
+            int campaignStatsHierarchySkippedV395Q = 0;
+            if (isEW2CampaignStatsV395M)
+            {
+                for (int i = 0; i < desk.Children.Count; i++)
+                {
+                    UiNode n = desk.Children[i];
+                    if (n != null && n.Visible && !IsEffectivelyVisibleV395Q(n, nodesBySourceId))
+                        campaignStatsHierarchySkippedV395Q++;
+                }
+            }
+
+            UiVitButton multiInputPrototypeV389 = null;
+            if (isMulti)
+            {
+                var nickNode = desk.Children.OfType<UiInputBox>()
+                    .FirstOrDefault(n => HasAction(n, "cva_MU_NickInput"));
+                if (nickNode != null &&
+                    nodesBySourceId.TryGetValue(nickNode.ParentSourceId, out UiNode nickParent))
+                {
+                    multiInputPrototypeV389 = nickParent as UiVitButton;
+                }
+            }
+
             bool isAddProfile = desk.Children.Any(n =>
     n?.Actions != null && n.Actions.Any(a =>
         a != null && !string.IsNullOrEmpty(a.Name) &&
         a.Name.StartsWith("cva_ProfAdd_", StringComparison.OrdinalIgnoreCase)));
 
-            // ДИАГНОСТИКА: какие InputBox есть в desk
-            Debug.Log("═══════════════════════════════════════════════════════════");
-            Debug.Log("[OptionsRenderer] InputBox elements in desk:");
-            foreach (var node in desk.Children)
-            {
-                if (node is UiInputBox ib)
-                    Debug.Log($"  InputBox: name='{ib.Name}', pos=({ib.X},{ib.Y}), size=({ib.Width}x{ib.Height}), visible={ib.Visible}");
-            }
-            Debug.Log("═══════════════════════════════════════════════════════════");
-
             // 1) BitPicture (фоны)
             foreach (var node in desk.Children)
             {
-                if (!node.Visible) continue;
-                if (node is UiBitPicture pic) CreateBitPicture(root, pic, fs, opt);
+                if (!node.Visible || (isEW2CampaignStatsV395M && !IsEffectivelyVisibleV395Q(node, nodesBySourceId))) continue;
+                if (profileDeleteSubtreeV396A7R2 != null && profileDeleteSubtreeV396A7R2.Contains(node.SourceId)) continue;
+                if (node is UiBitPicture pic)
+                {
+                    string bitFileV395O = (pic.FileName ?? string.Empty).Replace('\\', '/');
+                    bool isCampaignStatsShkalaV395O =
+                        isEW2CampaignStatsV395M &&
+                        bitFileV395O.Equals("Interf3/background/shkala.JPG", StringComparison.OrdinalIgnoreCase);
+
+                    // When the final 1.4 bitmap has already been loaded directly
+                    // from DataRoot, do not draw the stale project copy on top of it.
+                    if (isCampaignStatsShkalaV395O && campaignStatsBackgroundFromDataRootV395O)
+                        continue;
+
+                    CreateBitPicture(root, pic, fs, opt);
+                }
             }
 
             // 2) GPPicture (декор)
             foreach (var node in desk.Children)
             {
-                if (!node.Visible) continue;
-                if (node is UiGPPicture gp) CreateGPPicture(root, gp, fs, opt);
-            }
-
-            // 3) VitButton / VitLine (фон под ник) + InputBox + ListDesk
-            bool inputBoxCreated = false;
-
-            // Координаты целевой позиции InputBox (где VitButton служит фоном)
-            const float TARGET_INPUT_X = 573f;
-            const float TARGET_INPUT_Y = 286f;
-
-            foreach (var node in desk.Children)
-            {
-                if (!node.Visible) continue;
-
-                if (node is UiVitButton vb)
+                if (!node.Visible || (isEW2CampaignStatsV395M && !IsEffectivelyVisibleV395Q(node, nodesBySourceId))) continue;
+                if (profileDeleteSubtreeV396A7R2 != null && profileDeleteSubtreeV396A7R2.Contains(node.SourceId)) continue;
+                if (node is UiGPPicture gp)
                 {
-                    // ═══════════════════════════════════════════════════════════
-                    // Пропускаем ТОЛЬКО ВЕРХНИЙ VitButton (Y < 100) - он не нужен
-                    // Нижний VitButton (Y > 200) ОСТАВЛЯЕМ - это фон для InputBox
-                    // ═══════════════════════════════════════════════════════════
-                    bool isDecorative = (vb.Actions == null || vb.Actions.Count == 0);
-                    bool isInputBackground = (vb.Width >= 300 && vb.Height <= 25);
-                    bool isUpperPosition = (vb.Y < 100);
+                    string gpFidV395M = (gp.FileID ?? string.Empty).Replace('\\', '/');
+                    bool isMultiRootBg = isMulti &&
+                        gpFidV395M.Equals("INTERF3/ELEMENTS/BACKGROUND", StringComparison.OrdinalIgnoreCase) &&
+                        gp.SpriteID == 6 && gp.X == 0 && gp.Y == 0;
 
-                    if (isDecorative && isInputBackground && isUpperPosition)
+                    // V395M: EW2_CampaignStats.xml contains an old nested
+                    // Interf3\mainmenu sprite-0 placeholder under a DialogsDesk.
+                    // The original 1.4 statistics screen does NOT show that battle
+                    // picture: the graph grid remains visible through this area.
+                    // Our flattened Unity renderer was incorrectly promoting this
+                    // nested GPPicture to a root-level 375x235 Image, so it covered
+                    // the player tables/graph and visibly escaped its source desk.
+                    // Suppress only this exact campaign-statistics placeholder;
+                    // no other GPPicture or screen is affected.
+                    bool suppressCampaignStatsMainMenuPlaceholderV395M =
+                        isEW2CampaignStatsV395M &&
+                        gpFidV395M.Equals("Interf3/mainmenu", StringComparison.OrdinalIgnoreCase) &&
+                        gp.SpriteID == 0;
+
+                    if (suppressCampaignStatsMainMenuPlaceholderV395M)
                     {
-                        Debug.Log($"[OptionsRenderer] SKIP VitButton (orphan upper bg): pos=({vb.X},{vb.Y})");
+                        Debug.Log($"[C2:CAMPSTAT V395M] suppressed nested placeholder gp='{gp.FileID}' sprite={gp.SpriteID} sourceId={gp.SourceId} parentSourceId={gp.ParentSourceId}");
                         continue;
                     }
 
-                    // Остальные VitButton создаём
+                    if (!isMultiRootBg)
+                        CreateGPPicture(root, gp, fs, opt);
+                }
+            }
+
+            // 3) VitButton / InputBox.  Multi is special: the normal screen has
+            // exactly one live nickname editor.  Manual-IP controls belong to a
+            // different state and must not overlap/capture clicks here.
+            int multiNickInputs = 0;
+            int multiHiddenInputs = 0;
+            int multiManualSuppressed = 0;
+            foreach (var node in desk.Children)
+            {
+                if (!node.Visible || (isEW2CampaignStatsV395M && !IsEffectivelyVisibleV395Q(node, nodesBySourceId))) continue;
+                if (profileDeleteSubtreeV396A7R2 != null && profileDeleteSubtreeV396A7R2.Contains(node.SourceId)) continue;
+
+                if (isMulti && IsMultiManualIpNodeV387B2(node))
+                {
+                    multiManualSuppressed++;
+                    continue;
+                }
+
+                if (node is UiVitButton vb)
+                {
+                    // V395H: a VitButton nested under a ListDesk <Element> is the
+                    // XML prototype used by ListDesk::AddElement().  It is not an
+                    // independent root-level control and must never be drawn here.
+                    if (nodesBySourceId.TryGetValue(vb.ParentSourceId, out UiNode vbParentV395H) &&
+                        vbParentV395H is UiListDesk)
+                        continue;
+
+                    bool isDecorative = (vb.Actions == null || vb.Actions.Count == 0);
                     if (isDecorative)
                         CreateVitButtonTiled(vb, root);
                     else
@@ -120,44 +257,53 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 }
                 else if (node is UiInputBox ib)
                 {
-                    if (!isAddProfile)
+                    bool isNickInput = HasAction(ib, "cva_MU_NickInput");
+
+                    if (isMulti)
                     {
-                        CreateInputBox(ib, root, opt);
-                        continue;
+                        // The source screen contains one nickname InputBox nested in
+                        // its decorative VitButton. Any other InputBox visible in the
+                        // flattened runtime is a duplicate/inactive state. Never let
+                        // it receive focus or cover the real nickname editor.
+                        if (!isNickInput || multiNickInputs > 0)
+                        {
+                            multiHiddenInputs++;
+                            continue;
+                        }
                     }
 
-                    if (inputBoxCreated)
-                    {
-                        ib.X = (int)TARGET_INPUT_X;
-                        ib.Y = (int)TARGET_INPUT_Y;
-                        CreateInputBox(ib, root, opt);
-                        continue;
-                    }
+                    UiVitButton inputParentV389 = null;
+                    if (nodesBySourceId.TryGetValue(ib.ParentSourceId, out UiNode parentNodeV389))
+                        inputParentV389 = parentNodeV389 as UiVitButton;
 
-                    inputBoxCreated = true; // пропускаем первый только в AddProfile
+                    CreateInputBox(ib, root, opt, inputParentV389);
+                    if (isMulti && isNickInput) multiNickInputs++;
                 }
             }
-
-
 
             // 4) TextButton
             foreach (var node in desk.Children)
             {
-                if (!node.Visible) continue;
+                if (!node.Visible || (isEW2CampaignStatsV395M && !IsEffectivelyVisibleV395Q(node, nodesBySourceId))) continue;
+                if (profileDeleteSubtreeV396A7R2 != null && profileDeleteSubtreeV396A7R2.Contains(node.SourceId)) continue;
+                if (isMulti && IsMultiManualIpNodeV387B2(node)) { multiManualSuppressed++; continue; }
                 if (node is UiTextButton btn)
                 {
-                    string resolvedText = loc?.Resolve(btn.MessageKey) ?? btn.MessageKey;
-
-                    // ═══════════════════════════════════════════════════════════
-                    // ФИКС: Принудительный сдвиг "Имя игрока" влево
-                    // ═══════════════════════════════════════════════════════════
-                    if (resolvedText != null && resolvedText.Contains("Имя игрока"))
-                    {
-                        btn.X -= 15;  // Попробуйте -50, -80, -100 пока не выровняется
-                        Debug.Log($"[OptionsRenderer] FORCE SHIFT 'Имя игрока' to X={btn.X}");
-                    }
-
+                    int before = root.childCount;
                     CreateTextButton(root, btn, opt, sink, loc, MenuOverrideDb.Resolve);
+                    if (root.childCount > before)
+                    {
+                        GameObject created = root.GetChild(root.childCount - 1).gameObject;
+                        Menu14ActionStateRuntime.RegisterControl(btn, created, fs);
+
+                        // V395O: the source XML title is #EW2_Stat with
+                        // MenuTextWhite for all states.  The generic TextButton
+                        // path was leaving this label in the dark generic menu
+                        // color, making it nearly invisible on the title plaque.
+                        if (isEW2CampaignStatsV395M &&
+                            string.Equals(btn.MessageKey, "#EW2_Stat", StringComparison.OrdinalIgnoreCase))
+                            FixCampaignStatsTitleV395O(created);
+                    }
                 }
             }
 
@@ -165,13 +311,26 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             // 5) GP_TextButton
             foreach (var node in desk.Children)
             {
-                if (!node.Visible) continue;
-                if (node is UiGPTextButton gpBtn) CreateGPTextButton(root, gpBtn, opt, sink, loc);
+                if (!node.Visible || (isEW2CampaignStatsV395M && !IsEffectivelyVisibleV395Q(node, nodesBySourceId))) continue;
+                if (profileDeleteSubtreeV396A7R2 != null && profileDeleteSubtreeV396A7R2.Contains(node.SourceId)) continue;
+                if (isMulti && IsMultiManualIpNodeV387B2(node)) { multiManualSuppressed++; continue; }
+                if (node is UiGPTextButton gpBtn)
+                {
+                    int before = root.childCount;
+                    CreateGPTextButton(root, gpBtn, opt, sink, loc);
+                    if (root.childCount > before)
+                    {
+                        GameObject created = root.GetChild(root.childCount - 1).gameObject;
+                        Menu14ActionStateRuntime.RegisterControl(gpBtn, created, fs);
+                    }
+                }
             }
             // 5) ListDesk (список подключений)
             foreach (var node in desk.Children)
             {
-                if (!node.Visible) continue;
+                if (!node.Visible || (isEW2CampaignStatsV395M && !IsEffectivelyVisibleV395Q(node, nodesBySourceId))) continue;
+                if (profileDeleteSubtreeV396A7R2 != null && profileDeleteSubtreeV396A7R2.Contains(node.SourceId)) continue;
+                if (isMulti && IsMultiManualIpNodeV387B2(node)) { multiManualSuppressed++; continue; }
                 if (node is UiListDesk ld)
                 {
                     CreateListDeskVisual(ld, root, opt);
@@ -182,7 +341,9 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             int cbIndex = 0;
             foreach (var node in desk.Children)
             {
-                if (!node.Visible) continue;
+                if (!node.Visible || (isEW2CampaignStatsV395M && !IsEffectivelyVisibleV395Q(node, nodesBySourceId))) continue;
+                if (profileDeleteSubtreeV396A7R2 != null && profileDeleteSubtreeV396A7R2.Contains(node.SourceId)) continue;
+                if (isMulti && IsMultiManualIpNodeV387B2(node)) { multiManualSuppressed++; continue; }
 
                 if (node is UiCheckBox cb)
                 {
@@ -205,6 +366,630 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 else if (node is UiComboBox combo)
                 {
                     CreateComboBox(combo, desk, fs, root, opt, sink, loc);
+                }
+            }
+
+            // V396A7R2: render the original M_PROF_SEL/Delete subtree last, in
+            // parser/source order. This preserves overlay -> Main border -> header
+            // -> buttons/portrait/text z-order while using the existing XML model.
+            if (profileDeleteRootV396A7R2 != null && profileDeleteRootV396A7R2.Visible)
+                RenderProfileDeleteModalV396A7R2(desk, root, fs, opt, sink, loc,
+                    profileDeleteRootV396A7R2, profileDeleteSubtreeV396A7R2);
+
+            // V391: one post-build SetFrameState pass. This mirrors the
+            // original per-frame action state update for controls already bound
+            // to the runtime, including cva_ProfAdd_RaceFlg.
+            Menu14ActionStateRuntime.ApplyAllFrameStates();
+
+            if (isEW2CampaignStatsV395M)
+            {
+                double renderMsV395Q = (System.Diagnostics.Stopwatch.GetTimestamp() - campaignStatsRenderStartV395Q)
+                    * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                Debug.Log(
+                    $"[C2:CAMPSTAT PERF V395Q] renderMs={renderMsV395Q:F2} parsedNodes={desk.Children.Count} " +
+                    $"hierarchySkipped={campaignStatsHierarchySkippedV395Q} unityChildren={root.childCount}");
+            }
+
+            if (isMulti)
+            {
+                // The clean M_Multi XML does not contain the manual-server row;
+                // the original engine exposes it through runtime SetFrameState
+                // (cva_Multi_ManualServer / cva_Multi_ManualIPServer).  V387B2
+                // suppressed leaked fake ManualIP actions and accidentally removed
+                // the legitimate visible row.  Recreate that original runtime row
+                // explicitly, while keeping the leaked nodes suppressed.
+                CreateMultiManualServerRowV389(root, multiInputPrototypeV389);
+                HideMultiServerIpTokenV387A3(root);
+                Debug.Log(
+                    $"[C2:MENU14 V389] screen=Multi originalBackgroundSprite=6 " +
+                    $"nickInputs={multiNickInputs} hiddenInactiveInputs={multiHiddenInputs} " +
+                    $"manualIpSuppressed={multiManualSuppressed} manualIpRuntimeRow=1 " +
+                    $"manualInputSurfaceXml={(multiInputPrototypeV389 != null ? 1 : 0)} " +
+                    $"manualEnabled={(s_multiManualServerV387B3 ? 1 : 0)} rawServerIpHidden=1");
+            }
+        }
+
+        private static UiNode FindNodeWithActionV396A7R2(UiDesk desk, string actionName)
+        {
+            if (desk?.Children == null || string.IsNullOrWhiteSpace(actionName)) return null;
+            for (int i = 0; i < desk.Children.Count; i++)
+            {
+                UiNode n = desk.Children[i];
+                if (HasAction(n, actionName)) return n;
+            }
+            return null;
+        }
+
+        private static HashSet<int> BuildSubtreeIdsV396A7R2(UiDesk desk, UiNode root)
+        {
+            if (desk?.Children == null || root == null || root.SourceId < 0) return null;
+            var result = new HashSet<int> { root.SourceId };
+            bool changed;
+            do
+            {
+                changed = false;
+                for (int i = 0; i < desk.Children.Count; i++)
+                {
+                    UiNode n = desk.Children[i];
+                    if (n == null || result.Contains(n.SourceId)) continue;
+                    if (result.Contains(n.ParentSourceId))
+                    {
+                        result.Add(n.SourceId);
+                        changed = true;
+                    }
+                }
+            } while (changed);
+            return result;
+        }
+
+        private static void RenderProfileDeleteModalV396A7R2(
+            UiDesk desk,
+            RectTransform root,
+            CoreFileSystem fs,
+            RenderOptions opt,
+            IUiActionSink sink,
+            LocDb loc,
+            UiNode modalRoot,
+            HashSet<int> subtree)
+        {
+            if (desk?.Children == null || root == null || modalRoot == null || subtree == null) return;
+
+            int rendered = 0;
+            int borders = 0;
+            int hotkeys = 0;
+
+            for (int i = 0; i < desk.Children.Count; i++)
+            {
+                UiNode n = desk.Children[i];
+                if (n == null || !subtree.Contains(n.SourceId) || !n.Visible) continue;
+
+                if (n is UiDialogsDesk dd)
+                {
+                    // The modal root is a 1024x768 input-owning DialogsDesk. Keep a
+                    // transparent raycast surface so the visible modal blocks the
+                    // underlying profile screen exactly while vCurProfDel is true.
+                    if (n.SourceId == modalRoot.SourceId)
+                    {
+                        var blocker = new GameObject("DialogsDesk_Delete_SourceRoot", typeof(RectTransform), typeof(Image));
+                        blocker.transform.SetParent(root, false);
+                        RectTransform brt = (RectTransform)blocker.transform;
+                        brt.anchorMin = brt.anchorMax = new Vector2(0f, 1f);
+                        brt.pivot = new Vector2(0f, 1f);
+                        brt.anchoredPosition = new Vector2(dd.X, -dd.Y);
+                        brt.sizeDelta = new Vector2(Mathf.Max(1f, dd.Width), Mathf.Max(1f, dd.Height));
+                        Image bi = blocker.GetComponent<Image>();
+                        bi.color = new Color(1f, 1f, 1f, 0f);
+                        bi.raycastTarget = true;
+                        Menu14ActionStateRuntime.RegisterControl(dd, blocker, fs);
+                        rendered++;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(dd.Border) &&
+                        !dd.Border.Equals("NullBorder", StringComparison.OrdinalIgnoreCase) &&
+                        ListDeskSourceRuntime14.TryGetBorderTemplate(dd.Border, out ListDeskSourceRuntime14.TemplateSpec borderSpec) &&
+                        borderSpec != null)
+                    {
+                        var frame = new GameObject("DialogsDesk_Border_" + SafeName(dd.Border), typeof(RectTransform));
+                        frame.transform.SetParent(root, false);
+                        RectTransform frt = (RectTransform)frame.transform;
+                        frt.anchorMin = frt.anchorMax = new Vector2(0f, 1f);
+                        frt.pivot = new Vector2(0f, 1f);
+                        frt.anchoredPosition = new Vector2(dd.X, -dd.Y);
+                        frt.sizeDelta = new Vector2(Mathf.Max(1f, dd.Width), Mathf.Max(1f, dd.Height));
+                        DrawFilledRect3V395K(frame.transform, dd.Width, dd.Height, borderSpec);
+                        borders++;
+                        rendered++;
+                    }
+                    continue;
+                }
+
+                if (n is UiGPPicture gp)
+                {
+                    CreateGPPicture(root, gp, fs, opt);
+                    rendered++;
+                    continue;
+                }
+
+                if (n is UiVitButton vb)
+                {
+                    bool interactive = vb.Actions != null && vb.Actions.Count > 0;
+                    if (!interactive)
+                    {
+                        // Use the same DrawHeaderEx2-style source path as runtime
+                        // ListDesk buttons, but without inventing a hit target/text.
+                        var holder = new GameObject("VitButton_SourceDecor", typeof(RectTransform));
+                        holder.transform.SetParent(root, false);
+                        RectTransform hrt = (RectTransform)holder.transform;
+                        hrt.anchorMin = hrt.anchorMax = new Vector2(0f, 1f);
+                        hrt.pivot = new Vector2(0f, 1f);
+                        hrt.anchoredPosition = new Vector2(vb.X, -vb.Y);
+                        hrt.sizeDelta = new Vector2(Mathf.Max(1f, vb.Width), Mathf.Max(1f, vb.Height));
+                        CreateListDeskVitButtonVisualV395J(holder.transform, vb.GP_File, vb.SpritePassive,
+                            vb.SpriteDx, vb.Width, vb.Height, vb.OneSprited, vb.DisableCycling, "Passive");
+                        rendered++;
+                        continue;
+                    }
+
+                    string message = loc?.Resolve(vb.MessageKey) ?? vb.MessageKey ?? string.Empty;
+                    int state = Mathf.Max(0, vb.State);
+                    GameObject buttonGo = CreateListDeskElementFromSourceTemplateV395J(
+                        root,
+                        message,
+                        state,
+                        vb.Enabled,
+                        () =>
+                        {
+                            for (int ai = 0; ai < vb.Actions.Count; ai++)
+                            {
+                                UiAction a = vb.Actions[ai];
+                                if (a == null) continue;
+                                try { sink?.OnAction(vb.MessageKey, a); }
+                                catch (Exception ex) { Debug.LogError($"[C2:PROFILE DELETE V396A7R2] action error {a.Name}: {ex}"); }
+                            }
+                        },
+                        vb.X, vb.Y, vb.Width, vb.Height,
+                        vb.GP_File, vb.SpritePassive, vb.SpriteActive, vb.SpriteDx,
+                        vb.FontPassive, vb.FontOver, vb.FontDx, vb.FontDy, vb.Align,
+                        vb.OneSprited, vb.DisableCycling);
+
+                    if (buttonGo != null)
+                    {
+                        Menu14ActionStateRuntime.RegisterControl(vb, buttonGo, fs);
+                        Button b = buttonGo.GetComponent<Button>();
+                        if (b != null && !string.IsNullOrWhiteSpace(vb.HotKey) &&
+                            !vb.HotKey.Equals("NONE", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var hk = buttonGo.AddComponent<SourceHotKeyInvokesButtonV396A7R2>();
+                            hk.Target = b;
+                            hk.HotKey = vb.HotKey;
+                            hotkeys++;
+                        }
+                    }
+                    rendered++;
+                    continue;
+                }
+
+                if (n is UiTextButton tb)
+                {
+                    int before = root.childCount;
+                    CreateTextButton(root, tb, opt, sink, loc, MenuOverrideDb.Resolve);
+                    if (root.childCount > before)
+                    {
+                        GameObject created = root.GetChild(root.childCount - 1).gameObject;
+                        Menu14ActionStateRuntime.RegisterControl(tb, created, fs);
+                    }
+                    rendered++;
+                    continue;
+                }
+
+                if (n is UiGPTextButton gpt)
+                {
+                    int before = root.childCount;
+                    CreateGPTextButton(root, gpt, opt, sink, loc);
+                    if (root.childCount > before)
+                        Menu14ActionStateRuntime.RegisterControl(gpt, root.GetChild(root.childCount - 1).gameObject, fs);
+                    rendered++;
+                }
+            }
+
+            Debug.Log($"[C2:PROFILE DELETE V396A7R2] rendered source='{desk.SourcePath}' desk='{modalRoot.Name}' " +
+                      $"nodes={rendered} borders={borders} hotkeys={hotkeys} order=XML_PREORDER parser=Menu14UnifiedLoader");
+            Debug.Log("[C2:UI SEAMFIX V396A7R7] DrawRect4=source_exact DrawHeaderEx2=inclusive clipGuard=1px sourcePhase=i_mod_3 genericPath=source_start_x0");
+            Debug.Log("[C2:UI SOURCE TRANSFORM V396A7R4] ParentFrame_GetMatrix=enabled pointSampling=enabled internet_menu=rotate_90_270_not_overlay");
+        }
+
+        private sealed class SourceHotKeyInvokesButtonV396A7R2 : MonoBehaviour
+        {
+            public Button Target;
+            public string HotKey;
+
+            private void Update()
+            {
+                if (Target == null || !Target.interactable || !Target.gameObject.activeInHierarchy) return;
+                bool pressed = false;
+                string key = HotKey ?? string.Empty;
+#if ENABLE_INPUT_SYSTEM
+                var keyboard = UnityEngine.InputSystem.Keyboard.current;
+                if (keyboard != null)
+                {
+                    if (key.Equals("ENTER", StringComparison.OrdinalIgnoreCase))
+                        pressed = keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame;
+                    else if (key.Equals("ESC", StringComparison.OrdinalIgnoreCase) || key.Equals("ESCAPE", StringComparison.OrdinalIgnoreCase))
+                        pressed = keyboard.escapeKey.wasPressedThisFrame;
+                }
+#else
+                if (key.Equals("ENTER", StringComparison.OrdinalIgnoreCase))
+                    pressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+                else if (key.Equals("ESC", StringComparison.OrdinalIgnoreCase) || key.Equals("ESCAPE", StringComparison.OrdinalIgnoreCase))
+                    pressed = Input.GetKeyDown(KeyCode.Escape);
+#endif
+                if (pressed) Target.onClick.Invoke();
+            }
+        }
+
+        private static bool IsEffectivelyVisibleV395Q(UiNode node, Dictionary<int, UiNode> nodesBySourceId)
+        {
+            if (node == null || !node.Visible) return false;
+            if (nodesBySourceId == null || nodesBySourceId.Count == 0) return true;
+
+            int parentId = node.ParentSourceId;
+            int guard = 0;
+            while (parentId >= 0 && guard++ < 512)
+            {
+                if (!nodesBySourceId.TryGetValue(parentId, out UiNode parentNode) || parentNode == null)
+                    break;
+                if (!parentNode.Visible) return false;
+
+                int next = parentNode.ParentSourceId;
+                if (next == parentId) break;
+                parentId = next;
+            }
+            return true;
+        }
+
+        private static bool TryCreateCampaignStatsBackgroundFromDataRootV395O(RectTransform root, CoreFileSystem fs)
+        {
+            if (root == null) return false;
+
+            string dataRoot = Menu14ActionStateRuntime.CurrentLogicalDataRoot;
+            if (string.IsNullOrWhiteSpace(dataRoot))
+                dataRoot = fs?.DataRoot ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(dataRoot))
+            {
+                Debug.LogWarning("[C2:CAMPSTAT BG V395O] DataRoot unavailable; using generic BitPicture fallback");
+                return false;
+            }
+
+            string[] candidates =
+            {
+                Path.Combine(dataRoot, "Interf3", "background", "shkala.jpg"),
+                Path.Combine(dataRoot, "Interf3", "background", "shkala.JPG"),
+                Path.Combine(dataRoot, "INTERF3", "BACKGROUND", "SHKALA.JPG")
+            };
+
+            string path = string.Empty;
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                if (File.Exists(candidates[i]))
+                {
+                    path = candidates[i];
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(path))
+            {
+                Debug.LogWarning($"[C2:CAMPSTAT BG V395O] final14 shkala.jpg not found under DataRoot='{dataRoot}'; using generic BitPicture fallback");
+                return false;
+            }
+
+            try
+            {
+                if (s_campaignStatsBackgroundTextureV395O == null ||
+                    s_campaignStatsBackgroundSpriteV395O == null ||
+                    !string.Equals(s_campaignStatsBackgroundPathV395O, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (s_campaignStatsBackgroundSpriteV395O != null)
+                        UnityEngine.Object.Destroy(s_campaignStatsBackgroundSpriteV395O);
+                    if (s_campaignStatsBackgroundTextureV395O != null)
+                        UnityEngine.Object.Destroy(s_campaignStatsBackgroundTextureV395O);
+
+                    byte[] bytes = File.ReadAllBytes(path);
+                    var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    tex.name = "C2_Final14_shkala_V395O";
+                    if (!tex.LoadImage(bytes, false))
+                    {
+                        UnityEngine.Object.Destroy(tex);
+                        Debug.LogWarning($"[C2:CAMPSTAT BG V395O] LoadImage failed path='{path}'; using generic BitPicture fallback");
+                        return false;
+                    }
+                    tex.wrapMode = TextureWrapMode.Clamp;
+                    tex.filterMode = FilterMode.Bilinear;
+
+                    s_campaignStatsBackgroundTextureV395O = tex;
+                    s_campaignStatsBackgroundSpriteV395O = Sprite.Create(
+                        tex,
+                        new Rect(0f, 0f, tex.width, tex.height),
+                        new Vector2(0.5f, 0.5f),
+                        1f);
+                    s_campaignStatsBackgroundSpriteV395O.name = "C2_Final14_shkala_sprite_V395O";
+                    s_campaignStatsBackgroundPathV395O = path;
+                }
+
+                var go = new GameObject("C2_CampaignStats_Background_V395O", typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(root, false);
+                RectTransform rt = (RectTransform)go.transform;
+                rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+                rt.pivot = new Vector2(0f, 1f);
+                rt.anchoredPosition = Vector2.zero;
+                rt.sizeDelta = new Vector2(1024f, 768f);
+
+                Image img = go.GetComponent<Image>();
+                img.sprite = s_campaignStatsBackgroundSpriteV395O;
+                img.type = Image.Type.Simple;
+                img.preserveAspect = false;
+                img.color = Color.white;
+                img.raycastTarget = false;
+                go.transform.SetAsFirstSibling();
+
+                Debug.Log($"[C2:CAMPSTAT BG V395O] source=DataRoot path='{path}' bitmap={s_campaignStatsBackgroundTextureV395O.width}x{s_campaignStatsBackgroundTextureV395O.height} draw=1024x768");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[C2:CAMPSTAT BG V395O] failed path='{path}' error='{ex.Message}'; using generic BitPicture fallback");
+                return false;
+            }
+        }
+
+        private static void FixCampaignStatsTitleV395O(GameObject created)
+        {
+            if (created == null) return;
+
+            TextMeshProUGUI[] labels = created.GetComponentsInChildren<TextMeshProUGUI>(true);
+            Color32 sourceWhite = ResolveC2FontColor("MenuTextWhite", new Color32(255, 247, 239, 255));
+            for (int i = 0; i < labels.Length; i++)
+            {
+                TextMeshProUGUI tmp = labels[i];
+                if (tmp == null) continue;
+                tmp.enableAutoSizing = false;
+                tmp.fontSize = ResolveC2FontSize("MenuTextWhite", 14f);
+                tmp.color = sourceWhite;
+                tmp.alignment = TextAlignmentOptions.Midline;
+                tmp.fontStyle = FontStyles.Normal;
+                tmp.raycastTarget = false;
+            }
+
+            // XML source: x=468 y=68 Width=85 Height=12, Align=Center,
+            // Active/Passive/DisabledFont=MenuTextWhite. Geometry remains XML-owned.
+            Debug.Log($"[C2:CAMPSTAT TITLE V395O] message=#EW2_Stat font=MenuTextWhite color={sourceWhite} labels={labels.Length} geometry=xml");
+        }
+
+        private static void CreateMultiManualServerRowV389(RectTransform root, UiVitButton inputSurfacePrototype)
+        {
+            if (root == null) return;
+
+            // V387B3A: exact 1024x768 client-space placement.
+            // Clean M_Multi.DialogsSystem.xml does NOT serialize the manual-IP row;
+            // it is driven by cva_Multi_ManualServer / cva_Multi_ManualIPServer.
+            // We therefore anchor it to the exact XML bottom-button desk position:
+            //   buttons desk: x=420, y=602, w=503, h=44
+            // and place the manual-IP row 28 px above it, matching the original 1.4 UI.
+            const float labelX = 435f;
+            const float buttonsDeskY = 602f;
+            const float rowY = buttonsDeskY - 28f; // 574
+            const float checkX = 580f;
+            const float checkY = rowY - 1f;        // 573
+            const float inputX = 600f;
+            const float inputY = rowY - 1f;        // 573
+            const float inputW = 310f;
+            const float inputH = 20f;
+
+            var labelGo = new GameObject("MultiManualIP_Label_V387B3", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelGo.transform.SetParent(root, false);
+            var lrt = (RectTransform)labelGo.transform;
+            lrt.anchorMin = lrt.anchorMax = new Vector2(0, 1);
+            lrt.pivot = new Vector2(0, 1);
+            lrt.anchoredPosition = new Vector2(labelX, -rowY);
+            lrt.sizeDelta = new Vector2(125, 20);
+            var ltmp = labelGo.GetComponent<TextMeshProUGUI>();
+            ltmp.text = "IP сервера";
+            ltmp.fontSize = 14f;
+            ltmp.color = new Color32(45, 35, 30, 255);
+            ltmp.alignment = TextAlignmentOptions.Left;
+            ltmp.verticalAlignment = VerticalAlignmentOptions.Middle;
+            ltmp.raycastTarget = false;
+
+            const string cbFolder = "interf3_elements_checkbox_frames";
+            var spOff = ResFrames.GetByName(cbFolder, "frame_0000");
+            var spOn = ResFrames.GetByName(cbFolder, "frame_0001");
+
+            var checkGo = new GameObject("MultiManualServer_CheckBox_V387B3", typeof(RectTransform), typeof(Image), typeof(Button));
+            checkGo.transform.SetParent(root, false);
+            var crt = (RectTransform)checkGo.transform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0, 1);
+            crt.pivot = new Vector2(0, 1);
+            crt.anchoredPosition = new Vector2(checkX, -checkY);
+            // Original CheckBox XML uses the same Interf3\elements\checkbox GP, 19x19.
+            crt.sizeDelta = new Vector2(19, 19);
+            var cimg = checkGo.GetComponent<Image>();
+            cimg.sprite = s_multiManualServerV387B3 ? (spOn ?? spOff) : (spOff ?? spOn);
+            cimg.preserveAspect = false;
+            cimg.raycastTarget = true;
+            var cbtn = checkGo.GetComponent<Button>();
+            cbtn.targetGraphic = cimg;
+
+            // V389: render the manual-IP editor with the SAME original GP/sprite
+            // surface that V388 parsed for the network nickname InputBox parent.
+            // No hand-picked white/gray/cherry Unity colors are used here.
+            if (inputSurfacePrototype != null)
+            {
+                var surface = new UiVitButton
+                {
+                    Name = "MultiManualIP_Surface_V389",
+                    GP_File = inputSurfacePrototype.GP_File,
+                    State = inputSurfacePrototype.State,
+                    SpritePassive = inputSurfacePrototype.SpritePassive,
+                    SpriteActive = inputSurfacePrototype.SpriteActive,
+                    SpriteDx = inputSurfacePrototype.SpriteDx,
+                    OneSprited = inputSurfacePrototype.OneSprited,
+                    X = (int)inputX,
+                    Y = (int)inputY,
+                    Width = (int)inputW,
+                    Height = (int)inputH,
+                    Visible = true,
+                    Enabled = true
+                };
+                CreateVitButtonTiled(surface, root);
+            }
+            else
+            {
+                Debug.LogWarning("[C2:MULTI V389] XML input surface prototype not found; manual IP editor will stay transparent rather than invent a color");
+            }
+
+            var inputGo = new GameObject("InputBox_MultiManualIP_V389", typeof(RectTransform), typeof(Image));
+            inputGo.transform.SetParent(root, false);
+            var irt = (RectTransform)inputGo.transform;
+            irt.anchorMin = irt.anchorMax = new Vector2(0, 1);
+            irt.pivot = new Vector2(0, 1);
+            irt.anchoredPosition = new Vector2(inputX, -inputY);
+            irt.sizeDelta = new Vector2(inputW, inputH);
+            var bg = inputGo.GetComponent<Image>();
+            bg.color = Color.clear;
+            bg.raycastTarget = true;
+
+            var textAreaGo = new GameObject("TextArea", typeof(RectTransform), typeof(RectMask2D));
+            textAreaGo.transform.SetParent(inputGo.transform, false);
+            var art = (RectTransform)textAreaGo.transform;
+            art.anchorMin = Vector2.zero;
+            art.anchorMax = Vector2.one;
+            art.offsetMin = new Vector2(5, 1);
+            art.offsetMax = new Vector2(-5, -1);
+
+            var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            textGo.transform.SetParent(textAreaGo.transform, false);
+            var trt = (RectTransform)textGo.transform;
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero;
+            trt.offsetMax = Vector2.zero;
+            var tmp = textGo.GetComponent<TextMeshProUGUI>();
+            tmp.fontSize = 14f;
+            tmp.color = new Color32(45, 35, 30, 255);
+            tmp.alignment = TextAlignmentOptions.Left;
+            tmp.verticalAlignment = VerticalAlignmentOptions.Middle;
+            tmp.raycastTarget = false;
+            tmp.richText = false;
+
+            var input = inputGo.AddComponent<TMP_InputField>();
+            input.textComponent = tmp;
+            input.textViewport = art;
+            input.targetGraphic = bg;
+            input.characterLimit = 32; // original cva_Multi_ManualIPServer
+            input.lineType = TMP_InputField.LineType.SingleLine;
+            input.contentType = TMP_InputField.ContentType.Standard;
+            input.interactable = s_multiManualServerV387B3;
+            input.readOnly = !s_multiManualServerV387B3;
+            input.SetTextWithoutNotify(s_multiManualIpV387B3 ?? string.Empty);
+
+            var cb = input.colors;
+            cb.normalColor = Color.white;
+            cb.highlightedColor = Color.white;
+            cb.selectedColor = Color.white;
+            cb.pressedColor = Color.white;
+            cb.disabledColor = new Color32(255, 255, 255, 180);
+            cb.colorMultiplier = 1f;
+            input.colors = cb;
+
+            input.onValueChanged.AddListener(v =>
+            {
+                s_multiManualIpV387B3 = (v ?? string.Empty).Trim();
+            });
+
+            cbtn.onClick.AddListener(() =>
+            {
+                s_multiManualServerV387B3 = !s_multiManualServerV387B3;
+                cimg.sprite = s_multiManualServerV387B3 ? (spOn ?? spOff) : (spOff ?? spOn);
+                input.interactable = s_multiManualServerV387B3;
+                input.readOnly = !s_multiManualServerV387B3;
+                // Visual surface stays the original XML/GP skin in both states;
+                // state only controls editability, like the source runtime action.
+                if (s_multiManualServerV387B3)
+                    input.ActivateInputField();
+                else
+                    input.DeactivateInputField();
+                Debug.Log($"[C2:MULTI V389] manual server={(s_multiManualServerV387B3 ? 1 : 0)} ip='{s_multiManualIpV387B3}'");
+            });
+
+            inputGo.transform.SetAsLastSibling();
+            checkGo.transform.SetAsLastSibling();
+            labelGo.transform.SetAsLastSibling();
+        }
+
+        private static bool IsMultiManualIpNodeV387B2(UiNode node)
+        {
+            if (node == null) return false;
+
+            if (HasAction(node, "cva_Multi_ManualIPServer") ||
+                HasAction(node, "cva_Multi_ManualServer"))
+                return true;
+
+            if (node is UiInputBox ib)
+            {
+                string a = ib.Action ?? "";
+                if (a.IndexOf("ManualIP", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    a.IndexOf("ManualServer", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            if (node is UiListDesk ld)
+            {
+                string a = ld.Action ?? "";
+                if (a.IndexOf("ManualIP", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    a.IndexOf("ManualServer", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static void CreateMultiBackgroundV387A3(RectTransform root)
+        {
+            Sprite sp = LoadSpriteFromResources("INTERF3_ELEMENTS_BACKGROUND_frames", "frame_0006");
+            if (sp == null)
+            {
+                Debug.LogWarning("[C2:MENU14 V387A3] Multi background frame_0006 not found");
+                return;
+            }
+
+            var go = new GameObject("GPPicture_Multi_Background_V387A3", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(root, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(1024, 768);
+
+            var img = go.GetComponent<Image>();
+            img.sprite = sp;
+            img.type = Image.Type.Simple;
+            img.preserveAspect = false;
+            img.raycastTarget = false;
+            go.transform.SetAsFirstSibling();
+        }
+
+        private static void HideMultiServerIpTokenV387A3(RectTransform root)
+        {
+            if (root == null) return;
+            var labels = root.GetComponentsInChildren<TextMeshProUGUI>(true);
+            foreach (var label in labels)
+            {
+                if (label == null) continue;
+                string t = (label.text ?? string.Empty).Trim();
+                if (t.Equals("#SERVERIP", StringComparison.OrdinalIgnoreCase) ||
+                    t.Equals("SERVERIP", StringComparison.OrdinalIgnoreCase))
+                {
+                    label.text = string.Empty;
                 }
             }
         }
@@ -295,16 +1080,28 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
 
         private static void EnsureEventSystem()
         {
-            // БЫЛО:
-            // var existing = UnityEngine.Object.FindObjectOfType<EventSystem>();
-
-            // СТАЛО:
             var existing = UnityEngine.Object.FindFirstObjectByType<EventSystem>();
-            if (existing != null) return;
+            if (existing == null)
+            {
+                var go = new GameObject("EventSystem");
+                existing = go.AddComponent<EventSystem>();
+            }
 
-            var go = new GameObject("EventSystem");
-            go.AddComponent<EventSystem>();
-            go.AddComponent<StandaloneInputModule>();
+#if ENABLE_INPUT_SYSTEM
+            if (existing.GetComponent<InputSystemUIInputModule>() == null)
+            {
+                var legacy = existing.GetComponent<StandaloneInputModule>();
+                if (legacy != null) legacy.enabled = false;
+                existing.gameObject.AddComponent<InputSystemUIInputModule>();
+                Debug.Log("[C2:UNITY66 V387B1] EventSystem uses InputSystemUIInputModule");
+            }
+#else
+            if (existing.GetComponent<StandaloneInputModule>() == null)
+            {
+                existing.gameObject.AddComponent<StandaloneInputModule>();
+                Debug.Log("[C2:UNITY66 V387B1] EventSystem uses StandaloneInputModule");
+            }
+#endif
         }
         /// <summary>
         /// ListDesk по логике DrawFilledRect + DrawRect4 из оригинала
@@ -325,11 +1122,30 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
         {
             if (ld == null || parent == null) return;
 
+            // V395K: when the source model was recovered from the same DialogsSystem
+            // XML + Dialogs/borders.xml, render the desk through a direct port of
+            // StdBorder::Draw -> DrawFilledRect3 -> DrawRect4 and the DialogsDesk
+            // VScroller creation formula. No corner-size shrink, no hand-swapped
+            // frames, no extra filler frame.
+            if (ListDeskSourceRuntime14.TryGet(ld.SourceId, out ListDeskSourceRuntime14.TemplateSpec spec) &&
+                spec != null && !string.IsNullOrEmpty(spec.BorderGPFile))
+            {
+                CreateListDeskVisualSourceExactV395K(ld, parent, spec);
+                return;
+            }
+
+            CreateListDeskVisualLegacyV395J(ld, parent, opt);
+        }
+
+        private static void CreateListDeskVisualLegacyV395J(UiListDesk ld, RectTransform parent, RenderOptions opt)
+        {
+            if (ld == null || parent == null) return;
+
             // Диагностика Canvas
             var canvas = parent.GetComponentInParent<Canvas>();
             if (canvas != null)
             {
-                Debug.Log($"[CANVAS DIAG] scaleFactor={canvas.scaleFactor}, " +
+                if (VerboseLayoutLogs) Debug.Log($"[CANVAS DIAG] scaleFactor={canvas.scaleFactor}, " +
                     $"referencePixelsPerUnit={canvas.referencePixelsPerUnit}, " +
                     $"pixelPerfect={canvas.pixelPerfect}");
             }
@@ -376,12 +1192,12 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
 
             float lineThickness = spLineTop != null ? spLineTop.rect.height : cornerH;
 
-            Debug.Log($"[ListDesk] Real sizes: cornerW={cornerW}, cornerH={cornerH}, lineThickness={lineThickness}");
+            if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Real sizes: cornerW={cornerW}, cornerH={cornerH}, lineThickness={lineThickness}");
 
             // ═══════════════════════════════════════════════════════════
             // 3. КОНТЕЙНЕР
             // ═══════════════════════════════════════════════════════════
-            var container = new GameObject($"ListDesk_{SafeName(ld.Name)}", typeof(RectTransform));
+            var container = new GameObject($"C2Xml_ListDesk_{ld.SourceId}", typeof(RectTransform));
             container.transform.SetParent(parent, false);
 
             var rt = (RectTransform)container.transform;
@@ -441,15 +1257,15 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             float innerW = w - cornerW * 2;
             float innerH = h - cornerH * 2;
 
-            Debug.Log($"[ListDesk LINES] innerW={innerW}, innerH={innerH}, cornerW={cornerW}, cornerH={cornerH}");
-            Debug.Log($"[ListDesk LINES] spLineTop={spLineTop != null}, spLineBottom={spLineBottom != null}");
-            Debug.Log($"[ListDesk LINES] spLineLeft={spLineLeft != null}, spLineRight={spLineRight != null}");
+            if (VerboseLayoutLogs) Debug.Log($"[ListDesk LINES] innerW={innerW}, innerH={innerH}, cornerW={cornerW}, cornerH={cornerH}");
+            if (VerboseLayoutLogs) Debug.Log($"[ListDesk LINES] spLineTop={spLineTop != null}, spLineBottom={spLineBottom != null}");
+            if (VerboseLayoutLogs) Debug.Log($"[ListDesk LINES] spLineLeft={spLineLeft != null}, spLineRight={spLineRight != null}");
 
             // Верхняя горизонтальная линия — ПОДНЯТА на 1px
             if (spLineTop != null && innerW > 0)
             {
                 float topY = 1f;
-                Debug.Log($"[ListDesk] Creating Line_Top at X={cornerW}, Y={topY}, size={innerW}x{spLineTop.rect.height}");
+                if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Creating Line_Top at X={cornerW}, Y={topY}, size={innerW}x{spLineTop.rect.height}");
                 CreateTiledLineWithLog(container.transform, "Line_Top", spLineTop,
                     cornerW, topY, innerW, spLineTop.rect.height, isHorizontal: true);
             }
@@ -462,7 +1278,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             if (spLineBottom != null && innerW > 0)
             {
                 float bottomY = -(h - spLineBottom.rect.height) - 1f;
-                Debug.Log($"[ListDesk] Creating Line_Bottom at X={cornerW}, Y={bottomY}, size={innerW}x{spLineBottom.rect.height}");
+                if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Creating Line_Bottom at X={cornerW}, Y={bottomY}, size={innerW}x{spLineBottom.rect.height}");
                 CreateTiledLineWithLog(container.transform, "Line_Bottom", spLineBottom,
                     cornerW, bottomY, innerW, spLineBottom.rect.height, isHorizontal: true);
             }
@@ -474,7 +1290,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             // Левая вертикальная линия (без изменений)
             if (spLineLeft != null && innerH > 0)
             {
-                Debug.Log($"[ListDesk] Creating Line_Left at X=0, Y={-cornerH}, size={spLineLeft.rect.width}x{innerH}");
+                if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Creating Line_Left at X=0, Y={-cornerH}, size={spLineLeft.rect.width}x{innerH}");
                 CreateTiledLineWithLog(container.transform, "Line_Left", spLineLeft,
                     0, -cornerH, spLineLeft.rect.width, innerH, isHorizontal: false);
             }
@@ -487,7 +1303,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             if (spLineRight != null && innerH > 0)
             {
                 float rightX = w - spLineRight.rect.width;
-                Debug.Log($"[ListDesk] Creating Line_Right at X={rightX}, Y={-cornerH}, size={spLineRight.rect.width}x{innerH}");
+                if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Creating Line_Right at X={rightX}, Y={-cornerH}, size={spLineRight.rect.width}x{innerH}");
                 CreateTiledLineWithLog(container.transform, "Line_Right", spLineRight,
                     rightX, -cornerH, spLineRight.rect.width, innerH, isHorizontal: false);
             }
@@ -517,7 +1333,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             if (spCornerLB != null)
             {
                 float lbY = -(h - spCornerLB.rect.height);
-                Debug.Log($"[ListDesk] Corner_LB: h={h}, spriteH={spCornerLB.rect.height}, Y={lbY}");
+                if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Corner_LB: h={h}, spriteH={spCornerLB.rect.height}, Y={lbY}");
                 CreateCornerSprite(container.transform, "Corner_LB", spCornerLB, 0, lbY);
             }
 
@@ -526,11 +1342,349 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             {
                 float rbX = w - spCornerRB.rect.width;
                 float rbY = -(h - spCornerRB.rect.height);
-                Debug.Log($"[ListDesk] Corner_RB: X={rbX}, Y={rbY}");
+                if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Corner_RB: X={rbX}, Y={rbY}");
                 CreateCornerSprite(container.transform, "Corner_RB", spCornerRB, rbX, rbY);
             }
 
-            Debug.Log($"[ListDesk] Created at ({ld.X},{ld.Y}) size {w}x{h}, fill area {fillW}x{fillH}");
+            Menu14ActionStateRuntime.RegisterControl(ld, container);
+            if (VerboseLayoutLogs) Debug.Log($"[ListDesk] Created at ({ld.X},{ld.Y}) size {w}x{h}, fill area {fillW}x{fillH}");
+        }
+
+
+        private static void CreateListDeskVisualSourceExactV395K(
+            UiListDesk ld,
+            RectTransform parent,
+            ListDeskSourceRuntime14.TemplateSpec spec)
+        {
+            float w = Mathf.Max(1f, ld.Width);
+            float h = Mathf.Max(1f, ld.Height);
+
+            var container = new GameObject($"C2Xml_ListDesk_{ld.SourceId}", typeof(RectTransform));
+            container.transform.SetParent(parent, false);
+            var rt = (RectTransform)container.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(ld.X, -ld.Y);
+            rt.sizeDelta = new Vector2(w, h);
+
+            // StdBorder::Draw: if(NFillers) DrawFilledRect3(...); else DrawRect4(...)
+            if (spec.BorderNFillers > 0 && spec.BorderStartFiller >= 0)
+                DrawFilledRect3V395K(container.transform, w, h, spec);
+            else
+                DrawRect4V395K(container.transform, w, h, spec);
+
+            // DialogsDesk::Process creates VScroller from StdBorder even when the
+            // content does not need scrolling. HideVScroller=false keeps it visible.
+            if (spec.EnableVerticalScroller && !string.IsNullOrEmpty(spec.VScrollerGPFile))
+                CreateListDeskVScrollerV395K(container.transform, w, h, spec);
+
+            Menu14ActionStateRuntime.RegisterControl(ld, container);
+
+            // Log the actual logical geometry used by the renderer. These values are
+            // intentionally independent from sprite transparent bounds.
+            Debug.Log(
+                $"[C2:LISTDESK RENDER V395K] sourceId={ld.SourceId} logical=({ld.X:0.#},{ld.Y:0.#},{w:0.#},{h:0.#}) " +
+                $"border='{spec.BorderName}' gp='{spec.BorderGPFile}' edges={spec.BorderLeftTop},{spec.BorderRightTop},{spec.BorderLeftBottom},{spec.BorderRightBottom}/" +
+                $"{spec.BorderTopLine},{spec.BorderBottomLine},{spec.BorderLeftLine},{spec.BorderRightLine} fill={spec.BorderStartFiller}+{spec.BorderNFillers} " +
+                $"vscroll={(spec.EnableVerticalScroller ? 1 : 0)} hide={(spec.HideVScroller ? 1 : 0)} vgp='{spec.VScrollerGPFile}'");
+        }
+
+        private static Sprite LoadGpFrameV395K(string gpFile, int frame)
+        {
+            if (string.IsNullOrEmpty(gpFile) || frame < 0) return null;
+            string folder = gpFile.Replace("\\", "_").Replace("/", "_").ToLowerInvariant() + "_frames";
+            Sprite sp = LoadSpriteFromResources(folder, $"frame_{frame:0000}");
+            if (sp == null)
+                sp = Menu14ActionStateRuntime.TryLoadGpSpriteForRenderer(gpFile, frame, true);
+            return sp;
+        }
+
+        // V396A7R5: expose the already-audited source GP/border path to the
+        // profile DialogsDesk runtime.  This avoids a second border implementation.
+        internal static Sprite LoadSourceGpFrameV396A7R5(string gpFile, int frame)
+            => LoadGpFrameV395K(gpFile, frame);
+
+        internal static bool DrawSourceDialogsDeskBorderV396A7R5(
+            Transform parent, float width, float height, string borderName,
+            out ListDeskSourceRuntime14.TemplateSpec spec)
+        {
+            spec = null;
+            if (parent == null || string.IsNullOrWhiteSpace(borderName)) return false;
+            if (!ListDeskSourceRuntime14.TryGetBorderTemplate(borderName, out spec) || spec == null)
+                return false;
+            if (spec.BorderNFillers > 0 && spec.BorderStartFiller >= 0)
+                DrawFilledRect3V395K(parent, width, height, spec);
+            else
+                DrawRect4V395K(parent, width, height, spec);
+            return true;
+        }
+
+        private static void DrawFilledRect3V395K(
+            Transform parent,
+            float width,
+            float height,
+            ListDeskSourceRuntime14.TemplateSpec spec)
+        {
+            // DrawForms.cpp::DrawFilledRect3:
+            // IntersectWindows(x0,y0,x1,y1); tiles start at x0/y0 and are clipped
+            // to the FULL logical rectangle. The old Unity code incorrectly shrank
+            // this by one full corner width/height.
+            Sprite first = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderStartFiller);
+            if (first != null)
+            {
+                float tileW = Mathf.Max(1f, first.rect.width);
+                float tileH = Mathf.Max(1f, first.rect.height);
+                var clip = CreateClipRectV395K(parent, "Fill_FullRect", 0f, 0f, width, height);
+
+                int nx = Mathf.FloorToInt((width - 1f) / tileW);
+                int ny = Mathf.FloorToInt((height - 1f) / tileH);
+                for (int ix = 0; ix <= nx; ix++)
+                {
+                    for (int iy = 0; iy <= ny; iy++)
+                    {
+                        int pattern = (ix * ix + iy * iy * iy) % Mathf.Max(1, spec.BorderNFillers);
+                        int frame = spec.BorderStartFiller + pattern;
+                        Sprite sp = LoadGpFrameV395K(spec.BorderGPFile, frame);
+                        if (sp == null) continue;
+                        CreateSpriteAtV395K(clip, $"Fill_{ix}_{iy}_F{frame}", sp,
+                            ix * tileW, iy * tileH, 0f, 0f);
+                    }
+                }
+            }
+
+            DrawRect4V395K(parent, width, height, spec);
+        }
+
+        private static void DrawRect4V395K(
+            Transform parent,
+            float width,
+            float height,
+            ListDeskSourceRuntime14.TemplateSpec spec)
+        {
+            Sprite clu = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderLeftTop);
+            Sprite cru = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderRightTop);
+            Sprite cld = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderLeftBottom);
+            Sprite crd = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderRightBottom);
+            Sprite lu = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderTopLine);
+            Sprite ld = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderBottomLine);
+            Sprite ll = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderLeftLine);
+            Sprite lr = LoadGpFrameV395K(spec.BorderGPFile, spec.BorderRightLine);
+
+            float ullx = clu != null ? clu.rect.width : 32f;
+            if (ullx <= 0f) ullx = 32f;
+            float lx2 = Mathf.Floor(ullx / 2f);
+
+            float dllx = cld != null ? cld.rect.width : (clu != null ? clu.rect.width : 32f);
+            if (dllx <= 0f) dllx = 32f;
+            float lx3 = Mathf.Floor(dllx / 2f);
+
+            float uplx = lu != null ? lu.rect.width : 32f;
+            if (uplx <= 0f) uplx = 32f;
+            float dnlx = ld != null ? ld.rect.width : 32f;
+            if (dnlx <= 0f) dnlx = 32f;
+
+            float lsly = clu != null ? clu.rect.height : 0f;
+            float lly2 = Mathf.Floor(lsly / 2f);
+
+            // Original DrawRect4 contains this exact quirk: LDLY is GP WIDTH of CLD.
+            float ldly = cld != null ? cld.rect.width : 0f;
+            if (ldly > 1000f) ldly = 0f;
+            float ldy2 = Mathf.Floor(ldly / 2f);
+
+            float leftly = ll != null ? ll.rect.height : 32f;
+            if (leftly <= 0f) leftly = 32f;
+            float rightly = lr != null ? lr.rect.height : 32f;
+            if (rightly <= 0f) rightly = 32f;
+
+            float x1 = width - 1f;
+            float y1 = height - 1f;
+            float midY = Mathf.Floor((y1 + 0f) / 2f);
+
+            // Horizontal top line.
+            if (lu != null)
+            {
+                float cx0 = lx2;
+                float cy0 = -lly2;
+                float cx1 = x1 - lx2 - 1f;
+                float cy1 = midY;
+                Transform clip = CreateClipRectInclusiveV395K(parent, "Border_Top_Clip", cx0, cy0, cx1, cy1);
+                int n = Mathf.FloorToInt((width - ullx) / uplx);
+                for (int i = 0; i <= n + 2; i++)
+                    CreateSpriteAtV395K(clip, $"Top_{i}", lu, i * uplx + lx2, -lly2, cx0, cy0);
+            }
+
+            // Horizontal bottom line.
+            if (ld != null)
+            {
+                float cx0 = lx3;
+                float cy0 = midY + 1f;
+                float cx1 = x1 - lx3 - 1f;
+                float cy1 = y1 + lly2;
+                Transform clip = CreateClipRectInclusiveV395K(parent, "Border_Bottom_Clip", cx0, cy0, cx1, cy1);
+                int n = Mathf.FloorToInt((width - dllx) / dnlx);
+                for (int i = 0; i <= n + 2; i++)
+                    CreateSpriteAtV395K(clip, $"Bottom_{i}", ld, i * dnlx + lx3, y1 - ldy2, cx0, cy0);
+            }
+
+            // Vertical lines share one clipping window in original DrawRect4.
+            {
+                float cx0 = -lx3;
+                float cy0 = lly2;
+                float cx1 = x1 + lx3;
+                float cy1 = y1 - ldy2;
+                Transform clip = CreateClipRectInclusiveV395K(parent, "Border_Vertical_Clip", cx0, cy0, cx1, cy1);
+                if (ll != null)
+                {
+                    int n = Mathf.FloorToInt((height - lly2 - ldy2) / leftly);
+                    for (int i = 0; i <= n + 1; i++)
+                        CreateSpriteAtV395K(clip, $"Left_{i}", ll, -lx3, i * leftly + lly2, cx0, cy0);
+                }
+                if (lr != null)
+                {
+                    int n = Mathf.FloorToInt((height - lly2 - ldy2) / rightly);
+                    for (int i = 0; i <= n + 1; i++)
+                        CreateSpriteAtV395K(clip, $"Right_{i}", lr, x1 - lx3, i * rightly + lly2, cx0, cy0);
+                }
+            }
+
+            float cornerMid = Mathf.Floor((y1 - ldy2 + lly2) / 2f);
+            float xMid = Mathf.Floor(x1 / 2f);
+
+            if (clu != null)
+            {
+                float cx0 = -lx2, cy0 = -lly2, cx1 = xMid - 1f, cy1 = cornerMid - 1f;
+                Transform clip = CreateClipRectInclusiveV395K(parent, "Corner_LT_Clip", cx0, cy0, cx1, cy1);
+                CreateSpriteAtV395K(clip, "Corner_LT", clu, -lx2, -lly2, cx0, cy0);
+            }
+            if (cru != null)
+            {
+                // V396A7R3: original DrawRect4 starts the right half at
+                // (x0+x1)/2, not +1.  The previous +1 skipped exactly one
+                // framebuffer column between the left/right corner clip regions.
+                float cx0 = xMid, cy0 = -lly2, cx1 = x1 + lx2, cy1 = cornerMid - 1f;
+                Transform clip = CreateClipRectInclusiveV395K(parent, "Corner_RT_Clip", cx0, cy0, cx1, cy1);
+                CreateSpriteAtV395K(clip, "Corner_RT", cru, x1 - lx2, -lly2, cx0, cy0);
+            }
+            if (cld != null)
+            {
+                float cx0 = -lx3, cy0 = cornerMid, cx1 = xMid - 1f, cy1 = y1 + lly2;
+                Transform clip = CreateClipRectInclusiveV395K(parent, "Corner_LB_Clip", cx0, cy0, cx1, cy1);
+                CreateSpriteAtV395K(clip, "Corner_LB", cld, -lx3, y1 - ldy2, cx0, cy0);
+            }
+            if (crd != null)
+            {
+                // Same inclusive split as DrawForms.cpp::DrawRect4.
+                float cx0 = xMid, cy0 = cornerMid, cx1 = x1 + lx3, cy1 = y1 + lly2;
+                Transform clip = CreateClipRectInclusiveV395K(parent, "Corner_RB_Clip", cx0, cy0, cx1, cy1);
+                CreateSpriteAtV395K(clip, "Corner_RB", crd, x1 - lx3, y1 - ldy2, cx0, cy0);
+            }
+        }
+
+        private static Transform CreateClipRectInclusiveV395K(
+            Transform parent, string name, float x0, float y0, float x1, float y1)
+        {
+            return CreateClipRectV395K(parent, name, x0, y0,
+                Mathf.Max(1f, x1 - x0 + 1f), Mathf.Max(1f, y1 - y0 + 1f));
+        }
+
+        private static Transform CreateClipRectV395K(
+            Transform parent, string name, float x, float y, float w, float h)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(RectMask2D));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(Mathf.Max(1f, w), Mathf.Max(1f, h));
+            return go.transform;
+        }
+
+        private static void CreateSpriteAtV395K(
+            Transform clip,
+            string name,
+            Sprite sprite,
+            float sourceX,
+            float sourceY,
+            float clipX,
+            float clipY)
+        {
+            if (clip == null || sprite == null) return;
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(clip, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(sourceX - clipX, -(sourceY - clipY));
+            rt.sizeDelta = new Vector2(sprite.rect.width, sprite.rect.height);
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.type = Image.Type.Simple;
+            img.preserveAspect = false;
+            img.raycastTarget = false;
+        }
+
+        private static void CreateListDeskVScrollerV395K(
+            Transform parent,
+            float listWidth,
+            float listHeight,
+            ListDeskSourceRuntime14.TemplateSpec spec)
+        {
+            // Dialogs.cpp::DialogsDesk::Process:
+            // x = x1 - VScroller_DX_right; y = y + VScroller_DY_top;
+            // Ly = height - VScroller_DY_top - VScrolled_DY_bottom.
+            float x = (listWidth - 1f) - spec.VScrollerDXRight;
+            float y = spec.VScrollerDYTop;
+            float ly = listHeight - spec.VScrollerDYTop - spec.VScrolledDYBottom;
+            if (ly <= 0f) return;
+
+            Sprite up = LoadGpFrameV395K(spec.VScrollerGPFile, 0);
+            Sprite down = LoadGpFrameV395K(spec.VScrollerGPFile, 2);
+            Sprite c0 = LoadGpFrameV395K(spec.VScrollerGPFile, 5);
+            Sprite c1 = LoadGpFrameV395K(spec.VScrollerGPFile, 6);
+            Sprite c2 = LoadGpFrameV395K(spec.VScrollerGPFile, 7);
+            if (up == null && down == null && c0 == null) return;
+
+            float width = up != null ? up.rect.width : (c0 != null ? c0.rect.width : 16f);
+            var root = new GameObject("VScroller_SourceExact_V395K", typeof(RectTransform));
+            root.transform.SetParent(parent, false);
+            var rt = (RectTransform)root.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(width, ly);
+
+            float upH = up != null ? up.rect.height : 0f;
+            float dnH = down != null ? down.rect.height : 0f;
+            float centerY0 = Mathf.Floor(upH / 2f);
+            float centerY1 = ly - 1f - centerY0;
+            Transform centerClip = CreateClipRectInclusiveV395K(root.transform, "Track_Clip", -64f, centerY0, width + 64f, centerY1);
+            Sprite[] centers = { c0, c1, c2 };
+            float centerH = c0 != null ? Mathf.Max(1f, c0.rect.height) : 1f;
+            int n = Mathf.FloorToInt(ly / centerH);
+            for (int i = 0; i <= n; i++)
+            {
+                Sprite sp = centers[i % 3] ?? c0;
+                if (sp == null) continue;
+                CreateSpriteAtV395K(centerClip, $"Track_{i}", sp, 0f, i * centerH + centerY0, -64f, centerY0);
+            }
+
+            if (up != null)
+            {
+                var upClip = CreateClipRectV395K(root.transform, "Up_Clip", 0f, 0f, Mathf.Max(width, up.rect.width), up.rect.height);
+                CreateSpriteAtV395K(upClip, "Up", up, 0f, 0f, 0f, 0f);
+            }
+            if (down != null)
+            {
+                float dy = ly - down.rect.height;
+                var dnClip = CreateClipRectV395K(root.transform, "Down_Clip", 0f, dy, Mathf.Max(width, down.rect.width), down.rect.height);
+                CreateSpriteAtV395K(dnClip, "Down", down, 0f, dy, 0f, dy);
+            }
+
+            // When SMaxPos==0 original NewGP_VScrollBar_OnDraw deliberately hides
+            // the thumb but keeps the scroller visible if HideVScroller==false.
+            // The profile ListDesk starts in exactly that state for one/few rows.
+            root.SetActive(!spec.HideVScroller);
         }
 
         /// <summary>
@@ -560,7 +1714,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             // УГЛЫ ПОВЕРХ ВСЕГО!
             go.transform.SetAsLastSibling();
 
-            Debug.Log($"[ListDesk] {name} placed at ({x},{y}), size={sp.rect.width}x{sp.rect.height}");
+            if (VerboseLayoutLogs) Debug.Log($"[ListDesk] {name} placed at ({x},{y}), size={sp.rect.width}x{sp.rect.height}");
         }
 
         /// <summary>
@@ -575,7 +1729,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 return;
             }
 
-            Debug.Log($"[TiledLine] {name}: creating at ({x},{y}), area={areaWidth}x{areaHeight}");
+            if (VerboseLayoutLogs) Debug.Log($"[TiledLine] {name}: creating at ({x},{y}), area={areaWidth}x{areaHeight}");
 
             var container = new GameObject(name, typeof(RectTransform), typeof(RectMask2D));
             container.transform.SetParent(parent, false);
@@ -645,7 +1799,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 }
             }
 
-            Debug.Log($"[TiledLine] {name}: created {tilesCreated} tiles");
+            if (VerboseLayoutLogs) Debug.Log($"[TiledLine] {name}: created {tilesCreated} tiles");
         }
 
         /// <summary>
@@ -896,8 +2050,8 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
         /// </summary>
         private static void DebugBorderSprites(string folder)
         {
-            Debug.Log("═══════════════════════════════════════════════════════════");
-            Debug.Log("[BORDER DEBUG] Checking sprite sizes:");
+            if (VerboseLayoutLogs) Debug.Log("═══════════════════════════════════════════════════════════");
+            if (VerboseLayoutLogs) Debug.Log("[BORDER DEBUG] Checking sprite sizes:");
 
             for (int i = 0; i <= 11; i++)
             {
@@ -905,18 +2059,18 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 if (sp != null)
                 {
                     var tex = sp.texture;
-                    Debug.Log($"  frame_{i:D4}: " +
+                    if (VerboseLayoutLogs) Debug.Log($"  frame_{i:D4}: " +
                         $"sprite.rect = {sp.rect.width}x{sp.rect.height}, " +
                         $"texture = {tex.width}x{tex.height}, " +
                         $"PPU = {sp.pixelsPerUnit}");
                 }
                 else
                 {
-                    Debug.Log($"  frame_{i:D4}: NOT FOUND");
+                    if (VerboseLayoutLogs) Debug.Log($"  frame_{i:D4}: NOT FOUND");
                 }
             }
 
-            Debug.Log("═══════════════════════════════════════════════════════════");
+            if (VerboseLayoutLogs) Debug.Log("═══════════════════════════════════════════════════════════");
         }
 
         /// <summary>
@@ -1821,7 +2975,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             {
                 if (src == null || leftPx <= 0) return src;
 
-                string key = $"{src.texture.GetInstanceID()}:{src.rect.x}:{src.rect.y}:{src.rect.width}:{src.rect.height}:L{leftPx}";
+                string key = $"{src.texture.GetEntityId()}:{src.rect.x}:{src.rect.y}:{src.rect.width}:{src.rect.height}:L{leftPx}";
                 if (_cache.TryGetValue(key, out var s) && s != null) return s;
 
                 var r = src.rect;
@@ -1843,13 +2997,31 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
         private static Sprite LoadSpriteFromResources(string folder, string frameName)
         {
             var sp = Resources.Load<Sprite>($"{folder}/{frameName}");
-            if (sp != null) return sp;
+            if (sp != null)
+            {
+                PrepareUiSpriteSamplingV396A7R4(sp);
+                return sp;
+            }
 
             var tex = Resources.Load<Texture2D>($"{folder}/{frameName}");
             if (tex == null) return null;
+            tex.filterMode = FilterMode.Point;
+            tex.wrapMode = TextureWrapMode.Clamp;
 
-            return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
+            var created = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
                 new Vector2(0.5f, 0.5f), 1f);
+            PrepareUiSpriteSamplingV396A7R4(created);
+            return created;
+        }
+
+        private static void PrepareUiSpriteSamplingV396A7R4(Sprite sp)
+        {
+            if (sp == null || sp.texture == null) return;
+            // Original GPS.ShowGP is a framebuffer blit; it does not bilinear-filter
+            // neighboring transparent texels.  Point+Clamp prevents the remaining
+            // one-pixel hairlines between independently rendered GP pieces.
+            sp.texture.filterMode = FilterMode.Point;
+            sp.texture.wrapMode = TextureWrapMode.Clamp;
         }
 
         // ===================== OPTIONS CONTROLS =====================
@@ -1902,97 +3074,9 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             dbg.State = cb.State;
         }
 
-        private static bool _aiDatLoaded;
-        // id: FRANCE, name: France (fallback), flagIndex: numeric index for INTERF3_FLAG_frames,
-        // portraitRel: Interf3\\TotalWarGraph\\lva_FRs (from ai.dat), heroPrefix: #HERO_FR_
-        private static readonly System.Collections.Generic.List<(string id, string name, int flagIndex, string portraitRel, string heroPrefix)> _aiNations = new();
-        private static readonly System.Collections.Generic.List<string> _aiDiffKeys = new();
-
-        private static void EnsureAiDatLoaded(CoreFileSystem fs)
-        {
-            if (_aiDatLoaded) return;
-            _aiDatLoaded = true;
-
-            try
-            {
-                // AI\ai.dat contains difficulty labels (@RMID_*) and nations table
-                var text = fs.ReadAllText(@"AI\ai.dat");
-                var lines = text.Split(new[] { "\r\n", "\n" }, System.StringSplitOptions.None);
-
-                int i = 0;
-                // --- difficulties ---
-                int diffCount = 0;
-                while (i < lines.Length)
-                {
-                    var l = lines[i].Trim();
-                    if (l.Length == 0) { i++; continue; }
-                    var parts = SplitWs(l);
-                    if (parts.Length >= 1 && int.TryParse(parts[0], out diffCount))
-                    {
-                        i++;
-                        break;
-                    }
-                    i++;
-                }
-
-                for (int k = 0; k < diffCount && i < lines.Length; k++, i++)
-                {
-                    var l = lines[i].Trim();
-                    if (l.Length == 0) { k--; continue; }
-                    var parts = SplitWs(l);
-                    if (parts.Length >= 1)
-                        _aiDiffKeys.Add(parts[0]); // e.g. @RMID_NORMAL
-                }
-
-                // skip until first "6 6" (nations header). We accept any "N N" with N>=1.
-                while (i < lines.Length)
-                {
-                    var l = lines[i].Trim();
-                    if (l.Length == 0) { i++; continue; }
-                    var parts = SplitWs(l);
-                    if (parts.Length >= 2 && int.TryParse(parts[0], out var n1) && int.TryParse(parts[1], out var n2) && n1 >= 1 && n1 == n2)
-                    {
-                        i++;
-                        // read n1 nations
-                        for (int n = 0; n < n1 && i < lines.Length; n++, i++)
-                        {
-                            var nl = lines[i].Trim();
-                            if (nl.Length == 0) { n--; continue; }
-                            var p = SplitWs(nl);
-                            if (p.Length >= 2)
-                            {
-                                int flagIndex = 0;
-                                // ai.dat (Data1 build):
-                                // ID Name Unit 9 1 <FlagIndex> PortraitG16 HeroPrefix
-                                // Some builds may differ; try to detect portrait+prefix heuristically.
-                                if (p.Length >= 6) int.TryParse(p[5], out flagIndex);
-
-                                string portraitRel = "";
-                                string heroPrefix = "";
-                                if (p.Length >= 8 && p[6].IndexOf('\\') >= 0)
-                                {
-                                    portraitRel = p[6];
-                                    heroPrefix = p[7];
-                                }
-                                else
-                                {
-                                    // fallback: older/other layouts
-                                    portraitRel = (p.Length >= 4) ? p[3] : "";
-                                    heroPrefix = (p.Length >= 5) ? p[4] : "";
-                                }
-                                _aiNations.Add((p[0], p[1], flagIndex, portraitRel, heroPrefix));
-                            }
-                        }
-                        break;
-                    }
-                    i++;
-                }
-            }
-            catch
-            {
-                // ignore; keep lists empty
-            }
-        }
+        // V392: AddProfile nation/difficulty data is owned by the shared
+        // Menu14ActionStateRuntime source context.  OptionsRenderer no longer
+        // reads AI\\ai.dat independently from DataRoot.
 
         private static bool HasActionPrefix(UiNode node, string prefix)
         {
@@ -2025,31 +3109,29 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
         {
             initialText = "";
 
-            // AddProfile: Nation
+            // AddProfile: Nation.  V392 uses the same source-bound GlobalAI
+            // table as cva_ProfAdd_RaceFlg and the portrait controller.
             if (HasAction(box, "cva_ProfAdd_Race"))
             {
-                EnsureAiDatLoaded(fs);
-                var items = new System.Collections.Generic.List<string>();
-                for (int i = 0; i < _aiNations.Count; i++)
-                {
-                    // Prefer localized nations from Text\\Nations.txt: #FRANCE -> "Франция"
-                    string key = "#" + _aiNations[i].id;
-                    string v = loc != null ? loc.Resolve(key) : "";
-                    if (string.IsNullOrEmpty(v) || v.Equals(key, System.StringComparison.OrdinalIgnoreCase))
-                        v = _aiNations[i].name;
-                    items.Add(v);
-                }
+                var items = Menu14ActionStateRuntime.GetNationDisplayNames(loc);
                 initialText = items.Count > 0 ? items[0] : "";
                 return items;
             }
 
-            // AddProfile: Difficulty
+            // AddProfile: Difficulty from the same source-bound AI\\ai.dat.
             if (HasAction(box, "cva_ProfAdd_Diff"))
             {
-                EnsureAiDatLoaded(fs);
-                var items = new System.Collections.Generic.List<string>();
-                for (int i = 0; i < _aiDiffKeys.Count; i++)
-                    items.Add(loc != null ? loc.Resolve(_aiDiffKeys[i]) : _aiDiffKeys[i]);
+                var items = Menu14ActionStateRuntime.GetDifficultyDisplayNames(loc);
+                initialText = items.Count > 0 ? items[0] : "";
+                return items;
+            }
+
+            // EW2 campaign statistics: cva_CampStat_Mode::Init adds these exact
+            // nine localized lines and sets CurLine=0.  Keep the list sourced by
+            // the original action runtime instead of leaving the XML ComboBox empty.
+            if (HasAction(box, "cva_CampStat_Mode"))
+            {
+                var items = Menu14ActionStateRuntime.GetCampaignStatsModeDisplayNames(loc);
                 initialText = items.Count > 0 ? items[0] : "";
                 return items;
             }
@@ -2082,6 +3164,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             string comboName = $"ComboBox_{SafeName(box.Name)}";
             if (HasAction(box, "cva_ProfAdd_Race")) comboName = "ComboBox_ProfAdd_Race";
             else if (HasAction(box, "cva_ProfAdd_Diff")) comboName = "ComboBox_ProfAdd_Diff";
+            else if (HasAction(box, "cva_CampStat_Mode")) comboName = "ComboBox_CampStat_Mode";
             var go = new GameObject(comboName, typeof(RectTransform));
             go.transform.SetParent(parent, false);
 
@@ -2127,41 +3210,28 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             var items = ResolveComboItems(box, fs, opt, loc, out string initialText);
             tmp.text = initialText;
 
-            // AddProfile: nation flag image (uses indices from AI\\ai.dat)
-            Image nationFlagImg = null;
-            System.Collections.Generic.List<Sprite> nationFlagSprites = null;
-            if (HasAction(box, "cva_ProfAdd_Race"))
+            // V391: bind the exact XML ComboBox node to the common state runtime.
+            Menu14ActionStateRuntime.RegisterControl(box, go, fs);
+
+            // Original Init sets CurLine=0 for both AddProfile combos and
+            // cva_CampStat_Mode.  V395P separates initialization from a user
+            // selection: campaign statistics used to call the full statistics
+            // refresh here and then immediately refresh a second time in the
+            // single post-build ApplyAllFrameStates pass.
+            if (items.Count > 0)
+                Menu14ActionStateRuntime.InitializeComboSelection(box, 0);
+
+            if (HasAction(box, "cva_CampStat_Mode") && items.Count > 0)
             {
-                EnsureAiDatLoaded(fs);
-                const string flagFolder = "INTERF3_FLAG_frames";
-                nationFlagSprites = new System.Collections.Generic.List<Sprite>();
-                for (int i = 0; i < _aiNations.Count; i++)
-                    nationFlagSprites.Add(ResFrames.GetByName(flagFolder, $"frame_{_aiNations[i].flagIndex:0000}"));
-
-                var flagGO = new GameObject("NationFlag", typeof(RectTransform), typeof(Image));
-                flagGO.transform.SetParent(parent, false);
-
-                nationFlagImg = flagGO.GetComponent<Image>();
-                nationFlagImg.raycastTarget = false;
-                nationFlagImg.sprite = (nationFlagSprites.Count > 0 ? nationFlagSprites[0] : null);
-                nationFlagImg.preserveAspect = true;
-                nationFlagImg.type = Image.Type.Simple;
-
-                var frt = (RectTransform)flagGO.transform;
-                frt.anchorMin = frt.anchorMax = new Vector2(0, 1);
-                frt.pivot = new Vector2(0, 1);
-
-                float fw = 24f, fh = 16f;
-                if (nationFlagImg.sprite != null && nationFlagImg.sprite.texture != null)
-                {
-                    fw = nationFlagImg.sprite.texture.width;
-                    fh = nationFlagImg.sprite.texture.height;
-                }
-
-                // place to the right of the nation combobox
-                frt.anchoredPosition = new Vector2(box.X + box.Width + 6f, -box.Y + (box.Height - fh) * 0.5f);
-                frt.sizeDelta = new Vector2(fw, fh);
+                var keys = go.AddComponent<CampaignStatsModeKeys>();
+                keys.Box = box;
+                keys.Label = tmp;
+                keys.Items = items.ToArray();
             }
+
+            // V390: nation flag is NOT synthesized by ComboBox anymore.
+            // The real M_PROF_ADD GPPicture (INTERF3\\FLAG + cva_ProfAdd_RaceFlg)
+            // is rendered from XML and updated by Menu14ActionStateRuntime.
 
             float rowH = 20f;
             int maxVisible = 14;
@@ -2266,15 +3336,10 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 {
                     tmp.text = capturedText;
 
-                    // update nation flag (AddProfile)
-                    if (nationFlagImg != null && nationFlagSprites != null &&
-                        capturedIndex >= 0 && capturedIndex < nationFlagSprites.Count &&
-                        nationFlagSprites[capturedIndex] != null)
-                    {
-                        nationFlagImg.sprite = nationFlagSprites[capturedIndex];
-                    }
-                    // fire the first action (so later we can bind real logic)
-                    if (sink != null && box.Actions.Count > 0)
+                    // V391: ComboBox SetFrameState actions are interpreted by the
+                    // shared runtime. They are not synthetic button-click actions.
+                    bool handledAsState = Menu14ActionStateRuntime.OnComboSelectionChanged(box, capturedIndex);
+                    if (!handledAsState && sink != null && box.Actions.Count > 0)
                         sink.OnAction(box.Hint, box.Actions[0]);
 
                     controller.OnSelected?.Invoke(capturedIndex, capturedText);
@@ -2290,6 +3355,41 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             panelGO.SetActive(false);
         }
 
+
+        private sealed class CampaignStatsModeKeys : MonoBehaviour
+        {
+            public UiComboBox Box;
+            public TextMeshProUGUI Label;
+            public string[] Items;
+            private int _index;
+
+            private void Update()
+            {
+                if (Box == null || Items == null || Items.Length == 0) return;
+                if (Label != null)
+                {
+                    int shown = Array.IndexOf(Items, Label.text);
+                    if (shown >= 0) _index = shown;
+                }
+                int next = _index;
+#if ENABLE_INPUT_SYSTEM
+                var keyboard = UnityEngine.InputSystem.Keyboard.current;
+                if (keyboard != null)
+                {
+                    if (keyboard.upArrowKey.wasPressedThisFrame) next--;
+                    else if (keyboard.downArrowKey.wasPressedThisFrame) next++;
+                }
+#else
+                if (Input.GetKeyDown(KeyCode.UpArrow)) next--;
+                else if (Input.GetKeyDown(KeyCode.DownArrow)) next++;
+#endif
+                next = Mathf.Clamp(next, 0, Items.Length - 1);
+                if (next == _index) return;
+                _index = next;
+                if (Label != null) Label.text = Items[_index];
+                Menu14ActionStateRuntime.OnComboSelectionChanged(Box, _index);
+            }
+        }
 
         private static List<string> BuildResolutionList()
         {
@@ -2504,11 +3604,24 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             ctrl.Initialize(trackRT, thumbRT, max, pos);
         }
 
+        private static Color32 ResolveNodeColorV396A7R2(UiNode node)
+        {
+            uint c = node != null ? node.ColorArgb : 0xFFFFFFFFu;
+            return new Color32(
+                (byte)((c >> 16) & 0xFF),
+                (byte)((c >> 8) & 0xFF),
+                (byte)(c & 0xFF),
+                (byte)((c >> 24) & 0xFF));
+        }
+
         private static void CreateGPPicture(RectTransform parent, UiGPPicture gp, CoreFileSystem fs, RenderOptions opt)
         {
             var fid = (gp?.FileID ?? "").Trim().Replace('\\', '/');
 
-            // ===== AddProfile portraits (lva_XXs) are loaded via DLL, not Resources =====
+            // ===== Profile portraits (lva_XXs): keep the real XML GPPicture =====
+            // Original cva_ProfCur_Port/cva_ProfAdd_Port only changes FileID and
+            // SpriteID of this existing control.  V395C therefore creates exactly
+            // this Image and lets the common SetFrameState runtime fill it.
             if (!string.IsNullOrEmpty(fid) &&
                 fid.StartsWith("Interf3/TotalWarGraph/lva_", System.StringComparison.OrdinalIgnoreCase))
             {
@@ -2516,8 +3629,13 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                     gp.Actions.Exists(a => a != null &&
                                           !string.IsNullOrEmpty(a.Name) &&
                                           a.Name.Equals("cva_ProfAdd_Port", System.StringComparison.OrdinalIgnoreCase));
+                bool isProfCurPort = gp?.Actions != null &&
+                    gp.Actions.Exists(a => a != null &&
+                                          !string.IsNullOrEmpty(a.Name) &&
+                                          a.Name.Equals("cva_ProfCur_Port", System.StringComparison.OrdinalIgnoreCase));
 
-                string portraitGoName = isProfAddPort ? "GPPicture_ProfAdd_Port" : "GPPicture";
+                string portraitGoName = isProfAddPort ? "GPPicture_ProfAdd_Port" :
+                                        (isProfCurPort ? "GPPicture_ProfCur_Port" : "GPPicture");
 
                 var portraitGo = new GameObject(portraitGoName, typeof(RectTransform), typeof(Image));
                 portraitGo.transform.SetParent(parent, false);
@@ -2528,30 +3646,55 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 portraitRt.anchoredPosition = new Vector2(gp.X, -gp.Y);
                 portraitRt.sizeDelta = new Vector2(gp.Width, gp.Height);
 
-                // Спрайт поставит AddProfileCommanderController через DLL
                 var portraitImg = portraitGo.GetComponent<Image>();
-                portraitImg.enabled = false;
+                portraitImg.type = Image.Type.Simple;
+                portraitImg.preserveAspect = false;
+                portraitImg.raycastTarget = false;
+                portraitImg.color = ResolveNodeColorV396A7R2(gp);
+                portraitImg.sprite = Menu14ActionStateRuntime.TryLoadPortraitSpriteForRenderer(gp.FileID, gp.SpriteID);
+                portraitImg.enabled = portraitImg.sprite != null;
 
+                Menu14ActionStateRuntime.RegisterControl(gp, portraitGo, fs);
                 return;
             }
 
-            // Skip flag placeholder (dynamic)
+            // V390: render the original XML flag GPPicture.
+            // Original cva_ProfAdd_RaceFlg::SetFrameState changes only SpriteID
+            // to GlobalAI.Ai[vNewProf.m_iNation].NWaterAI.
             if (fid.Equals("INTERF3/FLAG", System.StringComparison.OrdinalIgnoreCase))
-                return;
-
-            // УБРАТЬ ЛИШНИЙ "СТАРТОВЫЙ" ФЛАГ ИЗ XML AddProfile
-            if (gp != null &&
-                !string.IsNullOrEmpty(gp.FileID) &&
-                gp.FileID.Replace('\\', '/').Equals("INTERF3/FLAG", System.StringComparison.OrdinalIgnoreCase) &&
-                gp.Actions != null &&
-                gp.Actions.Exists(a => a != null &&
-                                      a.Name != null &&
-                                      a.Name.Equals("cva_ProfAdd_RaceFlg", System.StringComparison.OrdinalIgnoreCase)))
             {
+                bool isProfAddRaceFlag = gp?.Actions != null &&
+                    gp.Actions.Exists(a => a != null &&
+                                          !string.IsNullOrEmpty(a.Name) &&
+                                          a.Name.Equals("cva_ProfAdd_RaceFlg", System.StringComparison.OrdinalIgnoreCase));
+
+                var flagGo = new GameObject(
+                    isProfAddRaceFlag ? "GPPicture_ProfAdd_RaceFlg" : "GPPicture",
+                    typeof(RectTransform), typeof(Image));
+                flagGo.transform.SetParent(parent, false);
+
+                var flagRt = (RectTransform)flagGo.transform;
+                flagRt.anchorMin = flagRt.anchorMax = new Vector2(0, 1);
+                flagRt.pivot = new Vector2(0, 1);
+                flagRt.anchoredPosition = new Vector2(gp.X, -gp.Y);
+                flagRt.sizeDelta = new Vector2(gp.Width, gp.Height);
+
+                var flagImg = flagGo.GetComponent<Image>();
+                flagImg.sprite = LoadSpriteFromResources("INTERF3_FLAG_frames", $"frame_{gp.SpriteID:0000}");
+                flagImg.type = Image.Type.Simple;
+                flagImg.preserveAspect = true;
+                flagImg.raycastTarget = false;
+                flagImg.color = ResolveNodeColorV396A7R2(gp);
+
+                // V391: bind the real XML GPPicture and its
+                // cva_ProfAdd_RaceFlg action to the common state runtime.
+                Menu14ActionStateRuntime.RegisterControl(gp, flagGo, fs);
+
                 return;
             }
 
-            Debug.Log($"[CreateGPPicture HIT] FileID={gp?.FileID} SpriteID={gp?.SpriteID}");
+
+            if (VerboseLayoutLogs) Debug.Log($"[CreateGPPicture HIT] FileID={gp?.FileID} SpriteID={gp?.SpriteID}");
 
             string resPath = (gp.FileID ?? "")
                 .Replace("\\", "_")
@@ -2561,7 +3704,15 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             var loadedSprite = LoadSpriteFromResources(resPath, $"frame_{gp.SpriteID:0000}");
             if (loadedSprite == null)
             {
-                Debug.LogWarning($"[GPPicture] sprite not found {resPath}/frame_{gp.SpriteID:0000}");
+                // V395C: not every clean 1.4 GP bank has been pre-exported to
+                // Unity Resources. Resolve the exact XML FileID/SpriteID directly
+                // from the active C2 Data/Cash bank instead of producing a white
+                // placeholder or dropping the control.
+                loadedSprite = Menu14ActionStateRuntime.TryLoadGpSpriteForRenderer(gp.FileID, gp.SpriteID, true);
+            }
+            if (loadedSprite == null)
+            {
+                Debug.LogWarning($"[GPPicture] sprite not found {resPath}/frame_{gp.SpriteID:0000} runtimeFallback=missing");
                 return;
             }
 
@@ -2583,42 +3734,107 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 normalGoName = "GPPicture_ProfAdd_PortFrame";
             }
 
+            Transform visualParent = parent;
+            float visualX = gp.X;
+            float visualY = gp.Y;
+
+            // V396A7R4: ParentFrame::PushMatrix/GetMatrix parity for source
+            // GPPictures.  The delete-profile XML contains two internet_menu
+            // ornaments with Angle=90 and Angle=270.  R2/R3 parsed them as ordinary
+            // unrotated Images, which put the first ornament directly over the
+            // portrait.  The original engine rotates each around its XML pivot.
+            if (gp.EnableTransform)
+            {
+                ResolveSourcePivotV396A7R4(gp, out float pivotX, out float pivotY);
+
+                var transformHost = new GameObject("GPPicture_SourceTransform_V396A7R4", typeof(RectTransform));
+                transformHost.transform.SetParent(parent, false);
+                var hostRt = (RectTransform)transformHost.transform;
+                hostRt.anchorMin = hostRt.anchorMax = new Vector2(0f, 1f);
+                hostRt.pivot = new Vector2(0f, 1f);
+                hostRt.anchoredPosition = new Vector2(pivotX, -pivotY);
+                hostRt.sizeDelta = Vector2.zero;
+
+                float sx = gp.FlipX ? -gp.TransformScaleX : gp.TransformScaleX;
+                float sy = gp.FlipY ? -gp.TransformScaleY : gp.TransformScaleY;
+                hostRt.localScale = new Vector3(sx, sy, 1f);
+
+                // Cossacks screen Y grows downward.  Unity UI local Y grows upward,
+                // so original +Angle is Unity -Angle.
+                hostRt.localRotation = Quaternion.Euler(0f, 0f, -gp.TransformAngle);
+
+                visualParent = hostRt;
+                visualX = gp.X - pivotX;
+                visualY = gp.Y - pivotY;
+
+                if (fid.Equals("Interf3/elements/internet_menu", StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.Log($"[C2:PROFILE ORNAMENT V396A7R4] file='{gp.FileID}' sprite={gp.SpriteID} " +
+                              $"source=({gp.X},{gp.Y},{gp.Width},{gp.Height}) pivot=({pivotX:0.###},{pivotY:0.###}) " +
+                              $"angle={gp.TransformAngle:0.###} scale=({sx:0.###},{sy:0.###}) mode=ParentFrame_GetMatrix");
+                }
+            }
+
             var normalGo = new GameObject(normalGoName, typeof(RectTransform), typeof(Image));
-            normalGo.transform.SetParent(parent, false);
+            normalGo.transform.SetParent(visualParent, false);
 
             var normalRt = (RectTransform)normalGo.transform;
             normalRt.anchorMin = normalRt.anchorMax = new Vector2(0, 1);
             normalRt.pivot = new Vector2(0, 1);
-            normalRt.anchoredPosition = new Vector2(gp.X, -gp.Y);
+            normalRt.anchoredPosition = new Vector2(visualX, -visualY);
             normalRt.sizeDelta = new Vector2(gp.Width, gp.Height);
 
             var normalImg = normalGo.GetComponent<Image>();
             normalImg.sprite = loadedSprite;
             normalImg.type = Image.Type.Simple;
+            normalImg.preserveAspect = false;
+            normalImg.raycastTarget = false;
+            normalImg.color = ResolveNodeColorV396A7R2(gp);
 
-            // M_PROF_ADD has a nested portrait GPPicture inside PORTRAITS_BORDER.
-            // Our current XML model flattens/loses nested child dialogs, so create the slot explicitly.
-            if (isPortraitBorder)
+            // V391: every XML GPPicture can participate in the common
+            // SetFrameState runtime. Unknown actions remain inert.
+            Menu14ActionStateRuntime.RegisterControl(gp, normalGo, fs);
+
+            // V395E: DO NOT synthesize a second AddProfile portrait slot here.
+            // M_PROF_ADD already contains the real nested cva_ProfAdd_Port GPPicture.
+            // The old compatibility child had the same GameObject name; GameObject.Find
+            // could bind the controller to that child while the real XML lva_EGs portrait
+            // stayed visible underneath, producing the persistent Wellington overlay.
+
+        }
+
+        private static void ResolveSourcePivotV396A7R4(UiNode node, out float pivotX, out float pivotY)
+        {
+            // Dialogs.cpp::ParentFrame::GetMatrix:
+            // Left   -> (x,y)
+            // Center -> ((x+x1)/2,(y+y1)/2) using integer coordinates
+            // Right  -> (x1,y1)
+            int x1 = node.X + Mathf.Max(0, node.Width - 1);
+            int y1 = node.Y + Mathf.Max(0, node.Height - 1);
+            string pivot = node.PivotPosition ?? "Left";
+
+            if (pivot.Equals("Center", StringComparison.OrdinalIgnoreCase))
             {
-                var portGo = new GameObject("GPPicture_ProfAdd_Port", typeof(RectTransform), typeof(Image));
-                portGo.transform.SetParent(normalGo.transform, false);
-
-                var portRt = (RectTransform)portGo.transform;
-                portRt.anchorMin = portRt.anchorMax = new Vector2(0, 1);
-                portRt.pivot = new Vector2(0, 1);
-                portRt.anchoredPosition = new Vector2(4f, -3f);
-                portRt.sizeDelta = new Vector2(111f, 124f);
-
-                var portImg = portGo.GetComponent<Image>();
-                portImg.enabled = false;
-                portImg.type = Image.Type.Simple;
-                portImg.preserveAspect = true;
-                portImg.raycastTarget = false;
+                pivotX = (node.X + x1) / 2;
+                pivotY = (node.Y + y1) / 2;
             }
+            else if (pivot.Equals("Right", StringComparison.OrdinalIgnoreCase))
+            {
+                pivotX = x1;
+                pivotY = y1;
+            }
+            else
+            {
+                pivotX = node.X;
+                pivotY = node.Y;
+            }
+
+            pivotX += node.PivotDx;
+            pivotY += node.PivotDy;
         }
 
 
-        private static void CreateInputBox(UiInputBox ib, RectTransform root, RenderOptions opt)
+        private static void CreateInputBox(UiInputBox ib, RectTransform root, RenderOptions opt, UiVitButton parentSurfaceV389)
         {
             var go = new GameObject($"InputBox_{SafeName(ib.Name)}", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(root, false);
@@ -2633,8 +3849,19 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             rt.sizeDelta = new Vector2(w, h);
 
             var bgImg = go.GetComponent<Image>();
-            bgImg.color = new Color(1, 1, 1, 0.1f);
+            // V389: when V388 says this InputBox is a child of a VitButton, the
+            // parent already rendered the exact GP_File/Sprite surface from XML.
+            // This editor layer is therefore transparent and exists only for
+            // caret/text/raycast.  No Unity-selected background color is allowed.
+            bool hasXmlVitSurfaceV389 = parentSurfaceV389 != null &&
+                                        !string.IsNullOrWhiteSpace(parentSurfaceV389.GP_File) &&
+                                        parentSurfaceV389.SpritePassive >= 0;
+            bgImg.color = Color.clear;
             bgImg.raycastTarget = true;
+            if (!hasXmlVitSurfaceV389)
+            {
+                Debug.Log($"[C2:INPUT V389] no VitButton XML surface for action='{ib.Action}' sourceId={ib.SourceId}; keeping editor transparent (no invented Unity skin)");
+            }
 
             var textAreaGO = new GameObject("TextArea", typeof(RectTransform), typeof(RectMask2D));
             textAreaGO.transform.SetParent(go.transform, false);
@@ -2698,8 +3925,51 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             inputField.caretBlinkRate = 0.85f;
             inputField.selectionColor = new Color(0.2f, 0.4f, 0.8f, 0.4f);
 
-            inputField.interactable = true;
-            inputField.readOnly = false;
+            inputField.interactable = ib.Enabled;
+            inputField.readOnly = !ib.Enabled;
+
+            bool isNetworkNick = HasAction(ib, "cva_MU_NickInput");
+            if (isNetworkNick)
+            {
+                go.name = "InputBox_MultiNick_V387B1"; // kept for MenuActionSink compatibility
+                inputField.characterLimit = 17; // original cva_MU_NickInput
+                // Parent VitButton from V388 owns the original
+                // interf3\elements\vbuttons GP skin. Keep only this transparent
+                // editor above it so clicks/caret work without repainting the XML.
+                bgImg.raycastTarget = true;
+                go.transform.SetAsLastSibling();
+                ptmp.text = string.Empty;
+
+                string initial = global::MenuActionSink.NetworkPlayerNick;
+                if (string.IsNullOrWhiteSpace(initial))
+                    initial = global::MenuActionSink.CurrentProfileName;
+
+                if (!string.IsNullOrWhiteSpace(initial))
+                    inputField.SetTextWithoutNotify(initial);
+
+                inputField.onValueChanged.AddListener(value =>
+                {
+                    string sanitized = global::MenuActionSink.SetNetworkPlayerNickV387B1(value);
+                    if (!string.Equals(sanitized, value, StringComparison.Ordinal))
+                    {
+                        int caret = Mathf.Min(inputField.caretPosition, sanitized.Length);
+                        inputField.SetTextWithoutNotify(sanitized);
+                        inputField.caretPosition = caret;
+                    }
+                });
+
+                inputField.onEndEdit.AddListener(value =>
+                {
+                    string sanitized = global::MenuActionSink.SetNetworkPlayerNickV387B1(value);
+                    inputField.SetTextWithoutNotify(sanitized);
+                    Debug.Log($"[C2:MULTI V389] nick commit='{sanitized}'");
+                });
+
+                Debug.Log(
+                    $"[C2:MULTI V389] cva_MU_NickInput bound pos=({ib.X},{ib.Y}) " +
+                    $"size={w}x{h} value='{inputField.text}' xmlSurface={(hasXmlVitSurfaceV389 ? 1 : 0)} " +
+                    $"gp='{parentSurfaceV389?.GP_File}' sprite={parentSurfaceV389?.SpritePassive ?? -1}");
+            }
         }
 
         private static void CreateListDesk(UiListDesk ld, RectTransform root)
@@ -2768,6 +4038,401 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                         catch (Exception e) { Debug.LogError($"VitButton action error: {e}"); }
                     }
                 });
+            }
+        }
+
+        /// <summary>
+        /// V395J: renders one runtime ListDesk element from the exact
+        /// ListDesk/Element/VitButton source-template fields.  The current menu
+        /// model keeps Element as a ListDesk prototype rather than a normal
+        /// UiDesk child, so this renderer intentionally does not require a
+        /// UiVitButton instance.
+        ///
+        /// VitButton source behavior reproduced here:
+        ///  - State 0/1 selects SpritePassive/Over[state]
+        ///  - State==1 uses FontOver even when the mouse is not over the item
+        ///  - DisableCycling=false uses DrawHeaderEx2 (five-frame tiled header)
+        /// </summary>
+        public static GameObject CreateListDeskElementFromSourceTemplateV395J(
+            RectTransform parent,
+            string message,
+            int state,
+            bool enabled,
+            Action onClick,
+            float x,
+            float y,
+            float width,
+            float height,
+            string gpFile,
+            int passiveSprite,
+            int overSprite,
+            int spriteDx,
+            string passiveFontName,
+            string overFontName,
+            int fontDx,
+            int fontDy,
+            string align,
+            bool oneSprited,
+            bool disableCycling)
+        {
+            if (parent == null) return null;
+
+            var go = new GameObject($"ListDeskVitButton_{SafeName(message)}_S{state}",
+                typeof(RectTransform), typeof(RectMask2D), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+
+            RectTransform rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(Mathf.Max(1f, width), Mathf.Max(1f, height));
+
+            // Transparent hit target. Original visual is drawn by VitButton::_Draw.
+            Image hit = go.GetComponent<Image>();
+            hit.color = new Color(1f, 1f, 1f, 0f);
+            hit.raycastTarget = true;
+
+            GameObject normalVisual = CreateListDeskVitButtonVisualV395J(
+                go.transform, gpFile, passiveSprite, spriteDx, width, height, oneSprited, disableCycling, "Passive");
+            GameObject hoverVisual = CreateListDeskVitButtonVisualV395J(
+                go.transform, gpFile, overSprite, spriteDx, width, height, oneSprited, disableCycling, "Over");
+            if (hoverVisual != null) hoverVisual.SetActive(false);
+
+            Button button = go.GetComponent<Button>();
+            button.targetGraphic = hit;
+            button.interactable = enabled;
+            button.transition = Selectable.Transition.None;
+            if (onClick != null) button.onClick.AddListener(() => onClick());
+
+            var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            textGo.transform.SetParent(go.transform, false);
+            RectTransform tr = (RectTransform)textGo.transform;
+            tr.anchorMin = Vector2.zero;
+            tr.anchorMax = Vector2.one;
+            tr.offsetMin = Vector2.zero;
+            tr.offsetMax = Vector2.zero;
+            tr.anchoredPosition += new Vector2(fontDx, -fontDy);
+
+            // Original VitButton::_Draw: State==1 selects FontOver even without hover.
+            string normalFontName = enabled && state == 1 && !string.IsNullOrWhiteSpace(overFontName)
+                ? overFontName
+                : passiveFontName;
+            string hoverFontResolved = enabled && !string.IsNullOrWhiteSpace(overFontName)
+                ? overFontName
+                : normalFontName;
+
+            TextMeshProUGUI tmp = textGo.GetComponent<TextMeshProUGUI>();
+            tmp.enableAutoSizing = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.overflowMode = TextOverflowModes.Truncate;
+            tmp.richText = false;
+            tmp.raycastTarget = false;
+            tmp.text = message ?? string.Empty;
+            tmp.fontSize = ResolveC2FontSize(normalFontName, 14f);
+            tmp.color = ResolveC2FontColor(normalFontName, OptionsTextStyleConfig.Button.NormalColor);
+
+            string a = (align ?? string.Empty).Trim();
+            if (a.Equals("Right", StringComparison.OrdinalIgnoreCase))
+                tmp.alignment = TextAlignmentOptions.MidlineRight;
+            else if (a.Equals("Center", StringComparison.OrdinalIgnoreCase))
+                tmp.alignment = TextAlignmentOptions.Midline;
+            else
+                tmp.alignment = TextAlignmentOptions.MidlineLeft;
+
+            var hover = go.AddComponent<ListDeskVitButtonHoverV395J>();
+            hover.NormalVisual = normalVisual;
+            hover.HoverVisual = hoverVisual;
+            hover.Label = tmp;
+            hover.NormalText = ResolveC2FontColor(normalFontName, tmp.color);
+            hover.HoverText = ResolveC2FontColor(hoverFontResolved, hover.NormalText);
+            hover.Enabled = enabled;
+
+            return go;
+        }
+
+        private static GameObject CreateListDeskVitButtonVisualV395J(
+            Transform parent,
+            string gpFile,
+            int baseSprite,
+            int spriteDx,
+            float width,
+            float height,
+            bool oneSprited,
+            bool disableCycling,
+            string suffix)
+        {
+            if (parent == null || baseSprite < 0) return null;
+
+            var visual = new GameObject("Visual_" + suffix, typeof(RectTransform));
+            visual.transform.SetParent(parent, false);
+            RectTransform vrt = (RectTransform)visual.transform;
+            vrt.anchorMin = vrt.anchorMax = new Vector2(0f, 1f);
+            vrt.pivot = new Vector2(0f, 1f);
+            vrt.anchoredPosition = new Vector2(spriteDx, 0f);
+            vrt.sizeDelta = new Vector2(Mathf.Max(1f, width), Mathf.Max(1f, height));
+
+            if (disableCycling)
+            {
+                Sprite sp = LoadGpButtonFrame(gpFile, baseSprite);
+                if (sp == null)
+                {
+                    UnityEngine.Object.DestroyImmediate(visual);
+                    return null;
+                }
+                CreateListDeskSpritePieceV395J(visual.transform, "Sprite", sp, 0f, 0f, sp.rect.width, sp.rect.height);
+                return visual;
+            }
+
+            // Dialogs.cpp::VitButton::_Draw -> DrawHeaderEx2:
+            // OneSprited=false: L=S, R=S+1, C1=S+2, C2=S+3, C3=S+4.
+            Sprite spL = oneSprited ? null : LoadGpButtonFrame(gpFile, baseSprite);
+            Sprite spR = oneSprited ? null : LoadGpButtonFrame(gpFile, baseSprite + 1);
+            Sprite spC1 = LoadGpButtonFrame(gpFile, oneSprited ? baseSprite : baseSprite + 2);
+            Sprite spC2 = LoadGpButtonFrame(gpFile, oneSprited ? baseSprite : baseSprite + 3);
+            Sprite spC3 = LoadGpButtonFrame(gpFile, oneSprited ? baseSprite : baseSprite + 4);
+
+            if (spC1 == null) spC1 = spL;
+            if (spC2 == null) spC2 = spC1;
+            if (spC3 == null) spC3 = spC1;
+            if (spC1 == null)
+            {
+                UnityEngine.Object.DestroyImmediate(visual);
+                return null;
+            }
+
+            float leftW = spL != null ? spL.rect.width : 0f;
+            float rightW = spR != null ? spR.rect.width : 0f;
+            // DrawHeaderEx2 clamps only the clipping window; the center tiles
+            // themselves start at x0 and are clipped by [x0+L, x0+Lx-R].
+            // DrawForms.cpp::DrawHeaderEx2 clips center tiles with inclusive
+            // coordinates [x0+frWidthL, x0+Lx-frWidthR].  In pixel terms that
+            // region is Lx-left-right+1 wide.  The old Unity mask omitted the
+            // final column and exposed a vertical seam at the center/right join.
+            float centerW = Mathf.Max(0f, width - leftW - rightW + 1f);
+
+            // V396A7R7: RectMask2D rasterizes the left edge as a half-open UI
+            // rectangle, while the original IntersectWindows works on inclusive
+            // framebuffer pixel coordinates.  At an exact GP join (L -> center)
+            // that produced a one-pixel uncovered column even though all source
+            // x/width values were correct.  Keep the ORIGINAL logical clip, but
+            // give the Unity mask a one-pixel guard band under the edge sprites.
+            // EdgeL/EdgeR are drawn later and remain authoritative, so this does
+            // not change the visible geometry; it only prevents the mask boundary
+            // from exposing the background between adjacent GP pieces.
+            const float clipGuard = 1f;
+            float clipStartX = Mathf.Max(0f, leftW - clipGuard);
+            float logicalEndInclusive = width - rightW;
+            float clipEndExclusive = Mathf.Min(width, logicalEndInclusive + 1f + clipGuard);
+            float guardedCenterW = Mathf.Max(0f, clipEndExclusive - clipStartX);
+
+            var center = new GameObject("CenterMask", typeof(RectTransform), typeof(RectMask2D));
+            center.transform.SetParent(visual.transform, false);
+            RectTransform crt = (RectTransform)center.transform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0f, 1f);
+            crt.pivot = new Vector2(0f, 1f);
+            crt.anchoredPosition = new Vector2(clipStartX, 0f);
+            crt.sizeDelta = new Vector2(guardedCenterW, Mathf.Max(1f, height));
+
+            Sprite[] centers = { spC1, spC2, spC3 };
+            float sourceX = 0f;
+            int tile = 0;
+            while (sourceX < width && tile < 300)
+            {
+                // Original DrawHeaderEx2 uses switch(i % 3), where i is the
+                // current PIXEL x offset, not the tile ordinal.
+                int phase = ((int)sourceX) % 3;
+                if (phase < 0) phase += 3;
+                Sprite sp = centers[phase] ?? spC1;
+                if (sp == null) break;
+                float tw = Mathf.Max(1f, sp.rect.width);
+                CreateListDeskSpritePieceV395J(center.transform, "Tile_" + tile, sp, sourceX - clipStartX, 0f, tw, sp.rect.height);
+                sourceX += tw;
+                tile++;
+            }
+
+            if (spL != null)
+                CreateListDeskSpritePieceV395J(visual.transform, "EdgeL", spL, 0f, 0f, spL.rect.width, spL.rect.height);
+            if (spR != null)
+                CreateListDeskSpritePieceV395J(visual.transform, "EdgeR", spR,
+                    Mathf.Max(0f, width - spR.rect.width), 0f, spR.rect.width, spR.rect.height);
+
+            return visual;
+        }
+
+        private static void CreateListDeskSpritePieceV395J(
+            Transform parent, string name, Sprite sprite, float x, float y, float width, float height)
+        {
+            if (parent == null || sprite == null) return;
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(Mathf.Max(1f, width), Mathf.Max(1f, height));
+            Image img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.type = Image.Type.Simple;
+            img.preserveAspect = false;
+            img.raycastTarget = false;
+        }
+
+        private sealed class ListDeskVitButtonHoverV395J : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+        {
+            public GameObject NormalVisual;
+            public GameObject HoverVisual;
+            public TextMeshProUGUI Label;
+            public Color32 NormalText;
+            public Color32 HoverText;
+            public bool Enabled = true;
+
+            public void OnPointerEnter(PointerEventData e)
+            {
+                if (!Enabled) return;
+                if (NormalVisual != null && HoverVisual != null) NormalVisual.SetActive(false);
+                if (HoverVisual != null) HoverVisual.SetActive(true);
+                if (Label != null) Label.color = HoverText;
+            }
+
+            public void OnPointerExit(PointerEventData e)
+            {
+                if (HoverVisual != null) HoverVisual.SetActive(false);
+                if (NormalVisual != null) NormalVisual.SetActive(true);
+                if (Label != null) Label.color = NormalText;
+            }
+        }
+
+        /// <summary>
+        /// V395H: renders one runtime ListDesk element from the UiVitButton that
+        /// the unified XML parser already produced for ListDesk/Element.
+        /// All layout/font/GP/state values are supplied by that parsed template
+        /// (with raw-XML state-slot fallbacks prepared by Menu14ActionStateRuntime).
+        /// No profile-specific visual constants live here.
+        /// </summary>
+        public static GameObject CreateListDeskElementFromParsedVitButtonV395H(
+            UiVitButton template,
+            RectTransform parent,
+            string message,
+            int state,
+            bool enabled,
+            Action onClick,
+            float x,
+            float y,
+            float width,
+            float height,
+            int passiveSprite,
+            int overSprite,
+            int spriteDx,
+            string passiveFontName,
+            string overFontName,
+            int fontDx,
+            int fontDy,
+            string align)
+        {
+            if (template == null || parent == null) return null;
+
+            string gpFile = template.GP_File ?? string.Empty;
+            Sprite normalSp = LoadGpButtonFrame(gpFile, passiveSprite);
+            Sprite hoverSp = LoadGpButtonFrame(gpFile, overSprite) ?? normalSp;
+
+            var go = new GameObject($"ListDeskVitButton_{SafeName(message)}_S{state}", typeof(RectTransform), typeof(Button));
+            go.transform.SetParent(parent, false);
+
+            RectTransform rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(Mathf.Max(1f, width), Mathf.Max(1f, height));
+
+            var bgGo = new GameObject("Sprite", typeof(RectTransform), typeof(Image));
+            bgGo.transform.SetParent(go.transform, false);
+            RectTransform brt = (RectTransform)bgGo.transform;
+            brt.anchorMin = Vector2.zero;
+            brt.anchorMax = Vector2.one;
+            brt.offsetMin = new Vector2(spriteDx, 0f);
+            brt.offsetMax = new Vector2(spriteDx, 0f);
+
+            Image bg = bgGo.GetComponent<Image>();
+            bg.sprite = normalSp;
+            bg.color = normalSp != null ? Color.white : Color.clear;
+            bg.type = Image.Type.Simple;
+            bg.preserveAspect = false;
+            bg.raycastTarget = true;
+
+            Button button = go.GetComponent<Button>();
+            button.targetGraphic = bg;
+            button.interactable = enabled;
+            button.transition = Selectable.Transition.None;
+            if (onClick != null) button.onClick.AddListener(() => onClick());
+
+            var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            textGo.transform.SetParent(go.transform, false);
+            RectTransform tr = (RectTransform)textGo.transform;
+            tr.anchorMin = Vector2.zero;
+            tr.anchorMax = Vector2.one;
+            tr.offsetMin = Vector2.zero;
+            tr.offsetMax = Vector2.zero;
+            tr.anchoredPosition += new Vector2(fontDx, -fontDy);
+
+            TextMeshProUGUI tmp = textGo.GetComponent<TextMeshProUGUI>();
+            tmp.enableAutoSizing = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.overflowMode = TextOverflowModes.Truncate;
+            tmp.richText = false;
+            tmp.raycastTarget = false;
+            tmp.text = message ?? string.Empty;
+            tmp.fontSize = ResolveC2FontSize(passiveFontName, 14f);
+            tmp.color = ResolveC2FontColor(passiveFontName, OptionsTextStyleConfig.Button.NormalColor);
+
+            string a = (align ?? string.Empty).Trim();
+            if (a.Equals("Right", StringComparison.OrdinalIgnoreCase))
+                tmp.alignment = TextAlignmentOptions.MidlineRight;
+            else if (a.Equals("Center", StringComparison.OrdinalIgnoreCase))
+                tmp.alignment = TextAlignmentOptions.Midline;
+            else
+                tmp.alignment = TextAlignmentOptions.MidlineLeft;
+
+            var hover = go.AddComponent<ListDeskVitButtonHoverV395H>();
+            hover.Background = bg;
+            hover.Label = tmp;
+            hover.NormalSprite = normalSp;
+            hover.HoverSprite = hoverSp;
+            hover.NormalText = ResolveC2FontColor(passiveFontName, tmp.color);
+            hover.HoverText = ResolveC2FontColor(overFontName, hover.NormalText);
+            hover.Enabled = enabled;
+
+            return go;
+        }
+
+        private sealed class ListDeskVitButtonHoverV395H : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+        {
+            public Image Background;
+            public TextMeshProUGUI Label;
+            public Sprite NormalSprite;
+            public Sprite HoverSprite;
+            public Color32 NormalText;
+            public Color32 HoverText;
+            public bool Enabled = true;
+
+            public void OnPointerEnter(PointerEventData e)
+            {
+                if (!Enabled) return;
+                if (Background != null)
+                {
+                    Background.sprite = HoverSprite;
+                    Background.color = HoverSprite != null ? Color.white : Color.clear;
+                }
+                if (Label != null) Label.color = HoverText;
+            }
+
+            public void OnPointerExit(PointerEventData e)
+            {
+                if (Background != null)
+                {
+                    Background.sprite = NormalSprite;
+                    Background.color = NormalSprite != null ? Color.white : Color.clear;
+                }
+                if (Label != null) Label.color = NormalText;
             }
         }
 
@@ -2854,7 +4519,18 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             // ═══════════════════════════════════════════════════════════
             float centerStartX = widthL;
             float centerEndX = totalWidth - widthR;
-            float centerWidth = Mathf.Max(0f, centerEndX - centerStartX);
+            // V396A7R5 full-audit correction: DrawHeaderEx2 uses an inclusive
+            // clip [x0+frWidthL, x0+Lx-frWidthR]. Unity RectTransform widths are
+            // counts, therefore the corresponding width is end-start+1.
+            float centerWidth = Mathf.Max(0f, centerEndX - centerStartX + 1f);
+
+            // V396A7R7: one-pixel UI-mask guard band.  The GP edge sprites are
+            // rendered after the center and cover this guard, matching the
+            // inclusive framebuffer join without altering source coordinates.
+            const float genericClipGuard = 1f;
+            float genericClipStart = Mathf.Max(0f, centerStartX - genericClipGuard);
+            float genericClipEndExclusive = Mathf.Min(totalWidth, centerEndX + 1f + genericClipGuard);
+            float genericGuardedWidth = Mathf.Max(0f, genericClipEndExclusive - genericClipStart);
 
             var centerContainer = new GameObject("CenterMask", typeof(RectTransform), typeof(RectMask2D));
             centerContainer.transform.SetParent(root.transform, false);
@@ -2862,20 +4538,25 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             var centerRt = (RectTransform)centerContainer.transform;
             centerRt.anchorMin = centerRt.anchorMax = new Vector2(0, 1);
             centerRt.pivot = new Vector2(0, 1);
-            centerRt.anchoredPosition = new Vector2(centerStartX, 0);
-            centerRt.sizeDelta = new Vector2(centerWidth, height);
+            centerRt.anchoredPosition = new Vector2(genericClipStart, 0);
+            centerRt.sizeDelta = new Vector2(genericGuardedWidth, height);
 
             // ═══════════════════════════════════════════════════════════
-            // 5. Тайлим центр с ЧЕРЕДОВАНИЕМ (i % 3)
+            // 5. Тайлим центр ТОЧНО как DrawHeaderEx2: switch(i % 3),
+            //    где i — исходная пиксельная X-координата, а не номер тайла.
+            //    Рисование начинается от x0 и затем обрезается clip-окном.
             // ═══════════════════════════════════════════════════════════
-            float xPos = 0f;
+            float sourceX = 0f;
             int tileIndex = 0;
             int maxTiles = 300;
 
-            while (xPos < centerWidth && tileIndex < maxTiles)
+            while (sourceX < totalWidth && tileIndex < maxTiles)
             {
-                Sprite tileSp = centerSprites[tileIndex % 3];
-                float tileW = tileSp != null ? tileSp.rect.width : centerTileW;
+                int phase = ((int)sourceX) % 3;
+                if (phase < 0) phase += 3;
+                Sprite tileSp = centerSprites[phase] ?? spC1;
+                if (tileSp == null) break;
+                float tileW = Mathf.Max(1f, tileSp.rect.width);
 
                 var tileGO = new GameObject($"Tile_{tileIndex}", typeof(RectTransform), typeof(Image));
                 tileGO.transform.SetParent(centerContainer.transform, false);
@@ -2883,8 +4564,8 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 var tileRt = (RectTransform)tileGO.transform;
                 tileRt.anchorMin = tileRt.anchorMax = new Vector2(0, 1);
                 tileRt.pivot = new Vector2(0, 1);
-                tileRt.anchoredPosition = new Vector2(xPos, 0);
-                tileRt.sizeDelta = new Vector2(tileW, height);
+                tileRt.anchoredPosition = new Vector2(sourceX - genericClipStart, 0);
+                tileRt.sizeDelta = new Vector2(tileW, tileSp.rect.height);
 
                 var tileImg = tileGO.GetComponent<Image>();
                 tileImg.sprite = tileSp;
@@ -2892,7 +4573,7 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                 tileImg.raycastTarget = false;
                 tileImg.preserveAspect = false;
 
-                xPos += tileW;
+                sourceX += tileW;
                 tileIndex++;
             }
 
@@ -2977,12 +4658,19 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             var bg = go.AddComponent<Image>();
             bg.raycastTarget = true;
 
-            Sprite normalSp = LoadButtonFrame(btn.Sprite1);
-            Sprite hoverSp = LoadButtonFrame(btn.Sprite);
-            Sprite disabledSp = LoadButtonFrame(btn.Sprite1 + 1);
+            Sprite normalSp = LoadGpButtonFrame(btn.FileID, btn.Sprite1);
+            Sprite hoverSp = LoadGpButtonFrame(btn.FileID, btn.Sprite);
+            // Cossacks II Dialogs.cpp::GP_TextButton_OnDraw does NOT use Sprite1+1
+            // for disabled. It draws the same passive Sprite1 with diffuse * 230/255.
+            Sprite disabledSp = normalSp;
 
-            bg.sprite = normalSp ?? hoverSp;
-            bg.type = Image.Type.Sliced;
+            // Original GP_TextButton uses Sprite1=-1 to mean "no passive
+            // overlay": the parent GPPicture remains visible and Sprite is only
+            // the hover state. A null Unity Image must therefore be transparent,
+            // never the default solid white rectangle.
+            bg.sprite = normalSp;
+            bg.color = normalSp != null ? Color.white : Color.clear;
+            bg.type = Image.Type.Simple;
 
             var button = go.AddComponent<Button>();
             button.targetGraphic = bg;
@@ -3005,6 +4693,17 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             tmp.text = textResolved;
             ApplyTextStyle(tmp, UiTextStyle.Button, opt);
 
+            // Exact original GP_TextButton text state comes from this XML node's
+            // ActiveFont / PassiveFont / DisabledFont, not a global Unity button style.
+            string activeFontName = GetStringMember(btn, "ActiveFont");
+            string passiveFontName = GetStringMember(btn, "PassiveFont");
+            string disabledFontName = GetStringMember(btn, "DisabledFont");
+            Color32 passiveText = ResolveC2FontColor(passiveFontName, OptionsTextStyleConfig.Button.NormalColor);
+            Color32 activeText = ResolveC2FontColor(activeFontName, OptionsTextStyleConfig.Button.HoverColor);
+            Color32 disabledText = ResolveC2FontColor(disabledFontName, OptionsTextStyleConfig.Button.DisabledColor);
+            tmp.color = passiveText;
+            tmp.fontSize = ResolveC2FontSize(passiveFontName, tmp.fontSize);
+
             if (textResolved?.Trim() is "ПРИНЯТЬ" or "ОТМЕНА")
             {
                 tmp.fontStyle = FontStyles.Normal;
@@ -3025,9 +4724,12 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             swap.NormalBg = normalSp;
             swap.HoverBg = hoverSp;
             swap.DisabledBg = disabledSp;
-            swap.NormalText = OptionsTextStyleConfig.Button.NormalColor;
-            swap.HoverText = OptionsTextStyleConfig.Button.HoverColor;
-            swap.DisabledText = OptionsTextStyleConfig.Button.DisabledColor;
+            swap.NormalText = passiveText;
+            swap.HoverText = activeText;
+            swap.DisabledText = disabledText;
+            swap.NormalBgTint = new Color32(255, 255, 255, 255);
+            swap.HoverBgTint = new Color32(255, 255, 255, 255);
+            swap.DisabledBgTint = new Color32(230, 230, 230, 255);
 
             button.onClick.AddListener(() =>
             {
@@ -3047,13 +4749,116 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
                     catch (Exception e) { Debug.LogError($"[BaseRenderer] Action error: {e}"); }
                 }
             });
+
+            // EW2_CampaignStats.XML assigns VK_ESCAPE to its cva_MM_Cancel
+            // GP_TextButton.  OptionsRenderer previously rendered the button but
+            // had no keyboard-hotkey pass, so preserve the original escape route
+            // for any XML cancel button without inventing a stats-only navigation path.
+            bool cancelAction = btn.Actions != null && btn.Actions.Exists(x =>
+                x != null && string.Equals(x.Name, "cva_MM_Cancel", StringComparison.OrdinalIgnoreCase));
+            if (cancelAction)
+            {
+                var esc = go.AddComponent<EscapeInvokesButton>();
+                esc.Target = button;
+            }
+        }
+
+        private sealed class EscapeInvokesButton : MonoBehaviour
+        {
+            public Button Target;
+
+            private void Update()
+            {
+                bool pressed = false;
+#if ENABLE_INPUT_SYSTEM
+                var keyboard = UnityEngine.InputSystem.Keyboard.current;
+                pressed = keyboard != null && keyboard.escapeKey.wasPressedThisFrame;
+#else
+                pressed = Input.GetKeyDown(KeyCode.Escape);
+#endif
+                if (pressed && Target != null && Target.interactable && Target.gameObject.activeInHierarchy)
+                    Target.onClick.Invoke();
+            }
+        }
+
+        private static string GetStringMember(object obj, string name)
+        {
+            if (obj == null || string.IsNullOrEmpty(name)) return string.Empty;
+            try
+            {
+                var t = obj.GetType();
+                var p = t.GetProperty(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (p != null)
+                {
+                    object v = p.GetValue(obj, null);
+                    return v != null ? v.ToString() : string.Empty;
+                }
+                var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (f != null)
+                {
+                    object v = f.GetValue(obj);
+                    return v != null ? v.ToString() : string.Empty;
+                }
+            }
+            catch { }
+            return string.Empty;
+        }
+
+        // InitFonts.h, Cossacks II 1.1/final 1.4 palette.
+        private static Color32 ResolveC2FontColor(string fontName, Color32 fallback)
+        {
+            string n = (fontName ?? string.Empty).Trim();
+            if (n.IndexOf("Black", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(0x2E, 0x23, 0x17, 0xFF);
+            if (n.IndexOf("Red", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(0x8A, 0x10, 0x00, 0xFF);
+            if (n.IndexOf("Yellow", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(0xD4, 0xC1, 0x9C, 0xFF);
+            if (n.IndexOf("White", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(0xFF, 0xF7, 0xEF, 0xFF);
+            if (n.IndexOf("Gray", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(0x6D, 0x68, 0x62, 0xFF);
+            if (n.IndexOf("Disable", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(0x66, 0x5F, 0x57, 0xC0);
+            if (n.IndexOf("Orange", StringComparison.OrdinalIgnoreCase) >= 0) return new Color32(0x6A, 0x30, 0x00, 0xFF);
+            return fallback;
+        }
+
+        private static float ResolveC2FontSize(string fontName, float fallback)
+        {
+            string n = (fontName ?? string.Empty).Trim();
+            // BlackFont/RedFont/GrayFont and MenuText* are 14-pixel menu fonts in this UI.
+            if (n.StartsWith("Small", StringComparison.OrdinalIgnoreCase)) return 10f;
+            if (n.IndexOf("Font", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                n.StartsWith("MenuText", StringComparison.OrdinalIgnoreCase)) return 14f;
+            return fallback;
         }
 
         private static Sprite LoadButtonFrame(int id)
         {
+            if (id < 0) return null;
             var tex = Resources.Load<Texture2D>($"Buttons/frame_{id:0000}");
             if (tex == null) return null;
-            return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 1f);
+            tex.filterMode = FilterMode.Point;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            var sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 1f);
+            PrepareUiSpriteSamplingV396A7R4(sp);
+            return sp;
+        }
+
+        private static Sprite LoadGpButtonFrame(string fileId, int id)
+        {
+            if (id < 0) return null;
+
+            // Source first: GP_TextButton explicitly names the bank in FileID.
+            // Do not silently substitute the legacy generic Buttons bank when
+            // the original XML points at another GP file.
+            if (!string.IsNullOrWhiteSpace(fileId))
+            {
+                string resPath = fileId.Replace("\\", "_").Replace("/", "_").ToUpperInvariant() + "_frames";
+                Sprite exact = LoadSpriteFromResources(resPath, $"frame_{id:0000}");
+                if (exact != null) return exact;
+
+                exact = Menu14ActionStateRuntime.TryLoadGpSpriteForRenderer(fileId, id, true);
+                if (exact != null) return exact;
+            }
+
+            // Compatibility only for old menu assets that never carried FileID.
+            return LoadButtonFrame(id);
         }
 
         // ===================== HELPER CLASSES =====================
@@ -3135,20 +4940,29 @@ namespace Cossacks2Bridge.UnityAdapters.Renderers
             public Button Button;
             public Sprite NormalBg, HoverBg, DisabledBg;
             public Color32 NormalText, HoverText, DisabledText;
+            public Color32 NormalBgTint, HoverBgTint, DisabledBgTint;
 
             void OnEnable() => ApplyCurrent();
 
             void ApplyCurrent()
             {
                 bool ok = Button == null || Button.interactable;
-                if (Bg) Bg.sprite = ok ? NormalBg : DisabledBg;
+                if (Bg)
+                {
+                    Bg.sprite = ok ? NormalBg : DisabledBg;
+                    Bg.color = Bg.sprite != null ? (Color)(ok ? NormalBgTint : DisabledBgTint) : Color.clear;
+                }
                 if (Label) Label.color = ok ? NormalText : DisabledText;
             }
 
             public void OnPointerEnter(PointerEventData e)
             {
                 if (Button != null && !Button.interactable) return;
-                if (Bg && HoverBg) Bg.sprite = HoverBg;
+                if (Bg)
+                {
+                    Bg.sprite = HoverBg;
+                    Bg.color = HoverBg != null ? (Color)HoverBgTint : Color.clear;
+                }
                 if (Label) Label.color = HoverText;
             }
 

@@ -5,6 +5,16 @@ namespace Cossacks2Bridge.Core
     public sealed class UiDesk
     {
         public string SourcePath = "";
+        public string XmlSource = "";
+
+        // V392 source-bundle provenance.  Dependent runtime data (AI/ai.dat,
+        // hero metadata, etc.) must come from this same data root.
+        public string SourceBundleId = "";
+        public string SourceDataRoot = "";
+
+        public string ScreenId = "";
+        public int ParsedNodeCount;
+        public int GenericNodeCount;
         public readonly List<UiNode> Children = new();
     }
 
@@ -33,6 +43,41 @@ namespace Cossacks2Bridge.Core
         public int X, Y, Width, Height;
         public bool Visible = true;
         public bool Enabled = true;
+
+        // V396A7R2: preserve the control's OWN XML state separately from the
+        // inherited/effective state. Hidden modal parents (for example the
+        // original profile-delete desk) are changed by SetFrameState at runtime;
+        // descendants must then recover their own <Visible>true</Visible> values.
+        public bool LocalVisible = true;
+        public bool LocalEnabled = true;
+
+        // Common source fields used by original Dialogs rendering. Color is the
+        // game's AARRGGBB value (e.g. 73FFFFFF on the delete-modal blackout).
+        public uint ColorArgb = 0xFFFFFFFFu;
+        public bool DeepColor;
+        public string HotKey = "NONE";
+
+        // V396A7R4: original ParentFrame transform block.  These values are
+        // source data, not Unity layout guesses.  In the game ParentFrame::GetMatrix
+        // applies this matrix before a dialog and its children are drawn.
+        public bool EnableTransform;
+        public string PivotPosition = "Left";
+        public float PivotDx;
+        public float PivotDy;
+        public float TransformScaleX = 1f;
+        public float TransformScaleY = 1f;
+        public float TransformAngle;
+        public bool FlipX;
+        public bool FlipY;
+
+        // V388 unified XML provenance. Renderers can stay flat while state/runtime
+        // code can still address the exact original hierarchy deterministically.
+        public string SourceTag = "";
+        public int SourceId = -1;
+        public int ParentSourceId = -1;
+        public int Depth;
+        public int LocalX, LocalY;
+
         public readonly List<UiAction> Actions = new();
     }
 
@@ -42,6 +87,16 @@ namespace Cossacks2Bridge.Core
         public string Payload = "";
     }
 
+    /// <summary>
+    /// Original XML control/container for which a dedicated Unity adapter does
+    /// not exist yet. It is deliberately preserved by the parser instead of
+    /// being silently dropped or converted into a different control type.
+    /// </summary>
+    public sealed class UiGenericNode : UiNode
+    {
+        public string Kind = "";
+    }
+
     
     // ═══════════════════════════════════════════════════════════
     // DIALOGS DESK (frame/background area)
@@ -49,6 +104,14 @@ namespace Cossacks2Bridge.Core
     public sealed class UiDialogsDesk : UiNode
     {
         public string Border = "";
+        // V396A7R5: preserve the original DialogsDesk scrolling contract.
+        // These are runtime properties in Cossacks II, not cosmetic metadata.
+        public bool EnableHorizontalScroller = false;
+        public bool EnableVerticalScroller = false;
+        public bool HideVScroller = false;
+        public bool EnableMouseShift = false;
+        public int XShift = 0;
+        public int YShift = 0;
     }
 
 // ═══════════════════════════════════════════════════════════
@@ -78,6 +141,10 @@ namespace Cossacks2Bridge.Core
         public string ActiveFont = "";
         public string DisabledFont = "";
         public string Align = "Left";
+        // Original TextButton::SetMessage/OnDraw use MaxWidth to recalculate
+        // multiline height and x1. Width from Position&Width is not equivalent.
+        public int MaxWidth = 10000;
+        public bool Vertical = false;
         
         // ✅ НОВОЕ: стиль текста
         public UiTextStyle Style = UiTextStyle.Default;
@@ -152,11 +219,24 @@ namespace Cossacks2Bridge.Core
     {
         public string MessageKey = "";
         public string HintKey = "";
-        public string GP_File;
-        public int SpritePassive;
-        public int SpriteActive;
-        // Width и Height УДАЛЕНЫ - наследуются от UiNode
+        public string GP_File = "";
+
+        // Cossacks II 1.4 VitButton state.  The original XML stores the
+        // sprite pair as SpritePassiveN/SpriteOverN where N == State.
+        // -1 means that the passive state has no background sprite.
+        public int State;
+        public int SpritePassive = -1;
+        public int SpriteActive = -1;
+        public int SpriteDx;
         public bool OneSprited;
+        public bool DisableCycling;
+
+        // Text layout belongs to VitButton itself in the 1.4 dialogs.
+        public string FontPassive = "";
+        public string FontOver = "";
+        public int FontDx;
+        public int FontDy;
+        public string Align = "Center";
     }
 
     // UiInputBox - УБРАЛИ Width/Height

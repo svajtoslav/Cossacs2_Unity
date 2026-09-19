@@ -12,6 +12,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const int C2WaterV1RenderQueueLikeOriginal = 3440;
         private const int C2WaterV1SortingOrderLikeOriginal = 31000;
         private const int C2WaterV1MaxQuadsPerMeshLikeOriginal = 20000;
+        private const int C2WaterV1SpatialChunkCellsLikeOriginal = 128;
         private const float C2WaterV1SurfaceYOffsetWorldLikeOriginal = 0.16f;
         private const float C2WaterV1DeepThresholdLikeOriginal = 128.0f;
         private const string C2WaterV1ContractLikeOriginal = "V14_DARKER_REFSKY_SHORE_FADE_RANDOM_RIPPLE_PATCHES";
@@ -323,37 +324,49 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int meshCount = 0;
             int quadCount = 0;
             int candidateBlocks = 0;
-            var chunk = new WaterMeshChunkV1LikeOriginal(C2WaterV1MaxQuadsPerMeshLikeOriginal);
             Bounds waterBounds = new Bounds(Vector3.zero, Vector3.zero);
             bool hasWaterBounds = false;
 
-            for (int y = minY; y < maxY; y += cellStep)
+            // COSSACKS2 renders water for the current visible region. Keep the complete
+            // parsed SEA2/RIV1 data, but submit it to Unity in local spatial blocks so
+            // the camera can reject every block outside its frustum. The old row-wise
+            // 20k-quad strips crossed most of the map and therefore were almost never
+            // culled, even when only a small piece of water was on screen.
+            int spatialSpan = Mathf.Max(cellStep, C2WaterV1SpatialChunkCellsLikeOriginal);
+            for (int tileY = minY; tileY < maxY; tileY += spatialSpan)
             {
-                for (int x = minX; x < maxX; x += cellStep)
+                int tileMaxY = Mathf.Min(maxY, tileY + spatialSpan);
+                for (int tileX = minX; tileX < maxX; tileX += spatialSpan)
                 {
-                    if (!TrySampleWaterQuadV2LikeOriginal(water, x, y, cellStep, out WaterVertexV2LikeOriginal v0, out WaterVertexV2LikeOriginal v1, out WaterVertexV2LikeOriginal v2, out WaterVertexV2LikeOriginal v3, out byte maxDeep))
-                        continue;
+                    int tileMaxX = Mathf.Min(maxX, tileX + spatialSpan);
+                    int cellsX = Mathf.Max(1, (tileMaxX - tileX + cellStep - 1) / cellStep);
+                    int cellsY = Mathf.Max(1, (tileMaxY - tileY + cellStep - 1) / cellStep);
+                    int capacity = Mathf.Min(C2WaterV1MaxQuadsPerMeshLikeOriginal, cellsX * cellsY);
+                    var chunk = new WaterMeshChunkV1LikeOriginal(capacity);
 
-                    candidateBlocks++;
-                    AddWaterQuadV1LikeOriginal(chunk, kernel, x, y, cellStep, v0, v1, v2, v3, ref waterBounds, ref hasWaterBounds);
-                    quadCount++;
-
-                    if (chunk.QuadCount >= C2WaterV1MaxQuadsPerMeshLikeOriginal)
+                    for (int y = tileY; y < tileMaxY; y += cellStep)
                     {
-                        CreateWaterChunkObjectV1LikeOriginal(meshCount++, chunk, _c2WaterRootV1LikeOriginal.transform);
-                        chunk.Clear();
+                        for (int x = tileX; x < tileMaxX; x += cellStep)
+                        {
+                            if (!TrySampleWaterQuadV2LikeOriginal(water, x, y, cellStep, out WaterVertexV2LikeOriginal v0, out WaterVertexV2LikeOriginal v1, out WaterVertexV2LikeOriginal v2, out WaterVertexV2LikeOriginal v3, out byte maxDeep))
+                                continue;
+
+                            candidateBlocks++;
+                            AddWaterQuadV1LikeOriginal(chunk, kernel, x, y, cellStep, v0, v1, v2, v3, ref waterBounds, ref hasWaterBounds);
+                            quadCount++;
+                        }
                     }
+
+                    if (chunk.QuadCount > 0)
+                        CreateWaterChunkObjectV1LikeOriginal(meshCount++, chunk, _c2WaterRootV1LikeOriginal.transform);
                 }
             }
-
-            if (chunk.QuadCount > 0)
-                CreateWaterChunkObjectV1LikeOriginal(meshCount++, chunk, _c2WaterRootV1LikeOriginal.transform);
 
             if (hasWaterBounds)
                 terrainBounds.Encapsulate(waterBounds);
 
             ApplyWaterMaterialParamsV1LikeOriginal(forceLog: true);
-            Debug.Log($"[C2:WATER V1] built meshes={meshCount} quads={quadCount} blocks={candidateBlocks} step={cellStep} rect=({minX},{minY})->({maxX},{maxY}) cloud='{_c2WaterCloudTexturePathV1LikeOriginal}' summary={water.BuildSummary()} contract={C2WaterV1ContractLikeOriginal}");
+            Debug.Log($"[C2:WATER V1] built meshes={meshCount} quads={quadCount} blocks={candidateBlocks} step={cellStep} spatialChunk={spatialSpan} rect=({minX},{minY})->({maxX},{maxY}) cloud='{_c2WaterCloudTexturePathV1LikeOriginal}' summary={water.BuildSummary()} contract={C2WaterV1ContractLikeOriginal}");
         }
 
         private static int PickWaterCellStepV1LikeOriginal(C2WaterData water, int width, int height)
@@ -501,6 +514,34 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float rawX = cellX * kernel.BackingStepXWorld;
             float rawZ = cellY * kernel.BackingStepZWorld + (((cellX & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
             return new Vector3(rawX - kernel.CenterX, C2WaterV1SurfaceYOffsetWorldLikeOriginal, (rawZ - kernel.CenterZ) * WorldZSign);
+        }
+
+        private static C2BattleTerrainMode s_c2WaterMotionModeLikeOriginal;
+
+        // RealWater.cpp / 3DRandMap.cpp use WaterDeep[(x>>5),(y>>5)] and
+        // treat values above 128 as hard water.  Unit LOCKPOINT routing must
+        // consult the same field; otherwise a failed path falls back to a
+        // visually straight route through lakes.
+        internal static bool C2IsHardWaterRealLikeOriginal(float realX, float realY)
+        {
+            C2BattleTerrainMode mode = s_c2WaterMotionModeLikeOriginal;
+            if (mode == null || mode._map == null)
+            {
+                mode = UnityEngine.Object.FindObjectOfType<C2BattleTerrainMode>();
+                s_c2WaterMotionModeLikeOriginal = mode;
+            }
+            if (mode == null || mode._map == null || mode._map.Water == null ||
+                !mode._map.Water.HasSea2Payload)
+                return false;
+
+            float originalX = realX / 16.0f;
+            float originalY = realY / 16.0f;
+            int cellX = Mathf.FloorToInt(originalX / 32.0f);
+            int cellY = Mathf.FloorToInt(originalY / 32.0f);
+            if (cellX < 0 || cellY < 0 ||
+                cellX >= mode._map.Water.SeaLx || cellY >= mode._map.Water.SeaLy)
+                return true;
+            return mode._map.Water.GetWaterDeep(cellX, cellY) > C2WaterV1DeepThresholdLikeOriginal;
         }
 
         private static void EncapsulateWaterPointV1LikeOriginal(Vector3 p, ref Bounds bounds, ref bool hasBounds)

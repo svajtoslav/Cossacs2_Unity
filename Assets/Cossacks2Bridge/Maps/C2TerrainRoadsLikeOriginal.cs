@@ -114,6 +114,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             public readonly int Type;
             public readonly RoadDescLikeOriginal Desc;
+            public readonly int ChunkX;
+            public readonly int ChunkY;
             public readonly List<Vector3> Vertices = new List<Vector3>(1024);
             public readonly List<Vector2> Uv0 = new List<Vector2>(1024);
             public readonly List<Color32> Colors = new List<Color32>(1024);
@@ -121,10 +123,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public bool HasBounds;
             public Bounds Bounds;
 
-            public RoadMeshBucketLikeOriginal(int type, RoadDescLikeOriginal desc)
+            public RoadMeshBucketLikeOriginal(int type, RoadDescLikeOriginal desc, int chunkX = 0, int chunkY = 0)
             {
                 Type = type;
                 Desc = desc;
+                ChunkX = chunkX;
+                ChunkY = chunkY;
             }
 
             public void AddVertex(Vector3 v, Vector2 uv, Color32 color)
@@ -395,12 +399,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float gx = x / 32.0f;
             float gy = y / 32.0f;
 
-            float rawX = gx * kernel.BackingStepXWorld;
-            int ix = Mathf.FloorToInt(gx);
-            float rawZ = gy * kernel.BackingStepZWorld + (((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
-
-            float worldX = rawX - kernel.CenterX;
-            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
+            float worldX, worldZ;
+            C2OriginalWorldCoordinatesV371LikeOriginal.ToWorld(
+                x, y, kernel.BackingStepXWorld, kernel.BackingStepZWorld,
+                kernel.CenterX, kernel.CenterZ, WorldZSign, out worldX, out worldZ);
             float worldY = SampleRoadHeightLikeOriginal(map, gx, gy) * kernel.HeightScale + C2RoadsLayerYOffsetV1LikeOriginal;
             return new Vector3(worldX, worldY, worldZ);
         }

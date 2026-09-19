@@ -47,6 +47,7 @@ Shader "Cossacks2Bridge/WaterLikeOriginalV2"
             #pragma fragment frag
             #pragma target 2.0
             #include "UnityCG.cginc"
+            #include "C2FogOfWarLikeOriginal.cginc"
 
             sampler2D _CloudTex;
             fixed4 _DeepColor;
@@ -207,7 +208,8 @@ Shader "Cossacks2Bridge/WaterLikeOriginalV2"
                 alpha *= lerp(0.68, 1.0, smoothstep(0.00, 0.20, deep01));
 
                 clip(alpha - 0.008);
-                return fixed4(saturate(col), alpha);
+                col = C2ApplyFogOfWarLikeOriginal(saturate(col), i.world);
+                return fixed4(col, alpha);
             }
             ENDCG
         }
@@ -226,6 +228,7 @@ Shader "Cossacks2Bridge/WaterLikeOriginalV2"
             #pragma fragment frag
             #pragma target 2.0
             #include "UnityCG.cginc"
+            #include "C2FogOfWarLikeOriginal.cginc"
 
             sampler2D _CloudTex;
             fixed4 _FoamColor;
@@ -313,6 +316,8 @@ Shader "Cossacks2Bridge/WaterLikeOriginalV2"
                 fixed3 cloudWhite = fixed3(0.72, 0.92, 0.88);
                 fixed3 col = lerp(skyBlue, cloudWhite, saturate(core * 0.78 + hot * 0.62));
                 col = lerp(col, _FoamColor.rgb, hot * 0.12);
+
+                alpha *= 1.0 - C2FogAlphaLikeOriginal(i.world);
 
                 clip(alpha - 0.010);
                 return fixed4(saturate(col), alpha);

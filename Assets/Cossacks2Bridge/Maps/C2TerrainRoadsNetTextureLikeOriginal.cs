@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -16,6 +16,42 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const int C2RoadsNetTextureMinPointsV3LikeOriginal = 3;
         private const int C2RoadsNetTextureMaxGeneratedRoadsV3LikeOriginal = 65536;
         private const int C2RoadsNetTextureMaxCurvePointsV3LikeOriginal = 2046;
+        private const int C2RoadsSpatialChunkOriginalPixelsLikeOriginal = 2048;
+
+        private readonly struct RoadSpatialBucketKeyLikeOriginal : IEquatable<RoadSpatialBucketKeyLikeOriginal>
+        {
+            public readonly int Type;
+            public readonly int ChunkX;
+            public readonly int ChunkY;
+
+            public RoadSpatialBucketKeyLikeOriginal(int type, int chunkX, int chunkY)
+            {
+                Type = type;
+                ChunkX = chunkX;
+                ChunkY = chunkY;
+            }
+
+            public bool Equals(RoadSpatialBucketKeyLikeOriginal other)
+            {
+                return Type == other.Type && ChunkX == other.ChunkX && ChunkY == other.ChunkY;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is RoadSpatialBucketKeyLikeOriginal other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = Type;
+                    hash = (hash * 397) ^ ChunkX;
+                    hash = (hash * 397) ^ ChunkY;
+                    return hash;
+                }
+            }
+        }
 
         private sealed class GeneratedRoadLikeOriginal
         {
@@ -70,8 +106,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             OriginalTerrainKernelConfig kernel = GetBoundsKernelLikeOriginal(map);
-            var buckets = new Dictionary<int, RoadMeshBucketLikeOriginal>(64);
-            var bodyBuckets = new Dictionary<int, RoadMeshBucketLikeOriginal>(64);
+            var buckets = new Dictionary<RoadSpatialBucketKeyLikeOriginal, RoadMeshBucketLikeOriginal>(128);
+            var bodyBuckets = new Dictionary<RoadSpatialBucketKeyLikeOriginal, RoadMeshBucketLikeOriginal>(128);
             TerrainTextureResourcesLikeOriginal bodyResources = TryLoadTerrainSurfaceResourcesLikeOriginal();
             int emittedRoads = 0;
             int emittedVertices = 0;
@@ -90,10 +126,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (desc == null)
                     continue;
 
-                if (!buckets.TryGetValue(desc.Type, out RoadMeshBucketLikeOriginal bucket))
+                int roadCenterX = road.XMin != int.MaxValue && road.XMax != int.MinValue ? road.XMin + ((road.XMax - road.XMin) / 2) : 0;
+                int roadCenterY = road.YMin != int.MaxValue && road.YMax != int.MinValue ? road.YMin + ((road.YMax - road.YMin) / 2) : 0;
+                int chunkX = Mathf.FloorToInt(roadCenterX / (float)C2RoadsSpatialChunkOriginalPixelsLikeOriginal);
+                int chunkY = Mathf.FloorToInt(roadCenterY / (float)C2RoadsSpatialChunkOriginalPixelsLikeOriginal);
+                var bucketKey = new RoadSpatialBucketKeyLikeOriginal(desc.Type, chunkX, chunkY);
+
+                if (!buckets.TryGetValue(bucketKey, out RoadMeshBucketLikeOriginal bucket))
                 {
-                    bucket = new RoadMeshBucketLikeOriginal(desc.Type, desc);
-                    buckets.Add(desc.Type, bucket);
+                    bucket = new RoadMeshBucketLikeOriginal(desc.Type, desc, chunkX, chunkY);
+                    buckets.Add(bucketKey, bucket);
                 }
 
                 int beforeV = bucket.Vertices.Count;
@@ -107,10 +149,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 if (C2RoadsBodyUnderlayV6LikeOriginal && ShouldEmitRoadBodyUnderlayV6LikeOriginal(desc))
                 {
-                    if (!bodyBuckets.TryGetValue(desc.Type, out RoadMeshBucketLikeOriginal bodyBucket))
+                    if (!bodyBuckets.TryGetValue(bucketKey, out RoadMeshBucketLikeOriginal bodyBucket))
                     {
-                        bodyBucket = new RoadMeshBucketLikeOriginal(desc.Type, desc);
-                        bodyBuckets.Add(desc.Type, bodyBucket);
+                        bodyBucket = new RoadMeshBucketLikeOriginal(desc.Type, desc, chunkX, chunkY);
+                        bodyBuckets.Add(bucketKey, bodyBucket);
                     }
 
                     int bodyBeforeV = bodyBucket.Vertices.Count;
@@ -132,6 +174,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             var roadsRoot = new GameObject("C2_RoadsNetTexture_V17_separate_file");
             roadsRoot.transform.SetParent(parent, false);
+            var roadMaterialsByType = new Dictionary<int, Material>(32);
+            var bodyMaterialsByType = new Dictionary<int, Material>(32);
 
             int builtBodyBuckets = 0;
             foreach (RoadMeshBucketLikeOriginal bucket in bodyBuckets.Values)
@@ -139,7 +183,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (bucket.Vertices.Count < 4 || bucket.Triangles.Count < 6)
                     continue;
 
-                var mesh = new Mesh { name = $"C2_RoadBodyUnderlayMesh_V6_type_{bucket.Type:00}" };
+                var mesh = new Mesh { name = $"C2_RoadBodyUnderlayMesh_V6_type_{bucket.Type:00}_c{bucket.ChunkX}_{bucket.ChunkY}" };
                 if (bucket.Vertices.Count > 65535)
                     mesh.indexFormat = IndexFormat.UInt32;
 
@@ -149,13 +193,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mesh.SetTriangles(bucket.Triangles, 0, true);
                 mesh.RecalculateBounds();
 
-                var go = new GameObject($"RoadBodyUnderlayV6_type_{bucket.Type:00}_{SanitizeRoadNameLikeAdapted(bucket.Desc.RoadName)}");
+                var go = new GameObject($"RoadBodyUnderlayV6_type_{bucket.Type:00}_c{bucket.ChunkX}_{bucket.ChunkY}_{SanitizeRoadNameLikeAdapted(bucket.Desc.RoadName)}");
                 go.transform.SetParent(roadsRoot.transform, false);
 
                 var mf = go.AddComponent<MeshFilter>();
                 var mr = go.AddComponent<MeshRenderer>();
                 mf.sharedMesh = mesh;
-                mr.sharedMaterial = CreateRoadBodyUnderlayMaterialV6LikeOriginal(bucket.Desc, bodyResources);
+                if (!bodyMaterialsByType.TryGetValue(bucket.Type, out Material bodyMaterial))
+                {
+                    bodyMaterial = CreateRoadBodyUnderlayMaterialV6LikeOriginal(bucket.Desc, bodyResources);
+                    bodyMaterialsByType.Add(bucket.Type, bodyMaterial);
+                }
+                mr.sharedMaterial = bodyMaterial;
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 mr.lightProbeUsage = LightProbeUsage.Off;
@@ -173,7 +222,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (bucket.Vertices.Count < 4 || bucket.Triangles.Count < 6)
                     continue;
 
-                var mesh = new Mesh { name = $"C2_RoadNetTextureMesh_V17_type_{bucket.Type:00}" };
+                var mesh = new Mesh { name = $"C2_RoadNetTextureMesh_V17_type_{bucket.Type:00}_c{bucket.ChunkX}_{bucket.ChunkY}" };
                 if (bucket.Vertices.Count > 65535)
                     mesh.indexFormat = IndexFormat.UInt32;
 
@@ -183,20 +232,26 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 mesh.SetTriangles(bucket.Triangles, 0, true);
                 mesh.RecalculateBounds();
 
-                var go = new GameObject($"RoadNetTextureV17_type_{bucket.Type:00}_{SanitizeRoadNameLikeAdapted(bucket.Desc.RoadName)}");
+                var go = new GameObject($"RoadNetTextureV17_type_{bucket.Type:00}_c{bucket.ChunkX}_{bucket.ChunkY}_{SanitizeRoadNameLikeAdapted(bucket.Desc.RoadName)}");
                 go.transform.SetParent(roadsRoot.transform, false);
 
                 var mf = go.AddComponent<MeshFilter>();
                 var mr = go.AddComponent<MeshRenderer>();
                 mf.sharedMesh = mesh;
-                mr.sharedMaterial = CreateRoadMaterialLikeOriginal(bucket.Desc);
+                if (!roadMaterialsByType.TryGetValue(bucket.Type, out Material roadMaterial))
+                {
+                    roadMaterial = CreateRoadMaterialLikeOriginal(bucket.Desc);
+                    roadMaterialsByType.Add(bucket.Type, roadMaterial);
+                }
+                mr.sharedMaterial = roadMaterial;
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 mr.lightProbeUsage = LightProbeUsage.Off;
                 mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
-                // V13: terrain/facture transparent chunks were drawn over the road mesh.
-                // Draw roads late in transparent order; ZTest in shader still prevents true through-hill glow.
-                mr.sortingOrder = 32000;
+                // V213: roads are terrain decals. They must stay above opaque terrain,
+                // but below units/buildings/nature depth layers. 32000 made units look
+                // buried under the road in transparent sorting.
+                mr.sortingOrder = 1200;
 
                 if (bucket.HasBounds)
                     terrainBounds.Encapsulate(bucket.Bounds);

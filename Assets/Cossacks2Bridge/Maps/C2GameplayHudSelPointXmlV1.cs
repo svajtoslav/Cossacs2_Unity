@@ -184,6 +184,22 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 AddOriginalMoraleLineLikeOriginal(x, y, Mathf.Max(1, w), Mathf.Max(1, h), ResolveMoraleCurrentLikeOriginal(ctx.Unit), ResolveMoraleMaxLikeOriginal(ctx.Unit));
                 return;
             }
+            if (isCanvas && NodeHasActionV125LikeOriginal(node, "va_SP_LifeLine"))
+            {
+                int lifeV404, maxLifeV404;
+                if (C2FormationRuntimeV167LikeOriginal.TryGetFormationAverageLifeV404LikeOriginal(
+                        ctx.Unit, out lifeV404, out maxLifeV404))
+                    AddOriginalLifeLineLikeOriginal(x, y, Mathf.Max(1, w), Mathf.Max(1, h), lifeV404, maxLifeV404);
+                return;
+            }
+            if (isCanvas && NodeHasActionV125LikeOriginal(node, "va_SP_TiredLine"))
+            {
+                AddOriginalTiredLineLikeOriginal(
+                    x, y, Mathf.Max(3, w), Mathf.Max(1, h),
+                    C2CombatRuntimeV334LikeOriginal.GetFormationTiringRemainingLikeOriginal(ctx.Unit),
+                    ctx.Unit);
+                return;
+            }
 
             if (isPicture && NodeHasActionV125LikeOriginal(node, "va_SP_B_StageLine"))
             {
@@ -208,7 +224,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 else if (NodeHasActionV125LikeOriginal(node, "va_SP_BuildingOnly"))
                     overpaintAlphaV140 = 72;
 
-                AddG16ImageOverpaintV140LikeOriginal("xml_sp_" + San(fileId) + "_" + spriteId.ToString(CultureInfo.InvariantCulture), fileId, spriteId, x, y, w, h, 255, false, overpaintAlphaV140, false, false);
+                Image xmlImageV402B = AddG16ImageOverpaintV140LikeOriginal("xml_sp_" + San(fileId) + "_" + spriteId.ToString(CultureInfo.InvariantCulture), fileId, spriteId, x, y, w, h, 255, false, overpaintAlphaV140, false, false);
+                if (xmlImageV402B != null && NodeHasActionV125LikeOriginal(node, "cva_SP_KillsGuardian"))
+                    xmlImageV402B.gameObject.AddComponent<C2GuardianKillsAnimatorV402BLikeOriginal>().Configure(xmlImageV402B, fileId);
             }
 
             if ((isText || isGpText) && !string.IsNullOrEmpty(text) && w > 0 && h > 0)
@@ -220,6 +238,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Text label = AddCrispLabelV140LikeOriginal("xml_sp_text_" + San(resolvedText), resolvedText, x, y, w, h, ResolveXmlFontSizeV125LikeOriginal(node), ResolveXmlTextAnchorV125LikeOriginal(node), textColor);
                 if (ctx.IsBuilding && NodeHasActionV125LikeOriginal(node, "va_SP_B_Stage"))
                     AttachBuildingConstructionProgressUpdaterV136LikeOriginal(null, label, ctx.Building);
+                if (ctx.IsBuilding && NodeHasActionV125LikeOriginal(node, "va_SP_B_Life"))
+                    AttachBuildingLifeUpdaterV267LikeOriginal(label, ctx.Building, ctx.BuildingState.LifeMax);
             }
 
             if (skipChildren) return;
@@ -228,6 +248,88 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 DialogNode child = node.Children[i];
                 if (IsXmlMetaNodeV125LikeOriginal(child)) continue;
                 RenderSelPointXmlNodeV125LikeOriginal(child, x, y, visible, ctx, depth + 1);
+            }
+        }
+
+        private static int _guardianKillsThresholdV402BLikeOriginal = int.MinValue;
+        private static int _guardianFrameCountV402BLikeOriginal = -1;
+
+        private static int ResolveGuardianKillsThresholdV402BLikeOriginal()
+        {
+            if (_guardianKillsThresholdV402BLikeOriginal != int.MinValue) return _guardianKillsThresholdV402BLikeOriginal;
+            int value = 300;
+            string[] roots = C2OriginalProduceCatalogV13.OriginalDataRootsForSiblingLoadersLikeOriginal();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                string path = Path.Combine(roots[i], "Dialogs", "Interface", "InterfaceSystem.xml");
+                if (!File.Exists(path)) continue;
+                try
+                {
+                    string xml = File.ReadAllText(path);
+                    System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(
+                        xml, @"<NKillsForGuardian>\s*(-?\d+)\s*</NKillsForGuardian>",
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    int parsed;
+                    if (m.Success && int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed))
+                    {
+                        value = parsed;
+                        break;
+                    }
+                }
+                catch { }
+            }
+            _guardianKillsThresholdV402BLikeOriginal = value;
+            return value;
+        }
+
+        private static int ResolveGuardianFrameCountV402BLikeOriginal(string fileId)
+        {
+            if (_guardianFrameCountV402BLikeOriginal > 0) return _guardianFrameCountV402BLikeOriginal;
+            int count = 0;
+            string[] roots = C2OriginalProduceCatalogV13.OriginalDataRootsForSiblingLoadersLikeOriginal();
+            for (int i = 0; i < roots.Length && count <= 0; i++)
+            {
+                try
+                {
+                    var gps = new TemnyLessViewer.C2GpSystem();
+                    string error;
+                    int gp = gps.PreLoadGPImage(fileId, roots[i], out error);
+                    if (gp > 0) count = gps.GetFrameCount(gp);
+                }
+                catch { }
+            }
+            _guardianFrameCountV402BLikeOriginal = Mathf.Max(1, count);
+            return _guardianFrameCountV402BLikeOriginal;
+        }
+
+        private sealed class C2GuardianKillsAnimatorV402BLikeOriginal : MonoBehaviour
+        {
+            private Image _image;
+            private string _fileId = "Interf3\\zirochka";
+            private int _frameCount = 1;
+            private int _lastFrame = -1;
+            private static float _origin = -1.0f;
+
+            public void Configure(Image image, string fileId)
+            {
+                _image = image;
+                if (!string.IsNullOrWhiteSpace(fileId)) _fileId = fileId;
+                _frameCount = ResolveGuardianFrameCountV402BLikeOriginal(_fileId);
+                if (_origin < 0.0f) _origin = Time.realtimeSinceStartup;
+                UpdateFrameV402BLikeOriginal(true);
+            }
+
+            private void Update() { UpdateFrameV402BLikeOriginal(false); }
+
+            private void UpdateFrameV402BLikeOriginal(bool force)
+            {
+                if (_image == null) { Destroy(this); return; }
+                int frame = _frameCount > 0
+                    ? ((int)((Time.realtimeSinceStartup - _origin) * 1000.0f) / 40) % _frameCount
+                    : 0;
+                if (!force && frame == _lastFrame) return;
+                _lastFrame = frame;
+                _image.sprite = C2GameplayOriginalSpriteCacheV1.LoadSprite(_fileId, frame, "guardian_v402b");
             }
         }
 
@@ -272,17 +374,52 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (NodeHasActionV125LikeOriginal(node, "va_SP_B_Life") || NodeHasActionV125LikeOriginal(node, "va_SP_B_Places"))
                 visible = ctx.IsBuilding && ctx.BuildingState.Ready;
             if (NodeHasActionV125LikeOriginal(node, "va_SP_CenUp_One"))
-                visible = ctx.SelectedCount <= 1;
+                visible = ctx.SelectedCount <= 1 &&
+                          !C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(ctx.Unit);
             if (NodeHasActionV125LikeOriginal(node, "va_SP_CenUp_Mul"))
-                visible = ctx.SelectedCount > 1;
+                visible = ctx.SelectedCount > 1 ||
+                          C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(ctx.Unit);
             if (NodeHasActionV125LikeOriginal(node, "va_SP_Morale") || NodeHasActionV125LikeOriginal(node, "va_SP_MoraleLine"))
                 visible = !ctx.IsBuilding;
+            if (NodeHasActionV125LikeOriginal(node, "va_SP_LifeLine") ||
+                NodeHasActionV125LikeOriginal(node, "va_SP_TiredLine"))
+                visible = !ctx.IsBuilding && ctx.Unit != null &&
+                          C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(ctx.Unit);
             if (NodeHasActionV125LikeOriginal(node, "va_UnitBigPortret"))
                 visible = !ctx.IsBuilding && !string.IsNullOrEmpty(ctx.Icon.BigIconFile);
             if (NodeHasActionV125LikeOriginal(node, "va_SP_Bld_BigPortret"))
                 visible = ctx.IsBuilding && !string.IsNullOrEmpty(ctx.Icon.BigIconFile);
-            if (NodeHasActionV125LikeOriginal(node, "va_SP_KillsAward") || NodeHasActionV125LikeOriginal(node, "cva_SP_KillsGuardian"))
-                visible = false;
+            if (NodeHasActionV125LikeOriginal(node, "va_SP_KillsAward"))
+            {
+                int rank = 0;
+                if (!ctx.IsBuilding && ctx.Unit != null &&
+                    C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(ctx.Unit))
+                {
+                    int exp, raw, speed, status;
+                    float av;
+                    if (C2FormationRuntimeV167LikeOriginal.TryGetBrigadeExperienceV402LikeOriginal(ctx.Unit, out exp, out raw, out speed, out av, out status))
+                    {
+                        if (exp != 0)
+                        {
+                            if (exp > 20) rank++;
+                            if (exp > 60) rank++;
+                            if (exp > 120) rank++;
+                            if (exp > 300) rank++;
+                            if (exp > 600) rank++;
+                        }
+                    }
+                }
+                int awardId = node.Int("ID", 0);
+                visible = rank >= awardId && awardId > 0;
+            }
+            if (NodeHasActionV125LikeOriginal(node, "cva_SP_KillsGuardian"))
+            {
+                int exp = 0, raw = 0, speed = 100, status = 0;
+                float av = 0.0f;
+                bool brigade = !ctx.IsBuilding && ctx.Unit != null &&
+                    C2FormationRuntimeV167LikeOriginal.TryGetBrigadeExperienceV402LikeOriginal(ctx.Unit, out exp, out raw, out speed, out av, out status);
+                visible = brigade && exp != 0 && exp >= ResolveGuardianKillsThresholdV402BLikeOriginal();
+            }
 
             if (!visible) return;
 
@@ -310,9 +447,36 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (NodeHasActionV125LikeOriginal(node, "va_SP_UnitNameSide"))
                 text = ctx.Title;
             if (NodeHasActionV125LikeOriginal(node, "va_SP_Amount"))
-                text = ctx.SelectedCount.ToString(CultureInfo.InvariantCulture);
-            if (NodeHasActionV125LikeOriginal(node, "va_SP_Kills") || NodeHasActionV125LikeOriginal(node, "va_SP_Protect"))
-                text = "0";
+            {
+                int groupId;
+                int live;
+                int total;
+                string shape;
+                byte direction;
+                text = C2FormationRuntimeV167LikeOriginal.TryGetFormationSummaryV321LikeOriginal(
+                        ctx.Unit, out groupId, out live, out total, out shape, out direction)
+                    ? live.ToString(CultureInfo.InvariantCulture) + "/" +
+                      total.ToString(CultureInfo.InvariantCulture)
+                    : ctx.SelectedCount.ToString(CultureInfo.InvariantCulture);
+            }
+            if (NodeHasActionV125LikeOriginal(node, "va_SP_Kills"))
+            {
+                if (!ctx.IsBuilding && ctx.Unit != null)
+                {
+                    int exp, raw, speed, status;
+                    float av;
+                    if (C2FormationRuntimeV167LikeOriginal.TryGetBrigadeExperienceV402LikeOriginal(ctx.Unit, out exp, out raw, out speed, out av, out status))
+                        text = exp.ToString(CultureInfo.InvariantCulture);
+                    else
+                        text = C2FormationRuntimeV167LikeOriginal.GetUnitKillsV402LikeOriginal(ctx.Unit).ToString(CultureInfo.InvariantCulture);
+                }
+                else text = "0";
+            }
+            if (NodeHasActionV125LikeOriginal(node, "va_SP_Protect") && !ctx.IsBuilding && ctx.Unit != null)
+            {
+                int extraShield = C2FormationRuntimeV167LikeOriginal.GetBrigadeExperienceShieldBonusV402LikeOriginal(ctx.Unit);
+                if (extraShield != 0) text = "+" + extraShield.ToString(CultureInfo.InvariantCulture);
+            }
             if (NodeHasActionV125LikeOriginal(node, "va_SP_Morale"))
                 text = ResolveMoraleTextLikeOriginal(ctx.Unit);
             if (NodeHasActionV125LikeOriginal(node, "va_SP_B_Life"))

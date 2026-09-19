@@ -18,11 +18,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 {
     public sealed class C2BuildingPlacementPreviewV27 : MonoBehaviour
     {
-        private const string Contract = "V44_BUILDERSNAPSHOT_KEEP_SELECTED_WORKERS";
+        private const string Contract = "V245_PSEUDO3D_CONSTRUCTION_PREVIEW_FROM_CURRENT_BUILDING_RENDERER";
         private const int MotionCellOriginalPixels = 16;
         private const float PreviewYOffset = 0.12f;
         private const float GhostYOffset = 0.16f;
         private const bool VerboseHoverLogLikeOriginal = false;
+        // V254: SEA2 WaterDeep contains broad non-zero shallow/shore/terrain mask on some maps.
+        // Original building placement does not reject ordinary buildings by "any non-zero WaterDeep";
+        // hard rejection must be true deep water only. This prevents forest/land cells from being reported as water.
+        private const int PlacementSea2HardWaterDepthV254LikeOriginal = 128;
 
         private static C2BuildingPlacementPreviewV27 s_Instance;
 
@@ -33,10 +37,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private string _builderId = string.Empty;
         private string _builderMd = string.Empty;
         private string _source = string.Empty;
+        private bool _editorInstantPlacementV377;
         private readonly List<C2NeutralPeasantUnitInfoV2LikeOriginal> _builderSnapshotV44 = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(64);
 
         private C2BuildMdInfoV27 _buildMd;
         private C2WorkerBuildMdInfoV27 _workerMd;
+        private int[] _buildPriceV348 = new int[C2NationResourceEconomyV348LikeOriginal.ResourceCount];
+        private string _buildPriceAuditV348 = "not_loaded";
 
         private GameObject _root;
         private MeshFilter _meshFilter;
@@ -124,6 +131,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             get { return s_Instance != null && s_Instance._active; }
         }
 
+        public static void CancelBuildPreviewFromEditorV333LikeOriginal()
+        {
+            if (s_Instance != null && s_Instance._active)
+                s_Instance.StopPreview();
+        }
+
         public static string C2BuildPlacementAuditLikeOriginal
         {
             get
@@ -147,8 +160,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             SetPreviewVisible(false);
             Debug.Log("[C2:BUILD PREVIEW V44] installed contract=" + Contract +
                       " original=va_Unit_P_Box::LeftClick -> ShowBuildingPreview/CheckSmartCreationAbility/CmdCreateBuilding" +
-                      " mode=composite_ghost_and_runtime_construction");
+                      " mode=composite_ghost_and_runtime_construction v255_reject_keeps_red v288_preview_composite_rebuild_exact_real");
         }
+
+        internal static int PlacementConsumedMouseFrame { get; private set; } = -1;
 
         private void Update()
         {
@@ -164,10 +179,20 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return;
             }
 
+            if (C2BattleTerrainMode.EditorTestModeLikeOriginal &&
+                C2EditorRuntimeStateV333LikeOriginal.IsPointerOverPaletteLikeOriginal(
+                    MousePositionBottomLeftLikeOriginal()))
+                return;
+
+            C2BattleTerrainMode inputModeV377 = GetBattleTerrainModeCached();
+            if (inputModeV377 != null && inputModeV377.C2MinimapScreenRectV377LikeOriginal().Contains(MousePositionBottomLeftLikeOriginal()))
+                return;
+
             UpdatePreviewUnderMouseLikeOriginal();
 
             if (LeftPressedThisFrameLikeOriginal())
             {
+                PlacementConsumedMouseFrame = Time.frameCount;
                 if (_ignoreLeftUntilRelease)
                     return;
                 ConfirmConstructionLikeOriginal();
@@ -182,11 +207,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             _builderSnapshotV44.Clear();
 
-            C2NeutralPeasantUnitInfoV2LikeOriginal[] all = FindObjectsOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] all = C2NeutralPeasantUnitInfoV2LikeOriginal.C2GetActiveUnitsSnapshotV359LikeOriginal();
             for (int i = 0; all != null && i < all.Length; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = all[i];
-                if (u == null || !u.isActiveAndEnabled || !u.IsSelected || !u.CanReceiveOrdersLikeOriginal())
+                if (u == null || !u.isActiveAndEnabled || !u.IsSelected || !u.CanBuildOrRepairLikeOriginal())
                     continue;
                 if (!_builderSnapshotV44.Contains(u))
                     _builderSnapshotV44.Add(u);
@@ -205,9 +230,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _builderId = builderId ?? string.Empty;
             _builderMd = builderMd ?? string.Empty;
             _source = source ?? string.Empty;
+            // Only the editor catalogue creates finished buildings. A peasant HUD order
+            // remains normal construction even while the test editor is open.
+            _editorInstantPlacementV377 = C2IsEditorInstantPlacementSourceV378LikeOriginal(
+                C2BattleTerrainMode.EditorTestModeLikeOriginal, _source);
 
             _buildMd = C2BuildMdInfoV27.Parse(_mdName);
             _workerMd = C2WorkerBuildMdInfoV27.Parse(_builderMd);
+            if (!C2NationResourceEconomyV348LikeOriginal.TryGetUnitPriceLikeOriginal(
+                    _mdName, out _buildPriceV348, out _buildPriceAuditV348))
+                _buildPriceV348 = new int[C2NationResourceEconomyV348LikeOriginal.ResourceCount];
             int builderSnapshotCountV44 = CaptureSelectedBuildersSnapshotV44LikeOriginal();
             LoadGhostTextureLikeOriginal();
 
@@ -247,8 +279,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       " workerMdFound=" + _workerMd.Found +
                       " workerMdPath='" + _workerMd.MdPath +
                       "' workerWork=" + _workerMd.WorkAudit +
+                      " buildPrice=[" + _buildPriceAuditV348 + "]" +
                       " builderSnapshot=" + builderSnapshotCountV44.ToString(CultureInfo.InvariantCulture) +
                       " transfer=V44_buildersnapshot_keeps_selection_for_BuildWithSelected");
+        }
+
+        internal static bool C2IsEditorInstantPlacementSourceV378LikeOriginal(bool editorMode, string source)
+        {
+            return editorMode && string.Equals(
+                source ?? string.Empty,
+                "editor_country_minicon_v333",
+                StringComparison.Ordinal);
         }
 
         private void ConfirmConstructionLikeOriginal()
@@ -265,20 +306,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return;
             }
 
-            // V66:
-            // Confirm must use the exact point that the player clicked.
-            // Smart-search on confirm could create a building near/through a forbidden area even when hover was red
-            // (water/building/road/field). Original user-facing behaviour here: forbidden click creates nothing.
-            C2PlacementCheckV27 confirm = CheckPlacementAtRealLikeOriginal(mode, hoverRealX, hoverRealY, false);
-            _placementCache = confirm;
-            _lastValid = confirm.Valid;
-            _lastAnchorCellX = confirm.AnchorCellX;
-            _lastAnchorCellY = confirm.AnchorCellY;
-            _lastFootprintCellX = confirm.FootprintCellX;
-            _lastFootprintCellY = confirm.FootprintCellY;
-            _lastRealX = confirm.RealX;
-            _lastRealY = confirm.RealY;
-            _lastSmartSnapped = confirm.SmartSnapped;
+            int hoverCachedRealXV287 = _lastRealX;
+            int hoverCachedRealYV287 = _lastRealY;
+            int previewGhostRealXV287 = _ghostCompositeReady ? _ghostCompositeRealX : _lastRealX;
+            int previewGhostRealYV287 = _ghostCompositeReady ? _ghostCompositeRealY : _lastRealY;
+            string previewGhostSourceV287 = _ghostCompositeReady ? "composite_before_confirm" : "lastPlacement_before_confirm";
+            int hoverFootprintXV287 = _lastFootprintCellX;
+            int hoverFootprintYV287 = _lastFootprintCellY;
+            int hoverAnchorXV287 = _lastAnchorCellX;
+            int hoverAnchorYV287 = _lastAnchorCellY;
+
+            // V254:
+            // Confirm must use the exact same placement checker/cache as hover preview.
+            // This keeps the green/red tint and the final click result identical.
+            // Still no smart-search on confirm: forbidden click creates nothing.
+            C2PlacementCheckV27 confirm = CachedCheckPlacementLikeOriginal(mode, hoverRealX, hoverRealY, false);
+            ApplyPlacementCheckStateV255LikeOriginal(mode, confirm);
+
+            Debug.Log(BuildPlacementAnchorAuditV287LikeOriginal(
+                "CONFIRM_BEFORE_CREATE",
+                hoverRealX,
+                hoverRealY,
+                hoverCachedRealXV287,
+                hoverCachedRealYV287,
+                previewGhostRealXV287,
+                previewGhostRealYV287,
+                previewGhostSourceV287,
+                ref confirm,
+                "hoverAnchorCell=" + hoverAnchorXV287.ToString(CultureInfo.InvariantCulture) + "/" + hoverAnchorYV287.ToString(CultureInfo.InvariantCulture) +
+                " hoverFootprintCell=" + hoverFootprintXV287.ToString(CultureInfo.InvariantCulture) + "/" + hoverFootprintYV287.ToString(CultureInfo.InvariantCulture) +
+                " eq_hover_confirm=" + ((hoverCachedRealXV287 == confirm.RealX && hoverCachedRealYV287 == confirm.RealY) ? "True" : "False") +
+                " eq_previewGhost_confirm=" + ((previewGhostRealXV287 == confirm.RealX && previewGhostRealYV287 == confirm.RealY) ? "True" : "False")));
 
             int realX = confirm.RealX;
             int realY = confirm.RealY;
@@ -294,25 +352,89 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                           " reason='" + (confirm.Reason ?? "CheckPlacementLikeOriginal_false") + "'" +
                           " blockedCells=" + confirm.BlockedCells.ToString(CultureInfo.InvariantCulture) +
                           " roadHits=" + confirm.RoadHits.ToString(CultureInfo.InvariantCulture) +
+                          " waterHits=" + confirm.WaterHits.ToString(CultureInfo.InvariantCulture) +
                           " buildingHits=" + confirm.BuildingHits.ToString(CultureInfo.InvariantCulture) +
                           " mapBoundsHits=" + confirm.MapBoundsHits.ToString(CultureInfo.InvariantCulture) +
                           " stonesOrOre=" + confirm.StoneOrOreHits.ToString(CultureInfo.InvariantCulture) +
                           " food=" + confirm.FoodHits.ToString(CultureInfo.InvariantCulture) +
                           " woodEraseOk=" + confirm.WoodHits.ToString(CultureInfo.InvariantCulture));
+                ApplyPlacementCheckStateV255LikeOriginal(mode, confirm);
                 return;
+            }
+
+            bool costAppliedV348 = false;
+            string costAuditV348 = "editor_free";
+            if (!_editorInstantPlacementV377)
+            {
+                if (!C2NationResourceEconomyV348LikeOriginal.ApplyCostLikeOriginal(
+                        _nation,
+                        _buildPriceV348,
+                        "CmdCreateBuilding md='" + _mdName + "'",
+                        out costAuditV348))
+                {
+                    confirm.Valid = false;
+                    confirm.Reason = "notEnoughResources:" + costAuditV348;
+                    ApplyPlacementCheckStateV255LikeOriginal(mode, confirm);
+                    Debug.Log("[C2:BUILD PREVIEW V348 COST REJECT] unit='" + _unitId +
+                              "' md='" + _mdName + "' nation=" + _nation.ToString(CultureInfo.InvariantCulture) +
+                              " price=[" + _buildPriceAuditV348 + "] " + costAuditV348);
+                    return;
+                }
+                costAppliedV348 = true;
             }
 
             GameObject site;
             string createAudit;
+            string createSourceV379 = string.IsNullOrEmpty(_source)
+                ? "placement-confirm-v44"
+                : _source;
             bool created = mode.C2BuildRuntimeCreateConstructionLikeOriginal(
                 _mdName,
                 string.IsNullOrEmpty(_unitId) ? _mdName : _unitId,
                 _nation,
                 realX,
                 realY,
-                "placement-confirm-v44",
+                createSourceV379,
                 out site,
                 out createAudit);
+
+            Debug.Log(BuildPlacementAnchorAuditV287LikeOriginal(
+                "CONFIRM_AFTER_CREATE_CALL",
+                hoverRealX,
+                hoverRealY,
+                hoverCachedRealXV287,
+                hoverCachedRealYV287,
+                previewGhostRealXV287,
+                previewGhostRealYV287,
+                previewGhostSourceV287,
+                ref confirm,
+                "created=" + created +
+                " createdArgReal=" + C2PlacementV287PairLikeOriginal(realX, realY) +
+                " eq_confirm_createdArg=" + ((confirm.RealX == realX && confirm.RealY == realY) ? "True" : "False") +
+                " createAudit=[" + (createAudit ?? string.Empty) + "]"));
+
+            if (!created)
+            {
+                if (costAppliedV348)
+                {
+                    C2NationResourceEconomyV348LikeOriginal.RestoreCostAfterRejectedCreationLikeOriginal(
+                        _nation,
+                        _buildPriceV348,
+                        "runtimeCreateRejected md='" + _mdName + "'");
+                    costAuditV348 += " restored_after_create_reject";
+                }
+                // V255:
+                // Some runtime creation guards are stricter than the hover check. A failed click must keep the
+                // ghost in rejected/red state, not fall back to the ordinary white "allowed" ghost.
+                confirm.Valid = false;
+                confirm.Reason = "runtimeCreateRejected:" + (createAudit ?? string.Empty);
+                ApplyPlacementCheckStateV255LikeOriginal(mode, confirm);
+                Debug.Log("[C2:BUILD PREVIEW V255 CREATE REJECT] unit='" + _unitId +
+                          "' md='" + _mdName +
+                          "' real=(" + realX.ToString(CultureInfo.InvariantCulture) + "," + realY.ToString(CultureInfo.InvariantCulture) + ")" +
+                          " reason='" + confirm.Reason + "'");
+                return;
+            }
 
             string eraseAudit = "not_run";
             if (created)
@@ -321,7 +443,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     ? (IList<Vector2Int>)_buildMd.BuildLockPoints
                     : (_buildMd != null && _buildMd.LockPoints != null ? (IList<Vector2Int>)_buildMd.LockPoints : null);
 
-                int eraseRadius = Mathf.Max(1, Mathf.CeilToInt((_buildMd != null ? _buildMd.BRadius : 8) * 0.10f));
+                erasePts = ConvertFootprintCellsToMapLikeOriginal(mode, realX, realY,
+                    confirm.FootprintCellX, confirm.FootprintCellY, erasePts);
+                int eraseRadius = 0; // EraseTreesInPoint uses the same converted footprint as motion blocking.
                 mode.C2BuildRuntimeErasePlacedFoundationAreaLikeOriginal(
                     confirm.FootprintCellX,
                     confirm.FootprintCellY,
@@ -333,7 +457,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             int assigned = 0;
             string assignAudit = "not_run";
-            if (created)
+            if (created && _editorInstantPlacementV377)
+            {
+                C2RuntimeConstructionSitePseudo3DV245LikeOriginal construction =
+                    site != null ? site.GetComponent<C2RuntimeConstructionSitePseudo3DV245LikeOriginal>() : null;
+                if (construction != null) construction.CompleteInstantForEditorV332LikeOriginal();
+                assignAudit = "editor_instant_complete_no_builders_v333";
+            }
+            else if (created)
                 assigned = mode.C2BuildRuntimeAssignBuildersSnapshotLikeOriginal(site, realX, realY, _builderSnapshotV44, "placement-confirm-v44", out assignAudit);
 
             Debug.Log("[C2:BUILD PREVIEW V44 CONFIRM] unit='" + _unitId +
@@ -341,18 +472,107 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       "' valid=" + confirm.Valid +
                       " anchorCell=" + confirm.AnchorCellX.ToString(CultureInfo.InvariantCulture) + "/" + confirm.AnchorCellY.ToString(CultureInfo.InvariantCulture) +
                       " footprintCell=" + confirm.FootprintCellX.ToString(CultureInfo.InvariantCulture) + "/" + confirm.FootprintCellY.ToString(CultureInfo.InvariantCulture) +
+                      " picDxDy=" + (_buildMd != null ? _buildMd.PicDx.ToString(CultureInfo.InvariantCulture) + "/" + _buildMd.PicDy.ToString(CultureInfo.InvariantCulture) : "<null>") +
+                      " picLxLy=" + (_buildMd != null ? _buildMd.PicLx.ToString(CultureInfo.InvariantCulture) + "/" + _buildMd.PicLy.ToString(CultureInfo.InvariantCulture) : "<null>") +
+                      " formulaFootprintCell=" + (_buildMd != null ? (((realX + (_buildMd.PicDx << 4)) >> 8).ToString(CultureInfo.InvariantCulture) + "/" + ((realY + (_buildMd.PicDy << 5)) >> 8).ToString(CultureInfo.InvariantCulture)) : "<null>") +
                       " real=(" + realX.ToString(CultureInfo.InvariantCulture) + "," + realY.ToString(CultureInfo.InvariantCulture) + ")" +
                       " smartSnapped=" + confirm.SmartSnapped +
                       " created=" + created +
                       " buildersAssigned=" + assigned.ToString(CultureInfo.InvariantCulture) +
+                      " costAudit=[" + costAuditV348 + "]" +
                       " createAudit=[" + createAudit + "]" +
                       " eraseAudit=[" + eraseAudit + "]" +
                       " assignAudit=[" + assignAudit + "]");
 
-            if (created && !ShiftHeldLikeOriginal())
+            if (created && !_editorInstantPlacementV377 && !ShiftHeldLikeOriginal())
                 StopPreview();
         }
 
+
+
+        private void ApplyPlacementCheckStateV255LikeOriginal(C2BattleTerrainMode mode, C2PlacementCheckV27 check)
+        {
+            _placementCache = check;
+            _lastValid = check.Valid;
+            _lastAnchorCellX = check.AnchorCellX;
+            _lastAnchorCellY = check.AnchorCellY;
+            _lastFootprintCellX = check.FootprintCellX;
+            _lastFootprintCellY = check.FootprintCellY;
+            _lastRealX = check.RealX;
+            _lastRealY = check.RealY;
+            _lastSmartSnapped = check.SmartSnapped;
+
+            if (mode == null || _buildMd == null)
+                return;
+
+            int minLocalX;
+            int maxLocalX;
+            int minLocalY;
+            int maxLocalY;
+            _buildMd.GetPreviewBounds(out minLocalX, out maxLocalX, out minLocalY, out maxLocalY);
+
+            UpdatePreviewMeshLikeOriginal(mode, check.FootprintCellX, check.FootprintCellY, minLocalX, maxLocalX, minLocalY, maxLocalY, check.Valid);
+            UpdateGhostMeshLikeOriginal(mode, check.RealX, check.RealY, check.Valid);
+            UpdateCheckpointsDebugOverlayV58LikeOriginal();
+        }
+
+        private static string C2PlacementV287PairLikeOriginal(int x, int y)
+        {
+            return "(" + x.ToString(CultureInfo.InvariantCulture) + "/" + y.ToString(CultureInfo.InvariantCulture) + ")";
+        }
+
+        private string BuildPlacementAnchorAuditV287LikeOriginal(
+            string eventName,
+            int mouseRealX,
+            int mouseRealY,
+            int candidateBeforeRealX,
+            int candidateBeforeRealY,
+            int previewGhostRealX,
+            int previewGhostRealY,
+            string previewGhostSource,
+            ref C2PlacementCheckV27 check,
+            string extra)
+        {
+            int formulaFootprintX = _buildMd != null ? ((check.RealX + (_buildMd.PicDx << 4)) >> 8) : int.MinValue;
+            int formulaFootprintY = _buildMd != null ? ((check.RealY + (_buildMd.PicDy << 5)) >> 8) : int.MinValue;
+            int formulaAnchorX = check.RealX >> 8;
+            int formulaAnchorY = check.RealY >> 8;
+
+            bool ghostEqCandidateAfter = previewGhostRealX == check.RealX && previewGhostRealY == check.RealY;
+            bool footprintEqFormula = formulaFootprintX == check.FootprintCellX && formulaFootprintY == check.FootprintCellY;
+            bool anchorEqFormula = formulaAnchorX == check.AnchorCellX && formulaAnchorY == check.AnchorCellY;
+            bool beforeEqAfter = candidateBeforeRealX == check.RealX && candidateBeforeRealY == check.RealY;
+
+            string heightAudit = BuildHeightAuditLikeOriginal(ref check);
+            string checkAudit = BuildCheckBoxAuditLikeOriginal(ref check);
+
+            return "[C2:PLACEMENT ANCHOR AUDIT V287 " + eventName + "] unit='" + _unitId +
+                   "' md='" + _mdName +
+                   "' mouseReal=" + C2PlacementV287PairLikeOriginal(mouseRealX, mouseRealY) +
+                   " candidateRealBefore=" + C2PlacementV287PairLikeOriginal(candidateBeforeRealX, candidateBeforeRealY) +
+                   " candidateRealAfter=" + C2PlacementV287PairLikeOriginal(check.RealX, check.RealY) +
+                   " previewGhostReal=" + C2PlacementV287PairLikeOriginal(previewGhostRealX, previewGhostRealY) +
+                   " previewGhostSource=" + previewGhostSource +
+                   " eq_before_after=" + beforeEqAfter +
+                   " eq_ghost_after=" + ghostEqCandidateAfter +
+                   " anchorCell=" + check.AnchorCellX.ToString(CultureInfo.InvariantCulture) + "/" + check.AnchorCellY.ToString(CultureInfo.InvariantCulture) +
+                   " formulaAnchorCell=" + formulaAnchorX.ToString(CultureInfo.InvariantCulture) + "/" + formulaAnchorY.ToString(CultureInfo.InvariantCulture) +
+                   " eq_anchor_formula=" + anchorEqFormula +
+                   " footprintCell=" + check.FootprintCellX.ToString(CultureInfo.InvariantCulture) + "/" + check.FootprintCellY.ToString(CultureInfo.InvariantCulture) +
+                   " formulaFootprintCell=" + formulaFootprintX.ToString(CultureInfo.InvariantCulture) + "/" + formulaFootprintY.ToString(CultureInfo.InvariantCulture) +
+                   " eq_footprint_formula=" + footprintEqFormula +
+                   " valid=" + check.Valid +
+                   " smartSnapped=" + check.SmartSnapped +
+                   " smartDelta=" + check.SmartDx.ToString(CultureInfo.InvariantCulture) + "/" + check.SmartDy.ToString(CultureInfo.InvariantCulture) +
+                   " rawHeightDelta=" + check.HeightDeltaRaw.ToString(CultureInfo.InvariantCulture) +
+                   " shiftedHeightDelta=" + check.HeightDelta.ToString(CultureInfo.InvariantCulture) +
+                   " missingHeight=" + check.CheckMissingHeightHits.ToString(CultureInfo.InvariantCulture) +
+                   " checkOutOfMap=" + check.CheckMapBoundsHits.ToString(CultureInfo.InvariantCulture) +
+                   " reason='" + (check.Reason ?? string.Empty) + "'" +
+                   (!string.IsNullOrEmpty(heightAudit) ? " " + heightAudit : string.Empty) +
+                   (!string.IsNullOrEmpty(checkAudit) ? " " + checkAudit : string.Empty) +
+                   (!string.IsNullOrEmpty(extra) ? " " + extra : string.Empty);
+        }
 
         private void ConsumeLegacyHudStaticRequestLikeOriginal()
         {
@@ -408,24 +628,29 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _buildMd.GetPreviewBounds(out minLocalX, out maxLocalX, out minLocalY, out maxLocalY);
 
             C2PlacementCheckV27 check = CachedCheckPlacementLikeOriginal(mode, mouseRealX, mouseRealY, false);
-            _lastValid = check.Valid;
-            _lastAnchorCellX = check.AnchorCellX;
-            _lastAnchorCellY = check.AnchorCellY;
-            _lastFootprintCellX = check.FootprintCellX;
-            _lastFootprintCellY = check.FootprintCellY;
-            _lastRealX = check.RealX;
-            _lastRealY = check.RealY;
-            _lastSmartSnapped = check.SmartSnapped;
-
-            UpdatePreviewMeshLikeOriginal(mode, check.FootprintCellX, check.FootprintCellY, minLocalX, maxLocalX, minLocalY, maxLocalY, check.Valid);
-            UpdateGhostMeshLikeOriginal(mode, check.RealX, check.RealY, check.Valid);
-            UpdateCheckpointsDebugOverlayV58LikeOriginal();
+            ApplyPlacementCheckStateV255LikeOriginal(mode, check);
 
             string sig = _mdName + "|" + check.RealX.ToString(CultureInfo.InvariantCulture) + "|" + check.RealY.ToString(CultureInfo.InvariantCulture) + "|" + check.Valid + "|" + (check.Reason ?? string.Empty);
             if (VerboseHoverLogLikeOriginal && (Time.realtimeSinceStartup >= _nextHoverLog || sig != _lastHoverSig))
             {
                 _nextHoverLog = Time.realtimeSinceStartup + 0.35f;
                 _lastHoverSig = sig;
+
+                int previewGhostRealXV287 = _ghostCompositeReady ? _ghostCompositeRealX : check.RealX;
+                int previewGhostRealYV287 = _ghostCompositeReady ? _ghostCompositeRealY : check.RealY;
+                string previewGhostSourceV287 = _ghostCompositeReady ? "composite" : "fallback_or_requested";
+                Debug.Log(BuildPlacementAnchorAuditV287LikeOriginal(
+                    "HOVER",
+                    mouseRealX,
+                    mouseRealY,
+                    mouseRealX,
+                    mouseRealY,
+                    previewGhostRealXV287,
+                    previewGhostRealYV287,
+                    previewGhostSourceV287,
+                    ref check,
+                    "camera='" + (usedCamera != null ? usedCamera.name : "<none>") +
+                    "' ghostCompositeAudit='" + _ghostCompositeAudit + "'"));
 
                 Debug.Log("[C2:BUILD PREVIEW V44 HOVER] unit='" + _unitId +
                           "' md='" + _mdName +
@@ -440,6 +665,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                           " reason='" + (check.Reason ?? string.Empty) + "'" +
                           " blockedCells=" + check.BlockedCells.ToString(CultureInfo.InvariantCulture) +
                           " roadHits=" + check.RoadHits.ToString(CultureInfo.InvariantCulture) +
+                          " waterHits=" + check.WaterHits.ToString(CultureInfo.InvariantCulture) +
                           " buildingHits=" + check.BuildingHits.ToString(CultureInfo.InvariantCulture) +
                           " stonesOrOre=" + check.StoneOrOreHits.ToString(CultureInfo.InvariantCulture) +
                           " foodOrComplex=" + check.FoodHits.ToString(CultureInfo.InvariantCulture) +
@@ -453,6 +679,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 _nextHoverLog = Time.realtimeSinceStartup + 0.25f;
                 _lastHoverSig = sig;
+
+                int previewGhostRealXV287 = _ghostCompositeReady ? _ghostCompositeRealX : check.RealX;
+                int previewGhostRealYV287 = _ghostCompositeReady ? _ghostCompositeRealY : check.RealY;
+                string previewGhostSourceV287 = _ghostCompositeReady ? "composite" : "fallback_or_requested";
+                Debug.Log(BuildPlacementAnchorAuditV287LikeOriginal(
+                    "HOVER",
+                    mouseRealX,
+                    mouseRealY,
+                    mouseRealX,
+                    mouseRealY,
+                    previewGhostRealXV287,
+                    previewGhostRealYV287,
+                    previewGhostSourceV287,
+                    ref check,
+                    "camera='" + (usedCamera != null ? usedCamera.name : "<none>") +
+                    "' ghostCompositeAudit='" + _ghostCompositeAudit + "'"));
+
                 Debug.Log("[C2:BUILD PREVIEW V44 HOVER STATE] unit='" + _unitId +
                           "' md='" + _mdName +
                           "' valid=" + check.Valid +
@@ -465,6 +708,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private C2PlacementCheckV27 CachedCheckPlacementLikeOriginal(C2BattleTerrainMode mode, int realX, int realY, bool allowSmartSnap)
         {
+            float perfStart = Time.realtimeSinceStartup;
             RefreshRuntimeBlockerCacheLikeOriginal(false);
 
             int footprintCellX = (realX + (_buildMd.PicDx << 4)) >> 8;
@@ -489,6 +733,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     cached.FootprintCellX = footprintCellX;
                     cached.FootprintCellY = footprintCellY;
                 }
+                MarkPlacementPerfEventLikeOriginal(cached, true, perfStart, allowSmartSnap);
                 return cached;
             }
 
@@ -500,7 +745,42 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _placementCacheSnapCellY = snapCellY;
             _placementCacheBlockerVersion = _runtimeBlockerCacheVersion;
             _hasPlacementCache = true;
+            MarkPlacementPerfEventLikeOriginal(check, false, perfStart, allowSmartSnap);
             return check;
+        }
+
+        private void MarkPlacementPerfEventLikeOriginal(C2PlacementCheckV27 check, bool cacheHit, float startRealtime, bool allowSmartSnap)
+        {
+            float elapsedMs = Mathf.Max(0.0f, (Time.realtimeSinceStartup - startRealtime) * 1000.0f);
+            string reason = ShortPerfTextLikeOriginal(check.Reason, 90);
+            C2RuntimeDiagnosticsV1.MarkPerfEvent(
+                "BUILD_PREVIEW_CHECK",
+                "unit='" + _unitId +
+                "' md='" + _mdName +
+                "' cache=" + (cacheHit ? "hit" : "miss") +
+                " smartProbe=" + allowSmartSnap +
+                " valid=" + check.Valid +
+                " real=(" + check.RealX.ToString(CultureInfo.InvariantCulture) + "," + check.RealY.ToString(CultureInfo.InvariantCulture) + ")" +
+                " checkPts=" + check.CheckPointCount.ToString(CultureInfo.InvariantCulture) +
+                " samples=" + check.CheckSamples.ToString(CultureInfo.InvariantCulture) +
+                " missingHeight=" + check.CheckMissingHeightHits.ToString(CultureInfo.InvariantCulture) +
+                " blockers=" + check.BlockedCells.ToString(CultureInfo.InvariantCulture) +
+                " road=" + check.RoadHits.ToString(CultureInfo.InvariantCulture) +
+                " water=" + check.WaterHits.ToString(CultureInfo.InvariantCulture) +
+                " buildings=" + check.BuildingHits.ToString(CultureInfo.InvariantCulture) +
+                " reason='" + reason + "'",
+                elapsedMs);
+        }
+
+        private static string ShortPerfTextLikeOriginal(string text, int maxChars)
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+            string s = text.Replace('\r', ' ').Replace('\n', ' ');
+            int safeMax = Mathf.Max(8, maxChars);
+            if (s.Length <= safeMax)
+                return s;
+            return s.Substring(0, safeMax) + "...";
         }
 
         private C2PlacementCheckV27 CheckPlacementLikeOriginal(C2BattleTerrainMode mode, int realX, int realY)
@@ -533,6 +813,31 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             return initial;
+        }
+
+        // Rasterize converted MD cell rectangles, preserving the authored contour.
+        // This is also used for the visible preview, so it cannot show a smaller
+        // footprint than the cells checked at confirmation/used by the placed building.
+        private static List<Vector2Int> ConvertFootprintCellsToMapLikeOriginal(
+            C2BattleTerrainMode mode, int realX, int realY, int cornerX, int cornerY, IList<Vector2Int> points)
+        {
+            var result = new List<Vector2Int>();
+            if (points == null) return result;
+            var emitted = new HashSet<Vector2Int>();
+            float scale = mode != null ? mode.C2BuildingFootprintScaleLikeOriginal() : 1.0f;
+            foreach (Vector2Int point in points)
+            {
+                int cx = cornerX + point.x, cy = cornerY + point.y;
+                C2BattleTerrainMode.C2BuildingFootprintCellBoundsLikeOriginal(realX, realY, cx, cy,
+                    scale, out int x0, out int y0, out int x1, out int y1);
+                for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    var cell = new Vector2Int(x - cornerX, y - cornerY);
+                    if (emitted.Add(cell)) result.Add(cell);
+                }
+            }
+            return result;
         }
 
         private C2PlacementCheckV27 CheckPlacementAtRealLikeOriginal(C2BattleTerrainMode mode, int realX, int realY, bool smartProbe)
@@ -574,6 +879,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             List<Vector2Int> spritePts = _buildMd.CheckPoints.Count > 0 ? _buildMd.CheckPoints : _buildMd.BuildLockPoints;
             if (spritePts == null || spritePts.Count == 0) spritePts = _buildMd.LockPoints;
             if (spritePts == null || spritePts.Count == 0) spritePts = _buildMd.FallbackBoxPoints();
+            spritePts = ConvertFootprintCellsToMapLikeOriginal(mode, realX, realY, r.FootprintCellX, r.FootprintCellY, spritePts);
             int spriteStep = Mathf.Max(1, (spritePts.Count / 120) + 1);
             for (int i = 0; i < spritePts.Count; i += spriteStep)
             {
@@ -618,13 +924,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             // Motion lock and slope checks use CHECKPOINTS, like original CheckVLine/CheckHLine/maxZ-minZ.
-            // V60: check ALL points, not every N-th point. Also treat CHECKPOINTS outside height-map as invalid.
-            List<Vector2Int> checkPts = _buildMd.CheckPoints.Count > 0 ? _buildMd.CheckPoints : spritePts;
+            // V286_ORIGINAL_RAW_HEIGHT_GATE:
+            // Keep Unity visual height projection for rendering/preview only. Placement permission must use
+            // original raw GetHeight-like samples on every CHECKPOINTS point; missing height sample is invalid.
+            List<Vector2Int> checkPts = _buildMd.CheckPoints.Count > 0
+                ? ConvertFootprintCellsToMapLikeOriginal(mode, realX, realY, r.FootprintCellX, r.FootprintCellY, _buildMd.CheckPoints)
+                : spritePts;
             r.CheckPointCount = checkPts != null ? checkPts.Count : 0;
-
-            int heightMapW;
-            int heightMapH;
-            bool hasHeightMapBounds = TryGetOriginalHeightMapDimensionsLikeOriginal(mode, out heightMapW, out heightMapH);
 
             for (int i = 0; checkPts != null && i < checkPts.Count; i++)
             {
@@ -636,19 +942,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (cy < r.CheckMinCellY) r.CheckMinCellY = cy;
                 if (cx > r.CheckMaxCellX) r.CheckMaxCellX = cx;
                 if (cy > r.CheckMaxCellY) r.CheckMaxCellY = cy;
-
-                if (hasHeightMapBounds && (cx < 0 || cy < 0 || cx >= heightMapW || cy >= heightMapH))
-                {
-                    // V64:
-                    // Do not reject by full CHECKPOINTS bounds.
-                    // The original first hard map check is anchor-based:
-                    // xs=x2>>9; ys=y2>>9; if outside -> reject.
-                    // A large palace can have far CHECKPOINTS outside the raw height array near map edges,
-                    // while the visible/anchor placement is still inside the map.
-                    // Treat these points as "no height sample", not as placement blocker.
-                    r.CheckMapBoundsHits++;
-                    continue;
-                }
 
                 if (CheckVLineBlockedLikeOriginal(cx, cy - 4, 8) || CheckHLineBlockedLikeOriginal(cx - 3, cy, 6))
                 {
@@ -673,22 +966,25 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         r.HeightMaxCellY = cy;
                     }
                 }
+                else
+                {
+                    r.CheckMissingHeightHits++;
+                    r.Valid = false;
+                }
             }
 
             if (r.HeightMin != int.MaxValue && r.HeightMax != int.MinValue)
             {
-                // V63:
-                // SampleWallHeightOriginalXYV1LikeOriginal returns raw THMap height.
-                // Original screen/placement logic uses shifted terrain height (THMap >> ScShift),
-                // not the raw short value. Raw delta 100 is only about 6 screen-height units.
-                // Using raw delta made visually flat places fail as slopeHeight=100+.
+                // V286_ORIGINAL_RAW_HEIGHT_GATE:
+                // Original CheckCreationAbility rejects by raw GetHeight maxZ-minZ > 50.
+                // The shifted/visual delta is kept only for audit/preview diagnostics, not for Valid=true.
                 r.HeightDeltaRaw = Mathf.Abs(r.HeightMax - r.HeightMin);
 
                 int minPlacementH = ShiftOriginalHeightForBuildSlopeV63LikeOriginal(r.HeightMin);
                 int maxPlacementH = ShiftOriginalHeightForBuildSlopeV63LikeOriginal(r.HeightMax);
                 r.HeightDelta = Mathf.Abs(maxPlacementH - minPlacementH);
 
-                if (r.HeightDelta > 50)
+                if (r.HeightDeltaRaw > 50)
                     r.Valid = false;
             }
 
@@ -699,6 +995,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return r;
         }
 
+        private static void ScaleBuildBarToMapLikeOriginal(C2BattleTerrainMode mode, int realX, int realY, ref C2BuildBarAreaV38 area)
+        {
+            if (mode == null) return;
+            Vector2 a = mode.C2BuildingFootprintPointLikeOriginal(realX, realY, area.X0 / 16.0f, area.Y0 / 16.0f);
+            Vector2 b = mode.C2BuildingFootprintPointLikeOriginal(realX, realY, area.X1 / 16.0f, area.Y1 / 16.0f);
+            area.X0 = Mathf.RoundToInt(a.x * 16.0f); area.Y0 = Mathf.RoundToInt(a.y * 16.0f);
+            area.X1 = Mathf.RoundToInt(b.x * 16.0f); area.Y1 = Mathf.RoundToInt(b.y * 16.0f);
+        }
+
         private void ApplyOriginalBuildBarRoadAndBuildingBlockersLikeOriginal(C2BattleTerrainMode mode, int realX, int realY, ref C2PlacementCheckV27 r)
         {
             if (mode == null || _buildMd == null) return;
@@ -707,6 +1012,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!_buildMd.TryGetOriginalBuildBarArea(realX, realY, out candidate))
                 return;
 
+            ScaleBuildBarToMapLikeOriginal(mode, realX, realY, ref candidate);
             // Original CheckRoadsInArea is driven by BUILDBAR, not by visual sprite bounds.
             int roadHits = CountOriginalRoadCellsInBuildBarLikeOriginal(candidate);
             if (roadHits > 0)
@@ -829,18 +1135,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static bool TrySampleOriginalHeightAtCellLikeOriginal(C2BattleTerrainMode mode, int cx, int cy, out int h)
         {
-            // V62:
-            // Do NOT read map.Heights[cy * VertInLine + cx] directly for building CHECKPOINTS.
-            // That desynced with the visual terrain/units placement surface.
-            // First use the same terrain height sampler path used by visual objects:
-            // C2BattleTerrainMode.SampleWallHeightOriginalXYV1LikeOriginal(originalX, originalY).
+            // V286_ORIGINAL_RAW_HEIGHT_GATE:
+            // Use the engine-like GetHeight(originalX, originalY) route. In this Unity port the public
+            // SampleWallHeightOriginalXYV1LikeOriginal method performs the same coordinate mapping and
+            // returns raw THMap-style height. Do not validate placement by shifted visual height.
             //
             // Original coords convention already used by our overlay/world placement:
             // cell -> original pixel XY = cell * 16.
             if (TrySampleVisualSurfaceHeightAtCellV62LikeOriginal(mode, cx, cy, out h))
                 return true;
 
-            // Safe fallback for older builds where the visual sampler method is absent.
+            // Safe fallback for older builds where the GetHeight-like sampler method is absent.
             return TrySampleRawTHMapHeightAtCellV62FallbackLikeOriginal(mode, cx, cy, out h);
         }
 
@@ -1052,6 +1357,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int cmaxY = Mathf.CeilToInt(maxY / (float)MotionCellOriginalPixels) + 1;
 
             int hits = 0;
+            int ignoredShallow = 0;
             int guard = 0;
             for (int cy = cminY; cy <= cmaxY; cy++)
             {
@@ -1078,9 +1384,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     try { d = Convert.ToInt32(v, CultureInfo.InvariantCulture); }
                     catch { d = 0; }
 
-                    // SEA2 WaterDeep==0 means no water. Any non-zero water coverage blocks building placement.
                     if (d <= 0)
                         continue;
+
+                    // V254:
+                    // On Skirmish2/forest areas WaterDeep has many non-zero shallow values.
+                    // Treating any non-zero value as water produced false "water=64" on land/forest.
+                    // Only hard water/deep sea values block ordinary placement here.
+                    if (d < PlacementSea2HardWaterDepthV254LikeOriginal)
+                    {
+                        ignoredShallow++;
+                        continue;
+                    }
 
                     hits++;
                     if (hits >= 64) return hits;
@@ -1208,19 +1523,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 string audit = string.Empty;
                 if (r.WoodHits > 0) audit += " woodEraseOk=" + r.WoodHits.ToString(CultureInfo.InvariantCulture);
                 if (r.StoneOrOreHits > 0) audit += " stoneOreAuditOnly=" + r.StoneOrOreHits.ToString(CultureInfo.InvariantCulture);
-                if (r.HeightDelta > 0) audit += " " + heightAudit;
+                if (r.HeightDeltaRaw > 0 || r.HeightDelta > 0) audit += " " + heightAudit;
                 if (!string.IsNullOrEmpty(checkAudit)) audit += " " + checkAudit;
-                if (r.CheckMapBoundsHits > 0) audit += " checkOutOfMapSkipped=" + r.CheckMapBoundsHits.ToString(CultureInfo.InvariantCulture);
+                if (r.CheckMapBoundsHits > 0) audit += " checkOutOfMap=" + r.CheckMapBoundsHits.ToString(CultureInfo.InvariantCulture);
+                if (r.CheckMissingHeightHits > 0) audit += " missingHeight=" + r.CheckMissingHeightHits.ToString(CultureInfo.InvariantCulture);
                 return "OK" + audit;
             }
 
             List<string> parts = new List<string>(8);
             if (r.BlockedCells > 0) parts.Add("motionField/lockpoints=" + r.BlockedCells.ToString(CultureInfo.InvariantCulture));
             if (r.BuildingHits > 0) parts.Add("existingBuilding=" + r.BuildingHits.ToString(CultureInfo.InvariantCulture));
-            if (r.HeightDelta > 50) parts.Add("slopeHeight=" + r.HeightDelta.ToString(CultureInfo.InvariantCulture));
+            if (r.HeightDeltaRaw > 50) parts.Add("slopeRawHeight=" + r.HeightDeltaRaw.ToString(CultureInfo.InvariantCulture));
+            else if (r.HeightDelta > 50) parts.Add("slopeVisualHeight=" + r.HeightDelta.ToString(CultureInfo.InvariantCulture));
             if (r.MapBoundsHits > 0) parts.Add("mapBounds=" + r.MapBoundsHits.ToString(CultureInfo.InvariantCulture));
+            if (r.CheckMapBoundsHits > 0) parts.Add("checkOutOfMap=" + r.CheckMapBoundsHits.ToString(CultureInfo.InvariantCulture));
+            if (r.CheckMissingHeightHits > 0) parts.Add("missingHeight=" + r.CheckMissingHeightHits.ToString(CultureInfo.InvariantCulture));
             if (r.RoadHits > 0) parts.Add("road=" + r.RoadHits.ToString(CultureInfo.InvariantCulture));
-            if (r.WaterHits > 0) parts.Add("water=" + r.WaterHits.ToString(CultureInfo.InvariantCulture));
+            if (r.WaterHits > 0) parts.Add("deepWater=" + r.WaterHits.ToString(CultureInfo.InvariantCulture));
             if (r.FoodHits > 0) parts.Add("fieldFood=" + r.FoodHits.ToString(CultureInfo.InvariantCulture));
             if (parts.Count == 0) parts.Add("unknown");
             if (!string.IsNullOrEmpty(heightAudit)) parts.Add(heightAudit);
@@ -1235,7 +1554,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (r.HeightMin == int.MaxValue || r.HeightMax == int.MinValue)
                 return string.Empty;
 
-            return "heightVisualShifted[minRaw=" + r.HeightMin.ToString(CultureInfo.InvariantCulture) +
+            return "heightRawGateV286[minRaw=" + r.HeightMin.ToString(CultureInfo.InvariantCulture) +
                    "@" + r.HeightMinCellX.ToString(CultureInfo.InvariantCulture) +
                    "/" + r.HeightMinCellY.ToString(CultureInfo.InvariantCulture) +
                    " maxRaw=" + r.HeightMax.ToString(CultureInfo.InvariantCulture) +
@@ -1283,6 +1602,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2BuildBarAreaV38 area;
                 if (md != null && md.Found && md.TryGetOriginalBuildBarArea(b.RealX, b.RealY, out area))
                 {
+                    ScaleBuildBarToMapLikeOriginal(b.OwnerMode, b.RealX, b.RealY, ref area);
                     area.Audit = "building idx=" + b.RecordIndex.ToString(CultureInfo.InvariantCulture) + " md='" + mdName + "'";
                     _runtimeBuildingBuildBarsV38.Add(area);
                     continue;
@@ -1789,22 +2109,44 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 string.Equals(_ghostCompositeMdName, _mdName, StringComparison.OrdinalIgnoreCase) &&
                 _ghostCompositeNation == _nation)
             {
-                if (_ghostCompositeRealX != realX || _ghostCompositeRealY != realY)
-                    ShiftGhostCompositeLikeOriginal(mode, _ghostCompositeRealX, _ghostCompositeRealY, realX, realY);
-                if (_ghostCompositeValid != valid)
+                bool samePlacementV288 =
+                    _ghostCompositeRealX == realX &&
+                    _ghostCompositeRealY == realY &&
+                    _ghostCompositeValid == valid;
+
+                if (samePlacementV288)
+                {
+                    // V255: always re-apply tint. Runtime renderer/material rebuilds can clear property blocks
+                    // during the same click frame; invalid placement must stay visibly red.
                     ApplyGhostCompositeTintLikeOriginal(_ghostRoot.transform, valid);
 
-                _ghostCompositeRealX = realX;
-                _ghostCompositeRealY = realY;
-                _ghostCompositeValid = valid;
-                if (_ghostMeshRenderer != null) _ghostMeshRenderer.enabled = false;
-                if (!_ghostRoot.activeSelf) _ghostRoot.SetActive(true);
-                return true;
+                    _ghostCompositeAudit = _ghostCompositeAudit + " | V288_same_real_reused";
+                    if (_ghostMeshRenderer != null) _ghostMeshRenderer.enabled = false;
+                    if (!_ghostRoot.activeSelf) _ghostRoot.SetActive(true);
+                    return true;
+                }
+
+                // V288:
+                // The old preview moved an already-built composite by shifting child world positions.
+                // That was unsafe for the pseudo-3D building renderer: the root/base coordinate and
+                // the child geometry could disagree, so the visible ghost could remain at a previous real
+                // while hover/confirm/create used the new real. Rebuild the composite from the exact
+                // candidate real instead; this keeps previewGhostReal == confirmReal == createdReal.
+                ClearGhostCompositeLikeOriginal();
             }
+
+            // The fallback quad stores its world position on this same root.  The C2 composite
+            // renderer creates children at absolute map positions, so carrying that fallback
+            // transform into the composite preview shifts every child a second time whenever the
+            // preview path changes.  Keep the composite container neutral before rebuilding it.
+            Transform compositeRootV380 = _ghostRoot.transform;
+            compositeRootV380.localPosition = Vector3.zero;
+            compositeRootV380.localRotation = Quaternion.identity;
+            compositeRootV380.localScale = Vector3.one;
 
             string audit;
             bool ok = mode.C2BuildRuntimeDrawGhostCompositeLikeOriginal(
-                _ghostRoot.transform,
+                compositeRootV380,
                 _mdName,
                 _nation,
                 realX,
@@ -1813,7 +2155,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 "placement-preview-v39",
                 out audit);
 
-            _ghostCompositeAudit = audit;
+            _ghostCompositeAudit = (audit ?? string.Empty) +
+                                    " | V288_rebuilt_from_exact_preview_real real=(" +
+                                    realX.ToString(CultureInfo.InvariantCulture) + "," +
+                                    realY.ToString(CultureInfo.InvariantCulture) + ")";
             _ghostCompositeReady = ok;
             _ghostCompositeRealX = realX;
             _ghostCompositeRealY = realY;
@@ -1824,6 +2169,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!ok)
                 return false;
 
+            ApplyGhostCompositeTintLikeOriginal(_ghostRoot.transform, valid);
             if (_ghostMeshRenderer != null) _ghostMeshRenderer.enabled = false;
             if (!_ghostRoot.activeSelf) _ghostRoot.SetActive(true);
             if (_root != null) _root.SetActive(false);
@@ -2462,14 +2808,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static float SelectedPlaneYLikeOriginal()
         {
-            C2NeutralPeasantUnitInfoV2LikeOriginal[] all = FindObjectsOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] all = C2NeutralPeasantUnitInfoV2LikeOriginal.C2GetActiveUnitsSnapshotV359LikeOriginal();
             float sum = 0.0f;
             int count = 0;
             for (int i = 0; all != null && i < all.Length; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = all[i];
                 if (u == null || !u.IsSelected) continue;
-                sum += u.transform.position.y;
+                sum += u.WorldPositionLikeOriginal.y;
                 count++;
             }
             return count > 0 ? sum / count : 0.0f;
@@ -2618,9 +2964,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int maxHY = int.MinValue;
             int samples = 0;
 
-            for (int i = 0; i < _buildMd.CheckPoints.Count; i++)
+            List<Vector2Int> overlayCells = ConvertFootprintCellsToMapLikeOriginal(mode, _lastRealX, _lastRealY,
+                _lastFootprintCellX, _lastFootprintCellY, _buildMd.CheckPoints);
+            for (int i = 0; i < overlayCells.Count; i++)
             {
-                Vector2Int p = _buildMd.CheckPoints[i];
+                Vector2Int p = overlayCells[i];
                 int gx = _lastFootprintCellX + p.x;
                 int gy = _lastFootprintCellY + p.y;
 
@@ -2800,6 +3148,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             for (int i = _ghostRoot.transform.childCount - 1; i >= 0; i--)
             {
                 GameObject child = _ghostRoot.transform.GetChild(i).gameObject;
+                if (child != null)
+                    child.SetActive(false); // V288: prevent one-frame stale ghost while Destroy is deferred.
                 if (Application.isPlaying) Destroy(child);
                 else DestroyImmediate(child);
             }
@@ -2823,6 +3173,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int CheckPointCount;
             public int CheckSamples;
             public int CheckMapBoundsHits;
+            public int CheckMissingHeightHits;
             public int CheckMinCellX;
             public int CheckMinCellY;
             public int CheckMaxCellX;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +9,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 using Cossacks2Bridge.Core;
+using Cossacks2Bridge.UnityAdapters;
 using TemnyLessCodec; // com.temnyless.codec (Melinoja.dll) facade
 
 namespace Cossacks2Bridge.UnityAdapters.AddProfile
@@ -48,22 +49,8 @@ namespace Cossacks2Bridge.UnityAdapters.AddProfile
         private static void LogW(string msg) { if (DBG) Debug.LogWarning("[AddProfile] " + msg); }
         private static void LogE(string msg) { Debug.LogError("[AddProfile] " + msg); }
 
-        // Nation order as in original AddProfile combo
-        private static readonly string[] NationIdOrder =
-        {
-            "FRANCE", "RUSSIA", "ENGLAND", "PRUSSIA", "AUSTRIA", "EGIPET"
-        };
-
-        // heroinf.dat mapping fallback EN=0 FR=1 RU=2 AU=3 PR=4 EG=5
-        private static readonly Dictionary<string, int> HeroInfIndexFallback = new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "EN", 0 },
-            { "FR", 1 },
-            { "RU", 2 },
-            { "AU", 3 },
-            { "PR", 4 },
-            { "EG", 5 },
-        };
+        // V392: nation order/metadata are owned by Menu14ActionStateRuntime.
+        // No second nation array is kept in the portrait controller.
 
         private CoreFileSystem _fs;
         private LocDb _loc;
@@ -86,6 +73,7 @@ namespace Cossacks2Bridge.UnityAdapters.AddProfile
 
         private int _currentNationIdx;
         private int _currentHeroIdx;
+        public static int CurrentHeroIndex { get; private set; }
         private Sprite[] _currentPortraitSprites;
 
         private readonly Dictionary<string, Sprite[]> _portraitCache = new(StringComparer.OrdinalIgnoreCase);
@@ -126,7 +114,8 @@ private void Start()
     _portraitBorderFrame = borderGO != null ? borderGO.GetComponent<RectTransform>() : null;
     _portraitSlot = slotGO != null ? slotGO.GetComponent<RectTransform>() : null;
 
-    _portraitImage = EnsurePortraitImage(_portraitSlot);
+    _portraitImage = BindXmlPortraitImage(_portraitSlot);
+
     _descText = FindDescText();
     _descScroll = _descText != null ? _descText.GetComponentInParent<ScrollRect>() : null;
 
@@ -134,7 +123,8 @@ private void Start()
     _portraitScroll = scrollGO != null ? (scrollGO.GetComponent<HorizontalScrollbarController>() ?? scrollGO.GetComponentInChildren<HorizontalScrollbarController>(true)) : null;
     Log($"Find portrait HScroll 'HScroll_ProfAdd_PortScr': {_portraitScroll != null}");
 
-    HookNationCombo();
+    Menu14ActionStateRuntime.ProfileNationChanged -= OnProfileNationChanged;
+    Menu14ActionStateRuntime.ProfileNationChanged += OnProfileNationChanged;
     HookPortraitScroller();
 
     // First pass.
@@ -142,7 +132,7 @@ private void Start()
     RestylePortraitScroller();
     RestyleDescriptionScroller();
 
-    _currentNationIdx = GuessNationIndexFromComboText() ?? 0;
+    _currentNationIdx = Menu14ActionStateRuntime.CurrentProfileNationIndex;
     ApplyNation(_currentNationIdx, resetHero: true);
 }
 
@@ -168,31 +158,32 @@ private void LateUpdate()
         _didLateRestyle = true;
     }
 }
-        private static Image EnsurePortraitImage(RectTransform portraitFrame)
+        private static Image BindXmlPortraitImage(RectTransform portraitSlot)
         {
-            if (portraitFrame == null) return null;
+            if (portraitSlot == null) return null;
 
-            var existing = portraitFrame.Find("PortraitImage");
-            if (existing != null)
+            // V395C created an extra child Image named PortraitImage on top of the
+            // real XML GPPicture. M_PROF_ADD already owns the portrait GPPicture;
+            // original cva_ProfAdd_Port only changes its FileID/SpriteID.
+            Transform legacy = portraitSlot.Find("PortraitImage");
+            if (legacy != null)
             {
-                var img = existing.GetComponent<Image>();
-                if (img != null) return img;
+#if UNITY_EDITOR
+                if (!Application.isPlaying) UnityEngine.Object.DestroyImmediate(legacy.gameObject);
+                else UnityEngine.Object.Destroy(legacy.gameObject);
+#else
+                UnityEngine.Object.Destroy(legacy.gameObject);
+#endif
             }
 
-            var go = new GameObject("PortraitImage", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(portraitFrame, false);
-
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(3, 3);
-            rt.offsetMax = new Vector2(-3, -3);
-
-            var image = go.GetComponent<Image>();
-            image.type = Image.Type.Simple;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-            image.color = Color.white;
+            Image image = portraitSlot.GetComponent<Image>();
+            if (image != null)
+            {
+                image.type = Image.Type.Simple;
+                image.preserveAspect = false;
+                image.raycastTarget = false;
+                image.color = Color.white;
+            }
             return image;
         }
 
@@ -626,10 +617,12 @@ private void BuildDescriptionUi()
     rt.pivot = new Vector2(0, 1);
     rt.anchoredPosition = new Vector2(0f, 0f);
     rt.sizeDelta = DescTextSize;
-    _descText.enableWordWrapping = true;
+    _descText.richText = true;
+    _descText.fontSize = 14f;
+    _descText.textWrappingMode = TextWrappingModes.Normal;
     _descText.overflowMode = TextOverflowModes.Overflow;
     _descText.raycastTarget = false;
-    _descText.color = new Color32(32, 24, 20, 255);
+    _descText.color = new Color32(0x2E, 0x23, 0x17, 0xFF);
 
     BuildDescriptionScrollbar();
     RefreshDescriptionScrollRange();
@@ -783,59 +776,9 @@ private static void RemoveChildIfExists(RectTransform parent, string childName)
             return go.GetComponentsInChildren<TextMeshProUGUI>(true).FirstOrDefault();
         }
 
-        private void HookNationCombo()
-        {
-            var comboGO = GameObject.Find("ComboBox_ProfAdd_Race");
-            if (comboGO == null)
-            {
-                LogW("ComboBox_ProfAdd_Race not found");
-                return;
-            }
-
-            var c = comboGO.GetComponentsInChildren<MonoBehaviour>(true)
-                .FirstOrDefault(mb => mb != null && mb.GetType().Name.Contains("ComboBoxController"));
-            if (c == null)
-            {
-                LogW("ComboBoxController not found on ComboBox_ProfAdd_Race");
-                return;
-            }
-
-            var field = c.GetType().GetField("OnSelected");
-            if (field == null)
-            {
-                LogW("ComboBoxController.OnSelected field not found (reflection)");
-                return;
-            }
-
-            Action<int, string> handler = (index, _text) =>
-            {
-                _currentNationIdx = Mathf.Clamp(index, 0, NationIdOrder.Length - 1);
-                ApplyNation(_currentNationIdx, resetHero: true);
-            };
-
-            try
-            {
-                // If field is exactly Action<int,string> (or compatible) - assign directly
-                if (field.FieldType.IsAssignableFrom(handler.GetType()))
-                {
-                    field.SetValue(c, handler);
-                }
-                else
-                {
-                    // Create delegate of required type if possible
-                    var del = Delegate.CreateDelegate(field.FieldType, handler.Target, handler.Method, throwOnBindFailure: false);
-                    if (del != null) field.SetValue(c, del);
-                    else LogW($"OnSelected type mismatch: fieldType={field.FieldType.FullName}");
-                }
-
-                Log("Nation combo hooked");
-            }
-            catch (Exception e)
-            {
-                LogW("HookNationCombo failed: " + e.Message);
-            }
-        }
-
+        // V392A: restored after the V392 nation-runtime refactor.
+        // This is not nation-source logic; it only binds the existing XML HScroll
+        // to the current hero index.
         private void HookPortraitScroller()
         {
             if (_portraitScroll == null) return;
@@ -843,46 +786,35 @@ private static void RemoveChildIfExists(RectTransform parent, string childName)
             _portraitScroll.OnValueChanged += pos =>
             {
                 _currentHeroIdx = Mathf.Clamp(pos, 0, _portraitScroll.Max);
+                CurrentHeroIndex = _currentHeroIdx;
                 ApplyHero(_currentNationIdx, _currentHeroIdx);
             };
 
             Log("Portrait scroller hooked");
         }
 
-        private int? GuessNationIndexFromComboText()
+        private void OnProfileNationChanged(int index)
         {
-            var selectedText = GameObject.Find("ComboBox_ProfAdd_Race")
-                ?.GetComponentsInChildren<TextMeshProUGUI>(true)
-                .FirstOrDefault(t => t != null && t.gameObject.name == "SelectedText");
-
-            if (selectedText == null) return null;
-
-            string val = (selectedText.text ?? "").Trim();
-            if (string.IsNullOrEmpty(val)) return null;
-
-            // Map displayed strings back to our fixed order by loc keys (fallback: compare localized)
-            for (int i = 0; i < NationIdOrder.Length; i++)
-            {
-                string nationId = NationIdOrder[i];
-                string key = $"#Nation_{nationId}";
-                string loc = _loc?.Resolve(key) ?? "";
-                if (!string.IsNullOrEmpty(loc) && string.Equals(loc.Trim(), val, StringComparison.OrdinalIgnoreCase))
-                    return i;
-            }
-
-            return null;
+            _currentNationIdx = index;
+            ApplyNation(_currentNationIdx, resetHero: true);
         }
 
         private void ApplyNation(int nationIdx, bool resetHero)
         {
+            if (!Menu14ActionStateRuntime.TryGetNationRecord(nationIdx, out var nation))
+            {
+                LogW($"ApplyNation ignored: no source-bound nation record for index={nationIdx}");
+                return;
+            }
+
+            _currentNationIdx = nation.Index;
+
             if (_portraitImage == null) return;
 
-            string nationId = NationIdOrder[Mathf.Clamp(nationIdx, 0, NationIdOrder.Length - 1)];
-
-            if (!_portraitCache.TryGetValue(nationId, out _currentPortraitSprites))
+            if (!_portraitCache.TryGetValue(nation.Id, out _currentPortraitSprites))
             {
-                _currentPortraitSprites = LoadNationPortraitSprites(nationId);
-                _portraitCache[nationId] = _currentPortraitSprites;
+                _currentPortraitSprites = LoadNationPortraitSprites(nation);
+                _portraitCache[nation.Id] = _currentPortraitSprites;
             }
 
             int maxHero = Mathf.Max(0, (_currentPortraitSprites?.Length ?? 1) - 1);
@@ -893,8 +825,13 @@ private static void RemoveChildIfExists(RectTransform parent, string childName)
             }
 
             if (resetHero) _currentHeroIdx = 0;
-            ApplyHero(nationIdx, _currentHeroIdx);
+            CurrentHeroIndex = _currentHeroIdx;
+            ApplyHero(_currentNationIdx, _currentHeroIdx);
+
+            Log($"ApplyNation index={nation.Index} id='{nation.Id}' portrait='{nation.PortraitRel}' source='{Menu14ActionStateRuntime.CurrentSourceBundleId}'");
         }
+
+
 
 
 private void ApplyHero(int nationIdx, int heroIdx)
@@ -910,32 +847,15 @@ private void ApplyHero(int nationIdx, int heroIdx)
             spr = _currentPortraitSprites[idx];
         }
 
+        // Original cva_ProfAdd_Port mutates the XML GPPicture in-place.
+        // Keep its exact XML rect (111x124 at x=4,y=3); never SetNativeSize and
+        // never create/scale a second Image on top of it.
         _portraitImage.sprite = spr;
         _portraitImage.enabled = spr != null;
-
-        if (spr != null)
-        {
-            _portraitImage.SetNativeSize();
-            var rt = _portraitImage.rectTransform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
-            rt.pivot = new Vector2(0, 1);
-            rt.localScale = Vector3.one;
-
-            var slot = _portraitSlot != null ? _portraitSlot : (_portraitImage.transform.parent as RectTransform);
-            float pad = 0f;
-            float sw = slot != null ? Mathf.Max(1f, slot.rect.width - pad * 2f) : rt.rect.width;
-            float sh = slot != null ? Mathf.Max(1f, slot.rect.height - pad * 2f) : rt.rect.height;
-            float iw = rt.sizeDelta.x;
-            float ih = rt.sizeDelta.y;
-            float scale = Mathf.Min(sw / Mathf.Max(1f, iw), sh / Mathf.Max(1f, ih));
-            scale = Mathf.Max(0.01f, scale);
-            float tw = iw * scale;
-            float th = ih * scale;
-            rt.sizeDelta = new Vector2(tw, th);
-            float x = pad + (sw - tw) * 0.5f;
-            float y = -(pad + (sh - th) * 0.5f);
-            rt.anchoredPosition = new Vector2(x, y);
-        }
+        _portraitImage.type = Image.Type.Simple;
+        _portraitImage.preserveAspect = false;
+        _portraitImage.color = Color.white;
+        _portraitImage.raycastTarget = false;
     }
 
     Log($"Portrait sprite set direct: {(_portraitImage != null && _portraitImage.sprite != null ? _portraitImage.sprite.name : "<null>")}");
@@ -947,23 +867,16 @@ private void ApplyHero(int nationIdx, int heroIdx)
     }
 }
 
-private Sprite[] LoadNationPortraitSprites(string nationId)
+private Sprite[] LoadNationPortraitSprites(Menu14ActionStateRuntime.NationRecord nation)
         {
+            if (nation == null || string.IsNullOrWhiteSpace(nation.PortraitRel))
+                return Array.Empty<Sprite>();
+
             string cashDir = ResolveCashDir();
 
-            // Nation -> suffix for lva_XXs
-            string suffix = nationId switch
-            {
-                "FRANCE" => "FRs",
-                "RUSSIA" => "RSs",
-                "ENGLAND" => "EGs", // Britain in TotalWarGraph uses EG
-                "PRUSSIA" => "PRs",
-                "AUSTRIA" => "ASs",
-                "EGIPET" => "EPs",
-                _ => "FRs"
-            };
-
-            string g16Name = $"Interf3_TotalWarGraph_lva_{suffix}.g16";
+            // V392: the logical portrait resource comes directly from the same
+            // source-bound AI\\ai.dat record as the nation name and flag.
+            string g16Name = nation.PortraitRel.Replace('\\', '_').Replace('/', '_') + ".g16";
             string g16Path = Path.Combine(cashDir, g16Name);
 
             if (!File.Exists(g16Path))
@@ -998,13 +911,21 @@ private Sprite[] LoadNationPortraitSprites(string nationId)
             return sprites.ToArray();
         }
 
-        private static string ResolveCashDir()
+        private string ResolveCashDir()
         {
             // 1) Assets/Resources/Cash (if later moved into project)
             string projectCash = Path.Combine(Application.dataPath, "Resources", "Cash");
             if (Directory.Exists(projectCash)) return projectCash;
 
-            // 2) External game cache (current workflow)
+            // 2) G16 bytes may live in the active installation cache.  Only the
+            // physical bytes come from DataRoot; which G16 to request came from
+            // the clean14 NationRecord above.
+            if (_fs != null && !string.IsNullOrWhiteSpace(_fs.DataRoot))
+            {
+                string dataCash = Path.Combine(_fs.DataRoot, "Cash");
+                if (Directory.Exists(dataCash)) return dataCash;
+            }
+
             return @"C:\GSC Game World\Cossacks II\Data\Cash";
         }
 
@@ -1092,8 +1013,8 @@ private Sprite[] LoadNationPortraitSprites(string nationId)
             int heroNationIndex = DetermineHeroInfNationIndex(nationIdx);
             string rel = $"Missions/Heroes/heroinf{heroNationIndex}{heroIdx}.txt";
 
-            string raw = _fs.ReadAllText(rel, Encoding.GetEncoding(1251));
-            string parsed = ParseHeroText(raw);
+            string raw = Menu14ActionStateRuntime.ReadSourceText(rel, Encoding.GetEncoding(1251));
+            string parsed = Menu14ActionStateRuntime.ConvertEngineTextToTmp(raw);
 
             _descCache[key] = parsed;
             return parsed;
@@ -1101,40 +1022,11 @@ private Sprite[] LoadNationPortraitSprites(string nationId)
 
         private int DetermineHeroInfNationIndex(int nationIdx)
         {
-            string nationId = NationIdOrder[Mathf.Clamp(nationIdx, 0, NationIdOrder.Length - 1)];
-            string code = nationId switch
-            {
-                "FRANCE" => "FR",
-                "RUSSIA" => "RU",
-                "ENGLAND" => "EN",
-                "PRUSSIA" => "PR",
-                "AUSTRIA" => "AU",
-                "EGIPET" => "EG",
-                _ => "FR"
-            };
-
-            try
-            {
-                string dat = _fs.ReadAllText("Missions/Heroes/heroinf.dat", Encoding.GetEncoding(1251));
-                if (!string.IsNullOrEmpty(dat))
-                {
-                    foreach (string line in dat.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        // e.g. (FR) 1
-                        var m = Regex.Match(line, "\\((?<c>[A-Za-z]{2})\\)\\s*(?<n>\\d+)");
-                        if (m.Success && string.Equals(m.Groups["c"].Value, code, StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (int.TryParse(m.Groups["n"].Value, out int n)) return n;
-                        }
-                    }
-                }
-            }
-            catch { }
-
-            return HeroInfIndexFallback.TryGetValue(code, out int v) ? v : nationIdx;
+            return Menu14ActionStateRuntime.GetHeroInfoNationIndex(nationIdx);
         }
         private void OnDisable()
         {
+            Menu14ActionStateRuntime.ProfileNationChanged -= OnProfileNationChanged;
             G16PortraitSessionCache.ClearSession();
         }
         private static string ParseHeroText(string raw)

@@ -27,6 +27,21 @@ namespace Cossacks2Bridge.Core
             LoadKeyValueFile(fs, @"Text\textV3.txt");
             LoadKeyValueFile(fs, @"Text\text6.txt");
             LoadKeyValueFile(fs, @"Text\BigMapData.txt");
+
+            // Cossacks II 1.4 menu-specific dictionaries.  The old Unity
+            // bootstrap loaded only a small 1.0-era subset, so valid 1.4 keys
+            // such as CHAT_IG_BACK_BUTTON_TEXT were displayed literally.
+            LoadKeyValueFile(fs, @"Text\InternetRoom.txt");
+            LoadKeyValueFile(fs, @"Text\C2_interf00.txt");
+            LoadKeyValueFile(fs, @"Text\C2_interf01.txt");
+            LoadKeyValueFile(fs, @"Text\C2_interf02.txt");
+            LoadKeyValueFile(fs, @"Text\C2_interf03.txt");
+            LoadKeyValueFile(fs, @"Text\C2Upd1.txt");
+            LoadKeyValueFile(fs, @"Text\text1.txt");
+            LoadKeyValueFile(fs, @"Text\text7.txt");
+            LoadKeyValueFile(fs, @"Text\vital.txt");
+            LoadKeyValueFile(fs, @"Text\BigMapHelp.txt");
+            LoadKeyValueFile(fs, @"Text\credits.txt");
         }
 
 

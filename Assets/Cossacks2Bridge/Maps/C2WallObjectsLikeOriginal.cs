@@ -73,7 +73,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // upside-down huts/barrels/sheds.
         private const bool C2WallObjectsV18UseSavedWLProfilesLikeOriginal = true;
         private const bool C2WallObjectsV18SkipModelBackedSavedWLUntilC2MRenderer = true;
-        private const int C2WallObjectsV18RenderQueueLikeOriginal = 3005;
+        // V233: WALS sprites must draw after road overlay (RoadLayerV17 is Transparent+600 ~= 3600),
+        // but still use ZTest LEqual so hills/terrain can occlude them.
+        private const int C2WallObjectsV18RenderQueueLikeOriginal = 3615;
 
         // V19: real split by saved-WL family. Bridge W58/W59 keeps the last good V12 aligned
         // orientation. Fence/prop-like saved WL can use the saved original Matrix4D because these
@@ -536,10 +538,22 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
         private GameObject _c2WallObjectsRootV1LikeOriginal;
         private readonly Dictionary<string, WallC2MParsedMeshV23LikeOriginal> _c2WallObjectsV23C2MCacheLikeOriginal =
             new Dictionary<string, WallC2MParsedMeshV23LikeOriginal>(StringComparer.OrdinalIgnoreCase);
+        private const bool C2WallObjectsV176RawRgbaCacheEnabledLikeOriginal = true;
+        private const int C2WallObjectsV176RawRgbaCacheVersionLikeOriginal = 1;
+        private static readonly Dictionary<int, Texture2D> s_C2WallObjectsV176FrameTextureRamCacheLikeOriginal =
+            new Dictionary<int, Texture2D>();
+        private static int s_C2WallObjectsV176RawCacheHitsLikeOriginal;
+        private static int s_C2WallObjectsV176RawCacheMissesLikeOriginal;
+        private static int s_C2WallObjectsV176RawCacheWritesLikeOriginal;
+        private static int s_C2WallObjectsV176RawCacheWriteFailsLikeOriginal;
         private WallIMMHeightLockLayerV25LikeOriginal _c2WallObjectsV25LastIMMLayerLikeOriginal;
 
         private void LateUpdate()
         {
+            // DrawSpriteBuilding in Cossacks II rebuilds its sprite-to-screen cache whenever
+            // the gameplay camera changes. Keep the same ordering before later wall calibrators.
+            UpdateBuildingPseudoProjectionMeshesLikeOriginal();
+
             if (_c2WallObjectsV1BuiltLikeOriginal)
             {
                 UpdateWallDambaPairCalibratorV1LikeOriginal();
@@ -665,6 +679,16 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             int drawnMapSprites = 0;
             if (hasMapSprites)
                 drawnMapSprites = BuildWallSavedMapSpriteMeshesV6LikeOriginal(state.MapSprites, catalog, _c2WallObjectsRootV1LikeOriginal.transform);
+
+            C2MapLoadProfilerV1.Stage("wals.rawRgbaCache.v176", 0,
+                "hits=" + s_C2WallObjectsV176RawCacheHitsLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                " misses=" + s_C2WallObjectsV176RawCacheMissesLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                " writes=" + s_C2WallObjectsV176RawCacheWritesLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                " writeFails=" + s_C2WallObjectsV176RawCacheWriteFailsLikeOriginal.ToString(CultureInfo.InvariantCulture) +
+                " ramFrames=" + s_C2WallObjectsV176FrameTextureRamCacheLikeOriginal.Count.ToString(CultureInfo.InvariantCulture) +
+                " drawnLines=" + drawnLines.ToString(CultureInfo.InvariantCulture) +
+                " drawnMapSprites=" + drawnMapSprites.ToString(CultureInfo.InvariantCulture) +
+                " root='" + C2WallObjectsV176RawRgbaCacheRootLikeOriginal() + "'");
 
         }
 
@@ -7671,8 +7695,8 @@ private static Vector2 GetWallLargeFencePivotPxV118LikeOriginal(WallSpriteDescV1
             // The important fix is coordinate space:
             // original MapSprites/SkewPt uses linear map X/Y directly. It does NOT add the terrain
             // mesh odd-column backing offset. The previous Unity port routed these WL cards through
-            // OriginalWallXYZToWorldV6LikeOriginal(), which adds the terrain backing odd-column offset
-            // and makes long saved WL fence chains visibly zig-zag/warp.
+            // OriginalWallXYZToWorldV6LikeOriginal(), which formerly added the terrain backing odd-column offset
+            // and made long saved WL fence chains visibly zig-zag/warp. V371 now fixes the shared path too.
             float cx = GetWallSpriteCenterXPxV10LikeOriginal(desc, wPx);
             float cy = GetWallSpriteCenterYPxV10LikeOriginal(desc, hPx);
 
@@ -8089,51 +8113,32 @@ private static Vector2 GetWallLargeFencePivotPxV118LikeOriginal(WallSpriteDescV1
         private Vector3 OriginalWallXYZToWorldV6LikeOriginal(float x, float y, float z)
         {
             OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            float gx = x / 32.0f;
-            float gy = y / 32.0f;
-            float rawX = gx * kernel.BackingStepXWorld;
-            int ix = Mathf.FloorToInt(gx);
-            float rawZ = gy * kernel.BackingStepZWorld + (((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
-            float worldX = rawX - kernel.CenterX;
-            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
+            float worldX, worldZ;
+            C2OriginalWorldCoordinatesV371LikeOriginal.ToWorld(
+                x, y, kernel.BackingStepXWorld, kernel.BackingStepZWorld,
+                kernel.CenterX, kernel.CenterZ, WorldZSign, out worldX, out worldZ);
             float worldY = z * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
             return new Vector3(worldX, worldY, worldZ);
         }
 
-        // V174b compile hotfix:
-        // Saved WL/WALLS.g16 MapSprites alignment uses linear map X/Y.
-        // This is intentionally the same scale/center/height convention as
-        // OriginalWallXYZToWorldV6LikeOriginal, but WITHOUT terrain odd-column
-        // backing offset. The odd-column offset belongs to terrain backing mesh,
-        // not to MapSprites CreateMatrix / DrawWSprite / AddWorldPoint.
+        // MapSprites use continuous original X/Y too. Share the V371 mapping,
+        // including the constant terrain-origin offset; only terrain vertex
+        // indices receive an alternating half-cell offset.
         private Vector3 OriginalWallMapSpriteXYZToWorldV174LikeOriginal(float x, float y, float z)
         {
-            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            float gx = x / 32.0f;
-            float gy = y / 32.0f;
-            float rawX = gx * kernel.BackingStepXWorld;
-            float rawZ = gy * kernel.BackingStepZWorld;
-            float worldX = rawX - kernel.CenterX;
-            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
-            float worldY = z * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
-            return new Vector3(worldX, worldY, worldZ);
+            return OriginalWallXYZToWorldV6LikeOriginal(x, y, z);
         }
 
         private bool TryWorldXZToOriginalXYV118LikeOriginal(Vector3 world, out Vector2 original)
         {
             original = Vector2.zero;
             OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            if (Mathf.Abs(kernel.BackingStepXWorld) <= 0.000001f ||
-                Mathf.Abs(kernel.BackingStepZWorld) <= 0.000001f ||
-                Mathf.Abs(WorldZSign) <= 0.000001f)
+            float x, y;
+            if (!C2OriginalWorldCoordinatesV371LikeOriginal.ToOriginal(
+                    world.x, world.z, kernel.BackingStepXWorld, kernel.BackingStepZWorld,
+                    kernel.CenterX, kernel.CenterZ, WorldZSign, out x, out y))
                 return false;
-
-            float gx = (world.x + kernel.CenterX) / kernel.BackingStepXWorld;
-            int ix = Mathf.FloorToInt(gx);
-            float rawZ = world.z / WorldZSign + kernel.CenterZ;
-            float offsetZ = ((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f;
-            float gy = (rawZ - offsetZ) / kernel.BackingStepZWorld;
-            original = new Vector2(gx * 32.0f, gy * 32.0f);
+            original = new Vector2(x, y);
             return IsFiniteWallFloatV21LikeOriginal(original.x) && IsFiniteWallFloatV21LikeOriginal(original.y);
         }
 
@@ -8277,14 +8282,17 @@ private static Vector2 GetWallLargeFencePivotPxV118LikeOriginal(WallSpriteDescV1
 
         private Vector3 WallOriginalXYToWorldV1LikeOriginal(float x, float y, float extraZ)
         {
-            OriginalTerrainKernelConfig kernel = CreateOriginalTerrainKernelConfigLikeOriginal(_map);
-            float gx = x / 32.0f;
-            float gy = y / 32.0f;
-            float rawX = gx * kernel.BackingStepXWorld;
-            int ix = Mathf.FloorToInt(gx);
-            float rawZ = gy * kernel.BackingStepZWorld + (((ix & 1) == 0) ? kernel.BackingOddColumnOffsetZWorld : 0.0f);
-            float worldX = rawX - kernel.CenterX;
-            float worldZ = (rawZ - kernel.CenterZ) * WorldZSign;
+            // The terrain kernel is immutable for the loaded map and was already
+            // computed while building the terrain. Recreating it for every moving
+            // unit repeated the full map-bounds/scale calculation hundreds of times
+            // per 25 Hz simulation tick.
+            OriginalTerrainKernelConfig kernel = _hasLastBuiltTerrainKernel
+                ? _lastBuiltTerrainKernel
+                : CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            float worldX, worldZ;
+            C2OriginalWorldCoordinatesV371LikeOriginal.ToWorld(
+                x, y, kernel.BackingStepXWorld, kernel.BackingStepZWorld,
+                kernel.CenterX, kernel.CenterZ, WorldZSign, out worldX, out worldZ);
             float worldY = SampleWallHeightOriginalXYV1LikeOriginal(x, y) * kernel.HeightScale + extraZ * kernel.HeightScale + C2WallObjectsV1YOffsetLikeOriginal;
             return new Vector3(worldX, worldY, worldZ);
         }
@@ -11413,11 +11421,176 @@ private Mesh OffsetWallMeshWorldYV35LikeOriginal(Mesh source, float pixels)
             }
         }
 
+
+        private static string C2WallObjectsV176RawRgbaCacheRootLikeOriginal()
+        {
+            return @"C:\Users\Koshey\My project\Kozaks\C2Cache\WalsRawRGBA";
+        }
+
+        private static string C2WallObjectsV176RawRgbaCachePathLikeOriginal(string abs, int frameIndex)
+        {
+            if (!C2WallObjectsV176RawRgbaCacheEnabledLikeOriginal || string.IsNullOrWhiteSpace(abs) || !File.Exists(abs))
+                return string.Empty;
+
+            try
+            {
+                FileInfo fi = new FileInfo(abs);
+                string full = Path.GetFullPath(abs);
+                string key = full +
+                             "|len=" + fi.Length.ToString(CultureInfo.InvariantCulture) +
+                             "|ticks=" + fi.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture) +
+                             "|frame=" + frameIndex.ToString(CultureInfo.InvariantCulture) +
+                             "|v176_wals_raw_rgba32";
+                string hash = GetNatureStableHashHexV4LikeOriginal(key);
+                return Path.Combine(C2WallObjectsV176RawRgbaCacheRootLikeOriginal(), "WALLS_g16", hash + ".c2rawrgba");
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string GetNatureStableHashHexV4LikeOriginal(string s)
+        {
+            unchecked
+            {
+                uint h = 2166136261u;
+                string value = s ?? string.Empty;
+                for (int i = 0; i < value.Length; i++)
+                {
+                    h ^= char.ToUpperInvariant(value[i]);
+                    h *= 16777619u;
+                }
+                return h.ToString("X8", CultureInfo.InvariantCulture);
+            }
+        }
+
+        private static Texture2D C2WallObjectsV176TryReadRawRgbaCacheLikeOriginal(string abs, int frameIndex, out string audit)
+        {
+            audit = "wall_raw_cache_disabled";
+            string path = C2WallObjectsV176RawRgbaCachePathLikeOriginal(abs, frameIndex);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                s_C2WallObjectsV176RawCacheMissesLikeOriginal++;
+                audit = "wall_raw_cache_miss";
+                return null;
+            }
+
+            try
+            {
+                using (BinaryReader br = new BinaryReader(File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)))
+                {
+                    int magic = br.ReadInt32();
+                    int ver = br.ReadInt32();
+                    int w = br.ReadInt32();
+                    int h = br.ReadInt32();
+                    int len = br.ReadInt32();
+                    if (magic != unchecked((int)0xC2A2176) ||
+                        ver != C2WallObjectsV176RawRgbaCacheVersionLikeOriginal ||
+                        w <= 0 || h <= 0 || len <= 0 || len < w * h * 4 || len > 268435456)
+                    {
+                        s_C2WallObjectsV176RawCacheMissesLikeOriginal++;
+                        audit = "wall_raw_cache_bad_header path=" + path;
+                        return null;
+                    }
+
+                    byte[] raw = br.ReadBytes(len);
+                    if (raw == null || raw.Length < w * h * 4)
+                    {
+                        s_C2WallObjectsV176RawCacheMissesLikeOriginal++;
+                        audit = "wall_raw_cache_short_read path=" + path;
+                        return null;
+                    }
+
+                    Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, false);
+                    tex.name = "C2_WALS_RawRGBA_frame_" + frameIndex.ToString("0000", CultureInfo.InvariantCulture);
+                    tex.LoadRawTextureData(raw);
+                    tex.Apply(false, false);
+                    tex.filterMode = FilterMode.Point;
+                    tex.wrapMode = TextureWrapMode.Clamp;
+                    s_C2WallObjectsV176RawCacheHitsLikeOriginal++;
+                    audit = "wall_raw_cache_hit " + w.ToString(CultureInfo.InvariantCulture) + "x" + h.ToString(CultureInfo.InvariantCulture) + " path=" + path;
+                    return tex;
+                }
+            }
+            catch (Exception ex)
+            {
+                s_C2WallObjectsV176RawCacheMissesLikeOriginal++;
+                audit = "wall_raw_cache_read_exception=" + ex.GetType().Name + ":" + ex.Message;
+                return null;
+            }
+        }
+
+        private static void C2WallObjectsV176TryWriteRawRgbaCacheLikeOriginal(string abs, int frameIndex, Texture2D tex, out string audit)
+        {
+            audit = "wall_raw_cache_write_skipped";
+            if (!C2WallObjectsV176RawRgbaCacheEnabledLikeOriginal || tex == null)
+                return;
+
+            string path = C2WallObjectsV176RawRgbaCachePathLikeOriginal(abs, frameIndex);
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            try
+            {
+                string dir = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                byte[] raw = tex.GetRawTextureData();
+                if (raw == null || raw.Length < tex.width * tex.height * 4)
+                {
+                    audit = "wall_raw_cache_write_no_raw";
+                    s_C2WallObjectsV176RawCacheWriteFailsLikeOriginal++;
+                    return;
+                }
+
+                string tmp = path + ".tmp";
+                using (BinaryWriter bw = new BinaryWriter(File.Open(tmp, FileMode.Create, FileAccess.Write, FileShare.None)))
+                {
+                    bw.Write(unchecked((int)0xC2A2176));
+                    bw.Write(C2WallObjectsV176RawRgbaCacheVersionLikeOriginal);
+                    bw.Write(tex.width);
+                    bw.Write(tex.height);
+                    bw.Write(raw.Length);
+                    bw.Write(raw);
+                }
+
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tmp, path);
+                s_C2WallObjectsV176RawCacheWritesLikeOriginal++;
+                audit = "wall_raw_cache_write_ok path=" + path;
+            }
+            catch (Exception ex)
+            {
+                s_C2WallObjectsV176RawCacheWriteFailsLikeOriginal++;
+                audit = "wall_raw_cache_write_exception=" + ex.GetType().Name + ":" + ex.Message;
+            }
+        }
+
         private Texture2D TryLoadWallSpriteTextureV1LikeOriginal(WallSpriteDescV1LikeOriginal desc, out string source)
         {
             source = string.Empty;
             if (desc == null)
                 return null;
+
+            Texture2D ramCached;
+            if (s_C2WallObjectsV176FrameTextureRamCacheLikeOriginal.TryGetValue(desc.SpriteIndex, out ramCached) && ramCached != null)
+            {
+                source = "STRICT_WALLS_RAM_CACHE:" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture);
+                return ramCached;
+            }
+
+            // V176: fastest path for WALS/WL 2D objects.
+            // First run decodes WALLS.g16 once and writes raw RGBA32. Next runs load raw bytes directly.
+            string wallAbs = FindWallG16PathV2LikeOriginal();
+            string rawAudit;
+            Texture2D rawTex = C2WallObjectsV176TryReadRawRgbaCacheLikeOriginal(wallAbs, desc.SpriteIndex, out rawAudit);
+            if (rawTex != null)
+            {
+                s_C2WallObjectsV176FrameTextureRamCacheLikeOriginal[desc.SpriteIndex] = rawTex;
+                source = "STRICT_WALLS_RAW_RGBA_CACHE:" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " " + rawAudit;
+                return rawTex;
+            }
 
             // V3 fix:
             // V2 allowed Border_frames/Resources fallback. That can silently bind W48MOST1
@@ -11427,7 +11600,10 @@ private Mesh OffsetWallMeshWorldYV35LikeOriginal(Mesh source, float pixels)
             Texture2D melinojaTex = TryLoadWallSpriteViaMelinojaV1LikeOriginal(desc.SpriteIndex, out source);
             if (melinojaTex != null)
             {
-                source = "STRICT_WALLS_G16:" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " " + source;
+                string rawWriteAudit;
+                C2WallObjectsV176TryWriteRawRgbaCacheLikeOriginal(wallAbs, desc.SpriteIndex, melinojaTex, out rawWriteAudit);
+                s_C2WallObjectsV176FrameTextureRamCacheLikeOriginal[desc.SpriteIndex] = melinojaTex;
+                source = "STRICT_WALLS_G16:" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " " + source + " " + rawWriteAudit;
                 return melinojaTex;
             }
 
@@ -11445,13 +11621,14 @@ private Mesh OffsetWallMeshWorldYV35LikeOriginal(Mesh source, float pixels)
                 Texture2D tex = Resources.Load<Texture2D>(resourcePaths[i]);
                 if (tex != null)
                 {
+                    s_C2WallObjectsV176FrameTextureRamCacheLikeOriginal[desc.SpriteIndex] = tex;
                     source = "STRICT_WALLS_RESOURCES:" + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " Resources:" + resourcePaths[i];
                     return tex;
                 }
             }
 
             if (string.IsNullOrWhiteSpace(source))
-                source = "missing strict WALLS.g16 frame: " + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture);
+                source = "missing strict WALLS.g16 frame: " + desc.Name + "#" + desc.SpriteIndex.ToString(CultureInfo.InvariantCulture) + " " + rawAudit;
             return null;
         }
 

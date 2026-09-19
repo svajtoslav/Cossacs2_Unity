@@ -1,0 +1,194 @@
+//************************************************************************
+// 		Constant Data for Big Map Campaigns
+//************************************************************************
+
+
+// Income resources from sectors
+
+#SECT_INCOME_WOOD	750
+#SECT_INCOME_FOOD	2000
+#SECT_INCOME_STONE	750
+#SECT_INCOME_GOLD	500
+#SECT_INCOME_IRON	0
+#SECT_INCOME_COAL	0
+
+// Adding resources from sectors
+
+#SECT_ADDING_FOOD	4000
+#SECT_ADDING_GOLD	1500
+#SECT_ADDING_IRON	1000
+#SECT_ADDING_COAL	1000
+
+
+// Add/Maximum recruits
+
+#SECT_REG_RECRTS	30
+#SECT_MAX_RECRTS	120
+
+
+// resources for Sectors Defence
+
+#SECT_DEFENCE_WOOD	5000
+#SECT_DEFENCE_STONE	5000
+#SECT_DEFENCE_GOLD	5000
+#SECT_DEFENCE_RECRTS	240
+
+#SECT_DEF_mult2_f	2
+#SECT_DEF_mult3_f	5
+
+// #SECT_DEFENCE_FOOD	4000	//not used
+
+
+// Gold for Sabotage Sector
+
+#SECT_SABOTAGE0		1000	1000	1500	2000
+#SECT_SABOTAGE1		1000	1000	1500	2000
+#SECT_SABOTAGE2		3000	3000	8000	15000
+#SECT_SABOTAGE3		4000	4000	12000	30000
+
+// sabotage percent
+
+#SECT_SAB_PERCENT0	70  50  40  30
+#SECT_SAB_PERCENT1	80  60  55  50
+#SECT_SAB_PERCENT2	70  50  45  30
+#SECT_SAB_PERCENT3	60  40  35  30
+
+
+// Start resources
+
+#FOOD_RATIO		4
+
+#PLAYER_RES0		10000
+#ENEMY__RES0		5000
+
+#PLAYER_RES1		5000
+#ENEMY__RES1		5000
+
+#PLAYER_RES2		5000
+#ENEMY__RES2      	10000
+
+// #PLAYER_RES3		5000
+// #ENEMY__RES3		20000
+// #PLAYER_RES4		5000
+// #ENEMY__RES4		30000
+
+// Resourse Div.
+
+#Res_Div_0_f		5
+#Res_Div_1_f		2
+#Res_Div_2_f		1
+
+
+// Rank exp. limits
+
+LTN_EXPS_LIMIT		500		// gec		// old
+CPT_EXPS_LIMIT		4000		//		//1000
+MJR_EXPS_LIMIT		12000		//		//4000
+COL_EXPS_LIMIT		25000		//20000		//10000
+GEN_EXPS_LIMIT		50000		//40000		//25000
+MAR_EXPS_LIMIT		99999		// Max	
+
+
+// sector defence parameters
+
+SectGarrisonSquads0	4
+SectGarrisonSquads1	6
+SectGarrisonSquads2	12	// 10
+SectGarrisonSquads3	18	// 16
+
+SectGarrisonAdd0	6
+
+SectRevoltedSquads0	20
+SectRevoltedSquads1	35
+SectRevoltedSquads2	50
+
+MinSectDefSquadPower	11
+AddSectDefSquadPower	2
+
+	
+// Experience in Campaigns 
+
+DisbandSquadExp		175			// экспа за убитый отряд
+SectCaptureExp		200			// экспа за захват/оборону сектора (победа в миссии!)
+HeroDefeatExp		350			// экспа за победу над героем
+
+// Experience for Quests
+
+QuestDisbSquadExp	25			// экспа за убитый квестовый отряд (30 чел.)
+QuestCompliteExp	100			// экспа за выполнение квеста!
+
+// frag-limit in Campaigns
+
+MISS_FRAG_LIMIT		500000
+
+
+// Map Colors
+
+NATCOLOR0  10EF4123
+NATCOLOR1  104E45C0
+NATCOLOR2  10808040
+NATCOLOR3  10A84DBB
+NATCOLOR4  1077D564	// 1077B664
+NATCOLOR5  10FFCF00
+
+NATCOLOR6  00D0D0D0
+
+//not used
+
+NATCOLOR7  FF6A4300
+NATCOLOR8  FF6A4300
+NATCOLOR9  FF6A4300
+NATCOLOR10 FF6A4300
+NATCOLOR11 FF6A4300
+
+SELECTED_SECT_COLOR 80000000
+
+//NATCOLOR6  3BD0D0D0
+//SELECTED_SECT_COLOR 88000000
+
+DIPL_WAR_SECT_COLOR 22FF0700
+DIPL_PCT_SECT_COLOR 2200AA00 
+
+
+/NATCOLOR0  FFA50000
+/NATCOLOR1  FF0D00BA
+/NATCOLOR3  FF7600A3
+/NATCOLOR2  FF292839
+/NATCOLOR4  FF29B694
+/NATCOLOR5  FFFFCF00
+
+/NATCOLOR6  FFD0D0D0
+/NATCOLOR7  FF6A4300
+/NATCOLOR8  FF6A4300
+/NATCOLOR9  FF6A4300
+/NATCOLOR10 FF6A4300
+/NATCOLOR11 FF6A4300
+
+
+// Map Tower Colors (game-colors: 0-7)
+
+nat(EN)	0
+nat(FR)	1
+nat(RU)	2
+nat(PR)	3
+nat(AU)	5
+nat(EG)	4
+nat(NE)	6
+
+
+// Commanders Page Blink color
+
+COMPAGE_BLINKCOLOR 33FF0700
+
+
+// ai step back turn limit
+
+STEPBACK_TURNLIMIT	4
+STEPBACK_DISTANCE	2
+
+
+[END]
+
+
+// skip line - "enter", "/ " , "// "
+

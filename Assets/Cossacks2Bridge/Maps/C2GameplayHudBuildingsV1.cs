@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -41,6 +41,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             st.UnitId = building != null ? (building.SourceMonsterId ?? string.Empty) : string.Empty;
             st.MdName = C2OriginalProduceCatalogV13.ResolveMdForSelectedBuildingLikeOriginal(building);
             st.Audit = "ready_saved_or_finished";
+            if (building != null && building.LifeMaxLikeOriginal > 1)
+            {
+                st.LifeMax = Mathf.Max(1, building.LifeMaxLikeOriginal);
+                st.Life = Mathf.Clamp(building.LifeLikeOriginal, 0, st.LifeMax);
+            }
 
             C2RuntimeConstructionSiteProxyLikeOriginal proxy = building != null
                 ? building.GetComponentInParent<C2RuntimeConstructionSiteProxyLikeOriginal>()
@@ -54,11 +59,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 st.StageMax = Mathf.Max(1, proxy.BuildStages);
                 st.UnitId = !string.IsNullOrEmpty(proxy.UnitId) ? proxy.UnitId : st.UnitId;
                 st.MdName = !string.IsNullOrEmpty(proxy.MdName) ? proxy.MdName : st.MdName;
+                if (proxy.LifeMax > 1)
+                    st.LifeMax = Mathf.Max(1, proxy.LifeMax);
 
                 if (!st.Ready)
                 {
                     float t = Mathf.Clamp01(st.Stage / (float)Mathf.Max(1, st.StageMax));
-                    st.Life = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(1.0f, st.LifeMax, t)), 1, st.LifeMax);
+                    st.Life = proxy.Life > 0
+                        ? Mathf.Clamp(proxy.Life, 0, st.LifeMax)
+                        : Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(1.0f, st.LifeMax, t)), 1, st.LifeMax);
                     st.Places = 0;
                     st.Population = 0;
                     st.PopulationMax = 0;
@@ -67,7 +76,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 else
                 {
                     st.Stage = st.StageMax;
-                    st.Life = st.LifeMax;
+                    st.Life = proxy.Life > 0 ? Mathf.Clamp(proxy.Life, 0, st.LifeMax) : st.LifeMax;
                     st.Audit = "construction_ready_show_produce_upgrade";
                 }
             }
@@ -125,15 +134,73 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        private void AttachBuildingLifeUpdaterV267LikeOriginal(
+            Text label,
+            C2SettlementBuildingSelectableV1LikeOriginal building,
+            int fallbackLifeMax)
+        {
+            if (label == null || building == null) return;
+            C2BuildingLifeUiUpdaterV267LikeOriginal updater =
+                label.gameObject.AddComponent<C2BuildingLifeUiUpdaterV267LikeOriginal>();
+            updater.Configure(label, building, fallbackLifeMax);
+        }
+
+        private sealed class C2BuildingLifeUiUpdaterV267LikeOriginal : MonoBehaviour
+        {
+            private Text _label;
+            private C2SettlementBuildingSelectableV1LikeOriginal _building;
+            private C2RuntimeConstructionSiteProxyLikeOriginal _proxy;
+            private int _fallbackLifeMax = 1;
+
+            public void Configure(Text label, C2SettlementBuildingSelectableV1LikeOriginal building, int fallbackLifeMax)
+            {
+                _label = label;
+                _building = building;
+                _fallbackLifeMax = Mathf.Max(1, fallbackLifeMax);
+                _proxy = building != null ? building.GetComponentInParent<C2RuntimeConstructionSiteProxyLikeOriginal>() : null;
+                LateUpdate();
+            }
+
+            private void LateUpdate()
+            {
+                if (_label == null || _building == null)
+                {
+                    Destroy(this);
+                    return;
+                }
+
+                int max = _building.LifeMaxLikeOriginal > 1 ? Mathf.Max(1, _building.LifeMaxLikeOriginal) : _fallbackLifeMax;
+                int life = _building.LifeMaxLikeOriginal > 1 ? Mathf.Clamp(_building.LifeLikeOriginal, 0, max) : max;
+                if (_proxy != null)
+                {
+                    max = Mathf.Max(1, _proxy.LifeMax > 1 ? _proxy.LifeMax : max);
+                    if (_proxy.Life >= 0)
+                        life = Mathf.Clamp(_proxy.Life, 0, max);
+                }
+
+                _label.text = life.ToString(CultureInfo.InvariantCulture) + "/" + max.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
         private static string BuildBuildingHudStateKeyV114LikeOriginal(C2SettlementBuildingSelectableV1LikeOriginal building)
         {
             if (building == null) return "building=<null>";
             C2RuntimeConstructionSiteProxyLikeOriginal proxy = building.GetComponentInParent<C2RuntimeConstructionSiteProxyLikeOriginal>();
             string baseKey = proxy == null ? "prebuilt" : BuildConstructionProxyHudStateKeyV115LikeOriginal(proxy);
+            int lifeMax = building.LifeMaxLikeOriginal > 1 ? building.LifeMaxLikeOriginal : 1;
+            int life = building.LifeMaxLikeOriginal > 1 ? Mathf.Clamp(building.LifeLikeOriginal, 0, lifeMax) : lifeMax;
+            if (proxy != null)
+            {
+                lifeMax = Mathf.Max(1, proxy.LifeMax > 1 ? proxy.LifeMax : lifeMax);
+                if (proxy.Life >= 0)
+                    life = Mathf.Clamp(proxy.Life, 0, lifeMax);
+            }
 
             // V133: queue count/progress are updated in-place by tiny UI components.
             // Do not rebuild the whole HUD when a unit finishes training.
-            return baseKey;
+            return baseKey +
+                   " life=" + life.ToString(CultureInfo.InvariantCulture) +
+                   "/" + lifeMax.ToString(CultureInfo.InvariantCulture);
         }
 
         private static string BuildConstructionProxyHudStateKeyV115LikeOriginal(C2RuntimeConstructionSiteProxyLikeOriginal proxy)
@@ -261,7 +328,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (state.Ready)
             {
                 AddCrispLabelV140LikeOriginal("sp_building_life_label", "\u0416\u0438\u0437\u043d\u0438:", rootX + 9, rootY + 168, 54, 13, 10, TextAnchor.MiddleLeft, Color.black);
-                AddCrispLabelV140LikeOriginal("sp_building_life_value", state.Life.ToString(CultureInfo.InvariantCulture) + "/" + state.LifeMax.ToString(CultureInfo.InvariantCulture), rootX + 79, rootY + 169, 55, 11, 10, TextAnchor.MiddleRight, new Color(0.65f, 0.0f, 0.0f, 1.0f));
+                Text lifeValue = AddCrispLabelV140LikeOriginal("sp_building_life_value", state.Life.ToString(CultureInfo.InvariantCulture) + "/" + state.LifeMax.ToString(CultureInfo.InvariantCulture), rootX + 79, rootY + 169, 55, 11, 10, TextAnchor.MiddleRight, new Color(0.65f, 0.0f, 0.0f, 1.0f));
+                AttachBuildingLifeUpdaterV267LikeOriginal(lifeValue, building, state.LifeMax);
                 AddCrispLabelV140LikeOriginal("sp_building_places_label", "\u0416\u0438\u043b\u044b\u0435 \u043c\u0435\u0441\u0442\u0430:", rootX + 9, rootY + 188, 87, 11, 10, TextAnchor.MiddleLeft, Color.black);
                 AddCrispLabelV140LikeOriginal("sp_building_places_value", state.Places.ToString(CultureInfo.InvariantCulture), rootX + 111, rootY + 189, 22, 11, 10, TextAnchor.MiddleRight, new Color(0.65f, 0.0f, 0.0f, 1.0f));
                 AddCrispLabelV140LikeOriginal("sp_building_population_label", "\u041d\u0430\u0441\u0435\u043b\u0435\u043d\u0438\u0435:", rootX + 34, rootY + 214, 71, 11, 10, TextAnchor.MiddleCenter, Color.black);
@@ -342,46 +410,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 int x = OriginalUnitProduceBaseX + item.GridX * OriginalUnitProduceStepX + BuildingProduceOffsetX_V125;
                 int y = OriginalUnitProduceBaseY + (item.GridY - 1) * OriginalUnitProduceStepY + BuildingProduceOffsetY_V125;
 
-                // Same clone source as original and same code path as BuildOriginalProducePanelLikeOriginal(unit).
-                AddG16ImageOverpaintV140LikeOriginal("produce_cell_back_" + i.ToString(CultureInfo.InvariantCulture), "Interf3\\FormInterface", item.RootSpriteId, x, y, OriginalUnitProduceWidth, OriginalUnitProduceHeight, 255, false, 56);
-
-                // V130 BUILDINGS ONLY:
-                // Unit mini portraits used by building produce cards are native 58x118 in the original resources,
-                // while UnitProduce.GPPicture.Dialogs.xml declares the child slot as 56x118.
-                // Drawing them through Unity Image.preserveAspect in a 56x118 rect shrinks/centers them and makes
-                // the soldier look shifted inside the FormInterface frame. The original engine effectively draws
-                // the native mini sprite at the card origin and lets the card frame hide the extra edge.
-                // Keep peasant/building cards untouched; apply this only to unit mini icons in building menus.
-                bool isBuildingUnitMiniIconV132 = !item.Building
-                    && !string.IsNullOrEmpty(item.IconFileId)
-                    && item.IconFileId.IndexOf("Units_", StringComparison.OrdinalIgnoreCase) >= 0;
-
-                int iconX_V132 = x + OriginalUnitProduceIconX;
-                int iconY_V132 = y + OriginalUnitProduceIconY;
-                int iconW_V132 = OriginalUnitProduceIconW;
-                int iconH_V132 = OriginalUnitProduceIconH;
-                bool preserveIconAspect_V132 = true;
-
-                if (isBuildingUnitMiniIconV132)
-                {
-                    iconX_V132 = x - 1;
-                    // V132: V131 moved the right edge left and increased the gap; move the right edge 2 px to the opposite side.
-                    iconY_V132 = y - 1;
-                    iconW_V132 = 60;
-                    iconH_V132 = 118;
-                    preserveIconAspect_V132 = false;
-                }
-
-                AddG16ImageOverpaintV140LikeOriginal("produce_icon_" + i.ToString(CultureInfo.InvariantCulture), item.IconFileId, item.IconSpriteId,
-                            iconX_V132, iconY_V132, iconW_V132, iconH_V132,
-                            item.Enabled ? 255 : 128, false, item.Enabled ? 120 : 48, true, preserveIconAspect_V132);
-
-                if (!item.Enabled)
-                    AddSolid("produce_disabled_" + i.ToString(CultureInfo.InvariantCulture), new Color(0f, 0f, 0f, 0.48f), x, y, 57, 123, false);
-
-                DrawBuildingProduceRuntimeOverlaysV124LikeOriginal(building, item, i, x, y);
-
-                AddClickArea("produce_click_" + i.ToString(CultureInfo.InvariantCulture), x, y, OriginalUnitProduceWidth, OriginalUnitProduceHeight, item);
+                AddOriginalProduceCardV169LikeOriginal(
+                    "produce",
+                    i,
+                    item,
+                    x,
+                    y,
+                    true,
+                    building,
+                    true);
             }
         }
 

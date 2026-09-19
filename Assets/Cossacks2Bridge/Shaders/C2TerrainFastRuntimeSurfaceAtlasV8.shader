@@ -18,6 +18,7 @@ Shader "Cossacks2Bridge/FastRuntimeSurfaceAtlasV8"
         CGINCLUDE
         #pragma target 3.0
         #include "UnityCG.cginc"
+        #include "C2FogOfWarLikeOriginal.cginc"
 
         sampler2D _GroundAtlas;
         sampler2D _CrossTex;
@@ -42,6 +43,7 @@ Shader "Cossacks2Bridge/FastRuntimeSurfaceAtlasV8"
             float2 uv0 : TEXCOORD0;
             float2 uv1 : TEXCOORD1;
             float2 uv2 : TEXCOORD2;
+            float3 world : TEXCOORD3;
         };
 
         v2f vert(appdata v)
@@ -52,13 +54,14 @@ Shader "Cossacks2Bridge/FastRuntimeSurfaceAtlasV8"
             o.uv0 = v.uv0;
             o.uv1 = v.uv1;
             o.uv2 = v.uv2;
+            o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
             return o;
         }
 
         fixed3 SampleSurfaceRgbLikeAdapted(v2f i)
         {
             fixed4 tileCol = tex2D(_GroundAtlas, i.uv0);
-            return saturate(tileCol.rgb * i.color.rgb * 2.0);
+            return C2ApplyFogOfWarLikeOriginal(saturate(tileCol.rgb * i.color.rgb * 2.0), i.world);
         }
 
         fixed ComputeOverlayAlphaLikeAdapted(v2f i)

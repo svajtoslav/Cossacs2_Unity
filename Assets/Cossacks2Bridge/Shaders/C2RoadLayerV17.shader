@@ -47,6 +47,7 @@
             #pragma fragment frag
             #pragma target 2.0
             #include "UnityCG.cginc"
+            #include "C2FogOfWarLikeOriginal.cginc"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
@@ -73,6 +74,7 @@
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
                 fixed4 color : COLOR;
+                float3 world : TEXCOORD1;
             };
 
             v2f vert(appdata v)
@@ -85,6 +87,7 @@
 
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.color = v.color;
+                o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
                 return o;
             }
 
@@ -108,6 +111,7 @@
                 clip(a - _RoadAlphaRef);
 
                 half3 rgb = saturate(tex.rgb * i.color.rgb * _RoadColorBoost) * _Color.rgb * _BaseColor.rgb;
+                rgb = C2ApplyFogOfWarLikeOriginal(rgb, i.world);
                 return fixed4(rgb, a);
             }
             ENDCG

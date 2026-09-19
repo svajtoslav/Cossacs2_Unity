@@ -36,6 +36,7 @@ Shader "Cossacks2Bridge/RoadBodyUnderlayV6"
             #pragma fragment frag
             #pragma target 2.0
             #include "UnityCG.cginc"
+            #include "C2FogOfWarLikeOriginal.cginc"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
@@ -57,6 +58,7 @@ Shader "Cossacks2Bridge/RoadBodyUnderlayV6"
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
                 fixed4 color : COLOR;
+                float3 world : TEXCOORD1;
             };
 
             v2f vert(appdata v)
@@ -65,6 +67,7 @@ Shader "Cossacks2Bridge/RoadBodyUnderlayV6"
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.color = v.color;
+                o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
                 return o;
             }
 
@@ -74,6 +77,7 @@ Shader "Cossacks2Bridge/RoadBodyUnderlayV6"
                 half a = saturate(i.color.a * _RoadBodyOpacity * _Color.a * _BaseColor.a);
                 a *= lerp(1.0h, tex.a, saturate(_UseTextureAlpha));
                 half3 rgb = saturate(tex.rgb * i.color.rgb * _RoadBodyColorBoost) * _Color.rgb * _BaseColor.rgb;
+                rgb = C2ApplyFogOfWarLikeOriginal(rgb, i.world);
                 return fixed4(rgb, a);
             }
             ENDCG

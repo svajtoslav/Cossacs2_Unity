@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Cossacks2Bridge.UnityAdapters.Maps
 {
-    // V155: original-like building rally point / exit destination.
+    // V156: original-like building rally point / exit destination.
     // Original fields: OneObject::DstX/DstY.  Visual GP: Interf3\exitpoint, 18-frame loop.
     internal static class C2BuildingRallyPointRuntimeV155LikeOriginal
     {
@@ -13,8 +14,98 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const float ExitPointFrameMsLikeOriginal = 40.0f;
         private const float RallyMarkerYOffsetWorld = 0.18f;
         private const float OriginalPixelToWorldScaleForSpriteRenderer = 10.0f; // cache sprites use PPU=100, map uses ~0.1 world/original px
-        private const float OccupiedRadiusReal = 288.0f;
+        // A 1024-real-unit half-range is only 64 original pixels, so a long production queue
+        // still converged into one dense knot. Keep deterministic per-unit destinations but spread
+        // the rally area enough for normal collision separation to work.
+        private const float OriginalDstScatterHalfRangeRealLikeOriginal = 4096.0f;
+        private const int OriginalDstScatterAttemptsLikeOriginal = 16;
         private static readonly Dictionary<string, int> _nextSlotByRallyKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        private struct RallyPointStateV159LikeOriginal
+        {
+            public int RealX;
+            public int RealY;
+            public bool WasSelected;
+            public float LastTouchedTime;
+            public string Source;
+        }
+
+        private static readonly Dictionary<string, RallyPointStateV159LikeOriginal> _rallyStateByStableBuildingKeyV159 =
+            new Dictionary<string, RallyPointStateV159LikeOriginal>(StringComparer.OrdinalIgnoreCase);
+
+        public static void RememberRallyPointStateV159LikeOriginal(C2SettlementBuildingSelectableV1LikeOriginal building, string source, bool wasSelected)
+        {
+            if (building == null || !building.HasRallyPointV155LikeOriginal)
+                return;
+
+            string key = StableBuildingKeyV159LikeOriginal(building);
+            if (string.IsNullOrEmpty(key))
+                return;
+
+            RallyPointStateV159LikeOriginal state = new RallyPointStateV159LikeOriginal();
+            state.RealX = building.RallyRealXV155LikeOriginal;
+            state.RealY = building.RallyRealYV155LikeOriginal;
+            state.WasSelected = wasSelected;
+            state.LastTouchedTime = Time.realtimeSinceStartup;
+            state.Source = source ?? string.Empty;
+            _rallyStateByStableBuildingKeyV159[key] = state;
+        }
+
+        public static void ForgetRallyPointStateV159LikeOriginal(C2SettlementBuildingSelectableV1LikeOriginal building)
+        {
+            if (building == null)
+                return;
+
+            string key = StableBuildingKeyV159LikeOriginal(building);
+            if (!string.IsNullOrEmpty(key))
+                _rallyStateByStableBuildingKeyV159.Remove(key);
+        }
+
+        public static bool TryRestoreRallyPointStateV159LikeOriginal(
+            C2SettlementBuildingSelectableV1LikeOriginal building,
+            out int realX,
+            out int realY,
+            out bool wasSelected)
+        {
+            realX = 0;
+            realY = 0;
+            wasSelected = false;
+
+            if (building == null)
+                return false;
+
+            string key = StableBuildingKeyV159LikeOriginal(building);
+            if (string.IsNullOrEmpty(key))
+                return false;
+
+            RallyPointStateV159LikeOriginal state;
+            if (!_rallyStateByStableBuildingKeyV159.TryGetValue(key, out state))
+                return false;
+
+            realX = state.RealX;
+            realY = state.RealY;
+            wasSelected = state.WasSelected;
+            return true;
+        }
+
+        private static string StableBuildingKeyV159LikeOriginal(C2SettlementBuildingSelectableV1LikeOriginal building)
+        {
+            if (building == null)
+                return string.Empty;
+
+            // RecordIndex changes when the build-stage visual is rebuilt.
+            // RealX/RealY + md/monster identity stays stable for the same logical building.
+            string monster = building.SourceMonsterId ?? string.Empty;
+            string kind = building.KindName ?? string.Empty;
+            if (monster.Length == 0) monster = building.gameObject != null ? building.gameObject.name ?? string.Empty : string.Empty;
+
+            int cellX = Mathf.RoundToInt(building.RealX / 16.0f);
+            int cellY = Mathf.RoundToInt(building.RealY / 16.0f);
+
+            return kind + "|" + monster + "|cell=" +
+                   cellX.ToString(CultureInfo.InvariantCulture) + "," +
+                   cellY.ToString(CultureInfo.InvariantCulture);
+        }
 
         public static void AttachOrUpdateMarker(C2SettlementBuildingSelectableV1LikeOriginal building, string source)
         {
@@ -75,20 +166,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int next;
             if (!_nextSlotByRallyKey.TryGetValue(key, out next)) next = 0;
 
-            int chosenSlot = 0;
+            int chosenSeq = next;
+            Vector2 firstCandidate = Vector2.zero;
             Vector2 chosen = new Vector2(rallyX, rallyY);
             bool free = false;
-            int slotCount = RallySlotCountV155LikeOriginal();
 
-            for (int attempt = 0; attempt < slotCount; attempt++)
+            for (int attempt = 0; attempt < OriginalDstScatterAttemptsLikeOriginal; attempt++)
             {
-                int slot = (next + attempt) % slotCount;
-                Vector2 off = RallySlotOffsetRealV155LikeOriginal(slot);
+                int seq = next + attempt;
+                Vector2 off = OriginalDstScatterOffsetRealV260LikeOriginal(key, seq);
                 Vector2 candidate = new Vector2(rallyX + off.x, rallyY + off.y);
-                if (!IsRallyCandidateOccupiedV155LikeOriginal(candidate, OccupiedRadiusReal))
+                if (attempt == 0)
+                    firstCandidate = candidate;
+
+                if (!IsRallyCandidateBlockedV260LikeOriginal(candidate))
                 {
                     chosen = candidate;
-                    chosenSlot = slot;
+                    chosenSeq = seq;
                     free = true;
                     break;
                 }
@@ -96,13 +190,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (!free)
             {
-                chosenSlot = next % slotCount;
-                Vector2 off = RallySlotOffsetRealV155LikeOriginal(chosenSlot);
-                chosen = new Vector2(rallyX + off.x, rallyY + off.y);
+                chosenSeq = next;
+                chosen = firstCandidate.sqrMagnitude > 0.0f ? firstCandidate : new Vector2(rallyX, rallyY);
             }
 
-            _nextSlotByRallyKey[key] = (chosenSlot + 1) % slotCount;
-            audit = "rally=dstXDstY key='" + key + "' slot=" + chosenSlot.ToString(CultureInfo.InvariantCulture) +
+            _nextSlotByRallyKey[key] = chosenSeq + 1;
+            audit = "rally=dstXDstY_original_Build_cpp_651_rando key='" + key + "' seq=" + chosenSeq.ToString(CultureInfo.InvariantCulture) +
+                    " scatterReal=+/-" + OriginalDstScatterHalfRangeRealLikeOriginal.ToString("0", CultureInfo.InvariantCulture) +
                     " free=" + free +
                     " finalReal=(" + chosen.x.ToString("0", CultureInfo.InvariantCulture) + "," +
                     chosen.y.ToString("0", CultureInfo.InvariantCulture) + ")" +
@@ -110,60 +204,58 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return chosen;
         }
 
-        private static bool IsRallyCandidateOccupiedV155LikeOriginal(Vector2 candidateReal, float radiusReal)
+        private static Vector2 OriginalDstScatterOffsetRealV260LikeOriginal(string key, int seq)
         {
-            float rr = radiusReal * radiusReal;
-            C2NeutralPeasantUnitInfoV2LikeOriginal[] units = UnityEngine.Object.FindObjectsOfType<C2NeutralPeasantUnitInfoV2LikeOriginal>();
-            for (int i = 0; units != null && i < units.Length; i++)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal u = units[i];
-                if (u == null || !u.isActiveAndEnabled) continue;
-                float dx = u.RealXFloat - candidateReal.x;
-                float dy = u.RealYFloat - candidateReal.y;
-                if (dx * dx + dy * dy <= rr)
-                    return true;
-            }
-            return false;
+            // Cossacks II Build.cpp, produced unit with OBJ->DstX:
+            // dx=OBJ->DstX+(rando()%2048)-1024; dy=OBJ->DstY+(rando()%2048)-1024.
+            // Use a stable per-building sequence so repeated produced units do not reserve a visible grid.
+            uint baseHash = StableHashV260LikeOriginal(key);
+            uint hx = MixHashV260LikeOriginal(baseHash ^ unchecked((uint)seq * 747796405u));
+            uint hy = MixHashV260LikeOriginal(baseHash ^ unchecked((uint)seq * 2891336453u) ^ 0x9E3779B9u);
+            float ox = SignedScatterRealV260LikeOriginal(hx);
+            float oy = SignedScatterRealV260LikeOriginal(hy);
+            return new Vector2(ox, oy);
         }
 
-        private static int RallySlotCountV155LikeOriginal()
+        private static float SignedScatterRealV260LikeOriginal(uint h)
         {
-            return 25;
+            int v = (int)(h & 8191u);
+            return Mathf.Clamp(v - 4096, -OriginalDstScatterHalfRangeRealLikeOriginal, OriginalDstScatterHalfRangeRealLikeOriginal);
         }
 
-        private static Vector2 RallySlotOffsetRealV155LikeOriginal(int slot)
+        private static uint StableHashV260LikeOriginal(string text)
         {
-            // Original Build.cpp adds rando()%2048 - 1024 around OB->DstX/DstY.
-            // Use a deterministic compact ring so several produced units do not stack pixel-to-pixel.
-            const float s = 384.0f;
-            switch (slot)
+            unchecked
             {
-                case 0: return Vector2.zero;
-                case 1: return new Vector2(s, 0);
-                case 2: return new Vector2(-s, 0);
-                case 3: return new Vector2(0, s);
-                case 4: return new Vector2(0, -s);
-                case 5: return new Vector2(s, s);
-                case 6: return new Vector2(-s, s);
-                case 7: return new Vector2(s, -s);
-                case 8: return new Vector2(-s, -s);
-                case 9: return new Vector2(2 * s, 0);
-                case 10: return new Vector2(-2 * s, 0);
-                case 11: return new Vector2(0, 2 * s);
-                case 12: return new Vector2(0, -2 * s);
-                case 13: return new Vector2(2 * s, s);
-                case 14: return new Vector2(-2 * s, s);
-                case 15: return new Vector2(2 * s, -s);
-                case 16: return new Vector2(-2 * s, -s);
-                case 17: return new Vector2(s, 2 * s);
-                case 18: return new Vector2(-s, 2 * s);
-                case 19: return new Vector2(s, -2 * s);
-                case 20: return new Vector2(-s, -2 * s);
-                case 21: return new Vector2(2 * s, 2 * s);
-                case 22: return new Vector2(-2 * s, 2 * s);
-                case 23: return new Vector2(2 * s, -2 * s);
-                default: return new Vector2(-2 * s, -2 * s);
+                uint h = 2166136261u;
+                if (!string.IsNullOrEmpty(text))
+                {
+                    for (int i = 0; i < text.Length; i++)
+                    {
+                        h ^= text[i];
+                        h *= 16777619u;
+                    }
+                }
+                return h;
             }
+        }
+
+        private static uint MixHashV260LikeOriginal(uint x)
+        {
+            unchecked
+            {
+                x ^= x >> 16;
+                x *= 0x7feb352du;
+                x ^= x >> 15;
+                x *= 0x846ca68bu;
+                x ^= x >> 16;
+                return x;
+            }
+        }
+
+        private static bool IsRallyCandidateBlockedV260LikeOriginal(Vector2 candidateReal)
+        {
+            return C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(candidateReal.x, candidateReal.y, 1);
         }
 
         internal static Sprite LoadExitPointSpriteV155LikeOriginal(int frame)
@@ -190,12 +282,32 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
     internal sealed class C2BuildingRallyPointMarkerV155LikeOriginal : MonoBehaviour
     {
+        private const float V157MarkerPixels = 64.0f;
+
         private C2SettlementBuildingSelectableV1LikeOriginal _building;
         private GameObject _markerGo;
-        private SpriteRenderer _renderer;
+        private Canvas _canvas;
+        private Image _image;
+        private Image _imageLayer2;
+        private Image _imageLayer3;
+        private RectTransform _rt;
         private int _lastFrame = -1;
         private string _source = string.Empty;
         private bool _logged;
+        private static Sprite _fallbackSpriteV157;
+
+        private void OnDestroy()
+        {
+            if (_markerGo != null)
+            {
+                try { UnityEngine.Object.Destroy(_markerGo); } catch { }
+                _markerGo = null;
+                _image = null;
+                _imageLayer2 = null;
+                _imageLayer3 = null;
+                _rt = null;
+            }
+        }
 
         public void Configure(C2SettlementBuildingSelectableV1LikeOriginal building, string source)
         {
@@ -212,69 +324,205 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void EnsureMarker()
         {
-            if (_markerGo != null && _renderer != null) return;
+            if (_markerGo != null && _image != null && _imageLayer2 != null && _imageLayer3 != null && _rt != null) return;
 
-            _markerGo = new GameObject("C2_RallyExitPoint_Interf3_exitpoint_V155");
-            _markerGo.transform.SetParent(transform, true);
-            _renderer = _markerGo.AddComponent<SpriteRenderer>();
-            _renderer.sortingOrder = 32000;
-            _renderer.enabled = false;
-            _markerGo.transform.localScale = Vector3.one * C2BuildingRallyPointRuntimeV155LikeOriginal.MarkerScaleV155LikeOriginal();
+            // V158: draw rally point as a HUD-owned ScreenSpaceOverlay UI, not as a world SpriteRenderer.
+            // Name starts with GameplayHud_ so C2GameplayHudV1.KillForeignBattleUiRoots does not destroy it.
+            // This ignores terrain/building/ground-pipeline depth, so hills and terrain chunks cannot hide it.
+            GameObject canvasGo = GameObject.Find("GameplayHud_RallyExitPoint_OverlayCanvas_V158");
+            if (canvasGo == null)
+            {
+                canvasGo = new GameObject("GameplayHud_RallyExitPoint_OverlayCanvas_V158");
+                canvasGo.hideFlags = HideFlags.DontSave;
+                _canvas = canvasGo.AddComponent<Canvas>();
+                _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                _canvas.sortingOrder = 32766; // below HUD canvas 32767, above terrain/world.
+                CanvasScaler scaler = canvasGo.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+                GraphicRaycaster ray = canvasGo.AddComponent<GraphicRaycaster>();
+                ray.enabled = false;
+            }
+            else
+            {
+                _canvas = canvasGo.GetComponent<Canvas>();
+                if (_canvas == null)
+                {
+                    _canvas = canvasGo.AddComponent<Canvas>();
+                    _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                    _canvas.sortingOrder = 32766;
+                }
+            }
+
+            _markerGo = new GameObject("GameplayHud_RallyExitPoint_Interf3_exitpoint_V158_Overlay");
+            _markerGo.hideFlags = HideFlags.DontSave;
+            _markerGo.transform.SetParent(canvasGo.transform, false);
+
+            _rt = _markerGo.AddComponent<RectTransform>();
+            _rt.anchorMin = new Vector2(0.0f, 0.0f);
+            _rt.anchorMax = new Vector2(0.0f, 0.0f);
+            _rt.pivot = new Vector2(0.5f, 0.5f);
+            _rt.sizeDelta = new Vector2(V157MarkerPixels, V157MarkerPixels);
+            // Shared UI cache already converts GP rows to Unity orientation.
+            _rt.localScale = Vector3.one;
+
+            _image = _markerGo.AddComponent<Image>();
+            _image.raycastTarget = false;
+            _image.preserveAspect = true;
+            _image.color = Color.white;
+            _image.enabled = false;
+
+            // G16 exitpoint frames are intentionally semi-transparent.
+            // Original GP drawing makes them visually stronger; in Unity UI we stack the same sprite 3 times.
+            _imageLayer2 = CreateStackedImageLayerV158("GameplayHud_RallyExitPoint_StackLayer2_V158");
+            _imageLayer3 = CreateStackedImageLayerV158("GameplayHud_RallyExitPoint_StackLayer3_V158");
+        }
+
+        private Image CreateStackedImageLayerV158(string name)
+        {
+            GameObject go = new GameObject(name);
+            go.hideFlags = HideFlags.DontSave;
+            go.transform.SetParent(_markerGo.transform, false);
+
+            RectTransform rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+
+            Image img = go.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            img.color = Color.white;
+            img.enabled = false;
+            return img;
+        }
+
+        private void SetStackedImagesVisibleV158(bool visible)
+        {
+            if (_image != null) _image.enabled = visible;
+            if (_imageLayer2 != null) _imageLayer2.enabled = visible;
+            if (_imageLayer3 != null) _imageLayer3.enabled = visible;
+        }
+
+        private void SetStackedImagesSpriteV158(Sprite sp)
+        {
+            if (_image != null) _image.sprite = sp;
+            if (_imageLayer2 != null) _imageLayer2.sprite = sp;
+            if (_imageLayer3 != null) _imageLayer3.sprite = sp;
         }
 
         private void UpdateMarker(bool force)
         {
             if (_building == null) _building = GetComponent<C2SettlementBuildingSelectableV1LikeOriginal>();
             EnsureMarker();
-            if (_building == null || _markerGo == null || _renderer == null)
+            if (_building == null || _markerGo == null || _image == null || _imageLayer2 == null || _imageLayer3 == null || _rt == null)
                 return;
 
             int realX = 0;
             int realY = 0;
             bool visible = _building.IsSelected && _building.TryGetRallyPointRealV155LikeOriginal(out realX, out realY);
-            _renderer.enabled = visible;
+            SetStackedImagesVisibleV158(visible);
             if (!visible)
                 return;
 
+            Camera cam = Camera.main;
+            Camera[] cams = Camera.allCameras;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                for (int i = 0; cams != null && i < cams.Length; i++)
+                {
+                    Camera c = cams[i];
+                    if (c == null || !c.isActiveAndEnabled) continue;
+                    string n = c.name ?? string.Empty;
+                    bool isFree = n.IndexOf("Free", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (pass == 0)
+                    {
+                        if (n.IndexOf("C2_BattleTerrainCamera_Iso", StringComparison.OrdinalIgnoreCase) >= 0 && !isFree)
+                        {
+                            cam = c;
+                            i = cams.Length;
+                            pass = 2;
+                        }
+                    }
+                    else if (!isFree && n.IndexOf("BattleTerrain", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        cam = c;
+                        break;
+                    }
+                }
+            }
+
             C2BattleTerrainMode mode = _building.OwnerMode != null ? _building.OwnerMode : UnityEngine.Object.FindObjectOfType<C2BattleTerrainMode>();
-            if (mode != null)
+            Vector3 screen = Vector3.zero;
+            bool screenOk = false;
+            if (mode != null && cam != null)
             {
                 Vector3 pos = mode.C2NeutralPeasantUnitsV2OriginalPixelToWorldV15LikeOriginal(realX / 16.0f, realY / 16.0f);
                 pos.y += C2BuildingRallyPointRuntimeV155LikeOriginal.MarkerYOffsetV155LikeOriginal();
-                _markerGo.transform.position = pos;
+                screen = cam.WorldToScreenPoint(pos);
+                screenOk = screen.z > 0.0f && screen.x >= -128.0f && screen.y >= -128.0f &&
+                           screen.x <= Screen.width + 128.0f && screen.y <= Screen.height + 128.0f;
+                _rt.position = new Vector3(screen.x, screen.y, 0.0f);
             }
 
-            Camera cam = Camera.main;
-            Camera[] cams = Camera.allCameras;
-            for (int i = 0; cams != null && i < cams.Length; i++)
+            if (!screenOk)
             {
-                Camera c = cams[i];
-                if (c == null || !c.isActiveAndEnabled) continue;
-                string n = c.name ?? string.Empty;
-                if (n.IndexOf("C2_BattleTerrainCamera_Iso", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("BattleTerrain", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    cam = c;
-                    break;
-                }
+                SetStackedImagesVisibleV158(false);
+                return;
             }
-            if (cam != null)
-                _markerGo.transform.rotation = cam.transform.rotation;
 
             int frame = C2BuildingRallyPointRuntimeV155LikeOriginal.CurrentExitPointFrameV155LikeOriginal();
-            if (force || frame != _lastFrame || _renderer.sprite == null)
+            if (force || frame != _lastFrame || _image.sprite == null)
             {
                 _lastFrame = frame;
-                _renderer.sprite = C2BuildingRallyPointRuntimeV155LikeOriginal.LoadExitPointSpriteV155LikeOriginal(frame);
-            }
-
-            if (!_logged)
-            {
-                _logged = true;
-                Debug.Log("[C2:BUILD RALLY V155 MARKER] building=" + _building.RecordIndex.ToString(CultureInfo.InvariantCulture) +
-                          " name='" + (_building.SourceMonsterId ?? string.Empty) + "' real=(" +
-                          realX.ToString(CultureInfo.InvariantCulture) + "," + realY.ToString(CultureInfo.InvariantCulture) + ")" +
-                          " gp='Interf3\\exitpoint' frames=18 source='" + _source + "'");
+                Sprite sp = C2BuildingRallyPointRuntimeV155LikeOriginal.LoadExitPointSpriteV155LikeOriginal(frame);
+                bool cacheOk = sp != null;
+                if (sp == null) sp = FallbackExitPointSpriteV157();
+                SetStackedImagesSpriteV158(sp);
+                _rt.sizeDelta = new Vector2(V157MarkerPixels, V157MarkerPixels);
             }
         }
+
+        private static Sprite FallbackExitPointSpriteV157()
+        {
+            if (_fallbackSpriteV157 != null) return _fallbackSpriteV157;
+
+            const int size = 64;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.name = "C2_RallyExitPoint_Fallback_RedRing_V157";
+            Color32 clear = new Color32(0, 0, 0, 0);
+            Color32 red = new Color32(255, 0, 0, 255);
+            Color32 orange = new Color32(255, 196, 0, 255);
+
+            Color32[] px = new Color32[size * size];
+            for (int i = 0; i < px.Length; i++) px[i] = clear;
+
+            float cx = (size - 1) * 0.5f;
+            float cy = (size - 1) * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - cx;
+                    float dy = y - cy;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    bool ring = d >= 18.0f && d <= 23.0f;
+                    bool cross = (Mathf.Abs(dx) <= 2.0f && d <= 16.0f) || (Mathf.Abs(dy) <= 2.0f && d <= 16.0f);
+                    if (ring) px[y * size + x] = red;
+                    else if (cross) px[y * size + x] = orange;
+                }
+            }
+
+            tex.SetPixels32(px);
+            tex.filterMode = FilterMode.Point;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.Apply(false, true);
+
+            _fallbackSpriteV157 = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1.0f);
+            _fallbackSpriteV157.name = "C2_RallyExitPoint_Fallback_RedRing_V157";
+            return _fallbackSpriteV157;
+        }
     }
+
 }

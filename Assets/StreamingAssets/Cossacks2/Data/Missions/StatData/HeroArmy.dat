@@ -1,0 +1,52 @@
+#LIEUTENANT  0
+#ENGLAND     4                                   2   UnitFuz(EN)   3 UnitVol(EN)   1
+#FRANCE      4                                   2   UnitFuzNG(FR) 3 UnitFuz(FR)   2
+#AUSTRIA     4                                   2   UnitFuzNG(AU) 3 UnitFuz(AU)   2
+#PRUSSIA     4                                   2   UnitFuz(PR)   3 UnitVol(PR)   1
+#RUSSIA      6                                   2   UnitPar(RU)   4 UnitFuz(RU)   2
+#EGYPT       4                                   2   UnitVol(EG)   3 UnitFuzNG(EG) 2
+
+
+#CAPTAIN     1
+#ENGLAND     6    5 1                            1   UnitKEgr(EN)  2
+#FRANCE      6    4 2                            3   UnitVol(FR)   1 UnitKUln(FR)  1 UnitKEgr(FR) 1
+#AUSTRIA     6    4 2                            3   UnitVol(AU)   1 UnitKUln(AU)  1 UnitKEgr(AU) 1
+#PRUSSIA     6    5 1                            1   UnitKEgr(PR)  2
+#RUSSIA      9    4 3                            3   UnitKDKoz(RU) 1 UnitKUln(RU)  1 UnitKEgr(RU) 1
+#EGYPT       6    4 2                            1   UnitFuz(EG)   1
+
+
+#MAJOR	     2
+#ENGLAND     9    6 2 2                          3   UnitSap(EN)   1 UnitKGus(EN)  1 ArtPus4L(EN) 2
+#FRANCE      9    5 2 2 1 1                      3   UnitSap(FR)   1 UnitKDrg(FR)  1 ArtPus4L(FR) 2
+#AUSTRIA     9    5 2 2 1 1                      3   UnitSap(AU)   1 UnitKDrg(AU)  1 ArtPus4L(AU) 2
+#PRUSSIA     9    6 2 2                          3   UnitSap(PR)   1 UnitKDrg(PR)  1 ArtPus4L(PR) 2
+#RUSSIA      13   5 4 1 1 1                      3   UnitSap(RU)   1 UnitKDrg(RU)  1 ArtPus4L(RU) 2
+#EGYPT       9    4 3 2                          3   UnitGre(EG)   1 UnitKDrg(EG)  1 ArtPus4L(EG) 2
+
+
+#COLONEL     3
+#ENGLAND     13   6 2 2 1 2 3                    3   UnitGre(EN)   2 UnitEgrNG(EN) 1 ArtPus4(EN)   1
+#FRANCE      13   5 2 2 1 1 1 1 3                4   ArtPus4(FR)   1 UnitGre(FR)   2 UnitEgrNG(FR) 1 UnitKGus(FR) 1
+#AUSTRIA     13   5 2 2 1 1 1 2 3                4   ArtPus4(AU)   1 UnitGre(AU)   2 UnitEgrNG(AU) 1 UnitKGus(AU) 1
+#PRUSSIA     13   6 2 2 1 2 3                    4   UnitGre(PR)   2 UnitEgrNG(PR) 1 ArtPus4(PR)   1 UnitKGus(PR) 1
+#RUSSIA      16   5 4 1 1 1 1 1 3                4   ArtPus4(RU)   1 UnitGre(RU)   2 UnitEgr(RU)   1 UnitKGus(RU) 1
+#EGYPT       13   5 3 2 2 2 3                    2   UnitKArb(EG)  1 ArtPus4(EG)   1
+
+
+#GENERAL     4
+#ENGLAND     16   7 2 2 1 2 3 3 2 2              3   UnitKDrg(EN)  1 ArtPus4G(EN)  1 ArtPus4R(EN) 2
+#FRANCE      16   6 2 2 1 1 1 1 3 2 2 2 1        3   UnitKKir(FR)  1 UnitKGre(FR)  1 ArtPus4G(FR) 1
+#AUSTRIA     16   6 2 2 1 1 1 2 3 2 2 2 2        2   UnitKKir(AU)  1                 ArtPus4G(AU) 1
+#PRUSSIA     16   7 2 2 1 2 3 2 2 2 2            2   UnitKKir(PR)  1                 ArtPus4G(PR) 1
+#RUSSIA      20   6 4 1 1 1 1 1 3 2 2 2 1        2   UnitKKir(RU)  1                 ArtPus4G(RU) 1
+#EGYPT       16   5 3 2 2 2 3 2 2                2   UnitKMam(EG)  1                 ArtPus4G(EG) 1
+
+
+#MARSHAL     5
+#ENGLAND     20   8 3 2 1 2 3 3 2 2 2 2 3        0
+#FRANCE      20   7 3 3 1 1 1 1 3 2 3 2 1 1 1 2  2   UnitKMam(FR)  1 UnitKKar(FR)  1
+#AUSTRIA     20   7 3 3 1 1 1 2 3 2 3 2 2 2 2    0   
+#PRUSSIA     20   8 3 2 1 2 3 3 2 2 2 2 2        1   UnitKKar(PR)  1
+#RUSSIA      24   6 4 1 1 1 1 1 3 2 3 2 1 1 2    1   UnitKMam(RU)  1
+#EGYPT       20   6 4 3 2 2 3 2 2 2 2            0

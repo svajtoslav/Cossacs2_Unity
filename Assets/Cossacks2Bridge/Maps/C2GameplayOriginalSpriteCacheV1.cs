@@ -21,9 +21,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public static Sprite LoadSprite(string fileId, int spriteId, string debugName)
         {
             if (spriteId < 0) spriteId = 0;
-            // V134: the cache key must preserve the row-orientation class.
-            // V133 keyed only by fileId+spriteId; a sprite decoded with one row policy could be reused
-            // by a UI-level flipped produce portrait and become upside down.
+            // Every cached sprite has the same upright texture orientation.
             string key = MakeSpriteCacheKeyV134(fileId, spriteId, debugName);
             Sprite cached;
             if (SpriteCache.TryGetValue(key, out cached)) return cached;
@@ -82,17 +80,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                     Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, false);
                     tex.name = SafeName(debugName, Path.GetFileNameWithoutExtension(path) + "_" + spriteId.ToString("0000"));
-                    // Most original UI frames/portraits need rowFlip=1 because TryGetG16FrameRGBA returns top-down rows.
-                    // Produce building mini-icons are the exception in the current bridge/resource set:
-                    // Interf3\\BldSmallIcons and Interf3\\Addon\\PatchIcons were already visually upright before the global V16 flip.
-                    // Applying rowFlip=1 to them makes every building card upside down and visually shifted upward.
+                    // Exactly one top-down RGBA to Unity row conversion.
                     bool rowFlip = ShouldFlipRowsForUiG16(fileId, path, debugName);
-                    if (rowFlip) FlipRgbaRowsInPlace(rgba, w, h);
+                    if (rowFlip) rgba = CopyUprightRgbaV377LikeOriginal(rgba, w, h);
                     tex.LoadRawTextureData(rgba);
                     tex.filterMode = FilterMode.Point;
                     tex.wrapMode = TextureWrapMode.Clamp;
                     tex.Apply(false, false);
-                    RememberSource(fileId, spriteId, "G16 rowFlip=" + (rowFlip ? "1" : "0") + " rule=split_ui_g16 path='" + path + "' size=" + w.ToString() + "x" + h.ToString() + " debug='" + (debugName ?? string.Empty) + "'");
+                    RememberSource(fileId, spriteId, "G16 rowFlip=" + (rowFlip ? "1" : "0") + " rule=owned_upright_v377 path='" + path + "' size=" + w.ToString() + "x" + h.ToString() + " debug='" + (debugName ?? string.Empty) + "'");
                     return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100.0f);
                 }
                 catch (Exception ex)
@@ -103,6 +98,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             return null;
+        }
+
+        private static byte[] CopyUprightRgbaV377LikeOriginal(byte[] decoded, int width, int height)
+        {
+            // CodecFacade returns its shared cached byte[]. Never mutate that buffer:
+            // another HUD/menu load may request the same frame later.
+            byte[] owned = (byte[])decoded.Clone();
+            FlipRgbaRowsInPlace(owned, width, height);
+            return owned;
         }
 
         private static void FlipRgbaRowsInPlace(byte[] rgba, int width, int height)
@@ -123,34 +127,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private static bool ShouldFlipRowsForUiG16(string fileId, string path, string debugName)
         {
-            if (ForceNoRowFlipForUiG16V134(fileId, path, debugName))
-                return false;
-
+            // CodecFacade/bridge RGBA rows are top-down; Unity textures are bottom-up.
+            // Normalize once for every caller (HUD and IMGUI), including mini portraits.
             return true;
         }
 
-        private static bool ForceNoRowFlipForUiG16V134(string fileId, string path, string debugName)
-        {
-            string f = ((fileId ?? string.Empty) + "|" + (path ?? string.Empty) + "|" + (debugName ?? string.Empty)).Replace('/', '\\');
 
-            // Correct split:
-            // - selected-unit card/frame sprites need raw row flip.
-            // - produce building cards from BldSmallIcons/PatchIcons are already in the orientation expected by Unity after bridge decode.
-            // - Units_*_mini produce portraits are flipped at the UI RectTransform level (uiFlipY=true);
-            //   flipping rows here as well makes them upside down.
-            if (f.IndexOf("BldSmallIcons", StringComparison.OrdinalIgnoreCase) >= 0) return true;
-            if (f.IndexOf("PatchIcons", StringComparison.OrdinalIgnoreCase) >= 0) return true;
-            if (f.IndexOf("Units_", StringComparison.OrdinalIgnoreCase) >= 0 &&
-                f.IndexOf("_mini", StringComparison.OrdinalIgnoreCase) >= 0) return true;
-
-            return false;
-        }
 
         private static string MakeSpriteCacheKeyV134(string fileId, int spriteId, string debugName)
         {
-            bool noRowFlip = ForceNoRowFlipForUiG16V134(fileId, string.Empty, debugName);
-            return "V134_HUD_SPRITE_SHARED|" + (fileId ?? string.Empty).Trim() + "|" +
-                   spriteId.ToString() + "|noflip=" + (noRowFlip ? "1" : "0");
+            return "V377_UPRIGHT_UI|" + (fileId ?? string.Empty).Trim() + "|" + spriteId.ToString();
         }
 
 
@@ -173,7 +159,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                        ?? Type.GetType("TemnyLessCodec.MelinojaCodecBridge, Assembly-CSharp", false)
                        ?? Type.GetType("TemnyLessCodec.MelinojaCodecBridge, Melinoja", false)
                        ?? Type.GetType("MelinojaCodecBridge, Assembly-CSharp", false)
-                       ?? Type.GetType("MelinojaCodecBridge, Melinoja", false);
+                       ?? Type.GetType("MelinojaCodecBridge, Melinoja", false)
+                       ?? Type.GetType("TemnyLessCodec.CodecFacade, Melinoja", false);
 
             if (_bridgeType == null)
             {
@@ -183,7 +170,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     try
                     {
                         _bridgeType = assemblies[i].GetType("TemnyLessCodec.MelinojaCodecBridge", false)
-                                   ?? assemblies[i].GetType("MelinojaCodecBridge", false);
+                                   ?? assemblies[i].GetType("MelinojaCodecBridge", false)
+                                   ?? assemblies[i].GetType("TemnyLessCodec.CodecFacade", false);
                     }
                     catch { }
                 }
@@ -219,6 +207,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 add(Path.Combine(root, flat + ".g16"));
                 add(Path.Combine(root, upperFlat + ".g16"));
                 add(Path.Combine(root, lowerFlat + ".g16"));
+                add(Path.Combine(root, "Cash", flat + ".g16"));
 
                 add(Path.Combine(root, "Interf3", bare + ".g16"));
                 add(Path.Combine(root, "Interf3", "Interf3_" + bare + ".g16"));

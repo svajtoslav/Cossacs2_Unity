@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Cossacks2Bridge.Core;
-using Cossacks2Bridge.UnityAdapters.Maps;
+using Cossacks2Bridge.Core.Loaders;
 
 namespace Cossacks2Bridge.UnityAdapters.Battles
 {
@@ -30,11 +30,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
         private readonly Dictionary<string, Sprite> _lineOnlySpriteCache =
             new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
 
-        private readonly Dictionary<int, int> _playerFlagColorBySlot =
-            new Dictionary<int, int>();
         private readonly Dictionary<int, int> _playerRaceBySlot =
-            new Dictionary<int, int>();
-        private readonly Dictionary<int, int> _playerTeamBySlot =
             new Dictionary<int, int>();
         private readonly Dictionary<int, int> _playerDifficultyBySlot =
             new Dictionary<int, int>();
@@ -42,17 +38,8 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
 
         private int? _playerColorFrameCount;
 
-        private static readonly string[] DebugRaceNames =
-        {
-            "Случайно",
-            "Франция",
-            "Австрия",
-            "Россия",
-            "Пруссия",
-            "Англия",
-            "Испания",
-            "Турция"
-        };
+        // V393: race roster is NOT hardcoded here.  C2 1.4 cva_BR_PlRace::Init
+        // adds Random + the source-bound GlobalAI.Ai[] roster from Ai\Ai.dat.
 
         private static readonly string[] DebugDifficultyNames =
         {
@@ -226,7 +213,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
             int rosterSlots = Mathf.Clamp(sel != null ? GetMissionPlayerCount(fs, sel.Id) : 2, 1, 7);
 
             RenderLeftTabsFromScene(root, scene, loc, cashDir, sink, showBattles, showLoad);
-            RenderLeftUpperFromScene(root, scene, cashDir, sink, showBattles, rosterSlots);
+            RenderLeftUpperFromScene(root, scene, fs, loc, cashDir, sink, showBattles, rosterSlots);
             RenderMissionListFromScene(root, scene, cashDir, entries, selectedId, sink, showBattles);
 
             // 5. MAP PREVIEW — original XML host is 375x235 at x=573,y=160.
@@ -1067,7 +1054,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
             var tmp = txtGo.GetComponent<TextMeshProUGUI>();
             tmp.font = LoadFont();
             tmp.fontSize = 13f;
-            tmp.enableWordWrapping = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.overflowMode = TextOverflowModes.Overflow;
             tmp.text = label;
             tmp.color = active ? new Color32(30, 22, 14, 255) : new Color32(38, 28, 18, 255);
@@ -1099,6 +1086,8 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
 
         private void RenderLeftUpperFromScene(RectTransform parent,
             MbScene scene,
+            CoreFileSystem fs,
+            LocDb loc,
             string cashDir,
             IUiActionSink sink,
             bool showBattles,
@@ -1172,6 +1161,9 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
                     "cva_BR_PlName", sink);
             }
 
+            string[] raceNamesV393 = C2Version14Context.BuildBattleRoomRaceCombo(fs, loc);
+            Debug.Log($"[C2:1.4 BATTLE V393] cva_BR_PlRace roster={Mathf.Max(0, raceNamesV393.Length - 1)}+random source={C2Version14Context.SourceData14}:Ai\\Ai.dat legacyDebugRoster=0");
+
             var raceNodes = scene.Nodes.OfType<MbComboBoxNode>()
                 .Where(n => n.Actions.Any(a => a.Name.Equals("cva_BR_PlRace", StringComparison.OrdinalIgnoreCase)) &&
                             n.X >= 180 && n.X < 340 &&
@@ -1191,7 +1183,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
 
                 int slotIndex = slot;
                 PlaceRosterDropdown(parent, cashDir, "RosterRace_" + slotIndex, rx, ry, rw, rh,
-                    DebugRaceNames,
+                    raceNamesV393,
                     () => _playerRaceBySlot.TryGetValue(slotIndex, out var current) ? current : 0,
                     idx => _playerRaceBySlot[slotIndex] = idx,
                     "cva_BR_PlRace", sink);
@@ -1239,26 +1231,36 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
                 img.raycastTarget = true;
 
                 int slotIndex = slot;
-                if (!_playerFlagColorBySlot.ContainsKey(slotIndex))
-                    _playerFlagColorBySlot[slotIndex] = slotIndex;
-
-                C2PlayerColorsLikeOriginal.SetPlayerColorId(slotIndex, _playerFlagColorBySlot[slotIndex]);
-
                 img.sprite = baseSprite;
-                img.color = GetFallbackFlagTint(_playerFlagColorBySlot[slotIndex]);
+                img.color = GetFallbackFlagTint(MenuActionSink.GetSingleBattlesPlayerColor(slotIndex));
 
                 var relay = go.GetComponent<PointerClickRelay>();
                 relay.Clicked = button =>
                 {
-                    int colorCount = FallbackPlayerFlagTints.Length;
-                    int current = _playerFlagColorBySlot.TryGetValue(slotIndex, out var stored) ? stored : slotIndex;
-                    if (button == PointerEventData.InputButton.Right)
-                        current = (current - 1 + colorCount) % colorCount;
-                    else
-                        current = (current + 1) % colorCount;
+                    const int colorCount = 7;
+                    int current = MenuActionSink.GetSingleBattlesPlayerColor(slotIndex);
+                    int direction = button == PointerEventData.InputButton.Right ? -1 : 1;
+                    for (int attempt = 0; attempt < colorCount; attempt++)
+                    {
+                        int candidate = (current + direction + colorCount) % colorCount;
+                        current = candidate;
 
-                    _playerFlagColorBySlot[slotIndex] = current;
-                    C2PlayerColorsLikeOriginal.SetPlayerColorId(slotIndex, current);
+                        bool occupied = false;
+                        for (int otherSlot = 0; otherSlot < slotCount; otherSlot++)
+                        {
+                            if (otherSlot != slotIndex &&
+                                MenuActionSink.GetSingleBattlesPlayerColor(otherSlot) == candidate)
+                            {
+                                occupied = true;
+                                break;
+                            }
+                        }
+
+                        if (!occupied)
+                            break;
+                    }
+
+                    MenuActionSink.SetSingleBattlesPlayerColor(slotIndex, current);
                     img.sprite = baseSprite;
                     img.color = GetFallbackFlagTint(current);
 
@@ -1307,18 +1309,6 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
 
                 tw = normalizedTeamWidth;
                 tx = Mathf.Round(teamCenterX - tw * 0.5f);
-
-                if (!_playerTeamBySlot.ContainsKey(slot))
-                {
-                    int initial = slot == 0 ? 1 : 0;
-                    if (slot < teamNodes.Count)
-                    {
-                        string msg = (teamNodes[slot].Message ?? "").Trim();
-                        if (int.TryParse(msg, out var parsed))
-                            initial = parsed;
-                    }
-                    _playerTeamBySlot[slot] = initial;
-                }
 
                 RenderTeamValue(parent, tx, ty + 1f, tw, th, slot, sink);
             }
@@ -1524,7 +1514,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
             var label = textGo.GetComponent<TextMeshProUGUI>();
             label.font = LoadFont();
             label.fontSize = 14f;
-            label.text = TeamValueToText(_playerTeamBySlot.TryGetValue(slotIndex, out var current) ? current : 0);
+            label.text = TeamValueToText(MenuActionSink.GetSingleBattlesPlayerTeam(slotIndex));
             label.alignment = TextAlignmentOptions.Center;
             label.color = new Color32(70, 60, 48, 255);
             label.raycastTarget = false;
@@ -1532,13 +1522,13 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
             var relay = host.GetComponent<PointerClickRelay>();
             relay.Clicked = button =>
             {
-                int currentValue = _playerTeamBySlot.TryGetValue(slotIndex, out var stored) ? stored : 0;
+                int currentValue = MenuActionSink.GetSingleBattlesPlayerTeam(slotIndex);
                 if (button == PointerEventData.InputButton.Right)
                     currentValue = currentValue == 0 ? 4 : currentValue - 1;
                 else
                     currentValue = currentValue < 4 ? currentValue + 1 : 0;
 
-                _playerTeamBySlot[slotIndex] = currentValue;
+                MenuActionSink.SetSingleBattlesPlayerTeam(slotIndex, currentValue);
                 label.text = TeamValueToText(currentValue);
                 sink.OnAction(label.text, new UiAction { Name = "cva_BR_PlTeam", Payload = currentValue.ToString() });
             };
@@ -1803,7 +1793,7 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
             tmp.color = isSel ? new Color32(170, 40, 40, 255) : new Color32(40, 30, 25, 255);
             tmp.raycastTarget = false;
 #pragma warning disable CS0618
-            tmp.enableWordWrapping = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
 #pragma warning restore CS0618
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.overflowMode = TextOverflowModes.Ellipsis;
@@ -3493,7 +3483,7 @@ private void PlaceDescriptionScroll(RectTransform parent, string cashDir,
             tmp.color = new Color32(242, 225, 164, 255);
             tmp.raycastTarget = false;
 #pragma warning disable CS0618
-            tmp.enableWordWrapping = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
 #pragma warning restore CS0618
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.overflowMode = TextOverflowModes.Overflow;
@@ -3539,7 +3529,7 @@ private void PlaceDescriptionScroll(RectTransform parent, string cashDir,
             tmp.color = color;
             tmp.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
 #pragma warning disable CS0618
-            tmp.enableWordWrapping = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
 #pragma warning restore CS0618
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.overflowMode = TextOverflowModes.Overflow;

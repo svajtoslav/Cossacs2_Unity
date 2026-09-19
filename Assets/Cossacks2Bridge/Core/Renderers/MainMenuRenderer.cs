@@ -76,7 +76,7 @@ private static void CreatePseudoCombo(RectTransform parent, int x, int y, int w,
     label.text = text ?? "";
     label.color = new Color32(25, 18, 10, 255);
     label.alignment = TextAlignmentOptions.MidlineLeft;
-    label.enableWordWrapping = false;
+    label.textWrappingMode = TextWrappingModes.NoWrap;
     label.raycastTarget = false;
 
     var btn = go.GetComponent<Button>();
@@ -109,6 +109,140 @@ private static Sprite LoadResSprite(string key)
     var tex = Resources.Load<Texture2D>(key);
     if (tex == null) return null;
     return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 1f);
+}
+
+private static Sprite LoadVitButtonSprite14(UiVitButton vb, int frame)
+{
+    if (vb == null || frame < 0 || string.IsNullOrWhiteSpace(vb.GP_File))
+        return null;
+
+    string folder = vb.GP_File
+        .Replace("\\", "_")
+        .Replace("/", "_")
+        .ToUpperInvariant() + "_frames";
+
+    return LoadResSprite($"{folder}/frame_{frame:0000}");
+}
+
+private sealed class Menu14VitHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+{
+    public Image Background;
+    public Sprite PassiveSprite;
+    public Sprite HoverSprite;
+    public TextMeshProUGUI Label;
+    public Color32 PassiveColor;
+    public Color32 HoverColor;
+    public bool Interactable;
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (!Interactable) return;
+        if (Background != null)
+        {
+            Background.sprite = HoverSprite != null ? HoverSprite : PassiveSprite;
+            Background.color = Background.sprite != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+        }
+        if (Label != null) Label.color = HoverColor;
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        if (Background != null)
+        {
+            Background.sprite = PassiveSprite;
+            Background.color = PassiveSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+        }
+        if (Label != null) Label.color = PassiveColor;
+    }
+}
+
+private static void CreateMenu14VitButton(
+    RectTransform parent, UiVitButton vb, RenderOptions opt, IUiActionSink sink, LocDb loc)
+{
+    if (vb == null || parent == null || !vb.Visible) return;
+
+    Sprite passive = LoadVitButtonSprite14(vb, vb.SpritePassive);
+    Sprite hover = LoadVitButtonSprite14(vb, vb.SpriteActive);
+
+    var go = new GameObject($"Menu14VitButton_{SafeName(vb.MessageKey)}",
+        typeof(RectTransform), typeof(Image), typeof(Button));
+    go.transform.SetParent(parent, false);
+
+    var rt = (RectTransform)go.transform;
+    rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+    rt.pivot = new Vector2(0, 1);
+    rt.anchoredPosition = new Vector2(vb.X + vb.SpriteDx, -vb.Y);
+    rt.sizeDelta = new Vector2(vb.Width > 0 ? vb.Width : 403, vb.Height > 0 ? vb.Height : 30);
+
+    var bg = go.GetComponent<Image>();
+    bg.raycastTarget = true;
+    bg.sprite = passive;
+    bg.type = Image.Type.Simple;
+    bg.preserveAspect = false;
+    bg.color = passive != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+
+    var button = go.GetComponent<Button>();
+    button.targetGraphic = bg;
+    button.interactable = vb.Enabled;
+
+    var labelGo = new GameObject("Label", typeof(RectTransform));
+    labelGo.transform.SetParent(go.transform, false);
+    var lrt = (RectTransform)labelGo.transform;
+    lrt.anchorMin = Vector2.zero;
+    lrt.anchorMax = Vector2.one;
+    lrt.offsetMin = Vector2.zero;
+    lrt.offsetMax = Vector2.zero;
+    lrt.anchoredPosition += new Vector2(vb.FontDx, -vb.FontDy);
+
+    var label = labelGo.AddComponent<TextMeshProUGUI>();
+    label.raycastTarget = false;
+    label.richText = false;
+    label.textWrappingMode = TextWrappingModes.NoWrap;
+    label.text = loc?.Resolve(vb.MessageKey) ?? vb.MessageKey ?? string.Empty;
+    ApplyTextStyle(label, UiTextStyle.Default, opt);
+    label.alignment = string.Equals(vb.Align, "Left", StringComparison.OrdinalIgnoreCase)
+        ? TextAlignmentOptions.MidlineLeft
+        : string.Equals(vb.Align, "Right", StringComparison.OrdinalIgnoreCase)
+            ? TextAlignmentOptions.MidlineRight
+            : TextAlignmentOptions.Center;
+    label.color = vb.Enabled ? opt.NormalColor : opt.DisabledColor;
+
+    var hoverState = go.AddComponent<Menu14VitHover>();
+    hoverState.Background = bg;
+    hoverState.PassiveSprite = passive;
+    hoverState.HoverSprite = hover;
+    hoverState.Label = label;
+    hoverState.PassiveColor = vb.Enabled ? opt.NormalColor : opt.DisabledColor;
+    hoverState.HoverColor = opt.HoverColor;
+    hoverState.Interactable = vb.Enabled;
+
+    if (vb.Enabled && vb.Actions != null && vb.Actions.Count > 0)
+    {
+        button.onClick.AddListener(() =>
+        {
+            foreach (var a in vb.Actions)
+            {
+                if (a == null) continue;
+                try { sink?.OnAction(vb.Name, a); }
+                catch (Exception e) { Debug.LogError($"[C2:MENU14 V387A2] VitButton action error: {e}"); }
+            }
+        });
+    }
+}
+
+private static readonly HashSet<string> MainMenu14VitKeys = new(StringComparer.OrdinalIgnoreCase)
+{
+    "#MM_Single_Window",
+    "#EW2_InternetGame",
+    "#LAN_RoomsList_Title",
+    "#Options_Window",
+    "#EW2_Credits",
+    "#EW2_Exit"
+};
+
+private static bool IsMainMenu14RootVit(UiVitButton vb)
+{
+    return vb != null && !string.IsNullOrWhiteSpace(vb.MessageKey) && MainMenu14VitKeys.Contains(vb.MessageKey);
 }
 
 private static void CreateBattleBottomButton(RectTransform parent, UiTextButton btn, RenderOptions opt, IUiActionSink sink, LocDb loc)
@@ -185,6 +319,8 @@ private sealed class BattleEntry
             var root = CreateCanvas("C2_MainMenuCanvas", opt);
             if (desk?.Children == null) return;
 
+            bool isMainMenu = !string.IsNullOrEmpty(desk.SourcePath) &&
+                              desk.SourcePath.IndexOf("M_Main", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isSingleMenu = !string.IsNullOrEmpty(desk.SourcePath) &&
                                 desk.SourcePath.IndexOf("M_Single", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isBattlesMenu = !string.IsNullOrEmpty(desk.SourcePath) &&
@@ -218,56 +354,67 @@ private sealed class BattleEntry
                 if (ShouldSkipTextButton(btn, isSingleMenu))
                     continue;
 
-                var renderBtn = btn;
                 if (isSingleMenu && IsCurrentProfileValue(btn))
                 {
-                    renderBtn = CloneTextButton(btn);
-                    renderBtn.MessageKey = string.IsNullOrWhiteSpace(MenuActionSink.CurrentProfileName)
-                        ? btn.MessageKey
-                        : MenuActionSink.CurrentProfileName;
-                }
-
-                CreateTextButton(root, renderBtn, opt, sink, loc, MenuOverrideDb.Resolve);
-            }
-
-            if (!isSingleMenu) return;
-
-            foreach (var node in desk.Children)
-            {
-                if (!node.Visible) continue;
-                if (node is not UiVitButton vb) continue;
-                if (string.IsNullOrWhiteSpace(vb.MessageKey)) continue;
-                if (!SingleMenuVitKeys.Contains(vb.MessageKey)) continue;
-
-                var btn = new UiTextButton
-                {
-                    Name = vb.Name,
-                    X = vb.X,
-                    Y = vb.Y,
-                    Width = vb.Width,
-                    Height = vb.Height,
-                    Visible = vb.Visible,
-                    Enabled = vb.Enabled,
-                    MessageKey = vb.MessageKey,
-                    HintKey = vb.HintKey,
-                    PassiveFont = "fonBlow_S",
-                    ActiveFont = "fonBlow_A",
-                    DisabledFont = "fonBlow_S",
-                    Align = "Center",
-                    Style = UiTextStyle.Default
-                };
-
-                foreach (var a in vb.Actions)
-                    btn.Actions.Add(a);
-
-                if (vb.MessageKey.Equals("#EW2_Campaign", StringComparison.OrdinalIgnoreCase) ||
-                    vb.MessageKey.Equals("#EW2_Battle4Europe", StringComparison.OrdinalIgnoreCase))
-                {
-                    btn.Actions.Clear();
+                    CreateSingleProfileNameV387B1(root, btn, opt);
+                    continue;
                 }
 
                 CreateTextButton(root, btn, opt, sink, loc, MenuOverrideDb.Resolve);
             }
+
+            if (isMainMenu)
+            {
+                int renderedVit = 0;
+                var seenVit = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var node in desk.Children)
+                {
+                    if (node is not UiVitButton vb || !vb.Visible) continue;
+                    if (!IsMainMenu14RootVit(vb)) continue;
+
+                    string key = $"{vb.MessageKey}|{vb.X}|{vb.Y}|{vb.Width}|{vb.Height}";
+                    if (!seenVit.Add(key)) continue;
+
+                    CreateMenu14VitButton(root, vb, opt, sink, loc);
+                    renderedVit++;
+                }
+                Debug.Log($"[C2:MENU14 V387A2] screen=Main source=original_xml renderedVitButtons={renderedVit} expected=6");
+            }
+
+            if (!isSingleMenu) return;
+
+            // V387B1: the loader now resolves the authoritative DialogsDesk
+            // Name=Main state. Render those five original VitButtons directly,
+            // preserving the original sprite states and action lists.
+            var renderedSingleKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var node in desk.Children)
+            {
+                if (node is not UiVitButton vb || !vb.Visible) continue;
+                if (string.IsNullOrWhiteSpace(vb.MessageKey)) continue;
+                if (!SingleMenuVitKeys.Contains(vb.MessageKey)) continue;
+                if (!renderedSingleKeys.Add(vb.MessageKey)) continue;
+
+                UiVitButton renderVb = vb;
+                if (vb.MessageKey.Equals("#EW2_Campaign", StringComparison.OrdinalIgnoreCase))
+                {
+                    // V396A1: keep the ordinary Campaign branch guarded for now.
+                    // Its XML action list continues into the tutorial/campaign mission
+                    // flow, which is a different runtime from Battle for Europe.
+                    renderVb = CloneVitButtonV387B1(vb, copyActions: false);
+                }
+                else if (vb.MessageKey.Equals("#EW2_Battle4Europe", StringComparison.OrdinalIgnoreCase))
+                {
+                    // V396A1: Battle for Europe now has a real BigMap route in
+                    // MenuActionSink (SinGlobalMap/cva_MM_Campaign).  Do NOT strip
+                    // the original M_Single actions here: doing so leaves a button
+                    // that highlights but can never dispatch a click.
+                    Debug.Log($"[C2:MENU14 V396A1] Battle4Europe actions restored count={vb.Actions?.Count ?? 0}");
+                }
+
+                CreateMenu14VitButton(root, renderVb, opt, sink, loc);
+            }
+
+            Debug.Log($"[C2:MENU14 V387B1] screen=Single canonicalButtons={renderedSingleKeys.Count} expected=5 profile='{MenuActionSink.CurrentProfileName}'");
         }
 
         
@@ -768,7 +915,7 @@ private static UiTextButton BuildSimpleTextButton(int x, int y, int w, int h, st
             label.fontSize = fontSize;
             label.color = color;
             label.alignment = align;
-            label.enableWordWrapping = true;
+            label.textWrappingMode = TextWrappingModes.Normal;
             label.richText = false;
             label.raycastTarget = false;
             label.font = Resources.Load<TMP_FontAsset>("Fonts/Slovic");
@@ -853,8 +1000,95 @@ private static UiTextButton BuildSimpleTextButton(int x, int y, int w, int h, st
         private static bool IsCurrentProfileValue(UiTextButton btn)
         {
             if (btn == null) return false;
-            if (!string.IsNullOrWhiteSpace(btn.MessageKey) && btn.MessageKey.StartsWith("#", StringComparison.Ordinal)) return false;
+
+            if (btn.Actions != null)
+            {
+                foreach (var action in btn.Actions)
+                {
+                    if (action != null &&
+                        string.Equals(action.Name, "cva_Sin_ProfName", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+
+            // Fallback for older imported menu data that lost v_Actions.
+            if (!string.IsNullOrWhiteSpace(btn.MessageKey) && btn.MessageKey.StartsWith("#", StringComparison.Ordinal))
+                return false;
             return btn.X >= 450 && btn.X <= 560 && btn.Y >= 560 && btn.Y <= 590;
+        }
+
+        private static void CreateSingleProfileNameV387B1(
+            RectTransform root, UiTextButton source, RenderOptions opt)
+        {
+            if (root == null || source == null) return;
+
+            string profile = MenuActionSink.CurrentProfileName ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(profile))
+                return;
+
+            var go = new GameObject("Single_CurrentProfile_V387B1", typeof(RectTransform));
+            go.transform.SetParent(root, false);
+
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+
+            // The original TextButton is only 43 px wide because the C2 dialog
+            // layout expands/centres the SetMessage result. Unity's RectTransform
+            // clips that text, so reproduce the same centred visual area explicitly.
+            float width = 260f;
+            float centerX = source.X + Mathf.Max(1, source.Width) * 0.5f;
+            rt.anchoredPosition = new Vector2(centerX - width * 0.5f, -source.Y);
+            rt.sizeDelta = new Vector2(width, Mathf.Max(20, source.Height));
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            ApplyFontFromPath(tmp, "Fonts/Slovic");
+            tmp.fontSize = 15f;
+            tmp.color = opt != null ? opt.NormalColor : new Color32(40, 10, 10, 255);
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.richText = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.overflowMode = TextOverflowModes.Overflow;
+            tmp.raycastTarget = false;
+            tmp.text = profile;
+
+            Debug.Log($"[C2:PROFILE V387B1] Single cva_Sin_ProfName -> '{profile}'");
+        }
+
+        private static UiVitButton CloneVitButtonV387B1(UiVitButton src, bool copyActions)
+        {
+            var dst = new UiVitButton
+            {
+                Name = src.Name,
+                Hint = src.Hint,
+                X = src.X,
+                Y = src.Y,
+                Width = src.Width,
+                Height = src.Height,
+                Visible = src.Visible,
+                Enabled = src.Enabled,
+                MessageKey = src.MessageKey,
+                HintKey = src.HintKey,
+                GP_File = src.GP_File,
+                State = src.State,
+                SpritePassive = src.SpritePassive,
+                SpriteActive = src.SpriteActive,
+                SpriteDx = src.SpriteDx,
+                OneSprited = src.OneSprited,
+                FontPassive = src.FontPassive,
+                FontOver = src.FontOver,
+                FontDx = src.FontDx,
+                FontDy = src.FontDy,
+                Align = src.Align
+            };
+
+            if (copyActions)
+            {
+                foreach (var action in src.Actions)
+                    dst.Actions.Add(action);
+            }
+
+            return dst;
         }
 
         private static UiTextButton CloneTextButton(UiTextButton src)

@@ -3,6 +3,8 @@ Shader "Cossacks2Bridge/TerrainFinalColorPolishV4"
     Properties
     {
         _MainTex ("Terrain Texture", 2D) = "white" {}
+        _C2SmpPatchTex ("Local Building Ground Patch", 2D) = "black" {}
+        _C2SmpPatchEnabled ("Local Ground Patch Enabled", Float) = 0
         _BaseMap ("Terrain Texture", 2D) = "white" {}
         _Color ("Color", Color) = (1,1,1,1)
         _BaseColor ("Base Color", Color) = (1,1,1,1)
@@ -33,8 +35,11 @@ Shader "Cossacks2Bridge/TerrainFinalColorPolishV4"
             #pragma fragment frag
             #pragma target 2.0
             #include "UnityCG.cginc"
+            #include "C2FogOfWarLikeOriginal.cginc"
 
             sampler2D _MainTex;
+            sampler2D _C2SmpPatchTex;
+            float _C2SmpPatchEnabled;
             sampler2D _BaseMap;
             float4 _MainTex_ST;
             float4 _Color;
@@ -48,12 +53,15 @@ Shader "Cossacks2Bridge/TerrainFinalColorPolishV4"
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+                float2 patchUv : TEXCOORD1;
             };
 
             struct v2f
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float3 world : TEXCOORD1;
+                float2 patchUv : TEXCOORD2;
             };
 
             v2f vert(appdata v)
@@ -61,12 +69,22 @@ Shader "Cossacks2Bridge/TerrainFinalColorPolishV4"
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.patchUv = v.patchUv;
+                o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
-                float4 c = tex2D(_MainTex, i.uv) * _Color * _BaseColor;
+                float4 c = tex2D(_MainTex, i.uv);
+                // Retain the loaded atlas everywhere outside the actual SMP edits.
+                // Replacing a whole cached/BC1 chunk with a fresh RGBA bake changes its appearance.
+                if (_C2SmpPatchEnabled > 0.5)
+                {
+                    float4 patch = tex2D(_C2SmpPatchTex, i.patchUv);
+                    c.rgb = lerp(c.rgb, patch.rgb, patch.a);
+                }
+                c *= _Color * _BaseColor;
 
                 float3 rgb = c.rgb;
 
@@ -86,7 +104,7 @@ Shader "Cossacks2Bridge/TerrainFinalColorPolishV4"
                 rgb.g *= 1.0 + darkness * _C2ShadowWarm.y;
                 rgb.b *= 1.0 - darkness * _C2ShadowWarm.z;
 
-                c.rgb = saturate(rgb);
+                c.rgb = C2ApplyFogOfWarLikeOriginal(saturate(rgb), i.world);
                 return c;
             }
             ENDCG

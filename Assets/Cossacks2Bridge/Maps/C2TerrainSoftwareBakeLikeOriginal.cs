@@ -1,3 +1,6 @@
+// V231: terrain atlas pack stores BC1/DXT1 raw pages and loads them directly; avoids 1.2GB RGB24 reload/recompress per map.
+// V24B: stronger process memory fallback for real Task-Manager-like RAM numbers; no terrain visual logic change.
+ // V23: real memory audit + raw TerrainAtlas page buffers released after upload; no texture/runtime logic change.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,6 +45,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const bool TerrainSoftwareMapSideChunkCacheV1LikeOriginal = true;
         private const int TerrainSoftwareMapSideChunkCacheVersionV1LikeOriginal = 1;
         private const uint TerrainSoftwareMapSideChunkCacheMagicV1LikeOriginal = 0x314B3243; // C2K1
+        private const bool TerrainSoftwareAtlasPackV13LikeAdapted = true;
+        private const int TerrainSoftwareAtlasPackVersionV13LikeAdapted = 9; // V231 stores already-compressed BC1/DXT1 raw pages; per-map cache is built once and then loaded directly
+        private const uint TerrainSoftwareAtlasPackMagicV13LikeAdapted = 0x33544143; // CAT3
+        private const int TerrainSoftwareAtlasTilesPerPageX_V13LikeAdapted = 2;
+        private const int TerrainSoftwareAtlasTilesPerPageY_V13LikeAdapted = 2;
+        private const int TerrainSoftwareAtlasPaddingPixels_V13LikeAdapted = 4;
+        private const int TerrainSoftwareAtlasPageFormatRgba32_V14A = 0;
+        private const int TerrainSoftwareAtlasPageFormatRgb24_V14A = 1;
+        private const int TerrainSoftwareAtlasPageFormatDxt1_V231 = 2;
         private const bool TerrainSoftwareFallbackStructureFeatherV1LikeAdapted = true;
         private const int TerrainSoftwareFallbackStructureFeatherRadiusV1LikeAdapted = 18;
         private const bool TerrainSoftwareFallbackStructureSprayV2LikeAdapted = true;
@@ -76,6 +88,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static bool s_terrainSoftwareFallbackStructureFeatherPathLoggedV1LikeAdapted;
         private static bool s_terrainSoftwarePersistentCacheWarningLoggedLikeOriginal;
         private static readonly object s_terrainSoftwareFactureCacheBuildLockLikeOriginal = new object();
+        private static Material s_terrainSoftwareSharedMaterialV13LikeAdapted;
+        private static MaterialPropertyBlock s_terrainSoftwareSharedMpbV13LikeAdapted;
         // V103 SMP freeze fix: facture pixels are immutable after readback, so share them across
         // every new TerrainSoftwareBakeInputsLikeOriginal. Otherwise SMP overlay creates fresh
         // empty caches, worker bake touches Texture2D.GetPixels32, then old code falls back to
@@ -102,6 +116,207 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public Color32[] Pixels;
             public bool Success;
             public string Error;
+        }
+
+        private sealed class TerrainSoftwareAtlasPageV13LikeAdapted
+        {
+            public int PageIndex;
+            public int Width;
+            public int Height;
+            public Color32[] Pixels;
+            public byte[] Rgb24Bytes;
+            public byte[] Dxt1Bytes;
+            public int PackFormat = TerrainSoftwareAtlasPageFormatRgba32_V14A;
+            public Texture2D Texture;
+        }
+
+        private sealed class TerrainSoftwareAtlasDataV13LikeAdapted
+        {
+            public int PageTilesX;
+            public int PageTilesY;
+            public int PageCountX;
+            public int PageCountY;
+            public int CellWidth;
+            public int CellHeight;
+            public int Padding;
+            public int[] ChunkPageIndexByJob;
+            public Rect[] ChunkUvRectByJob;
+            public TerrainSoftwareAtlasPageV13LikeAdapted[] Pages;
+            public bool LoadedFromPack;
+            public string Audit;
+        }
+
+        private static string C2TerrainSoftwareV23MBLikeOriginal(long bytes)
+        {
+            return (bytes <= 0L ? 0.0 : bytes / (1024.0 * 1024.0)).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static bool C2TerrainSoftwareV24TryGetWin32ProcessMemoryLikeOriginal(out long workingSet, out long privateBytes, out long virtualBytes)
+        {
+            workingSet = 0L;
+            privateBytes = 0L;
+            virtualBytes = 0L;
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+            try
+            {
+                C2TerrainSoftwareV24PROCESS_MEMORY_COUNTERS_EX counters;
+                counters.cb = (uint)global::System.Runtime.InteropServices.Marshal.SizeOf(typeof(C2TerrainSoftwareV24PROCESS_MEMORY_COUNTERS_EX));
+                if (C2TerrainSoftwareV24GetProcessMemoryInfoLikeOriginal(
+                        C2TerrainSoftwareV24GetCurrentProcessLikeOriginal(),
+                        out counters,
+                        counters.cb))
+                {
+                    workingSet = unchecked((long)counters.WorkingSetSize);
+                    privateBytes = unchecked((long)counters.PrivateUsage);
+                    virtualBytes = unchecked((long)counters.PagefileUsage);
+                    return workingSet > 0L || privateBytes > 0L || virtualBytes > 0L;
+                }
+            }
+            catch { }
+#endif
+            return false;
+        }
+
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        [global::System.Runtime.InteropServices.StructLayout(global::System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct C2TerrainSoftwareV24PROCESS_MEMORY_COUNTERS_EX
+        {
+            public uint cb;
+            public uint PageFaultCount;
+            public UIntPtr PeakWorkingSetSize;
+            public UIntPtr WorkingSetSize;
+            public UIntPtr QuotaPeakPagedPoolUsage;
+            public UIntPtr QuotaPagedPoolUsage;
+            public UIntPtr QuotaPeakNonPagedPoolUsage;
+            public UIntPtr QuotaNonPagedPoolUsage;
+            public UIntPtr PagefileUsage;
+            public UIntPtr PeakPagefileUsage;
+            public UIntPtr PrivateUsage;
+        }
+
+        [global::System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern IntPtr C2TerrainSoftwareV24GetCurrentProcessLikeOriginal();
+
+        [global::System.Runtime.InteropServices.DllImport("psapi.dll", SetLastError = true)]
+        private static extern bool C2TerrainSoftwareV24GetProcessMemoryInfoLikeOriginal(
+            IntPtr hProcess,
+            out C2TerrainSoftwareV24PROCESS_MEMORY_COUNTERS_EX counters,
+            uint size);
+#endif
+
+        private static long C2TerrainSoftwareV23ProfilerGraphicsDriverBytesLikeOriginal()
+        {
+            try
+            {
+                var mi = typeof(UnityEngine.Profiling.Profiler).GetMethod("GetAllocatedMemoryForGraphicsDriver", Type.EmptyTypes);
+                if (mi == null) return 0L;
+                object v = mi.Invoke(null, null);
+                if (v is long) return (long)v;
+                if (v is ulong) return unchecked((long)(ulong)v);
+                if (v is int) return (int)v;
+                return 0L;
+            }
+            catch { return 0L; }
+        }
+
+        private static void C2TerrainSoftwareV23LogRealMemoryAuditLikeOriginal(string source)
+        {
+            long unityAllocated = 0L;
+            long unityReserved = 0L;
+            long monoUsed = 0L;
+            long monoHeap = 0L;
+            long graphicsDriver = 0L;
+            long gcManaged = 0L;
+            long workingSet = 0L;
+            long privateBytes = 0L;
+            long virtualBytes = 0L;
+
+            try { unityAllocated = UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong(); } catch { }
+            try { unityReserved = UnityEngine.Profiling.Profiler.GetTotalReservedMemoryLong(); } catch { }
+            try { monoUsed = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong(); } catch { }
+            try { monoHeap = UnityEngine.Profiling.Profiler.GetMonoHeapSizeLong(); } catch { }
+            try { graphicsDriver = C2TerrainSoftwareV23ProfilerGraphicsDriverBytesLikeOriginal(); } catch { }
+            try { gcManaged = GC.GetTotalMemory(false); } catch { }
+            bool processApiOk = false;
+            try
+            {
+                using (global::System.Diagnostics.Process p = global::System.Diagnostics.Process.GetCurrentProcess())
+                {
+                    workingSet = p.WorkingSet64;
+                    privateBytes = p.PrivateMemorySize64;
+                    virtualBytes = p.VirtualMemorySize64;
+                    processApiOk = workingSet > 0L || privateBytes > 0L || virtualBytes > 0L;
+                }
+            }
+            catch { }
+
+            bool win32ApiOk = false;
+            if (!processApiOk)
+            {
+                long ws2, priv2, virt2;
+                win32ApiOk = C2TerrainSoftwareV24TryGetWin32ProcessMemoryLikeOriginal(out ws2, out priv2, out virt2);
+                if (win32ApiOk)
+                {
+                    workingSet = ws2;
+                    privateBytes = priv2;
+                    virtualBytes = virt2;
+                }
+            }
+
+            Debug.Log("[C2:MEMORY V24B REAL] source=" + (source ?? string.Empty) +
+                      " processApiOk=" + processApiOk.ToString() +
+                      " win32ApiOk=" + win32ApiOk.ToString() +
+                      " processWorkingSetMB=" + C2TerrainSoftwareV23MBLikeOriginal(workingSet) +
+                      " processPrivateMB=" + C2TerrainSoftwareV23MBLikeOriginal(privateBytes) +
+                      " processVirtualMB=" + C2TerrainSoftwareV23MBLikeOriginal(virtualBytes) +
+                      " gcManagedMB=" + C2TerrainSoftwareV23MBLikeOriginal(gcManaged) +
+                      " unityAllocatedMB=" + C2TerrainSoftwareV23MBLikeOriginal(unityAllocated) +
+                      " unityReservedMB=" + C2TerrainSoftwareV23MBLikeOriginal(unityReserved) +
+                      " monoUsedMB=" + C2TerrainSoftwareV23MBLikeOriginal(monoUsed) +
+                      " monoHeapMB=" + C2TerrainSoftwareV23MBLikeOriginal(monoHeap) +
+                      " graphicsDriverMB=" + C2TerrainSoftwareV23MBLikeOriginal(graphicsDriver));
+        }
+
+        private static long C2TerrainSoftwareV23RawAtlasBufferBytesLikeOriginal(TerrainSoftwareAtlasDataV13LikeAdapted atlasData)
+        {
+            long bytes = 0L;
+            if (atlasData == null || atlasData.Pages == null) return 0L;
+            for (int i = 0; i < atlasData.Pages.Length; i++)
+            {
+                TerrainSoftwareAtlasPageV13LikeAdapted p = atlasData.Pages[i];
+                if (p == null) continue;
+                if (p.Rgb24Bytes != null) bytes += p.Rgb24Bytes.Length;
+                if (p.Dxt1Bytes != null) bytes += p.Dxt1Bytes.Length;
+                if (p.Pixels != null) bytes += (long)p.Pixels.Length * 4L;
+            }
+            return bytes;
+        }
+
+        private static long C2TerrainSoftwareV23ReleaseRawAtlasBuffersLikeOriginal(TerrainSoftwareAtlasDataV13LikeAdapted atlasData)
+        {
+            long bytes = 0L;
+            if (atlasData == null || atlasData.Pages == null) return 0L;
+            for (int i = 0; i < atlasData.Pages.Length; i++)
+            {
+                TerrainSoftwareAtlasPageV13LikeAdapted p = atlasData.Pages[i];
+                if (p == null || p.Texture == null) continue;
+                if (p.Rgb24Bytes != null)
+                {
+                    bytes += p.Rgb24Bytes.Length;
+                    p.Rgb24Bytes = null;
+                }
+                if (p.Dxt1Bytes != null)
+                {
+                    bytes += p.Dxt1Bytes.Length;
+                    p.Dxt1Bytes = null;
+                }
+                if (p.Pixels != null)
+                {
+                    bytes += (long)p.Pixels.Length * 4L;
+                    p.Pixels = null;
+                }
+            }
+            return bytes;
         }
 
         private sealed class TerrainSoftwareBakeInputsLikeOriginal
@@ -151,7 +366,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (map.Heights == null || map.Heights.Length == 0)
                 throw new InvalidOperationException("Map has no SURF heights.");
 
+            var prepareInputsSwV1 = global::System.Diagnostics.Stopwatch.StartNew();
             TerrainSoftwareBakeInputsLikeOriginal inputs = PrepareTerrainSoftwareBakeInputsLikeOriginal();
+            prepareInputsSwV1.Stop();
+            C2MapLoadProfilerV1.Stage("terrain.software.prepareInputs", prepareInputsSwV1.ElapsedMilliseconds,
+                "groundPixels=" + (inputs != null && inputs.GroundPixels != null ? inputs.GroundPixels.Length.ToString() : "0"));
+
             if (inputs == null || inputs.GroundAtlas == null || inputs.GroundPixels == null || inputs.GroundPixels.Length == 0)
                 throw new InvalidOperationException("Ground atlas is not available for software terrain bake.");
 
@@ -181,6 +401,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!TerrainQualityFactureLayerDisabledLikeAdapted)
                 PrewarmTerrainSoftwareFactureBakeCacheLikeOriginal(inputs);
             prewarmSwV11.Stop();
+            C2MapLoadProfilerV1.Stage("terrain.software.prewarmFactureCache", prewarmSwV11.ElapsedMilliseconds,
+                "disabled=" + TerrainQualityFactureLayerDisabledLikeAdapted.ToString() +
+                " factureCache=" + (inputs != null ? inputs.FactureCache.Count.ToString() : "0"));
 
             int totalCellsX = Mathf.Max(0, kernel.MaxCellXExclusive - kernel.MinCellX);
             int totalCellsY = Mathf.Max(0, kernel.MaxCellYExclusive - kernel.MinCellY);
@@ -219,12 +442,71 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             string mapSideCachePathV1 = GetTerrainSoftwareMapSideChunkCachePathV1LikeOriginal(map);
             string mapSideCacheKeyV1 = BuildTerrainSoftwarePersistentChunkCacheKeyLikeOriginal(map, kernel);
-            bool loadedAllFromMapSideCacheV1 = TryLoadTerrainSoftwareMapSideChunkCacheV1LikeOriginal(
-                mapSideCachePathV1,
-                mapSideCacheKeyV1,
-                jobs,
-                jobCount,
-                out string mapSideCacheAuditV1);
+
+            // V13C: if the terrain atlas pack already exists, it becomes the visual source of truth.
+            // Do not also load the old 64 chunk visual cache. That was the double payment:
+            // mapSideCache.load + atlas.v13. We still keep the old chunk cache as a fallback/build source.
+            TerrainSoftwareAtlasDataV13LikeAdapted preloadedAtlasDataV13C = null;
+            string preloadedAtlasAuditV13C = "disabled";
+            bool preloadedAtlasFromPackV13C = false;
+            var atlasEarlySwV13C = global::System.Diagnostics.Stopwatch.StartNew();
+            if (TerrainSoftwareAtlasPackV13LikeAdapted)
+            {
+                string atlasPathV13C = GetTerrainSoftwareAtlasPackPathV13LikeAdapted(map);
+                if (!string.IsNullOrEmpty(atlasPathV13C) &&
+                    TryLoadTerrainSoftwareAtlasPackV13LikeAdapted(
+                        atlasPathV13C,
+                        mapSideCacheKeyV1,
+                        jobs,
+                        jobCount,
+                        chunkCountX,
+                        chunkCountY,
+                        out preloadedAtlasDataV13C,
+                        out preloadedAtlasAuditV13C))
+                {
+                    if (UploadTerrainSoftwareAtlasTexturesV13LikeAdapted(preloadedAtlasDataV13C, out string atlasUploadAuditV13C))
+                    {
+                        preloadedAtlasFromPackV13C = true;
+                        preloadedAtlasAuditV13C = preloadedAtlasAuditV13C + "; " + atlasUploadAuditV13C + "; visualSource=atlaspack";
+                    }
+                    else
+                    {
+                        preloadedAtlasAuditV13C = preloadedAtlasAuditV13C + "; upload_failed " + atlasUploadAuditV13C;
+                        preloadedAtlasDataV13C = null;
+                    }
+                }
+            }
+            atlasEarlySwV13C.Stop();
+            C2MapLoadProfilerV1.Stage("terrain.software.atlas.v13c.earlyLoad", atlasEarlySwV13C.ElapsedMilliseconds,
+                "hit=" + preloadedAtlasFromPackV13C.ToString() + " audit=" + (preloadedAtlasAuditV13C ?? string.Empty));
+
+            var mapSideCacheLoadSwV1 = global::System.Diagnostics.Stopwatch.StartNew();
+            bool loadedAllFromMapSideCacheV1 = false;
+            string mapSideCacheAuditV1 = string.Empty;
+            if (preloadedAtlasFromPackV13C)
+            {
+                mapSideCacheAuditV1 = "skipped: atlaspack hit replaces visual chunk cache";
+                loadedAllFromMapSideCacheV1 = true;
+                for (int i = 0; i < jobCount; i++)
+                {
+                    TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
+                    job.Success = true;
+                    job.Error = string.Empty;
+                    jobs[i] = job;
+                }
+            }
+            else
+            {
+                loadedAllFromMapSideCacheV1 = TryLoadTerrainSoftwareMapSideChunkCacheV1LikeOriginal(
+                    mapSideCachePathV1,
+                    mapSideCacheKeyV1,
+                    jobs,
+                    jobCount,
+                    out mapSideCacheAuditV1);
+            }
+            mapSideCacheLoadSwV1.Stop();
+            C2MapLoadProfilerV1.Stage("terrain.software.mapSideCache.load", mapSideCacheLoadSwV1.ElapsedMilliseconds,
+                "loadedAll=" + loadedAllFromMapSideCacheV1.ToString() + " jobs=" + jobCount.ToString() + " atlasV13C=" + preloadedAtlasFromPackV13C.ToString() + " audit=" + (mapSideCacheAuditV1 ?? string.Empty));
 
 
 
@@ -258,12 +540,50 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 {
                 }
 
+                var mapSideCacheSaveSwV1 = global::System.Diagnostics.Stopwatch.StartNew();
                 if (TrySaveTerrainSoftwareMapSideChunkCacheV1LikeOriginal(mapSideCachePathV1, mapSideCacheKeyV1, jobs, jobCount, out string saveAuditV1))
                     mapSideCacheAuditV1 = string.IsNullOrEmpty(mapSideCacheAuditV1) ? saveAuditV1 : (mapSideCacheAuditV1 + "; " + saveAuditV1);
                 else if (!string.IsNullOrEmpty(saveAuditV1))
                     mapSideCacheAuditV1 = string.IsNullOrEmpty(mapSideCacheAuditV1) ? saveAuditV1 : (mapSideCacheAuditV1 + "; " + saveAuditV1);
+                mapSideCacheSaveSwV1.Stop();
+                C2MapLoadProfilerV1.Stage("terrain.software.mapSideCache.save", mapSideCacheSaveSwV1.ElapsedMilliseconds,
+                    "jobs=" + jobCount.ToString() + " audit=" + (saveAuditV1 ?? string.Empty));
             }
             parallelSwV11.Stop();
+            C2MapLoadProfilerV1.Stage("terrain.software.parallelBake", parallelSwV11.ElapsedMilliseconds,
+                "jobs=" + jobCount.ToString() + " workers=" + workerCount.ToString() + " loadedAllFromCache=" + loadedAllFromMapSideCacheV1.ToString());
+
+            TerrainSoftwareAtlasDataV13LikeAdapted atlasDataV13 = null;
+            string atlasAuditV13 = "disabled";
+            bool useAtlasV13 = false;
+            var atlasSwV13 = global::System.Diagnostics.Stopwatch.StartNew();
+
+            if (preloadedAtlasFromPackV13C && preloadedAtlasDataV13C != null)
+            {
+                atlasDataV13 = preloadedAtlasDataV13C;
+                atlasAuditV13 = preloadedAtlasAuditV13C + "; reusedEarlyLoad=True";
+                useAtlasV13 = true;
+            }
+            else
+            {
+                useAtlasV13 = TerrainSoftwareAtlasPackV13LikeAdapted &&
+                    TryEnsureTerrainSoftwareAtlasDataV13LikeAdapted(
+                        map,
+                        mapSideCacheKeyV1,
+                        jobs,
+                        jobCount,
+                        chunkCountX,
+                        chunkCountY,
+                        out atlasDataV13,
+                        out atlasAuditV13);
+            }
+
+            atlasSwV13.Stop();
+            C2MapLoadProfilerV1.Stage("terrain.software.atlas.v13", atlasSwV13.ElapsedMilliseconds,
+                "enabled=" + TerrainSoftwareAtlasPackV13LikeAdapted.ToString() +
+                " useAtlas=" + useAtlasV13.ToString() +
+                " replacedMapSideCache=" + preloadedAtlasFromPackV13C.ToString() +
+                " audit=" + (atlasAuditV13 ?? string.Empty));
 
             var uploadSwV11 = global::System.Diagnostics.Stopwatch.StartNew();
 
@@ -275,15 +595,48 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             for (int i = 0; i < jobCount; i++)
             {
                 TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
-                if (!job.Success || job.Pixels == null)
+
+                Texture2D chunkTexture = null;
+                bool ownsChunkTexture = false;
+                int atlasPageIndexV13 = -1;
+                Rect atlasUvRectV13 = new Rect(0f, 0f, 1f, 1f);
+                bool atlasChunkReadyV13C = false;
+
+                if (useAtlasV13 && atlasDataV13 != null &&
+                    atlasDataV13.ChunkPageIndexByJob != null &&
+                    atlasDataV13.ChunkUvRectByJob != null &&
+                    i >= 0 &&
+                    i < atlasDataV13.ChunkPageIndexByJob.Length &&
+                    i < atlasDataV13.ChunkUvRectByJob.Length)
+                {
+                    atlasPageIndexV13 = atlasDataV13.ChunkPageIndexByJob[i];
+                    atlasUvRectV13 = atlasDataV13.ChunkUvRectByJob[i];
+                    if (atlasDataV13.Pages != null &&
+                        atlasPageIndexV13 >= 0 &&
+                        atlasPageIndexV13 < atlasDataV13.Pages.Length &&
+                        atlasDataV13.Pages[atlasPageIndexV13] != null)
+                    {
+                        chunkTexture = atlasDataV13.Pages[atlasPageIndexV13].Texture;
+                        atlasChunkReadyV13C = chunkTexture != null;
+                    }
+                }
+
+                if ((!job.Success || job.Pixels == null) && !atlasChunkReadyV13C)
                 {
                     failedChunkCount++;
                     if (!string.IsNullOrEmpty(job.Error))
+                        continue;
                     continue;
                 }
 
-                Texture2D chunkTexture = CreateTerrainSoftwareChunkTextureFromPixelsLikeOriginal(job.Region, job.Pixels, job.ChunkX, job.ChunkY);
-                C2SmpRememberTerrainChunkShadowV87LikeOriginal(job.ChunkX, job.ChunkY, job.Pixels, job.Region.WidthPixels, job.Region.HeightPixels);
+                if (chunkTexture == null)
+                {
+                    chunkTexture = CreateTerrainSoftwareChunkTextureFromPixelsLikeOriginal(job.Region, job.Pixels, job.ChunkX, job.ChunkY);
+                    ownsChunkTexture = chunkTexture != null;
+                    atlasPageIndexV13 = -1;
+                    atlasUvRectV13 = new Rect(0f, 0f, 1f, 1f);
+                }
+
                 if (chunkTexture == null)
                 {
                     failedChunkCount++;
@@ -293,16 +646,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Mesh chunkMesh = BuildProjectedChunkMeshSoftwareLikeOriginal(map, kernel, job.Region, out Bounds chunkBounds);
                 if (chunkMesh == null || chunkMesh.vertexCount == 0)
                 {
-                    SafeDestroy(chunkTexture);
+                    if (ownsChunkTexture)
+                        SafeDestroy(chunkTexture);
                     failedChunkCount++;
                     continue;
                 }
 
-                Material chunkMaterial = CreateSoftwareBakedTerrainChunkMaterialLikeOriginal(chunkTexture, job.ChunkX, job.ChunkY);
+                if (atlasPageIndexV13 >= 0)
+                    RemapTerrainSoftwareChunkMeshUvToAtlasV13LikeAdapted(chunkMesh, atlasUvRectV13);
+
+                Material chunkMaterial = GetSharedSoftwareBakedTerrainMaterialV13LikeAdapted();
                 if (chunkMaterial == null)
                 {
                     SafeDestroy(chunkMesh);
-                    SafeDestroy(chunkTexture);
+                    if (ownsChunkTexture)
+                        SafeDestroy(chunkTexture);
                     failedChunkCount++;
                     continue;
                 }
@@ -313,6 +671,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 var mr = chunkGo.AddComponent<MeshRenderer>();
                 mf.sharedMesh = chunkMesh;
                 mr.sharedMaterial = chunkMaterial;
+                ApplyTerrainSoftwareTexturePropertyBlockV13LikeAdapted(mr, chunkTexture);
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 mr.lightProbeUsage = LightProbeUsage.Off;
@@ -335,11 +694,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!hasBounds)
                 terrainBounds = new Bounds(Vector3.zero, Vector3.one);
 
+            var shadowOverlaySwV1 = global::System.Diagnostics.Stopwatch.StartNew();
             if (TerrainSoftwareTerrainShadowOverlayV5LikeAdapted)
                 TryBuildTerrainShadowOverlayV5LikeAdapted(map, kernel, parent, ref terrainBounds, ref hasBounds);
+            shadowOverlaySwV1.Stop();
 
             uploadSwV11.Stop();
             totalSwV11.Stop();
+
+            C2MapLoadProfilerV1.Stage("terrain.software.shadowOverlay", shadowOverlaySwV1.ElapsedMilliseconds,
+                "enabled=" + TerrainSoftwareTerrainShadowOverlayV5LikeAdapted.ToString());
+            C2MapLoadProfilerV1.Stage("terrain.software.uploadChunks", uploadSwV11.ElapsedMilliseconds,
+                "builtChunks=" + builtChunkCount.ToString() + " failedChunks=" + failedChunkCount.ToString());
+            C2MapLoadProfilerV1.Stage("terrain.software.total", totalSwV11.ElapsedMilliseconds,
+                "jobs=" + jobCount.ToString() + " chunks=" + builtChunkCount.ToString() + " cacheLoadedAll=" + loadedAllFromMapSideCacheV1.ToString() +
+                " cacheAudit=" + (mapSideCacheAuditV1 ?? string.Empty));
 
         }
 
@@ -1087,6 +1456,36 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        private static byte[] Color32ArrayToRgb24BytesV14A(Color32[] pixels)
+        {
+            if (pixels == null || pixels.Length == 0)
+                return Array.Empty<byte>();
+
+            var raw = new byte[pixels.Length * 3];
+            int o = 0;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                Color32 c = pixels[i];
+                raw[o++] = c.r;
+                raw[o++] = c.g;
+                raw[o++] = c.b;
+            }
+            return raw;
+        }
+
+        private static bool IsColor32ArrayFullyOpaqueV14B(Color32[] pixels)
+        {
+            if (pixels == null || pixels.Length == 0)
+                return true;
+
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (pixels[i].a != 255)
+                    return false;
+            }
+            return true;
+        }
+
         private static byte[] Color32ArrayToBytesV1LikeOriginal(Color32[] pixels)
         {
             if (pixels == null || pixels.Length == 0)
@@ -1321,8 +1720,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ParsedMap map,
             OriginalTerrainKernelConfig kernel,
             TerrainSoftwareChunkRegionLikeOriginal region,
-            TerrainSoftwareBakeInputsLikeOriginal inputs)
+            TerrainSoftwareBakeInputsLikeOriginal inputs,
+            global::System.Threading.CancellationToken cancellation = default)
         {
+            cancellation.ThrowIfCancellationRequested();
             var pixels = new Color32[region.WidthPixels * region.HeightPixels];
             if (!s_terrainSoftwareFallbackStructureFeatherPathLoggedV1LikeAdapted)
             {
@@ -1350,6 +1751,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             for (int cellY = region.MinCellY; cellY < region.MaxCellYExclusive; cellY++)
             {
+                cancellation.ThrowIfCancellationRequested();
                 for (int cellX = region.MinCellX; cellX < region.MaxCellXExclusive; cellX++)
                 {
                     BakeTerrainCellSoftwareLikeOriginal(map, kernel, region, inputs, pixels, baseCoverage, tex44Protection, cellX, cellY, baseTileIds);
@@ -1365,6 +1767,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 for (int cellY = region.MinCellY; cellY < region.MaxCellYExclusive; cellY++)
                 {
+                    cancellation.ThrowIfCancellationRequested();
                     for (int cellX = region.MinCellX; cellX < region.MaxCellXExclusive; cellX++)
                     {
                         BakeTerrainCellFactureSoftwareLikeOriginal(map, kernel, region, inputs, pixels, cellX, cellY, scratchFactureCopies, fallbackStructurePixels, fallbackStructureMask, fallbackStructureAlpha);
@@ -4366,6 +4769,930 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     TerrainSoftwareFinalColorPolishShadowCoolB_V1LikeAdapted,
                     0.60f));
             }
+        }
+
+
+        private static bool TryEnsureTerrainSoftwareAtlasDataV13LikeAdapted(
+            ParsedMap map,
+            string key,
+            TerrainSoftwareChunkJobLikeOriginal[] jobs,
+            int jobCount,
+            int chunkCountX,
+            int chunkCountY,
+            out TerrainSoftwareAtlasDataV13LikeAdapted atlasData,
+            out string audit)
+        {
+            atlasData = null;
+            audit = "disabled";
+            if (!TerrainSoftwareAtlasPackV13LikeAdapted)
+                return false;
+            if (map == null || string.IsNullOrEmpty(key) || jobs == null || jobCount <= 0 || chunkCountX <= 0 || chunkCountY <= 0)
+            {
+                audit = "missing_args";
+                return false;
+            }
+
+            string path = GetTerrainSoftwareAtlasPackPathV13LikeAdapted(map);
+            if (!string.IsNullOrEmpty(path) && TryLoadTerrainSoftwareAtlasPackV13LikeAdapted(path, key, jobs, jobCount, chunkCountX, chunkCountY, out atlasData, out audit))
+            {
+                if (UploadTerrainSoftwareAtlasTexturesV13LikeAdapted(atlasData, out string uploadAudit))
+                {
+                    audit = audit + "; " + uploadAudit;
+                    return true;
+                }
+
+                audit = audit + "; upload_failed " + uploadAudit;
+                atlasData = null;
+            }
+
+            if (!TryBuildTerrainSoftwareAtlasDataV13LikeAdapted(jobs, jobCount, chunkCountX, chunkCountY, out atlasData, out string buildAudit))
+            {
+                audit = string.IsNullOrEmpty(audit) || audit == "disabled" ? buildAudit : (audit + "; " + buildAudit);
+                atlasData = null;
+                return false;
+            }
+
+            if (!UploadTerrainSoftwareAtlasTexturesV13LikeAdapted(atlasData, out string buildUploadAudit))
+            {
+                audit = buildAudit + "; upload_failed " + buildUploadAudit;
+                atlasData = null;
+                return false;
+            }
+
+            string saveAudit = string.Empty;
+            if (!string.IsNullOrEmpty(path))
+                TrySaveTerrainSoftwareAtlasPackV13LikeAdapted(path, key, atlasData, jobs, jobCount, chunkCountX, chunkCountY, out saveAudit);
+
+            // V23: on first-build path the save needs page.Pixels, so release only after save.
+            long buildRawReleasedV23 = C2TerrainSoftwareV23ReleaseRawAtlasBuffersLikeOriginal(atlasData);
+            if (buildRawReleasedV23 > 0L)
+            {
+                try
+                {
+                    C2TerrainSoftwareV23LogRealMemoryAuditLikeOriginal("terrain.atlasBuild.afterSaveRawRelease_beforeGC");
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                    C2TerrainSoftwareV23LogRealMemoryAuditLikeOriginal("terrain.atlasBuild.afterSaveRawRelease_afterGC");
+                }
+                catch { }
+            }
+
+            atlasData.Audit = buildAudit + "; " + buildUploadAudit + (string.IsNullOrEmpty(saveAudit) ? string.Empty : ("; " + saveAudit)) +
+                              "; buildRawReleasedMB=" + C2TerrainSoftwareV23MBLikeOriginal(buildRawReleasedV23);
+            audit = atlasData.Audit;
+            return true;
+        }
+
+        private static string GetTerrainSoftwareAtlasPackPathV13LikeAdapted(ParsedMap map)
+        {
+            if (map == null || string.IsNullOrWhiteSpace(map.SourcePath))
+                return string.Empty;
+
+            try
+            {
+                string root = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                string dir = Path.Combine(root, "C2Cache", "TerrainAtlas");
+                Directory.CreateDirectory(dir);
+
+                string source = map.SourcePath;
+                string name = Path.GetFileNameWithoutExtension(source);
+                if (string.IsNullOrWhiteSpace(name))
+                    name = "unknown_map";
+
+                foreach (char c in Path.GetInvalidFileNameChars())
+                    name = name.Replace(c, '_');
+
+                string sourceHash = ComputeTerrainSoftwareAtlasSourceHashV231(source);
+                return Path.Combine(dir, name + "_" + sourceHash + ".v231_bc1_raw.terrainatlaspack");
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+
+        private static string ComputeTerrainSoftwareAtlasSourceHashV231(string text)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                if (!string.IsNullOrEmpty(text))
+                {
+                    for (int i = 0; i < text.Length; i++)
+                    {
+                        char c = char.ToUpperInvariant(text[i]);
+                        hash ^= c;
+                        hash *= 16777619u;
+                    }
+                }
+                return hash.ToString("X8");
+            }
+        }
+
+        private static bool TryBuildTerrainSoftwareAtlasDataV13LikeAdapted(
+            TerrainSoftwareChunkJobLikeOriginal[] jobs,
+            int jobCount,
+            int chunkCountX,
+            int chunkCountY,
+            out TerrainSoftwareAtlasDataV13LikeAdapted atlasData,
+            out string audit)
+        {
+            atlasData = null;
+            audit = "build_failed";
+            if (jobs == null || jobCount <= 0 || chunkCountX <= 0 || chunkCountY <= 0)
+            {
+                audit = "build_missing_jobs";
+                return false;
+            }
+
+            int maxChunkWidth = 0;
+            int maxChunkHeight = 0;
+            for (int i = 0; i < jobCount; i++)
+            {
+                TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
+                if (!job.Success || job.Pixels == null || job.Pixels.Length != job.Region.WidthPixels * job.Region.HeightPixels)
+                {
+                    audit = "build_bad_chunk index=" + i.ToString();
+                    return false;
+                }
+
+                maxChunkWidth = Math.Max(maxChunkWidth, job.Region.WidthPixels);
+                maxChunkHeight = Math.Max(maxChunkHeight, job.Region.HeightPixels);
+            }
+
+            if (maxChunkWidth <= 0 || maxChunkHeight <= 0)
+            {
+                audit = "build_bad_size";
+                return false;
+            }
+
+            int padding = Mathf.Max(0, TerrainSoftwareAtlasPaddingPixels_V13LikeAdapted);
+            int requestedPageTilesX = Mathf.Max(1, TerrainSoftwareAtlasTilesPerPageX_V13LikeAdapted);
+            int requestedPageTilesY = Mathf.Max(1, TerrainSoftwareAtlasTilesPerPageY_V13LikeAdapted);
+            int safeAtlasMaxSize = Mathf.Max(2048, Mathf.Min(SystemInfo.maxTextureSize, 6144));
+            int pageTilesX = Mathf.Clamp(requestedPageTilesX, 1, Mathf.Max(1, safeAtlasMaxSize / Math.Max(1, maxChunkWidth + padding * 2)));
+            int pageTilesY = Mathf.Clamp(requestedPageTilesY, 1, Mathf.Max(1, safeAtlasMaxSize / Math.Max(1, maxChunkHeight + padding * 2)));
+            int pageCountX = Mathf.Max(1, Mathf.CeilToInt(chunkCountX / (float)pageTilesX));
+            int pageCountY = Mathf.Max(1, Mathf.CeilToInt(chunkCountY / (float)pageTilesY));
+            int pageCount = pageCountX * pageCountY;
+            int cellWidth = maxChunkWidth + padding * 2;
+            int cellHeight = maxChunkHeight + padding * 2;
+            int pageWidthUnpaddedV225 = cellWidth * pageTilesX;
+            int pageHeightUnpaddedV225 = cellHeight * pageTilesY;
+            // V225: BC1/DXT1 compression requires texture width/height to be multiples of 4.
+            // The logical atlas cells stay exactly the same; only the physical page gets a small
+            // edge-padded tail (5138 -> 5140 on Skirmish2). UVs use the physical padded size.
+            int pageWidth = RoundUpToMultipleV225LikeOriginal(pageWidthUnpaddedV225, 4);
+            int pageHeight = RoundUpToMultipleV225LikeOriginal(pageHeightUnpaddedV225, 4);
+
+            var data = new TerrainSoftwareAtlasDataV13LikeAdapted
+            {
+                PageTilesX = pageTilesX,
+                PageTilesY = pageTilesY,
+                PageCountX = pageCountX,
+                PageCountY = pageCountY,
+                CellWidth = cellWidth,
+                CellHeight = cellHeight,
+                Padding = padding,
+                ChunkPageIndexByJob = new int[jobCount],
+                ChunkUvRectByJob = new Rect[jobCount],
+                Pages = new TerrainSoftwareAtlasPageV13LikeAdapted[pageCount],
+                LoadedFromPack = false
+            };
+
+            for (int pageIndex = 0; pageIndex < pageCount; pageIndex++)
+            {
+                var page = new TerrainSoftwareAtlasPageV13LikeAdapted
+                {
+                    PageIndex = pageIndex,
+                    Width = pageWidth,
+                    Height = pageHeight,
+                    Pixels = new Color32[pageWidth * pageHeight]
+                };
+
+                for (int p = 0; p < page.Pixels.Length; p++)
+                    page.Pixels[p] = new Color32(0, 0, 0, 255);
+
+                data.Pages[pageIndex] = page;
+            }
+
+            for (int i = 0; i < jobCount; i++)
+            {
+                TerrainSoftwareChunkJobLikeOriginal job = jobs[i];
+
+                int pageX = Mathf.Clamp(job.ChunkX / pageTilesX, 0, pageCountX - 1);
+                int pageY = Mathf.Clamp(job.ChunkY / pageTilesY, 0, pageCountY - 1);
+                int pageIndex = pageY * pageCountX + pageX;
+                int inPageX = job.ChunkX - pageX * pageTilesX;
+                int inPageY = job.ChunkY - pageY * pageTilesY;
+
+                int dstX = inPageX * cellWidth;
+                int dstY = inPageY * cellHeight;
+                TerrainSoftwareAtlasPageV13LikeAdapted page = data.Pages[pageIndex];
+
+                CopyTerrainChunkPixelsIntoAtlasPageV13LikeAdapted(
+                    job.Pixels,
+                    job.Region.WidthPixels,
+                    job.Region.HeightPixels,
+                    page.Pixels,
+                    page.Width,
+                    page.Height,
+                    dstX,
+                    dstY,
+                    cellWidth,
+                    cellHeight,
+                    padding);
+
+                float u0 = (dstX + padding) / (float)page.Width;
+                float v0 = (dstY + padding) / (float)page.Height;
+                float u1 = (dstX + padding + job.Region.WidthPixels) / (float)page.Width;
+                float v1 = (dstY + padding + job.Region.HeightPixels) / (float)page.Height;
+
+                data.ChunkPageIndexByJob[i] = pageIndex;
+                data.ChunkUvRectByJob[i] = Rect.MinMaxRect(u0, v0, u1, v1);
+            }
+
+            // V225: fill physical padding outside the logical 5138x5138 area with edge pixels.
+            // This prevents black BC1 blocks at the right/bottom border and keeps clamp sampling safe.
+            if (pageWidth != pageWidthUnpaddedV225 || pageHeight != pageHeightUnpaddedV225)
+            {
+                for (int pageIndex = 0; pageIndex < pageCount; pageIndex++)
+                {
+                    TerrainSoftwareAtlasPageV13LikeAdapted page = data.Pages[pageIndex];
+                    if (page != null && page.Pixels != null)
+                        FillTerrainAtlasPagePhysicalPaddingV225LikeOriginal(page.Pixels, page.Width, page.Height, pageWidthUnpaddedV225, pageHeightUnpaddedV225);
+                }
+            }
+
+            atlasData = data;
+            audit = "built pages=" + pageCount.ToString() +
+                    " pageSize=" + pageWidth.ToString() + "x" + pageHeight.ToString() +
+                    " logicalPageSize=" + pageWidthUnpaddedV225.ToString() + "x" + pageHeightUnpaddedV225.ToString() +
+                    " pad4=" + ((pageWidth != pageWidthUnpaddedV225 || pageHeight != pageHeightUnpaddedV225) ? "True" : "False") +
+                    " cell=" + cellWidth.ToString() + "x" + cellHeight.ToString() +
+                    " chunks=" + jobCount.ToString();
+            return true;
+        }
+
+        private static int RoundUpToMultipleV225LikeOriginal(int value, int multiple)
+        {
+            if (value <= 0 || multiple <= 1)
+                return value;
+            int rem = value % multiple;
+            return rem == 0 ? value : value + (multiple - rem);
+        }
+
+        private static void FillTerrainAtlasPagePhysicalPaddingV225LikeOriginal(Color32[] pixels, int width, int height, int validWidth, int validHeight)
+        {
+            if (pixels == null || width <= 0 || height <= 0)
+                return;
+            validWidth = Mathf.Clamp(validWidth, 1, width);
+            validHeight = Mathf.Clamp(validHeight, 1, height);
+            if (pixels.Length != width * height)
+                return;
+
+            // Extend rows to the right.
+            if (validWidth < width)
+            {
+                for (int y = 0; y < validHeight; y++)
+                {
+                    int row = y * width;
+                    Color32 edge = pixels[row + validWidth - 1];
+                    for (int x = validWidth; x < width; x++)
+                        pixels[row + x] = edge;
+                }
+            }
+
+            // Extend bottom rows from the last valid row, including the already-extended right edge.
+            if (validHeight < height)
+            {
+                int srcRow = (validHeight - 1) * width;
+                for (int y = validHeight; y < height; y++)
+                {
+                    int dstRow = y * width;
+                    Array.Copy(pixels, srcRow, pixels, dstRow, width);
+                }
+            }
+        }
+
+        private static void CopyTerrainChunkPixelsIntoAtlasPageV13LikeAdapted(
+            Color32[] src,
+            int srcWidth,
+            int srcHeight,
+            Color32[] dst,
+            int dstWidth,
+            int dstHeight,
+            int dstX,
+            int dstY,
+            int cellWidth,
+            int cellHeight,
+            int padding)
+        {
+            if (src == null || dst == null || srcWidth <= 0 || srcHeight <= 0 || dstWidth <= 0 || dstHeight <= 0)
+                return;
+
+            for (int y = 0; y < cellHeight; y++)
+            {
+                int sy = Mathf.Clamp(y - padding, 0, srcHeight - 1);
+                int dy = dstY + y;
+                if (dy < 0 || dy >= dstHeight)
+                    continue;
+
+                int dstRow = dy * dstWidth;
+                int srcRow = sy * srcWidth;
+
+                for (int x = 0; x < cellWidth; x++)
+                {
+                    int sx = Mathf.Clamp(x - padding, 0, srcWidth - 1);
+                    int dx = dstX + x;
+                    if (dx < 0 || dx >= dstWidth)
+                        continue;
+
+                    dst[dstRow + dx] = src[srcRow + sx];
+                }
+            }
+        }
+
+        private static bool UploadTerrainSoftwareAtlasTexturesV13LikeAdapted(TerrainSoftwareAtlasDataV13LikeAdapted atlasData, out string audit)
+        {
+            audit = "upload_missing";
+            if (atlasData == null || atlasData.Pages == null || atlasData.Pages.Length == 0)
+                return false;
+
+            int uploaded = 0;
+            int dxt1Pages = 0;
+            int rgb24Pages = 0;
+            int rgba32Pages = 0;
+            long dxt1Bytes = 0;
+            long rgb24Bytes = 0;
+            long rgba32Bytes = 0;
+            long rawBeforeReleaseBytesV23 = C2TerrainSoftwareV23RawAtlasBufferBytesLikeOriginal(atlasData);
+            long rawReleasedBytesV23 = 0L;
+            C2TerrainSoftwareV23LogRealMemoryAuditLikeOriginal("terrain.atlasUpload.beforeUpload");
+            for (int i = 0; i < atlasData.Pages.Length; i++)
+            {
+                TerrainSoftwareAtlasPageV13LikeAdapted page = atlasData.Pages[i];
+                if (page == null || page.Width <= 0 || page.Height <= 0)
+                {
+                    audit = "bad_page index=" + i.ToString();
+                    return false;
+                }
+
+                bool hasDxt1 = page.Dxt1Bytes != null && page.Dxt1Bytes.Length == GetDxt1ByteCountV231(page.Width, page.Height);
+                bool hasRgb24 = page.Rgb24Bytes != null && page.Rgb24Bytes.Length == page.Width * page.Height * 3;
+                bool hasRgba32 = page.Pixels != null && page.Pixels.Length == page.Width * page.Height;
+                if (!hasDxt1 && !hasRgb24 && !hasRgba32)
+                {
+                    audit = "bad_page_pixels index=" + i.ToString() + " format=" + page.PackFormat.ToString();
+                    return false;
+                }
+
+                if (hasDxt1)
+                {
+                    dxt1Pages++;
+                    dxt1Bytes += page.Dxt1Bytes.Length;
+                }
+                else if (hasRgb24)
+                {
+                    rgb24Pages++;
+                    rgb24Bytes += page.Rgb24Bytes.Length;
+                }
+                else
+                {
+                    rgba32Pages++;
+                    rgba32Bytes += (long)page.Width * page.Height * 4L;
+                }
+
+                if (page.Texture == null)
+                {
+                    page.Texture = CreateTerrainSoftwareAtlasTextureV13LikeAdapted(page);
+                    if (page.Texture == null)
+                    {
+                        audit = "texture_failed index=" + i.ToString();
+                        return false;
+                    }
+                }
+
+                // V231: if this page was built from RGB/RGBA, capture the compressed BC1 bytes once
+                // after Unity Compress(true). The saved pack will load these bytes directly next time.
+                if (page.Dxt1Bytes == null && page.Texture != null && page.Texture.format == TextureFormat.DXT1)
+                {
+                    try
+                    {
+                        byte[] compressed = page.Texture.GetRawTextureData<byte>().ToArray();
+                        int expected = GetDxt1ByteCountV231(page.Width, page.Height);
+                        if (compressed != null && compressed.Length == expected)
+                        {
+                            page.Dxt1Bytes = compressed;
+                            page.PackFormat = TerrainSoftwareAtlasPageFormatDxt1_V231;
+                        }
+                    }
+                    catch { }
+                }
+
+                uploaded++;
+            }
+
+            // V23/V231: atlas pages loaded from .terrainatlaspack do not need raw RGB/RGBA/DXT bytes
+            // after Texture2D.Apply(false,true). Keep only Texture2D references used by renderers.
+            if (atlasData.LoadedFromPack)
+            {
+                rawReleasedBytesV23 = C2TerrainSoftwareV23ReleaseRawAtlasBuffersLikeOriginal(atlasData);
+                try
+                {
+                    C2TerrainSoftwareV23LogRealMemoryAuditLikeOriginal("terrain.atlasUpload.afterRawRelease_beforeGC");
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                    C2TerrainSoftwareV23LogRealMemoryAuditLikeOriginal("terrain.atlasUpload.afterRawRelease_afterGC");
+                }
+                catch { }
+            }
+
+            audit = "uploaded pages=" + uploaded.ToString() +
+                    " fromPack=" + atlasData.LoadedFromPack.ToString() +
+                    " dxt1Pages=" + dxt1Pages.ToString() +
+                    " rgb24Pages=" + rgb24Pages.ToString() +
+                    " rgba32Pages=" + rgba32Pages.ToString() +
+                    " dxt1MB=" + (dxt1Bytes / (1024.0 * 1024.0)).ToString("0.0") +
+                    " rgb24MB=" + (rgb24Bytes / (1024.0 * 1024.0)).ToString("0.0") +
+                    " rgba32MB=" + (rgba32Bytes / (1024.0 * 1024.0)).ToString("0.0") +
+                    " rawBeforeReleaseMB=" + C2TerrainSoftwareV23MBLikeOriginal(rawBeforeReleaseBytesV23) +
+                    " rawReleasedMB=" + C2TerrainSoftwareV23MBLikeOriginal(rawReleasedBytesV23) +
+                    " rawKeptMB=" + C2TerrainSoftwareV23MBLikeOriginal(C2TerrainSoftwareV23RawAtlasBufferBytesLikeOriginal(atlasData)) +
+                    " applyNoLongerReadable=True noMipmaps=True filter=Bilinear aniso=1 runtimeCompress=BC1_DXT1_once saveCompressed=True cacheVersion=9 cachePath=v231_bc1_raw";
+            return true;
+        }
+
+        private static Texture2D CreateTerrainSoftwareAtlasTextureV13LikeAdapted(TerrainSoftwareAtlasPageV13LikeAdapted page)
+        {
+            if (page == null || page.Width <= 0 || page.Height <= 0)
+                return null;
+
+            bool hasDxt1 = page.Dxt1Bytes != null && page.Dxt1Bytes.Length == GetDxt1ByteCountV231(page.Width, page.Height);
+            bool hasRgb24 = page.Rgb24Bytes != null && page.Rgb24Bytes.Length == page.Width * page.Height * 3;
+            bool hasRgba32 = page.Pixels != null && page.Pixels.Length == page.Width * page.Height;
+            if (!hasDxt1 && !hasRgb24 && !hasRgba32)
+                return null;
+
+            const bool mipChainV231 = false;
+
+            // V231 fast path: pack already stores BC1/DXT1 raw blocks. No 1.2GB RGB24 upload,
+            // no Texture2D.Compress() during map opening.
+            if (hasDxt1)
+            {
+                var compressedTexture = new Texture2D(page.Width, page.Height, TextureFormat.DXT1, mipChainV231)
+                {
+                    name = "TerrainSoftwareAtlasPage_V231_BC1_Raw_" + page.PageIndex.ToString("00") + "_DXT1",
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear,
+                    anisoLevel = 1,
+                    mipMapBias = 0f
+                };
+                compressedTexture.LoadRawTextureData(page.Dxt1Bytes);
+                compressedTexture.Apply(false, true);
+                return compressedTexture;
+            }
+
+            // First-build or legacy-pack path: upload RGB/RGBA once, compress once, then V231 stores
+            // page.Dxt1Bytes into the new cache so future opens skip this cost.
+            bool canTryBc1V231 = (page.Width % 4) == 0 && (page.Height % 4) == 0;
+            byte[] rgb24UploadBytesV231 = null;
+            bool useRgb24UploadV231 = false;
+
+            if (hasRgb24)
+            {
+                rgb24UploadBytesV231 = page.Rgb24Bytes;
+                useRgb24UploadV231 = true;
+            }
+            else if (hasRgba32 && IsColor32ArrayFullyOpaqueV14B(page.Pixels))
+            {
+                rgb24UploadBytesV231 = Color32ArrayToRgb24BytesV14A(page.Pixels);
+                useRgb24UploadV231 = rgb24UploadBytesV231 != null && rgb24UploadBytesV231.Length == page.Width * page.Height * 3;
+            }
+
+            TextureFormat format = useRgb24UploadV231 ? TextureFormat.RGB24 : TextureFormat.RGBA32;
+            var texture = new Texture2D(page.Width, page.Height, format, mipChainV231)
+            {
+                name = "TerrainSoftwareAtlasPage_V231_BC1_BuildOnce_" + page.PageIndex.ToString("00") + (useRgb24UploadV231 ? "_RGB24src" : "_RGBA32src"),
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                anisoLevel = 1,
+                mipMapBias = 0f
+            };
+
+            if (useRgb24UploadV231)
+                texture.SetPixelData(rgb24UploadBytesV231, 0);
+            else
+                texture.SetPixelData(page.Pixels, 0);
+
+            texture.Apply(false, false);
+
+            if (canTryBc1V231)
+            {
+                try
+                {
+                    texture.Compress(true);
+                    texture.name = "TerrainSoftwareAtlasPage_V231_BC1_BuildOnce_" + page.PageIndex.ToString("00") + "_" + texture.format.ToString();
+                    if (texture.format == TextureFormat.DXT1)
+                    {
+                        byte[] compressed = texture.GetRawTextureData<byte>().ToArray();
+                        int expected = GetDxt1ByteCountV231(page.Width, page.Height);
+                        if (compressed != null && compressed.Length == expected)
+                        {
+                            page.Dxt1Bytes = compressed;
+                            page.PackFormat = TerrainSoftwareAtlasPageFormatDxt1_V231;
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    texture.name = "TerrainSoftwareAtlasPage_V231_BC1_FallbackUncompressed_" + page.PageIndex.ToString("00") + "_" + texture.format.ToString();
+                }
+            }
+            else
+            {
+                texture.name = "TerrainSoftwareAtlasPage_V231_BC1_NotMultipleOf4_" + page.PageIndex.ToString("00") + "_" + texture.format.ToString();
+            }
+
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static int GetDxt1ByteCountV231(int width, int height)
+        {
+            if (width <= 0 || height <= 0)
+                return 0;
+            int blocksX = (width + 3) / 4;
+            int blocksY = (height + 3) / 4;
+            return blocksX * blocksY * 8;
+        }
+
+        private static bool TrySaveTerrainSoftwareAtlasPackV13LikeAdapted(
+            string path,
+            string key,
+            TerrainSoftwareAtlasDataV13LikeAdapted atlasData,
+            TerrainSoftwareChunkJobLikeOriginal[] jobs,
+            int jobCount,
+            int chunkCountX,
+            int chunkCountY,
+            out string audit)
+        {
+            audit = "save_skipped";
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(key) || atlasData == null || atlasData.Pages == null ||
+                atlasData.ChunkPageIndexByJob == null || atlasData.ChunkUvRectByJob == null)
+                return false;
+
+            try
+            {
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir);
+
+                string tmp = path + ".tmp";
+                int dxt1Pages = 0;
+                int rgb24Pages = 0;
+                int rgba32Pages = 0;
+                long writtenBytes = 0;
+                using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var bw = new BinaryWriter(fs))
+                {
+                    bw.Write(TerrainSoftwareAtlasPackMagicV13LikeAdapted);
+                    bw.Write(TerrainSoftwareAtlasPackVersionV13LikeAdapted);
+                    bw.Write(key);
+                    bw.Write(jobCount);
+                    bw.Write(chunkCountX);
+                    bw.Write(chunkCountY);
+                    bw.Write(atlasData.PageTilesX);
+                    bw.Write(atlasData.PageTilesY);
+                    bw.Write(atlasData.PageCountX);
+                    bw.Write(atlasData.PageCountY);
+                    bw.Write(atlasData.CellWidth);
+                    bw.Write(atlasData.CellHeight);
+                    bw.Write(atlasData.Padding);
+                    bw.Write(atlasData.Pages.Length);
+
+                    for (int i = 0; i < atlasData.Pages.Length; i++)
+                    {
+                        TerrainSoftwareAtlasPageV13LikeAdapted page = atlasData.Pages[i];
+                        if (page == null || page.Width <= 0 || page.Height <= 0)
+                        {
+                            audit = "save_bad_page index=" + i.ToString();
+                            return false;
+                        }
+
+                        byte[] raw = null;
+                        int pageFormat = TerrainSoftwareAtlasPageFormatRgba32_V14A;
+
+                        if (page.Dxt1Bytes != null && page.Dxt1Bytes.Length == GetDxt1ByteCountV231(page.Width, page.Height))
+                        {
+                            raw = page.Dxt1Bytes;
+                            pageFormat = TerrainSoftwareAtlasPageFormatDxt1_V231;
+                            dxt1Pages++;
+                        }
+                        else if (page.Rgb24Bytes != null && page.Rgb24Bytes.Length == page.Width * page.Height * 3)
+                        {
+                            raw = page.Rgb24Bytes;
+                            pageFormat = TerrainSoftwareAtlasPageFormatRgb24_V14A;
+                            rgb24Pages++;
+                        }
+                        else if (page.Pixels != null && page.Pixels.Length == page.Width * page.Height)
+                        {
+                            bool pageOpaque = IsColor32ArrayFullyOpaqueV14B(page.Pixels);
+                            raw = pageOpaque
+                                ? Color32ArrayToRgb24BytesV14A(page.Pixels)
+                                : Color32ArrayToBytesV1LikeOriginal(page.Pixels);
+                            pageFormat = pageOpaque
+                                ? TerrainSoftwareAtlasPageFormatRgb24_V14A
+                                : TerrainSoftwareAtlasPageFormatRgba32_V14A;
+                            if (pageOpaque)
+                                rgb24Pages++;
+                            else
+                                rgba32Pages++;
+                        }
+
+                        if (raw == null || raw.Length <= 0)
+                        {
+                            audit = "save_bad_raw index=" + i.ToString() + " format=" + pageFormat.ToString();
+                            return false;
+                        }
+
+                        writtenBytes += raw.Length;
+                        bw.Write(page.PageIndex);
+                        bw.Write(page.Width);
+                        bw.Write(page.Height);
+                        bw.Write(pageFormat);
+                        bw.Write(raw.Length);
+                        bw.Write(raw);
+                    }
+
+                    bw.Write(atlasData.ChunkPageIndexByJob.Length);
+                    for (int i = 0; i < atlasData.ChunkPageIndexByJob.Length; i++)
+                    {
+                        Rect r = atlasData.ChunkUvRectByJob[i];
+                        bw.Write(atlasData.ChunkPageIndexByJob[i]);
+                        bw.Write(r.xMin);
+                        bw.Write(r.yMin);
+                        bw.Write(r.xMax);
+                        bw.Write(r.yMax);
+                    }
+                }
+
+                if (File.Exists(path))
+                    File.Delete(path);
+                File.Move(tmp, path);
+                audit = "saved " + path + " format=DXT1_if_available_else_RGB24/RGBA32 dxt1Pages=" + dxt1Pages.ToString() + " rgb24Pages=" + rgb24Pages.ToString() + " rgba32Pages=" + rgba32Pages.ToString() + " compressedPack=" + (dxt1Pages > 0).ToString() + " bytesMB=" + (writtenBytes / (1024.0 * 1024.0)).ToString("0.0");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                audit = "save_failed " + ex.GetType().Name + ": " + ex.Message;
+                return false;
+            }
+        }
+
+        private static bool TryLoadTerrainSoftwareAtlasPackV13LikeAdapted(
+            string path,
+            string key,
+            TerrainSoftwareChunkJobLikeOriginal[] jobs,
+            int jobCount,
+            int chunkCountX,
+            int chunkCountY,
+            out TerrainSoftwareAtlasDataV13LikeAdapted atlasData,
+            out string audit)
+        {
+            atlasData = null;
+            audit = "miss";
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(key) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var br = new BinaryReader(fs))
+                {
+                    uint magic = br.ReadUInt32();
+                    int version = br.ReadInt32();
+                    string storedKey = br.ReadString();
+                    int storedJobCount = br.ReadInt32();
+                    int storedChunkCountX = br.ReadInt32();
+                    int storedChunkCountY = br.ReadInt32();
+                    if (magic != TerrainSoftwareAtlasPackMagicV13LikeAdapted ||
+                        version != TerrainSoftwareAtlasPackVersionV13LikeAdapted ||
+                        !string.Equals(storedKey, key, StringComparison.Ordinal) ||
+                        storedJobCount != jobCount ||
+                        storedChunkCountX != chunkCountX ||
+                        storedChunkCountY != chunkCountY)
+                    {
+                        audit = "stale magic=0x" + magic.ToString("X8") + " version=" + version.ToString() +
+                                " jobs=" + storedJobCount.ToString();
+                        return false;
+                    }
+
+                    var data = new TerrainSoftwareAtlasDataV13LikeAdapted
+                    {
+                        PageTilesX = br.ReadInt32(),
+                        PageTilesY = br.ReadInt32(),
+                        PageCountX = br.ReadInt32(),
+                        PageCountY = br.ReadInt32(),
+                        CellWidth = br.ReadInt32(),
+                        CellHeight = br.ReadInt32(),
+                        Padding = br.ReadInt32(),
+                        LoadedFromPack = true
+                    };
+
+                    int pageCount = br.ReadInt32();
+                    if (pageCount <= 0 || pageCount > 64)
+                    {
+                        audit = "bad_page_count " + pageCount.ToString();
+                        return false;
+                    }
+
+                    int dxt1Pages = 0;
+                    int rgb24Pages = 0;
+                    int rgba32Pages = 0;
+                    long readBytes = 0;
+                    data.Pages = new TerrainSoftwareAtlasPageV13LikeAdapted[pageCount];
+                    for (int i = 0; i < pageCount; i++)
+                    {
+                        int pageIndex = br.ReadInt32();
+                        int width = br.ReadInt32();
+                        int height = br.ReadInt32();
+                        int pageFormat = br.ReadInt32();
+                        int byteCount = br.ReadInt32();
+
+                        int expectedBytes;
+                        if (pageFormat == TerrainSoftwareAtlasPageFormatDxt1_V231)
+                            expectedBytes = GetDxt1ByteCountV231(width, height);
+                        else if (pageFormat == TerrainSoftwareAtlasPageFormatRgb24_V14A)
+                            expectedBytes = width * height * 3;
+                        else
+                            expectedBytes = width * height * 4;
+
+                        if (pageIndex < 0 || pageIndex >= pageCount || width <= 0 || height <= 0 ||
+                            (pageFormat != TerrainSoftwareAtlasPageFormatDxt1_V231 && pageFormat != TerrainSoftwareAtlasPageFormatRgb24_V14A && pageFormat != TerrainSoftwareAtlasPageFormatRgba32_V14A) ||
+                            byteCount != expectedBytes)
+                        {
+                            audit = "bad_page_meta index=" + i.ToString() + " format=" + pageFormat.ToString() + " bytes=" + byteCount.ToString() + " expected=" + expectedBytes.ToString();
+                            return false;
+                        }
+
+                        byte[] raw = br.ReadBytes(byteCount);
+                        if (raw.Length != byteCount)
+                        {
+                            audit = "truncated_page index=" + i.ToString();
+                            return false;
+                        }
+                        readBytes += raw.Length;
+
+                        var page = new TerrainSoftwareAtlasPageV13LikeAdapted
+                        {
+                            PageIndex = pageIndex,
+                            Width = width,
+                            Height = height,
+                            PackFormat = pageFormat
+                        };
+
+                        if (pageFormat == TerrainSoftwareAtlasPageFormatDxt1_V231)
+                        {
+                            page.Dxt1Bytes = raw;
+                            dxt1Pages++;
+                        }
+                        else if (pageFormat == TerrainSoftwareAtlasPageFormatRgb24_V14A)
+                        {
+                            page.Rgb24Bytes = raw;
+                            rgb24Pages++;
+                        }
+                        else
+                        {
+                            Color32[] pixels = BytesToColor32ArrayV1LikeOriginal(raw);
+                            if (pixels == null || pixels.Length != width * height)
+                            {
+                                audit = "decode_page_failed index=" + i.ToString();
+                                return false;
+                            }
+                            page.Pixels = pixels;
+                            raw = null;
+                            rgba32Pages++;
+                        }
+
+                        data.Pages[pageIndex] = page;
+                    }
+
+                    int mapCount = br.ReadInt32();
+                    if (mapCount != jobCount)
+                    {
+                        audit = "bad_map_count " + mapCount.ToString();
+                        return false;
+                    }
+
+                    data.ChunkPageIndexByJob = new int[jobCount];
+                    data.ChunkUvRectByJob = new Rect[jobCount];
+
+                    for (int i = 0; i < jobCount; i++)
+                    {
+                        int pageIndex = br.ReadInt32();
+                        float xMin = br.ReadSingle();
+                        float yMin = br.ReadSingle();
+                        float xMax = br.ReadSingle();
+                        float yMax = br.ReadSingle();
+
+                        if (pageIndex < 0 || pageIndex >= pageCount || xMax <= xMin || yMax <= yMin)
+                        {
+                            audit = "bad_rect index=" + i.ToString();
+                            return false;
+                        }
+
+                        data.ChunkPageIndexByJob[i] = pageIndex;
+                        data.ChunkUvRectByJob[i] = Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+                    }
+
+                    atlasData = data;
+                    audit = "hit " + path + " pages=" + pageCount.ToString() + " dxt1Pages=" + dxt1Pages.ToString() + " rgb24Pages=" + rgb24Pages.ToString() + " rgba32Pages=" + rgba32Pages.ToString() + " bytesMB=" + (readBytes / (1024.0 * 1024.0)).ToString("0.0");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                audit = "load_failed " + ex.GetType().Name + ": " + ex.Message;
+                atlasData = null;
+                return false;
+            }
+        }
+
+        private static void RemapTerrainSoftwareChunkMeshUvToAtlasV13LikeAdapted(Mesh mesh, Rect atlasRect)
+        {
+            if (mesh == null)
+                return;
+
+            var uvs = new List<Vector2>();
+            mesh.GetUVs(0, uvs);
+            if (uvs == null || uvs.Count == 0)
+                return;
+
+            for (int i = 0; i < uvs.Count; i++)
+            {
+                Vector2 uv = uvs[i];
+                uvs[i] = new Vector2(
+                    Mathf.Lerp(atlasRect.xMin, atlasRect.xMax, uv.x),
+                    Mathf.Lerp(atlasRect.yMin, atlasRect.yMax, uv.y));
+            }
+
+            mesh.SetUVs(0, uvs);
+        }
+
+        private static Material GetSharedSoftwareBakedTerrainMaterialV13LikeAdapted()
+        {
+            if (s_terrainSoftwareSharedMaterialV13LikeAdapted != null)
+                return s_terrainSoftwareSharedMaterialV13LikeAdapted;
+
+            Shader shader = Shader.Find("Cossacks2Bridge/TerrainFinalColorPolishV4")
+                            ?? Shader.Find("Unlit/Texture")
+                            ?? Shader.Find("Sprites/Default")
+                            ?? Shader.Find("Standard");
+            if (shader == null)
+                return null;
+
+            var mat = new Material(shader)
+            {
+                name = "C2_TerrainSoftwareSharedMaterial_V13",
+                renderQueue = SurfaceBaseRenderQueueLikeAdapted
+            };
+
+            if (mat.HasProperty("_Color"))
+                mat.SetColor("_Color", Color.white);
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.white);
+
+            ApplyFinalTerrainColorPolishMaterialV4LikeAdapted(mat);
+
+            s_terrainSoftwareSharedMaterialV13LikeAdapted = mat;
+            return s_terrainSoftwareSharedMaterialV13LikeAdapted;
+        }
+
+        private static void ApplyTerrainSoftwareTexturePropertyBlockV13LikeAdapted(MeshRenderer renderer, Texture2D texture)
+        {
+            if (renderer == null || texture == null)
+                return;
+
+            if (s_terrainSoftwareSharedMpbV13LikeAdapted == null)
+                s_terrainSoftwareSharedMpbV13LikeAdapted = new MaterialPropertyBlock();
+
+            MaterialPropertyBlock mpb = s_terrainSoftwareSharedMpbV13LikeAdapted;
+            mpb.Clear();
+
+            Material mat = renderer.sharedMaterial;
+            if (mat == null)
+                return;
+
+            if (mat.HasProperty("_MainTex"))
+                mpb.SetTexture("_MainTex", texture);
+            if (mat.HasProperty("_BaseMap"))
+                mpb.SetTexture("_BaseMap", texture);
+
+            renderer.SetPropertyBlock(mpb);
         }
 
         private Material CreateSoftwareBakedTerrainChunkMaterialLikeOriginal(Texture2D bakedTexture, int chunkX, int chunkY)

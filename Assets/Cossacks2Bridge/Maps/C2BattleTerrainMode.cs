@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Cossacks2Bridge.UnityAdapters.Maps.InternalBZip2;
 using System.IO;
 using System.Linq;
@@ -38,7 +39,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public static float StrictIsoYawDegrees = 30.0f;
         public static float StrictIsoRollDegrees = 0.0f;
         public static float StrictIsoScrollSpeed = 5.0f;
-        public static float StrictIsoZoomStepPerWheel = 45.0f;
+        public static float StrictIsoZoomStepPerWheel = 220.0f;
+        public static float StrictIsoZoomSmoothTime = 0.22f;
+        public static float StrictIsoZoomMaxSpeed = 1800.0f;
         public static float StrictIsoStepClamp = 4.0f;
         public static float FreeCameraMoveSpeed = 2200.0f;
         public static float FreeCameraVerticalSpeed = 1800.0f;
@@ -66,12 +69,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const string FreeCameraName = "C2_BattleTerrainCamera_Free";
         private const string TerrainRootName = "C2_StrictTerrain";
         private const float WorldZSign = -1.0f;
+        private const float StrictIsoMinZoomLikeOriginal = 0.0f;
+        private const float StrictIsoMaxZoomLikeOriginal = 2200.0f;
+        private const float StrictIsoNormalYawLikeOriginal = Mathf.PI / 6.0f;
+        private const float StrictIsoMinYawLikeOriginal = Mathf.PI / 8.0f;
+        private const float StrictIsoCos30LikeOriginal = 0.8660254037844386f;
+        private const float StrictIsoMaxMapHeightLikeOriginal = 256.0f;
 
         private Cossacks2Bridge.UnityAdapters.MenuBootstrap _bootstrap;
         private Camera _camera;
         private Camera _strictIsoCamera;
         private Camera _freeCamera;
+        private Camera _strictSpriteDepthCamera;
+        private Camera _freeSpriteDepthCamera;
         private bool _freeCameraMode;
+        private static bool s_spriteDepthCameraLoggedLikeOriginal;
 
         private Vector3 _freeCameraPosition;
         private float _freeCameraYaw;
@@ -97,6 +109,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private float _strictMapY;
         private float _strictZoom = 0.0f;
         private float _strictZoomTarget = 0.0f;
+        private float _strictObserverZoomVelocityV288;
         private float _strictYawLikeOriginal;
         private float _strictRollLikeOriginal;
         private bool _strictCameraStateInitialized;
@@ -253,8 +266,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
-        public static void OpenFromBattles(Cossacks2Bridge.UnityAdapters.MenuBootstrap bootstrap)
+        public static bool EditorTestModeLikeOriginal { get; private set; }
+
+        public static void OpenFromBattles(Cossacks2Bridge.UnityAdapters.MenuBootstrap bootstrap, bool editorTestMode = false)
         {
+            EditorTestModeLikeOriginal = editorTestMode;
+            C2NationResourceEconomyV348LikeOriginal.BeginMapLikeOriginal();
             var oldRoot = GameObject.Find(RootName);
             if (oldRoot != null)
                 SafeDestroy(oldRoot);
@@ -278,21 +295,42 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Initialize(Cossacks2Bridge.UnityAdapters.MenuBootstrap bootstrap)
         {
+            C2MapLoadProfilerV1.BeginMapLoad("<resolving>", "<resolving>", "C2BattleTerrainMode.Initialize");
+
             _bootstrap = bootstrap;
             _yaw = CameraYaw;
             _pitch = CameraPitch;
-            DestroyUiAndOldMode(gameObject);
 
-            if (!TryResolveSelectedMapPath(out _mapRelativePath, out _selectedId, out string resolveError))
-                throw new InvalidOperationException("Resolve map failed: " + resolveError);
+            using (C2MapLoadProfilerV1.Scope("terrain.initialize.DestroyUiAndOldMode"))
+                DestroyUiAndOldMode(gameObject);
 
-            if (!TryParseMap(_bootstrap.Fs, _mapRelativePath, out _map, out string parseError))
-                throw new InvalidOperationException("Parse map failed: " + parseError);
+            using (C2MapLoadProfilerV1.Scope("terrain.initialize.ResolveSelectedMapPath"))
+            {
+                if (!TryResolveSelectedMapPath(out _mapRelativePath, out _selectedId, out string resolveError))
+                    throw new InvalidOperationException("Resolve map failed: " + resolveError);
+            }
+
+            C2MapLoadProfilerV1.SetMap(_mapRelativePath, _selectedId);
+
+            using (C2MapLoadProfilerV1.Scope("terrain.initialize.TryParseMap", "path='" + (_mapRelativePath ?? string.Empty) + "'"))
+            {
+                if (!TryParseMap(_bootstrap.Fs, _mapRelativePath, out _map, out string parseError))
+                    throw new InvalidOperationException("Parse map failed: " + parseError);
+            }
+
+            // V6: start disk/raw cache workers immediately after map parse, before heavy terrain upload.
+            // Worker threads only read bytes/parse catalogs. Unity objects are still created later on main thread.
+            // UNIT LOGIC REMOVED: no unit cache preload.
 
             UnityEngine.Debug.Log($"[C2:MAP] Selected map id='{_selectedId}' path='{_mapRelativePath}'");
             UnityEngine.Debug.Log($"[C2:MAP] Parsed clean map magic={_map.HeaderMagic} addsh={_map.Addsh} grid={_map.VertInLine}x{_map.MaxTH} stored={_map.HeaderStoredVertInLine}x{_map.HeaderStoredMaxTH} mpsz=({_map.MinMapX},{_map.MinMapY})->({_map.MaxMapX},{_map.MaxMapY})");
 
-            BuildWorld();
+            using (C2MapLoadProfilerV1.Scope("terrain.initialize.BuildWorld"))
+                BuildWorld();
+
+            C2MapLoadProfilerV1.DumpTop("after BuildWorld/main terrain", 20);
+            C2RuntimeDiagnosticsV1.LogLoadTotalAndMemory("after BuildWorld/main terrain", _terrainRoot);
+            C2RuntimeDiagnosticsV1.AttachFpsMonitor(_terrainRoot, C2MapLoadProfilerV1.TotalElapsedMs, _mapRelativePath, _selectedId);
         }
 
         private void BuildWorld()
@@ -304,12 +342,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _freeCameraMode = false;
             ApplyActiveBattleCameraMode(forceLog: true);
             UpdateCameraTransform();
+            InstallC2MinimapRuntimeLikeOriginal();
+            if (EditorTestModeLikeOriginal)
+                C2EditorTestPaletteV332LikeOriginal.InstallLikeOriginal(this);
         }
 
         private void CreateTerrainObject(string selectedId)
         {
             if (_terrainRoot != null)
+            {
+                C2SmpClearSurfacePatchesV1LikeOriginal();
                 SafeDestroy(_terrainRoot);
+            }
 
             _hasLastBuiltTerrainKernel = false;
             _terrainRoot = new GameObject(TerrainRootName + "_" + selectedId);
@@ -317,10 +361,22 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _terrainRoot.transform.SetParent(transform, false);
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            BuildStrictWholeMapTerrainLikeOriginal(_map, _terrainRoot.transform, out _terrainBounds);
-            BuildRoadsLayerLikeOriginal(_map, _terrainRoot.transform, ref _terrainBounds);
-            BuildWaterLayerV1LikeOriginal(_map, _terrainRoot.transform, ref _terrainBounds);
+            using (C2MapLoadProfilerV1.Scope("terrain.create.StrictWholeMapTerrain"))
+                BuildStrictWholeMapTerrainLikeOriginal(_map, _terrainRoot.transform, out _terrainBounds);
+            using (C2MapLoadProfilerV1.Scope("terrain.create.RoadsLayer"))
+                BuildRoadsLayerLikeOriginal(_map, _terrainRoot.transform, ref _terrainBounds);
+            using (C2MapLoadProfilerV1.Scope("terrain.create.WaterLayer"))
+                BuildWaterLayerV1LikeOriginal(_map, _terrainRoot.transform, ref _terrainBounds);
+            using (C2MapLoadProfilerV1.Scope("terrain.create.BuildingObjectsLayer"))
+                BuildBuildingObjectsLayerLikeOriginal();
+            using (C2MapLoadProfilerV1.Scope("terrain.create.SettlementsDIP"))
+                InstallSettlementRuntimeV336LikeOriginal();
+            using (C2MapLoadProfilerV1.Scope("terrain.create.OriginalResources"))
+                C2OriginalResourceMapV1TryBuildLikeOriginal("terrain-create");
             sw.Stop();
+
+            C2MapLoadProfilerV1.Stage("terrain.create.total", sw.ElapsedMilliseconds,
+                "bounds=" + _terrainBounds.ToString() + " builtRoot='" + (_terrainRoot != null ? _terrainRoot.name : "<null>") + "'");
 
             _terrainBuilt = true;
         }
@@ -329,6 +385,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             _strictIsoCamera = CreateBattleCameraInstance(StrictIsoCameraName, 1000.0f, true);
             _freeCamera = CreateBattleCameraInstance(FreeCameraName, 1001.0f, false);
+            _strictSpriteDepthCamera = CreateSpriteDepthCameraInstance("C2_SpriteDepthCamera_Strict", _strictIsoCamera);
+            _freeSpriteDepthCamera = CreateSpriteDepthCameraInstance("C2_SpriteDepthCamera_Free", _freeCamera);
             _freeCameraMode = false;
             ApplyActiveBattleCameraMode(forceLog: true);
         }
@@ -350,7 +408,35 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             cam.allowMSAA = false;
             cam.useOcclusionCulling = false;
             cam.depthTextureMode = DepthTextureMode.None;
+            cam.cullingMask &= ~C2SpriteDepthLayerLikeOriginal.Mask;
             cam.enabled = false;
+            return cam;
+        }
+
+        private Camera CreateSpriteDepthCameraInstance(string name, Camera baseCamera)
+        {
+            if (!C2SpriteDepthLayerLikeOriginal.UseSeparateSpriteDepthCamera || baseCamera == null)
+                return null;
+
+            GameObject go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+
+            Camera cam = go.AddComponent<Camera>();
+            // MiniMap4X.cpp/mapa.cpp keep the terrain Z buffer alive for every
+            // later FlushSprites pass.  A second Unity camera may isolate the
+            // sprite layer, but it must preserve both the base color and the
+            // terrain depth instead of starting a new Z buffer.
+            cam.clearFlags = CameraClearFlags.Nothing;
+            cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            cam.cullingMask = C2SpriteDepthLayerLikeOriginal.Mask;
+            cam.depth = baseCamera.depth + 0.25f;
+            cam.allowHDR = false;
+            cam.allowMSAA = false;
+            cam.useOcclusionCulling = false;
+            cam.depthTextureMode = DepthTextureMode.None;
+            cam.enabled = false;
+            SyncSpriteDepthCameraLikeOriginal(baseCamera, cam);
+            TryBindSpriteDepthOverlayCameraLikeOriginal(baseCamera, cam);
             return cam;
         }
 
@@ -362,6 +448,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _strictIsoCamera.enabled = !freeActive;
             if (_freeCamera != null)
                 _freeCamera.enabled = freeActive;
+            if (_strictSpriteDepthCamera != null)
+                _strictSpriteDepthCamera.enabled = !freeActive;
+            if (_freeSpriteDepthCamera != null)
+                _freeSpriteDepthCamera.enabled = freeActive;
 
             _camera = freeActive ? _freeCamera : _strictIsoCamera;
 
@@ -402,8 +492,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _strictMapX = centerMapX - viewVol / (2.0f * 32.0f);
                 _strictMapY = centerMapY - realLy / 32.0f;
                 _strictZoom = 0.0f;
+                _strictZoomTarget = 0.0f;
                 _strictYawLikeOriginal = Mathf.PI / 6.0f;
                 _strictZoomTargetLikeOriginal = 0.0f;
+                _strictObserverZoomVelocityV288 = 0.0f;
                 _strictZoomModeIndex = 0;
                 _strictRollLikeOriginal = 0.0f;
                 _strictStepX = 0.0f;
@@ -461,12 +553,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
 
             bool speedHeld = IsSpeedHeld();
+            bool cameraDirty;
             if (_freeCameraMode)
-                UpdateFreeCameraInput(speedHeld);
+                cameraDirty = UpdateFreeCameraInput(speedHeld);
             else
-                UpdateStrictIsoCameraInputLikeOriginal(speedHeld);
+                cameraDirty = UpdateStrictIsoCameraInputLikeOriginal(speedHeld);
 
             UpdateCameraTransform();
+            if (cameraDirty) C2RuntimeDiagnosticsV1.CameraMovingFrame = Time.frameCount;
+            if (cameraDirty && C2RuntimeDiagnosticsV1.DetailedPerfEventsEnabled)
+            {
+                C2RuntimeDiagnosticsV1.MarkPerfEvent(
+                    "CAMERA_MOVE",
+                    _freeCameraMode
+                        ? "mode=free pos=(" + _freeCameraPosition.x.ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                          _freeCameraPosition.y.ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                          _freeCameraPosition.z.ToString("0.0", CultureInfo.InvariantCulture) + ")"
+                        : "mode=strict map=(" + _strictMapX.ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                          _strictMapY.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
+                          " step=(" + _strictStepX.ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                          _strictStepY.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
+                          " zoom=" + _strictZoom.ToString("0.0", CultureInfo.InvariantCulture) +
+                          " camera='" + (_camera != null ? _camera.name : "<null>") + "'" +
+                          " pixelRect=" + (_camera != null ? _camera.pixelRect.ToString() : "<none>"));
+            }
         }
 
         private bool UpdateStrictIsoCameraInputLikeOriginal(bool speedHeld)
@@ -475,11 +585,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 InitializeStrictIsoCameraStateLikeOriginal(forceCenter: true);
 
             bool dirty = false;
+            // V283B CAMERA OBSERVER LOCK:
+            // F7 zoom cycling is disabled in strict mode. Camera lift is controlled only by mouse wheel now.
+            // This prevents the old F7 mode/scShift path from changing map/view scale behind gameplay.
             if (WasCameraModeTogglePressed())
             {
-                _strictZoomModeIndex = (_strictZoomModeIndex + 1) % 3;
-                _strictZoomTargetLikeOriginal = GetStrictZoomHeightByModeLikeOriginal(_strictZoomModeIndex);
-                dirty = true;
+                _strictZoomModeIndex = 0;
             }
             float scale = GetStrictScaleLikeOriginal();
             float viewVol = GetStrictViewVolLikeOriginal(scale);
@@ -499,8 +610,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (keyMove.y < 0.0f) { _strictStepY = 4.0f; moveY = true; }
 
             bool pointerInside = Application.isFocused && x >= 0.0f && y >= 0.0f && x < Screen.width && y < Screen.height;
-            bool pointerOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-            if (pointerInside && !pointerOverUi)
+            // The runtime editor owns a full-screen UI raycast surface.  Treating the
+            // generic EventSystem hit as a blocking control therefore disables the
+            // Cossacks II map camera everywhere in editor mode.  The original blocks
+            // map input only over an actual dialog; the editor palette exposes that
+            // exact rectangle explicitly.
+            bool pointerOverEditorPaletteLikeOriginal =
+                C2EditorRuntimeStateV333LikeOriginal.IsPointerOverPaletteLikeOriginal(pointer);
+            if (pointerInside && !pointerOverEditorPaletteLikeOriginal)
             {
                 if (x < 6.0f)
                 {
@@ -529,6 +646,38 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     _strictStepY += StrictIsoEdgeAccel;
                     if (_strictStepY > StrictIsoStepClamp) _strictStepY = StrictIsoStepClamp;
                     moveY = true;
+                }
+            }
+
+            // Start at the normal Cossacks II view and allow distance-only zoom OUT.
+            // GetYawByZoom keeps the normal angle for this nonnegative range. The free test
+            // camera has its own input path and is deliberately not involved here.
+            bool mapPositionDirty = false;
+            float wheel = ReadScrollDelta();
+            if (pointerInside && !pointerOverEditorPaletteLikeOriginal &&
+                !C2MinimapScreenRectV377LikeOriginal().Contains(pointer) && Mathf.Abs(wheel) > 0.001f)
+            {
+                float zoomDelta = -wheel * Mathf.Max(1.0f, StrictIsoZoomStepPerWheel) * (speedHeld ? 3.0f : 1.0f);
+                float nextZoom = Mathf.Clamp(
+                    _strictZoomTargetLikeOriginal + zoomDelta,
+                    StrictIsoMinZoomLikeOriginal,
+                    StrictIsoMaxZoomLikeOriginal);
+                if (!Mathf.Approximately(_strictZoomTargetLikeOriginal, nextZoom))
+                {
+                    float oldTarget = _strictZoomTargetLikeOriginal;
+                    _strictZoomTargetLikeOriginal = nextZoom;
+                    _strictZoomTarget = nextZoom;
+                    _strictZoomModeIndex = 0;
+                    dirty = true;
+                    C2RuntimeDiagnosticsV1.MarkPerfEvent(
+                        "CAMERA_COSSACKS2_ZOOM_TARGET",
+                        "source=wheel" +
+                        " oldTarget=" + oldTarget.ToString("0.0", CultureInfo.InvariantCulture) +
+                        " newTarget=" + _strictZoomTargetLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) +
+                        " current=" + _strictZoom.ToString("0.0", CultureInfo.InvariantCulture) +
+                        " range=-1100..0" +
+                        " smooth=enabled" +
+                        " branch=COSSACKS2_SetupCamera");
                 }
             }
 
@@ -582,25 +731,97 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _strictMapX += dx * cdy + dy * cdx;
                 _strictMapY += dy * cdy - dx * cdx;
                 dirty = true;
+                mapPositionDirty = true;
             }
 
-            // Stepped F7 zoom path for retail-like gameplay:
-            // - base angle stays fixed at the original default PI/6
-            // - F7 cycles camera height levels using the original zoom amplitude (1100) as one lift unit
-            // - no wheel/PageUp/PageDown in strict mode
-            float zoomStep = Mathf.Max(1.0f, dt * 3.0f);
-            if (!Mathf.Approximately(_strictZoom, _strictZoomTargetLikeOriginal))
+            _strictZoomTargetLikeOriginal = Mathf.Clamp(
+                _strictZoomTargetLikeOriginal,
+                StrictIsoMinZoomLikeOriginal,
+                StrictIsoMaxZoomLikeOriginal);
+            _strictZoomTarget = _strictZoomTargetLikeOriginal;
+            float oldZoom = _strictZoom;
+            float zoomDt = Mathf.Clamp(Time.unscaledDeltaTime, 0.0001f, 0.1f);
+            _strictZoom = Mathf.SmoothDamp(
+                _strictZoom,
+                _strictZoomTargetLikeOriginal,
+                ref _strictObserverZoomVelocityV288,
+                Mathf.Max(0.01f, StrictIsoZoomSmoothTime),
+                Mathf.Max(1.0f, StrictIsoZoomMaxSpeed),
+                zoomDt);
+            if (Mathf.Abs(_strictZoomTargetLikeOriginal - _strictZoom) < 0.05f)
             {
-                _strictZoom = Mathf.MoveTowards(_strictZoom, _strictZoomTargetLikeOriginal, zoomStep);
-                _strictZoom = Mathf.Clamp(_strictZoom, 0.0f, GetStrictZoomHeightByModeLikeOriginal(2));
-                dirty = true;
+                _strictZoom = _strictZoomTargetLikeOriginal;
+                _strictObserverZoomVelocityV288 = 0.0f;
             }
-            _strictYawLikeOriginal = Mathf.PI / 6.0f;
 
-            if (dirty)
+            float targetYaw = GetStrictYawByZoomLikeOriginal(_strictZoom);
+            float yawBlend = 1.0f - Mathf.Exp(-12.0f * zoomDt);
+            _strictYawLikeOriginal = Mathf.Lerp(_strictYawLikeOriginal, targetYaw, yawBlend);
+            _strictRollLikeOriginal = 0.0f;
+            _strictZoomModeIndex = 0;
+            if (!Mathf.Approximately(oldZoom, _strictZoom))
+                dirty = true;
+
+            if (mapPositionDirty)
                 ClampStrictIsoMapStateLikeOriginal(viewVol, realLy, scale);
 
             return dirty;
+        }
+
+        private bool ApplyStrictIsoObserverZoomV283LikeOriginal(float nextZoom, Vector2 pointer, string source)
+        {
+            nextZoom = Mathf.Clamp(nextZoom, StrictIsoMinZoomLikeOriginal, StrictIsoMaxZoomLikeOriginal);
+            if (Mathf.Approximately(_strictZoom, nextZoom))
+                return false;
+
+            // V283D: strict zoom is camera observer state only.
+            // Do NOT preserve mouse-original by changing _strictMapX/_strictMapY.
+            // That fractional map-center compensation was the 3-5 px drift that shifted
+            // LINESORT/BUILDPOINT visual relation after zoom. The map/game pipeline stays frozen.
+            float oldZoom = _strictZoom;
+            float oldMapX = _strictMapX;
+            float oldMapY = _strictMapY;
+
+            _strictZoom = nextZoom;
+            _strictZoomModeIndex = 0;
+            ApplyStrictIsoCameraLikeOriginal();
+
+            C2RuntimeDiagnosticsV1.MarkPerfEvent(
+                "CAMERA_OBSERVER_ZOOM_V288B",
+                "source=" + source +
+                " oldZoom=" + oldZoom.ToString("0.0", CultureInfo.InvariantCulture) +
+                " newZoom=" + _strictZoom.ToString("0.0", CultureInfo.InvariantCulture) +
+                " mapLocked=(" + oldMapX.ToString("0.###", CultureInfo.InvariantCulture) + "," +
+                oldMapY.ToString("0.###", CultureInfo.InvariantCulture) + ")" +
+                " mapAdjust=disabled" +
+                " cameraDistance=fixed_base" +
+                " orthoSize=zoom_only" +
+                " smooth=disabled" +
+                " contract=V288B_camera_observer_snap_x2_no_gameplay_rescale");
+
+            return true;
+        }
+        private bool TryStrictIsoScreenToOriginalPixelV283LikeOriginal(Vector2 screen, out float ox, out float oy)
+        {
+            ox = 0.0f;
+            oy = 0.0f;
+            if (_strictIsoCamera == null || _map == null)
+                return false;
+
+            Rect pixelRect = _strictIsoCamera.pixelRect;
+            if (!pixelRect.Contains(screen))
+                return false;
+
+            float planeY = _terrainBuilt ? _terrainBounds.center.y : 0.0f;
+            Plane plane = new Plane(Vector3.up, new Vector3(0.0f, planeY, 0.0f));
+            Ray ray = _strictIsoCamera.ScreenPointToRay(screen);
+            float enter;
+            if (!plane.Raycast(ray, out enter) || enter < 0.0f)
+                return false;
+
+            Vector3 world = ray.GetPoint(enter);
+            world.y = planeY;
+            return C2NoUnitWorldToOriginalPixelLikeOriginal(world, out ox, out oy);
         }
 
         private void UpdateFreeCameraControlsLikeOriginal(bool speedHeld)
@@ -625,6 +846,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_camera == null)
                 return;
 
+            SyncSpriteDepthCameraLikeOriginal(_strictIsoCamera, _strictSpriteDepthCamera);
+            SyncSpriteDepthCameraLikeOriginal(_freeCamera, _freeSpriteDepthCamera);
+
             UpdateWaterReflectionTarget(force: false);
             ApplyWaterReflectionParams(forceLog: false);
 
@@ -632,6 +856,96 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Vector3 toPivot = (lookTarget - _camera.transform.position).normalized;
             float lookDot = Vector3.Dot(_camera.transform.forward.normalized, toPivot);
             MaybeLogCameraState(lookDot, false);
+        }
+
+        private void SyncSpriteDepthCameraLikeOriginal(Camera baseCamera, Camera spriteCamera)
+        {
+            if (!C2SpriteDepthLayerLikeOriginal.UseSeparateSpriteDepthCamera || baseCamera == null || spriteCamera == null)
+                return;
+
+            baseCamera.cullingMask &= ~C2SpriteDepthLayerLikeOriginal.Mask;
+            spriteCamera.cullingMask = C2SpriteDepthLayerLikeOriginal.Mask;
+            spriteCamera.clearFlags = CameraClearFlags.Nothing;
+            spriteCamera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            spriteCamera.depth = baseCamera.depth + 0.25f;
+            spriteCamera.rect = baseCamera.rect;
+            spriteCamera.targetDisplay = baseCamera.targetDisplay;
+            spriteCamera.orthographic = baseCamera.orthographic;
+            spriteCamera.orthographicSize = baseCamera.orthographicSize;
+            spriteCamera.fieldOfView = baseCamera.fieldOfView;
+            spriteCamera.nearClipPlane = baseCamera.nearClipPlane;
+            spriteCamera.farClipPlane = baseCamera.farClipPlane;
+            spriteCamera.transform.SetPositionAndRotation(baseCamera.transform.position, baseCamera.transform.rotation);
+            spriteCamera.projectionMatrix = baseCamera.projectionMatrix;
+            TryBindSpriteDepthOverlayCameraLikeOriginal(baseCamera, spriteCamera);
+
+            if (!s_spriteDepthCameraLoggedLikeOriginal)
+            {
+                s_spriteDepthCameraLoggedLikeOriginal = true;
+                Debug.Log("[C2:SPRITE DEPTH CAMERA V274] base='" + baseCamera.name +
+                          "' overlay='" + spriteCamera.name +
+                          "' layer=" + C2SpriteDepthLayerLikeOriginal.LayerIndex.ToString(CultureInfo.InvariantCulture) +
+                          " mask=0x" + C2SpriteDepthLayerLikeOriginal.Mask.ToString("X", CultureInfo.InvariantCulture) +
+                          " clear=None/preserveBaseDepth contract=terrain_Z_then_sprite_depth_prepass_then_color_buildings_units_same_Z");
+            }
+        }
+
+        private static void TryBindSpriteDepthOverlayCameraLikeOriginal(Camera baseCamera, Camera overlayCamera)
+        {
+            if (baseCamera == null || overlayCamera == null)
+                return;
+
+            try
+            {
+                Type urpDataType = Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
+                if (urpDataType == null)
+                    return;
+
+                Component baseData = baseCamera.GetComponent(urpDataType);
+                if (baseData == null) baseData = baseCamera.gameObject.AddComponent(urpDataType);
+
+                Component overlayData = overlayCamera.GetComponent(urpDataType);
+                if (overlayData == null) overlayData = overlayCamera.gameObject.AddComponent(urpDataType);
+
+                System.Reflection.PropertyInfo renderTypeProp = urpDataType.GetProperty("renderType");
+                if (renderTypeProp != null && renderTypeProp.CanWrite)
+                {
+                    Type enumType = renderTypeProp.PropertyType;
+                    renderTypeProp.SetValue(baseData, Enum.Parse(enumType, "Base"), null);
+                    renderTypeProp.SetValue(overlayData, Enum.Parse(enumType, "Overlay"), null);
+                }
+
+                System.Reflection.PropertyInfo clearDepthProp = urpDataType.GetProperty("clearDepth");
+                if (clearDepthProp != null && clearDepthProp.CanWrite)
+                    clearDepthProp.SetValue(overlayData, false, null);
+
+                System.Reflection.PropertyInfo stackProp = urpDataType.GetProperty("cameraStack");
+                if (stackProp == null)
+                    return;
+
+                System.Collections.IList stack = stackProp.GetValue(baseData, null) as System.Collections.IList;
+                if (stack == null)
+                    return;
+
+                int existing = -1;
+                for (int i = 0; i < stack.Count; i++)
+                {
+                    if (object.ReferenceEquals(stack[i], overlayCamera))
+                    {
+                        existing = i;
+                        break;
+                    }
+                }
+
+                if (existing > 0)
+                    stack.RemoveAt(existing);
+                if (existing != 0)
+                    stack.Insert(0, overlayCamera);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[C2:SPRITE DEPTH CAMERA V274 URP STACK WARN] " + ex.GetType().Name + ": " + ex.Message);
+            }
         }
 
         private void ApplyStrictIsoCameraLikeOriginal()
@@ -647,11 +961,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float realLy = GetStrictRealLyLikeOriginal(scale);
             ClampStrictIsoMapStateLikeOriginal(viewVol, realLy, scale);
 
-            float yawRad = _strictYawLikeOriginal;
+            float yawRad = Mathf.Clamp(
+                _strictYawLikeOriginal,
+                StrictIsoMinYawLikeOriginal,
+                StrictIsoNormalYawLikeOriginal);
             float rollRad = _strictRollLikeOriginal;
             Vector3 dir = MapOriginalDirToUnity(yawRad, rollRad);
-            float strictDistance = viewVol * StrictIsoCameraFactor + _strictZoom;
-            strictDistance = Mathf.Clamp(strictDistance, MinCameraDistance, MaxCameraDistance);
+
+            // Literal Cossacks II SetupCamera distance: viewVol * CameraFactor + zoom.
+            float strictBaseDistance = viewVol * StrictIsoCameraFactor;
+            float strictCameraDistance = Mathf.Clamp(
+                strictBaseDistance + Mathf.Clamp(_strictZoom, StrictIsoMinZoomLikeOriginal, StrictIsoMaxZoomLikeOriginal),
+                MinCameraDistance,
+                MaxCameraDistance);
 
             float smaplx = viewVol / 32.0f;
             float smaply = realLy / 32.0f;
@@ -670,49 +992,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float focusWorldZ = ((_strictMapY + smaply) - centerMapY) * kernelBackingZ * WorldZSign;
             float focusWorldY = _terrainBuilt ? _terrainBounds.center.y : 0.0f;
             Vector3 focus = new Vector3(focusWorldX, focusWorldY, focusWorldZ);
-            Vector3 pos = focus - dir * strictDistance;
+            Vector3 pos = focus - dir * strictCameraDistance;
 
             Quaternion rotation = BuildStrictIsoRotationLikeOriginal(dir);
             _strictIsoCamera.transform.SetPositionAndRotation(pos, rotation);
-            // V81: strict-isometric gameplay camera uses orthographic projection.
-            // Reason: buildings/units are sprite meshes in Unity world. With perspective camera they
-            // stretch/compress against each other when the camera height/zoom changes. Original engine
-            // compensates this in DrawSpriteBuilding via GetPseudoProjectionTM/ALIGN_WITH_3POINTS in
-            // screen space. Until the full screen-space sprite renderer is ported, orthographic strict
-            // camera is the safe non-destructive fix: it removes perspective deformation for all sprites
-            // without moving building logical roots, passability, cursors, selection or LineSort.
             _strictIsoCamera.rect = new Rect(0.0f, 0.0f, 1.0f, 1.0f);
 
-            float aspect = Mathf.Max(1.0f, _strictIsoCamera.pixelRect.width) / Mathf.Max(1.0f, _strictIsoCamera.pixelRect.height);
-            float fovxRad = StrictIsoBaseFovXDegrees * Mathf.Deg2Rad;
-            float fovyRad = 2.0f * Mathf.Atan(Mathf.Tan(fovxRad * 0.5f) / Mathf.Max(0.0001f, aspect));
-            _strictIsoCamera.fieldOfView = Mathf.Clamp(fovyRad * Mathf.Rad2Deg, 1.0f, 179.0f);
-            _strictIsoCamera.orthographic = true;
-            _strictIsoCamera.orthographicSize = Mathf.Max(1.0f, Mathf.Tan(fovyRad * 0.5f) * strictDistance);
+            float ydist = realLy * StrictIsoCos30LikeOriginal * 2.0f;
+            float camZn = strictCameraDistance - ydist -
+                4.0f * (StrictIsoMaxMapHeightLikeOriginal * Mathf.Max(VerticalScale, 0.0001f)) /
+                StrictIsoCos30LikeOriginal;
+            if (camZn < 50.0f)
+                camZn = 50.0f;
+            float camZf = strictCameraDistance + ydist * 12.0f;
 
-            Bounds sceneBounds = _terrainBuilt
-                ? _terrainBounds
-                : new Bounds(focus, new Vector3(4096.0f, 2048.0f, 4096.0f));
-
-            Vector3 closest = sceneBounds.ClosestPoint(pos);
-            float distToScene = Vector3.Distance(pos, closest);
-            if (distToScene < 0.001f)
-                distToScene = Mathf.Max(1.0f, strictDistance * 0.25f);
-
-            float camZn = Mathf.Clamp(distToScene * 0.01f, 0.5f, 5.0f);
-
-            float sceneRadius = sceneBounds.extents.magnitude;
-            float camZf = Mathf.Max(camZn + 1000.0f, Vector3.Distance(pos, sceneBounds.center) + sceneRadius + 4096.0f);
-
-            _strictIsoCamera.nearClipPlane = camZn;
-            _strictIsoCamera.farClipPlane = camZf;
-            _strictIsoCamera.ResetProjectionMatrix();
+            ApplyStrictIsoProjectionLikeOriginal(_strictIsoCamera, camZn, camZf, strictCameraDistance);
 
             _pivot = focus;
-            _distance = strictDistance;
+            _distance = strictCameraDistance;
         }
 
-        private static void ApplyStrictIsoProjectionLikeOriginal(Camera cam, float zn, float zf)
+        private static void ApplyStrictIsoProjectionLikeOriginal(Camera cam, float zn, float zf, float focusDistance)
         {
             if (cam == null)
                 return;
@@ -723,6 +1023,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             cam.fieldOfView = Mathf.Clamp(fovy * Mathf.Rad2Deg, 1.0f, 179.0f);
             cam.nearClipPlane = Mathf.Max(0.01f, zn);
             cam.farClipPlane = Mathf.Max(cam.nearClipPlane + 1.0f, zf);
+            cam.orthographic = C2ProjectionComparisonModeLikeOriginal.UseStableProjectionForComparison;
+            if (cam.orthographic)
+            {
+                // Comparison mode only: preserve the original scale at the camera
+                // focus, including wheel zoom, but use parallel rays for the whole
+                // scene. Stabilizing only the sprite would detach it from MD exits.
+                cam.orthographicSize = Mathf.Max(0.01f, focusDistance * Mathf.Tan(fovy * 0.5f));
+            }
             cam.ResetProjectionMatrix();
         }
 
@@ -786,6 +1094,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 default:
                     return 0.0f;
             }
+        }
+
+        private static float GetStrictYawByZoomLikeOriginal(float zoom)
+        {
+            // COSSACKS2/Scape3D.cpp::GetYawByZoom.
+            if (zoom < 0.0f)
+            {
+                return StrictIsoNormalYawLikeOriginal -
+                    (StrictIsoMinYawLikeOriginal - StrictIsoNormalYawLikeOriginal) * zoom / 1100.0f;
+            }
+            return StrictIsoNormalYawLikeOriginal;
         }
 
         private void ClampStrictIsoMapStateLikeOriginal(float viewVol, float realLy, float scale)
@@ -911,7 +1230,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private float ReadScrollDelta()
         {
 #if ENABLE_INPUT_SYSTEM
-            return Mouse.current != null ? Mouse.current.scroll.ReadValue().y / 120.0f : 0.0f;
+            if (Mouse.current == null) return 0.0f;
+            float delta = Mouse.current.scroll.ReadValue().y;
+            // Input System normalizes wheel deltas by default in this Unity version.
+            // Dividing an already-normalized tick by 120 makes camera lift imperceptible.
+            bool normalized = InputSystem.settings.scrollDeltaBehavior ==
+                InputSettings.ScrollDeltaBehavior.UniformAcrossAllPlatforms;
+            bool windows = Application.platform == RuntimePlatform.WindowsEditor ||
+                Application.platform == RuntimePlatform.WindowsPlayer;
+            return normalized || !windows ? delta : delta / 120.0f;
 #else
             return Input.mouseScrollDelta.y;
 #endif
@@ -969,8 +1296,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _strictMapX = _strictInitialMapX;
             _strictMapY = _strictInitialMapY;
             _strictZoom = _strictInitialZoom;
+            _strictZoomTarget = _strictInitialZoom;
             _strictYawLikeOriginal = Mathf.PI / 6.0f;
             _strictZoomTargetLikeOriginal = _strictInitialZoom;
+            _strictObserverZoomVelocityV288 = 0.0f;
             _strictZoomModeIndex = 0;
             _strictRollLikeOriginal = 0.0f;
             _strictStepX = 0.0f;
@@ -1019,7 +1348,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
-            float scroll = ReadScrollDelta();
+            float scroll = C2EditorRuntimeStateV333LikeOriginal.IsPointerOverPaletteLikeOriginal(ReadPointerPosition())
+                ? 0.0f
+                : ReadScrollDelta();
             if (Mathf.Abs(scroll) > 0.001f)
             {
                 _freeCameraPosition += forward * (scroll * moveSpeed * 0.15f);
@@ -1973,6 +2304,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             selectedId = MenuActionSink.SingleBattlesSelectedId ?? string.Empty;
             error = string.Empty;
 
+            if (EditorTestModeLikeOriginal)
+            {
+                const string editorMap = @"Models\MapAutosave.m3d";
+                if (!_bootstrap.Fs.Exists(editorMap))
+                {
+                    error = "Original editor plateau not found: " + _bootstrap.Fs.ResolvePath(editorMap);
+                    return false;
+                }
+                relativePath = editorMap;
+                selectedId = "EditorPlateau";
+                return true;
+            }
+
             if (MenuActionSink.SingleBattlesShowLoad)
             {
                 error = "Load-mode is not supported in clean terrain mode.";
@@ -2044,14 +2388,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return false;
             }
 
-            byte[] raw = fs.ReadAllBytes(relativePath);
+            byte[] raw = null;
+            using (C2MapLoadProfilerV1.Scope("map.parse.ReadAllBytes", "path='" + (relativePath ?? string.Empty) + "'"))
+                raw = fs.ReadAllBytes(relativePath);
             if (raw == null || raw.Length == 0)
             {
                 error = "Map file is empty: " + relativePath;
                 return false;
             }
 
-            byte[] data = MaybeDecompressM3d(raw, out error);
+            byte[] data = null;
+            using (C2MapLoadProfilerV1.Scope("map.parse.MaybeDecompressM3d", "rawBytes=" + raw.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+                data = MaybeDecompressM3d(raw, out error);
             if (data == null || data.Length < 12)
                 return false;
 
@@ -2082,11 +2430,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     int sizeField = br.ReadInt32();
                     int payloadLen = Mathf.Max(0, sizeField - 4);
                     long payloadStart = ms.Position;
+                    long chunkTimerStartMsV1 = C2MapLoadProfilerV1.NowMs();
 
                     if (TagEqualsLikeOriginal(tag, "MPSZ", "ZSPM"))
                     {
                         LoadMapSizeLikeOriginal(br, map, payloadLen);
                         ms.Position = payloadStart + payloadLen;
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag, C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1, "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture));
                         continue;
                     }
 
@@ -2094,6 +2444,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     {
                         LoadSurfaceLikeOriginal(br, map, payloadLen);
                         ms.Position = payloadStart + payloadLen;
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag, C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1, "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture));
                         continue;
                     }
 
@@ -2101,28 +2452,52 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     {
                         LoadNewSurfaceLikeOriginal(br, map, payloadLen);
                         ms.Position = payloadStart + payloadLen;
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag, C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1, "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                        continue;
+                    }
+
+                    if (TagEqualsLikeOriginal(tag, "MOPT", "TPOM"))
+                    {
+                        ParseMoraleMapOptionsLikeOriginal(br, map, payloadLen);
+                        ms.Position = payloadStart + payloadLen;
+                        continue;
+                    }
+
+                    if (TagEqualsLikeOriginal(tag, "2NOZ", "ZON2"))
+                    {
+                        ParseSettlementGroupsV336LikeOriginal(br, map, payloadLen);
+                        ms.Position = payloadStart + payloadLen;
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag, C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1,
+                            "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                            " settlements=" + map.SettlementsV336LikeOriginal.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
                         continue;
                     }
 
                     if (TryParseSurfaceTexturingChunkLikeOriginal(tag, br, map, payloadLen))
                     {
                         ms.Position = payloadStart + payloadLen;
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag, C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1, "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture) + " kind=surfaceTexturing");
                         continue;
                     }
 
                     if (TryParseRoadsChunkLikeOriginal(tag, br, map, payloadLen))
                     {
                         ms.Position = payloadStart + payloadLen;
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag, C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1, "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture) + " kind=roads");
                         continue;
                     }
 
                     if (TryParseWaterChunkLikeOriginal(tag, br, map, payloadLen))
                     {
                         ms.Position = payloadStart + payloadLen;
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag, C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1, "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture) + " kind=water");
                         continue;
                     }
 
                     ms.Position = payloadStart + payloadLen;
+                    long skippedChunkMsV1 = C2MapLoadProfilerV1.NowMs() - chunkTimerStartMsV1;
+                    if (skippedChunkMsV1 >= 250L)
+                        C2MapLoadProfilerV1.Stage("map.parse.chunk." + tag + ".skipped", skippedChunkMsV1, "payloadLen=" + payloadLen.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
 

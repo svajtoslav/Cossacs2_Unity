@@ -27,7 +27,8 @@ public static class AiToolkit_EnumFallbackPatch
 
             if (asm == null)
             {
-                Debug.Log("[AI Toolkit Patch] AiEditorToolsSdk assembly not loaded yet.");
+                // PATCH_LOG_CLEAN: silent when AiEditorToolsSdk is not loaded.
+                // Debug.Log("[AI Toolkit Patch] AiEditorToolsSdk assembly not loaded yet.");
                 return;
             }
 
@@ -88,7 +89,8 @@ public static class AiToolkit_EnumFallbackPatch
                 }
             }
 
-            Debug.Log($"[AI Toolkit Patch] Safe enum fallback injected into {patched} JsonSerializerSettings instance(s).");
+            // PATCH_LOG_CLEAN: silent successful patch.
+            // Debug.Log($"[AI Toolkit Patch] Safe enum fallback injected into {patched} JsonSerializerSettings instance(s).");
         }
         catch (Exception e)
         {

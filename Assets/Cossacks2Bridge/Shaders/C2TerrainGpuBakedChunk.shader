@@ -16,6 +16,7 @@ Shader "Cossacks2Bridge/TerrainGpuBakedChunk"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "C2FogOfWarLikeOriginal.cginc"
 
             sampler2D _MainTex;
 
@@ -29,6 +30,7 @@ Shader "Cossacks2Bridge/TerrainGpuBakedChunk"
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float3 world : TEXCOORD1;
             };
 
             v2f vert(appdata v)
@@ -36,12 +38,14 @@ Shader "Cossacks2Bridge/TerrainGpuBakedChunk"
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv;
+                o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
-                return fixed4(tex2D(_MainTex, i.uv).rgb, 1.0);
+                fixed3 rgb = C2ApplyFogOfWarLikeOriginal(tex2D(_MainTex, i.uv).rgb, i.world);
+                return fixed4(rgb, 1.0);
             }
             ENDCG
         }

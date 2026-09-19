@@ -69,7 +69,6 @@ namespace Cossacks2Bridge.UnityAdapters.Battles
 
             var bestRt = best.rectTransform;
 
-            best.enableWordWrapping = false;
             best.textWrappingMode = TextWrappingModes.NoWrap;
             best.overflowMode = TextOverflowModes.Ellipsis;
             best.alignment = TextAlignmentOptions.Left;
