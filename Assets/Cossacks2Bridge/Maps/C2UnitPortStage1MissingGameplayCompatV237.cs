@@ -12,13 +12,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 {
     public sealed partial class C2BattleTerrainMode
     {
-        private static long s_c2PathProfileTicksLikeOriginal;
-        private static int s_c2PathProfileCallsLikeOriginal;
-        private static int s_c2PathProfileSuccessLikeOriginal;
-        private static int s_c2PathProfileNextReportTickLikeOriginal;
-        private static readonly Dictionary<string, int> s_c2PathProfileCallsBySourceLikeOriginal =
-            new Dictionary<string, int>(StringComparer.Ordinal);
-
         // Resource ids copied from the old resource map constants.
         public const byte C2OriginalResourceWoodV1LikeOriginal = 0;
         public const byte C2OriginalResourceGoldV1LikeOriginal = 1;
@@ -28,148 +21,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public const byte C2OriginalResourceCoalV1LikeOriginal = 5;
         public const byte C2OriginalResourceNoneV1LikeOriginal = 0xFE;
         public const byte C2OriginalResourceEmptyV1LikeOriginal = 0xFF;
-
-        public static bool C2BuildingMotionFieldV1TryBuildPathRealLikeOriginal(
-            float fromRealX,
-            float fromRealY,
-            float toRealX,
-            float toRealY,
-            out Vector2[] path,
-            int maxSearchCells,
-            string profileSourceLikeOriginal = null)
-        {
-            long started = global::System.Diagnostics.Stopwatch.GetTimestamp();
-            bool success = C2BuildingRuntimeInfoV247LikeOriginal.TryBuildPathRealV247LikeOriginal(
-                fromRealX, fromRealY, toRealX, toRealY, out path, maxSearchCells);
-            s_c2PathProfileTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - started;
-            s_c2PathProfileCallsLikeOriginal++;
-            if (success) s_c2PathProfileSuccessLikeOriginal++;
-            string profileSource = string.IsNullOrEmpty(profileSourceLikeOriginal)
-                ? "unspecified"
-                : profileSourceLikeOriginal;
-            int sourceCalls;
-            s_c2PathProfileCallsBySourceLikeOriginal.TryGetValue(profileSource, out sourceCalls);
-            s_c2PathProfileCallsBySourceLikeOriginal[profileSource] = sourceCalls + 1;
-
-            int now = Environment.TickCount;
-            if (s_c2PathProfileNextReportTickLikeOriginal == 0)
-                s_c2PathProfileNextReportTickLikeOriginal = unchecked(now + 5000);
-            else if (unchecked(now - s_c2PathProfileNextReportTickLikeOriginal) >= 0)
-            {
-                double ms = s_c2PathProfileTicksLikeOriginal * 1000.0 /
-                    global::System.Diagnostics.Stopwatch.Frequency;
-                var sourceParts = new List<string>(s_c2PathProfileCallsBySourceLikeOriginal.Count);
-                foreach (KeyValuePair<string, int> pair in s_c2PathProfileCallsBySourceLikeOriginal)
-                    sourceParts.Add(pair.Key + ":" + pair.Value.ToString(CultureInfo.InvariantCulture));
-                sourceParts.Sort(StringComparer.Ordinal);
-                Debug.Log("[C2:PATH PROFILE] windowSec=5 calls=" +
-                          s_c2PathProfileCallsLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " success=" + s_c2PathProfileSuccessLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " totalMs=" + ms.ToString("0.000", CultureInfo.InvariantCulture) +
-                          " avgMs=" + (ms / Math.Max(1, s_c2PathProfileCallsLikeOriginal)).ToString("0.000", CultureInfo.InvariantCulture) +
-                          " sources=[" + string.Join(",", sourceParts.ToArray()) + "]");
-                s_c2PathProfileTicksLikeOriginal = 0L;
-                s_c2PathProfileCallsLikeOriginal = 0;
-                s_c2PathProfileSuccessLikeOriginal = 0;
-                s_c2PathProfileCallsBySourceLikeOriginal.Clear();
-                s_c2PathProfileNextReportTickLikeOriginal = unchecked(now + 5000);
-            }
-            return success;
-        }
-
-        public static bool C2BuildingMotionFieldV1TryBuildPathOrDirectRealLikeOriginal(
-            float fromRealX,
-            float fromRealY,
-            float toRealX,
-            float toRealY,
-            out Vector2[] path,
-            out bool directTravelClear,
-            int maxSearchCells,
-            string profileSourceLikeOriginal = null,
-            int radiusCells = 1)
-        {
-            long started = global::System.Diagnostics.Stopwatch.GetTimestamp();
-            bool success = C2BuildingRuntimeInfoV247LikeOriginal.TryBuildPathRealV247LikeOriginal(
-                fromRealX,
-                fromRealY,
-                toRealX,
-                toRealY,
-                out path,
-                out directTravelClear,
-                maxSearchCells, radiusCells);
-            s_c2PathProfileTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - started;
-            s_c2PathProfileCallsLikeOriginal++;
-            if (success) s_c2PathProfileSuccessLikeOriginal++;
-            string profileSource = string.IsNullOrEmpty(profileSourceLikeOriginal)
-                ? "unspecified"
-                : profileSourceLikeOriginal;
-            int sourceCalls;
-            s_c2PathProfileCallsBySourceLikeOriginal.TryGetValue(profileSource, out sourceCalls);
-            s_c2PathProfileCallsBySourceLikeOriginal[profileSource] = sourceCalls + 1;
-
-            int now = Environment.TickCount;
-            if (s_c2PathProfileNextReportTickLikeOriginal == 0)
-                s_c2PathProfileNextReportTickLikeOriginal = unchecked(now + 5000);
-            else if (unchecked(now - s_c2PathProfileNextReportTickLikeOriginal) >= 0)
-            {
-                double ms = s_c2PathProfileTicksLikeOriginal * 1000.0 /
-                    global::System.Diagnostics.Stopwatch.Frequency;
-                var sourceParts = new List<string>(s_c2PathProfileCallsBySourceLikeOriginal.Count);
-                foreach (KeyValuePair<string, int> pair in s_c2PathProfileCallsBySourceLikeOriginal)
-                    sourceParts.Add(pair.Key + ":" + pair.Value.ToString(CultureInfo.InvariantCulture));
-                sourceParts.Sort(StringComparer.Ordinal);
-                Debug.Log("[C2:PATH PROFILE] windowSec=5 calls=" +
-                          s_c2PathProfileCallsLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " success=" + s_c2PathProfileSuccessLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                          " totalMs=" + ms.ToString("0.000", CultureInfo.InvariantCulture) +
-                          " avgMs=" + (ms / Math.Max(1, s_c2PathProfileCallsLikeOriginal)).ToString("0.000", CultureInfo.InvariantCulture) +
-                          " sources=[" + string.Join(",", sourceParts.ToArray()) + "]");
-                s_c2PathProfileTicksLikeOriginal = 0L;
-                s_c2PathProfileCallsLikeOriginal = 0;
-                s_c2PathProfileSuccessLikeOriginal = 0;
-                s_c2PathProfileCallsBySourceLikeOriginal.Clear();
-                s_c2PathProfileNextReportTickLikeOriginal = unchecked(now + 5000);
-            }
-            return success;
-        }
-
-        public static bool C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(
-            float realX,
-            float realY,
-            int radiusCells)
-        {
-            return C2BuildingRuntimeInfoV247LikeOriginal.IsBlockedForUnitRealV247LikeOriginal(realX, realY, radiusCells);
-        }
-
-        public static bool C2BuildingMotionFieldV1CanTravelStraightRealLikeOriginal(
-            float fromRealX,
-            float fromRealY,
-            float toRealX,
-            float toRealY)
-        {
-            return C2BuildingRuntimeInfoV247LikeOriginal.CanTravelStraightRealV247LikeOriginal(
-                fromRealX, fromRealY, toRealX, toRealY);
-        }
-
-        public static bool C2BuildingMotionFieldV1IsBlockedRealLikeOriginal(float realX, float realY)
-        {
-            return C2BuildingRuntimeInfoV247LikeOriginal.IsBlockedRealV247LikeOriginal(realX, realY);
-        }
-
-        public static bool C2BuildingMotionFieldV1TryFindNearestFreeRealLikeOriginal(
-            float realX,
-            float realY,
-            out float freeRealX,
-            out float freeRealY,
-            int maxRadiusCells)
-        {
-            return C2BuildingRuntimeInfoV247LikeOriginal.TryFindNearestFreeRealV247LikeOriginal(
-                realX,
-                realY,
-                out freeRealX,
-                out freeRealY,
-                maxRadiusCells);
-        }
 
         public static int C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal unit,
@@ -291,7 +142,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
     internal static partial class C2FormationRuntimeV167LikeOriginal
     {
-        private sealed class RuntimeFormationV172LikeOriginal
+        internal sealed class RuntimeFormationV172LikeOriginal
         {
             public int GroupId;
             public int Nation;
@@ -309,6 +160,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int AddMaxMorale;
             public int MoraleRecoveryBonus;
             public int ExpGrowSpeed = 100;
+            // COSSACKS2 Brigade::UnitsSpeedBonus, default 100.
+            public int UnitsSpeedBonusV431LikeOriginal = 100;
             public bool TurnActive;
             public byte TurnTargetDirection;
             public float NextTurnStepAt;
@@ -472,12 +325,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_groupsByIdV172LikeOriginal.TryGetValue(groupId, out group) && group != null)
                 group.Direction = direction;
 
-            for (int i = 0; i < formationUnits.Count && i < slots.Count; i++)
-                formationUnits[i].SetFormationAssemblyDestinationRealLikeOriginal(
-                    slots[i].x,
-                    slots[i].y,
-                    C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                    direction);
+            // Brigade.cpp::CreateFromGroup: member ActivityState=0,
+            // then KeepPositions(0,128+16), which owns assembly retries.
+            for (int i = 0; i < formationUnits.Count; i++)
+                formationUnits[i].ActivityStateV413LikeOriginal = 0;
+            QueueBrigadeKeepPositionsV416LikeOriginal(group, 128 + 16, 0,
+                "Brigade::CreateFromGroup_militia");
 
             audit = "ok group=" + groupId.ToString(CultureInfo.InvariantCulture) +
                     " units=" + formationUnits.Count.ToString(CultureInfo.InvariantCulture) +
@@ -706,7 +559,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     continue;
                 if (!MatchesFormationMemberV172LikeOriginal(candidate, group.SoldierMemberId))
                     continue;
-                if (representative == null || candidate.SortKey < representative.SortKey)
+                // UnitsInterface.cpp::OISelection::AddObj retains the first soldier
+                // of a brigade in the selection, independently of draw sorting.
+                // Our stable registry identity must not change when a soldier
+                // crosses another on screen: that rebuilt the entire HUD.
+                if (representative == null || candidate.C2ObjectIndexV407LikeOriginal < representative.C2ObjectIndexV407LikeOriginal)
                     representative = candidate;
             }
 
@@ -846,7 +703,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             for (int i = 0; i < group.Units.Count; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal member = group.Units[i];
-                if (!IsUsableFormationUnitV172LikeOriginal(member, true))
+                // COSSACKS2/UnitsInterface.cpp::GetBrigadeParams counts persistent
+                // BR->Memb soldier slots that still resolve to a live OneObject.
+                // It does NOT ask whether the member can currently receive an order.
+                // IsUsableFormationUnit() included NotSelectable/CanReceiveOrders and
+                // therefore turned a living returning brigade into HUD 0/120.
+                if (!IsLiveFormationMemberV404LikeOriginal(member))
                     continue;
 
                 string memberId =
@@ -894,7 +756,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             List<C2NeutralPeasantUnitInfoV2LikeOriginal> units = GetFormationOrderMembersV360LikeOriginal(group);
             float centerX, centerY;
-            ComputeFormationGroupCenterV172LikeOriginal(group, units, out centerX, out centerY);
+            ComputeBrigadeOrderedCenterV4183LikeOriginal(group, units, out centerX, out centerY);
             var record = ResolveRecordForGroupV320LikeOriginal(group);
             var option = FindFormationOptionV320LikeOriginal(record, group.Shape);
             slots = BuildFormationSoldierPreviewAtV359LikeOriginal(
@@ -1188,6 +1050,90 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return false;
         }
 
+        // V417 stage 1: ordinary Brigade movement changes BR->posX/posY and may
+        // permute member indices through the formation symmetry table, but it does
+        // NOT recreate Brigade::Memb.  Keep membership persistent and update only
+        // the ordered member permutation/layout.  In particular, NotSelectable and
+        // CanReceiveOrders are command-dispatch properties, not membership rules.
+        private static RuntimeFormationV172LikeOriginal UpdateFormationLayoutPreserveMembershipV417LikeOriginal(
+            RuntimeFormationV172LikeOriginal group,
+            IList<C2NeutralPeasantUnitInfoV2LikeOriginal> orderedMembers,
+            IList<Vector2> destSlots,
+            string shape,
+            int commandSlotCount,
+            string source)
+        {
+            if (group == null) return null;
+
+            HashSet<int> beforeLive = new HashSet<int>();
+            for (int i = 0; i < group.Units.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = group.Units[i];
+                if (u != null && !u.IsDeadLikeOriginal)
+                    beforeLive.Add(u.GetInstanceID());
+            }
+
+            bool canApplyPermutation = orderedMembers != null;
+            HashSet<int> orderedLive = new HashSet<int>();
+            if (orderedMembers != null)
+            {
+                for (int i = 0; i < orderedMembers.Count; i++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal u = orderedMembers[i];
+                    if (u != null && !u.IsDeadLikeOriginal)
+                        orderedLive.Add(u.GetInstanceID());
+                }
+                canApplyPermutation = beforeLive.SetEquals(orderedLive);
+            }
+
+            if (canApplyPermutation)
+            {
+                group.Units.Clear();
+                for (int i = 0; i < orderedMembers.Count; i++)
+                    group.Units.Add(orderedMembers[i]);
+            }
+            else if (orderedMembers != null)
+            {
+                Debug.LogError("[C2:BRIGADE MEMBERSHIP V417 BLOCKED_REBUILD] group=" +
+                    group.GroupId.ToString(CultureInfo.InvariantCulture) +
+                    " source='" + (source ?? string.Empty) + "'" +
+                    " beforeLive=" + beforeLive.Count.ToString(CultureInfo.InvariantCulture) +
+                    " orderedLive=" + orderedLive.Count.ToString(CultureInfo.InvariantCulture) +
+                    " action=keep_existing_Brigade_Memb");
+            }
+
+            group.Slots.Clear();
+            if (destSlots != null)
+            {
+                for (int i = 0; i < destSlots.Count; i++)
+                    group.Slots.Add(destSlots[i]);
+            }
+            group.Shape = shape ?? string.Empty;
+            if (commandSlotCount >= 0)
+                group.CommandSlotCount = commandSlotCount;
+
+            // Reassert the registry for all surviving Brigade::Memb entries.  This
+            // never removes a live member because of temporary UI/orderability state.
+            int afterLive = 0;
+            for (int i = 0; i < group.Units.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = group.Units[i];
+                if (u == null || u.IsDeadLikeOriginal) continue;
+                _groupIdByUnitInstanceV172LikeOriginal[u.GetInstanceID()] = group.GroupId;
+                afterLive++;
+            }
+
+            if (afterLive != beforeLive.Count)
+            {
+                Debug.LogError("[C2:BRIGADE MEMBERSHIP V417 COUNT_MISMATCH] group=" +
+                    group.GroupId.ToString(CultureInfo.InvariantCulture) +
+                    " source='" + (source ?? string.Empty) + "'" +
+                    " beforeLive=" + beforeLive.Count.ToString(CultureInfo.InvariantCulture) +
+                    " afterLive=" + afterLive.ToString(CultureInfo.InvariantCulture));
+            }
+            return group;
+        }
+
         public static void ReplaceFormationSlotsV172LikeOriginal(
             int groupId,
             IList<C2NeutralPeasantUnitInfoV2LikeOriginal> units,
@@ -1399,8 +1345,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int blockedKare = 0;
             int roadGroups = 0;
             int coherentPathGroups = 0;
+            int topologyOrderGroupsV419 = 0;
             int symmetricMoveGroups = 0;
             int blockedPaths = 0;
+            int localKeepPositionsGroupsV416 = 0;
 
             for (int g = 0; g < groups.Count; g++)
             {
@@ -1427,6 +1375,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 // attack-state motion.
                 if (!preserveAttackStateV405B)
                 {
+                    ClearBrigadeAttackEnemyIntentV414LikeOriginal(group);
                     for (int sg = 0; sg < groupUnits.Count; sg++)
                     {
                         if (groupUnits[sg] == null) continue;
@@ -1435,18 +1384,36 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
                 }
 
-                float groupCenterX;
-                float groupCenterY;
-                ComputeFormationGroupCenterV172LikeOriginal(group, groupUnits, out groupCenterX, out groupCenterY);
+                else if (!IsFormLikeShootersV403LikeOriginal(group))
+                {
+                    // Groups.cpp::SendToPositions, Prio=128: BR->AttEnm=true
+                    // BEFORE HumanGlobalSendTo. KeepPositions reads this persistent
+                    // brigade state on its following passes, not the caller's bool.
+                    _brigadeAttackEnemyIntentV414LikeOriginal.Add(group.GroupId);
+                }
+
+                // Groups.cpp::BrigadesList::CreateFromSelected uses GetBrCenter
+                // (ordered soldier positions) to preserve the relative placement of
+                // selected brigades. Brigade::HumanGlobalSendTo then independently
+                // uses GetCenter (actual member positions) for RR/path decisions.
+                float groupLayoutCenterX;
+                float groupLayoutCenterY;
+                ComputeBrigadeOrderedCenterV4183LikeOriginal(
+                    group, groupUnits, out groupLayoutCenterX, out groupLayoutCenterY);
 
                 float targetCenterX, targetCenterY;
                 byte moveDirection;
                 ComputeFormationCommandTargetV359LikeOriginal(
-                    groupCenterX, groupCenterY, groupsCenterX, groupsCenterY,
+                    groupLayoutCenterX, groupLayoutCenterY, groupsCenterX, groupsCenterY,
                     destRealCenterX, destRealCenterY, group.Direction, formationTurnDelta,
                     out targetCenterX, out targetCenterY, out moveDirection);
-                float travelDx = targetCenterX - groupCenterX;
-                float travelDy = targetCenterY - groupCenterY;
+
+                float groupActualCenterX;
+                float groupActualCenterY;
+                ComputeFormationGroupCenterV172LikeOriginal(
+                    group, groupUnits, out groupActualCenterX, out groupActualCenterY);
+                float travelDx = targetCenterX - groupActualCenterX;
+                float travelDy = targetCenterY - groupActualCenterY;
                 int travelDistance = C2OriginalMovementMathV352.Norma(
                     Mathf.RoundToInt(travelDx), Mathf.RoundToInt(travelDy));
                 // Brigade.cpp::HumanGlobalSendTo exact threshold selection:
@@ -1476,166 +1443,78 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
                 }
                 bool longMove = travelDistance >= roadEntryDistancePxV352 * 16.0f;
+                byte brigadeMovePriorityV418 = preserveAttackStateV405B ? (byte)128 : (byte)(126 + 16);
 
-                Vector2[] roadCenterPath = null;
-                string roadAudit = string.Empty;
-                bool useRoad = longMove &&
-                    C2BattleTerrainMode.C2FormationTryBuildRoadPathRealV320LikeOriginal(
-                        groupCenterX,
-                        groupCenterY,
-                        targetCenterX,
-                        targetCenterY,
-                        out roadCenterPath,
-                        out roadAudit);
-
-                if (useRoad && roadCenterPath != null && roadCenterPath.Length > 1)
+                // Brigade::HumanGlobalSendTo creates BrigadeOrder_HumanGlobalSendTo only
+                // on the global (RR>=R0) branch. Short moves fall straight through to
+                // HumanLocalSendTo/KeepPositions and therefore must not create ID 5.
+                if (longMove)
                 {
-                    // Brigade.cpp B_GlobalSendToLink: TopDst must be greater than
-                    // MinTopDistanceToEnterRoad; the first non-command MD may override 800.
-                    int minTopDistancePxV352 = 800;
-                    if (roadLinkV352 != null && roadLinkV352.Runtime != null && roadLinkV352.Runtime.Md != null &&
-                        roadLinkV352.Runtime.Md.MinTopDistanceToEnterRoad > 0)
-                        minTopDistancePxV352 = roadLinkV352.Runtime.Md.MinTopDistanceToEnterRoad;
-                    float roadDistancePxV352 = 0.0f;
-                    for (int rp = 1; rp < roadCenterPath.Length; rp++)
-                        roadDistancePxV352 += Vector2.Distance(roadCenterPath[rp - 1], roadCenterPath[rp]) / 16.0f;
-                    if (roadDistancePxV352 <= minTopDistancePxV352)
-                    {
-                        useRoad = false;
-                        roadCenterPath = null;
-                        roadAudit += " minTopRejected=" + minTopDistancePxV352.ToString(CultureInfo.InvariantCulture);
-                    }
+                    QueueBrigadeGlobalMoveV419LikeOriginal(
+                        group, targetCenterX, targetCenterY, moveDirection,
+                        brigadeMovePriorityV418, ordType, (byte)ordUsageV352,
+                        cancelSource ?? "Brigade::HumanGlobalSendTo");
                 }
 
-                // V385A: when a real road route exists, do NOT turn it into N independent
-                // SubmitPath chains.  Original C2 creates one BrigadeOrder_GoOnRoad and that
-                // order owns temporary DestX/DestY for every brigade member until it restores
-                // the battlefield WarType at the end.
-                List<Vector2> slots;
-                string destinationShape = group.Shape;
-                if (useRoad)
-                {
-                    // Final battlefield positions are still computed from the current shape.
-                    // The temporary road column is owned only by C2BrigadeOrderGoOnRoadV385A.
-                    slots = BuildFormationOrderSlotsAtV359LikeOriginal(
-                        group, groupUnits, orderOptionV352,
-                        targetCenterX, targetCenterY, moveDirection);
-                    OptimizeFormationSlotsForMotionFieldV347LikeOriginal(
-                        slots, groupUnits, targetCenterX, targetCenterY);
+                // V426: road selection belongs to BrigadeOrder_HumanGlobalSendTo::Process.
+                // Do not prebuild a Unity/Dijkstra road route here; the original chooses
+                // road zones from topology and lets GoOnRoad stream one edge at a time.
 
-                    string roadOrderAuditV385A;
-                    int roadIssuedV385A = StartBrigadeGoOnRoadV385ALikeOriginal(
-                        group,
-                        groupUnits,
-                        slots,
-                        roadCenterPath,
-                        targetCenterX,
-                        targetCenterY,
-                        moveDirection,
-                        ordType,
-                        cancelSource ?? "BrigadeOrder_GoOnRoad_V385A",
-                        out roadOrderAuditV385A);
-                    if (roadIssuedV385A > 0)
+                if (!longMove)
+                {
+                    // Brigade::HumanGlobalSendTo RR<R0: if GOONROAD is currently
+                    // the head, native first rebuilds battlefield positions and
+                    // ResortMembByPos(), then delegates to HumanLocalSendTo.
+                    if (IsCurrentBrigadeNewOrderV418LikeOriginal(
+                            group, BrigadeOrderGoOnRoadV418LikeOriginal))
                     {
-                        issued += roadIssuedV385A;
-                        roadGroups++;
-                        coherentPathGroups++;
+                        List<Vector2> roadExitSlots = BuildFormationOrderSlotsAtV359LikeOriginal(
+                            group, groupUnits, orderOptionV352,
+                            targetCenterX, targetCenterY, moveDirection);
+                        OptimizeFormationSlotsForMotionFieldV347LikeOriginal(
+                            roadExitSlots, groupUnits, targetCenterX, targetCenterY);
+                        ReorderSoldiersForNearestSlotsV172LikeOriginal(
+                            groupUnits, roadExitSlots, commandPrefixV352);
+                        UpdateFormationLayoutPreserveMembershipV417LikeOriginal(
+                            group, groupUnits, roadExitSlots, group.Shape, commandPrefixV352,
+                            "Brigade::HumanGlobalSendTo_GOONROAD_CreateOrderedPositions_ResortMembByPos");
+                    }
+
+                    int localAcceptedV4183;
+                    string localAuditV4183;
+                    bool localHandledV4183 = IssueBrigadeHumanLocalSendToV4183LikeOriginal(
+                        group, targetCenterX, targetCenterY, moveDirection,
+                        brigadeMovePriorityV418, ordType,
+                        cancelSource ?? "Brigade.cpp::HumanGlobalSendTo_RR_lt_R0",
+                        out localAcceptedV4183, out localAuditV4183);
+                    if (localHandledV4183)
+                    {
+                        issued += localAcceptedV4183;
+                        localKeepPositionsGroupsV416++;
                         AfterHumanGlobalSendToV403LikeOriginal(
-                            group, cancelSource ?? "Groups.cpp::SendToPositions_road");
+                            group, cancelSource ?? "Groups.cpp::SendToPositions_local_v4183", preserveAttackStateV405B);
                         continue;
                     }
-
-                    // Do not silently substitute a fake road column.  A rejected stateful
-                    // road order is logged, then the player command remains valid through
-                    // the existing non-road HumanGlobalSendTo path.
-                    Debug.LogWarning("[C2:ROAD ORDER V385A REJECT] group=" +
-                        group.GroupId.ToString(CultureInfo.InvariantCulture) +
-                        " " + roadOrderAuditV385A);
-                    blockedPaths++;
-                    useRoad = false;
-                    roadCenterPath = null;
                 }
 
-                CancelBrigadeGoOnRoadV385ALikeOriginal(
-                    group.GroupId, "replaced_by_nonroad_move", false);
-
-                if (ordType == 0 && ApplyFormationSymmetricMoveV360LikeOriginal(
-                        group, groupUnits, orderOptionV352 != null ? orderOptionV352.OrderTemplate : null,
-                        moveDirection))
-                    symmetricMoveGroups++;
-                slots = BuildFormationOrderSlotsAtV359LikeOriginal(
-                    group, groupUnits, orderOptionV352,
-                    targetCenterX, targetCenterY, moveDirection);
-
-                // CreateOrderedPositions immediately calls OptimiseBrigadePosition2 in the
-                // original. Reject locked order places and grow alternate positions before
-                // installing the non-road shared-center order.
-                OptimizeFormationSlotsForMotionFieldV347LikeOriginal(
-                    slots, groupUnits, targetCenterX, targetCenterY);
-
-                Vector2[] sharedCenterPath = null;
-                bool centerDirectClear;
-                bool centerPathBuilt = C2BattleTerrainMode.C2BuildingMotionFieldV1TryBuildPathOrDirectRealLikeOriginal(
-                    groupCenterX,
-                    groupCenterY,
-                    targetCenterX,
-                    targetCenterY,
-                    out sharedCenterPath,
-                    out centerDirectClear,
-                    4096,
-                    "formation_shared_center");
-                if (!centerPathBuilt && centerDirectClear)
-                    sharedCenterPath = new Vector2[] { new Vector2(targetCenterX, targetCenterY) };
-                else if (!centerPathBuilt)
+                // CII BrigadeOrder_HumanGlobalSendTo::Process advances one
+                // brigade through topology, then pushes HumanLocalSendTo/KeepPositions.
+                // Do not copy a whole centre route to every individual soldier.
+                CancelBrigadeGoOnRoadV385ALikeOriginal(group.GroupId, "replaced_by_nonroad_move", false);
+                if (!longMove)
+                    QueueBrigadeGlobalMoveV419LikeOriginal(group, targetCenterX, targetCenterY,
+                        moveDirection, brigadeMovePriorityV418, ordType, (byte)ordUsageV352, cancelSource);
+                ProcessBrigadeGlobalMoveV419LikeOriginal(group);
+                if (IsCurrentBrigadeNewOrderV418LikeOriginal(group, BrigadeOrderGoOnRoadV418LikeOriginal))
                 {
-                    blockedPaths++;
-                    sharedCenterPath = new Vector2[] { new Vector2(targetCenterX, targetCenterY) };
-                }
-                bool useSharedCenterPath = sharedCenterPath != null && sharedCenterPath.Length > 0;
-
-                int groupId = group.GroupId;
-                string soldierMemberId = group.SoldierMemberId;
-                int spacingPercent = group.SpacingPercent;
-                int commandPrefixForMoveV385A = ResolveOrderCommandCountV360LikeOriginal(group, groupUnits);
-                RegisterFormationInternalV172LikeOriginal(
-                    groupUnits, slots, destinationShape, soldierMemberId, groupId, commandPrefixForMoveV385A);
-                RuntimeFormationV172LikeOriginal updatedGroup;
-                if (_groupsByIdV172LikeOriginal.TryGetValue(groupId, out updatedGroup) && updatedGroup != null)
-                {
-                    updatedGroup.Direction = moveDirection;
-                    updatedGroup.SpacingPercent = spacingPercent;
-                    updatedGroup.UsesRoadMovement = false;
+                    roadGroups++;
+                    coherentPathGroups++;
                 }
                 for (int i = 0; i < groupUnits.Count; i++)
-                {
-                    Vector2 s = slots[Mathf.Min(i, slots.Count - 1)];
-                    C2NeutralPeasantUnitInfoV2LikeOriginal u = groupUnits[i];
-                    if (u == null) continue;
-                    bool orderIssuedV352;
-                    if (useSharedCenterPath)
-                    {
-                        Vector2[] memberPathV352 = BuildFormationMemberPathV352LikeOriginal(
-                            u, sharedCenterPath,
-                            s.x - targetCenterX, s.y - targetCenterY,
-                            false, moveDirection);
-                        orderIssuedV352 = C2OriginalOrderChainV352.SubmitPath(
-                            u, memberPathV352, true, moveDirection, ordType,
-                            cancelSource ?? "HumanGlobalSendTo_v352");
-                        C2RoadUnitSpeedControllerV352.DetachLikeOriginal(u);
-                    }
-                    else
-                    {
-                        C2RoadUnitSpeedControllerV352.DetachLikeOriginal(u);
-                        orderIssuedV352 = C2OriginalOrderChainV352.SubmitMove(
-                            u, s.x, s.y, true, moveDirection, ordType,
-                            cancelSource ?? "HumanLocalSendTo_v352");
-                    }
-                    if (orderIssuedV352) issued++;
-                }
-                if (useSharedCenterPath) coherentPathGroups++;
-                AfterHumanGlobalSendToV403LikeOriginal(
-                    updatedGroup != null ? updatedGroup : group,
-                    cancelSource ?? "Groups.cpp::SendToPositions_nonroad");
+                    if (IsUsableFormationUnitV172LikeOriginal(groupUnits[i], true)) issued++;
+                topologyOrderGroupsV419++;
+                AfterHumanGlobalSendToV403LikeOriginal(group,
+                    cancelSource ?? "Groups.cpp::SendToPositions_nonroad", preserveAttackStateV405B);
             }
 
             if (looseUnitList.Count > 0)
@@ -1668,8 +1547,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     " blockedKare=" + blockedKare.ToString(CultureInfo.InvariantCulture) +
                     " roadGroups=" + roadGroups.ToString(CultureInfo.InvariantCulture) +
                     " coherentPathGroups=" + coherentPathGroups.ToString(CultureInfo.InvariantCulture) +
+                    " topologyOrderGroups=" + topologyOrderGroupsV419.ToString(CultureInfo.InvariantCulture) +
                     " symmetricMoveGroups=" + symmetricMoveGroups.ToString(CultureInfo.InvariantCulture) +
                     " blockedPaths=" + blockedPaths.ToString(CultureInfo.InvariantCulture) +
+                    " localKeepPositionsGroups=" + localKeepPositionsGroupsV416.ToString(CultureInfo.InvariantCulture) +
                     " attackStateMove=" + (preserveAttackStateV405B ? "1" : "0") +
                     " attackMoveMelee=" + attackMoveMeleeV405B.ToString(CultureInfo.InvariantCulture) +
                     "/" + attackMoveTotalV405B.ToString(CultureInfo.InvariantCulture) +
@@ -1741,7 +1622,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                     float gx;
                     float gy;
-                    ComputeFormationGroupCenterV172LikeOriginal(group, group.Units, out gx, out gy);
+                    ComputeBrigadeOrderedCenterV4183LikeOriginal(group, group.Units, out gx, out gy);
                     centerX += gx;
                     centerY += gy;
                     n++;
@@ -1822,7 +1703,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 List<C2NeutralPeasantUnitInfoV2LikeOriginal> units = GetFormationOrderMembersV360LikeOriginal(group);
                 if (units.Count == 0) continue;
                 float groupCenterX, groupCenterY;
-                ComputeFormationGroupCenterV172LikeOriginal(group, units, out groupCenterX, out groupCenterY);
+                ComputeBrigadeOrderedCenterV4183LikeOriginal(group, units, out groupCenterX, out groupCenterY);
                 float targetGroupX, targetGroupY;
                 byte targetDirection;
                 ComputeFormationCommandTargetV359LikeOriginal(
@@ -1865,7 +1746,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 for (int i = 0; i < fallbackUnits.Count; i++)
                 {
                     C2NeutralPeasantUnitInfoV2LikeOriginal u = fallbackUnits[i];
-                    if (!IsUsableFormationUnitV172LikeOriginal(u, true)) continue;
+                    // Brigade::GetCenter checks only that Memb[i] resolves to the
+                    // same live object/serial. It does NOT ask NotSelectable or
+                    // CanReceiveOrders and it does not filter by commandability.
+                    if (u == null) continue;
                     centerX += u.RealXFloat != 0.0f ? u.RealXFloat : u.RealX;
                     centerY += u.RealYFloat != 0.0f ? u.RealYFloat : u.RealY;
                     n++;
@@ -1889,6 +1773,307 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 centerX /= n;
                 centerY /= n;
+            }
+        }
+
+        // COSSACKS2/Brigade.cpp::GetBrCenter.  Command/preview/rotate paths use
+        // the brigade's ordered soldier positions when PosCreated exists; only a
+        // brigade without ordered positions falls back to Brigade::GetCenter.
+        private static bool ComputeBrigadeOrderedCenterV4183LikeOriginal(
+            RuntimeFormationV172LikeOriginal group,
+            IList<C2NeutralPeasantUnitInfoV2LikeOriginal> fallbackUnits,
+            out float centerX,
+            out float centerY)
+        {
+            centerX = 0.0f;
+            centerY = 0.0f;
+            if (group == null) return false;
+
+            int commandPrefix = ResolveOrderCommandCountV360LikeOriginal(
+                group, fallbackUnits ?? group.Units);
+            if (group.Slots != null && group.Slots.Count > commandPrefix)
+            {
+                int n = 0;
+                for (int i = commandPrefix; i < group.Slots.Count; i++)
+                {
+                    centerX += group.Slots[i].x;
+                    centerY += group.Slots[i].y;
+                    n++;
+                }
+                if (n > 0)
+                {
+                    centerX /= n;
+                    centerY /= n;
+                    return true;
+                }
+            }
+
+            ComputeFormationGroupCenterV172LikeOriginal(
+                group, fallbackUnits ?? group.Units, out centerX, out centerY);
+            return fallbackUnits != null ? fallbackUnits.Count > 0 : group.Units.Count > 0;
+        }
+
+        // Exact control-flow port of COSSACKS2/Brigade.cpp::Brigade::HumanLocalSendTo.
+        // Unity adaptation is restricted to storing Memb/posX/posY in RuntimeFormation
+        // and executing BrigadeOrder_KeepPositions through the existing processor.
+        private static bool IssueBrigadeHumanLocalSendToV4183LikeOriginal(
+            RuntimeFormationV172LikeOriginal group,
+            float destRealX,
+            float destRealY,
+            short requestedDirection,
+            byte priority,
+            byte ordType,
+            string source,
+            out int accepted,
+            out string audit)
+        {
+            accepted = 0;
+            audit = "HumanLocalSendTo_invalid_group";
+            if (group == null) return false;
+
+            List<C2NeutralPeasantUnitInfoV2LikeOriginal> members =
+                GetFormationOrderMembersV360LikeOriginal(group);
+            if (members.Count < 4)
+            {
+                audit = "HumanLocalSendTo_NMemb_lt_4";
+                return true;
+            }
+
+            C2FormationCreateCatalogV165LikeOriginal.C2FormationRecordV165LikeOriginal record =
+                ResolveRecordForGroupV320LikeOriginal(group);
+            C2FormationCreateCatalogV165LikeOriginal.C2FormationOptionV165LikeOriginal option =
+                FindFormationOptionV320LikeOriginal(record, group.Shape);
+            C2FormationCreateCatalogV165LikeOriginal.C2FormationOrderTemplateV165LikeOriginal order =
+                option != null ? option.OrderTemplate : null;
+            int ordUsage = order != null
+                ? order.Usage
+                : (string.Equals(group.Shape, "KARE", StringComparison.OrdinalIgnoreCase) ? 2 : 0);
+            if (ordUsage == 2)
+            {
+                audit = "HumanLocalSendTo_OrdUsage_2_no_move";
+                return true;
+            }
+
+            int commandPrefix = ResolveOrderCommandCountV360LikeOriginal(group, members);
+            long sx = 0;
+            long sy = 0;
+            int n = 0;
+            for (int i = commandPrefix; i < members.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = members[i];
+                // HumanLocalSendTo scans only NBPERSONAL..NMemb and checks !Sdoxlo.
+                if (u == null || u.IsDeadLikeOriginal) continue;
+                sx += Mathf.RoundToInt(u.RealXFloat != 0.0f ? u.RealXFloat : u.RealX);
+                sy += Mathf.RoundToInt(u.RealYFloat != 0.0f ? u.RealYFloat : u.RealY);
+                n++;
+            }
+            if (n <= 0)
+            {
+                audit = "HumanLocalSendTo_no_live_soldiers";
+                return true;
+            }
+
+            int centerRealX = (int)(sx / n);
+            int centerRealY = (int)(sy / n);
+
+            int dirValue = requestedDirection;
+            bool dontChangeOnClose = dirValue > 1024;
+            if (dirValue > 1024) dirValue &= 255;
+            byte dir2 = dirValue > 256
+                ? C2OriginalMovementMathV352.GetDir(
+                    (Mathf.RoundToInt(destRealX) - centerRealX) >> 4,
+                    (Mathf.RoundToInt(destRealY) - centerRealY) >> 4)
+                : unchecked((byte)dirValue);
+
+            byte physicalDirection = group.Direction;
+            if (order != null && members.Count - commandPrefix <= order.UnitCount)
+                physicalDirection = GetFormationPhysicalDirectionV360LikeOriginal(
+                    order, members, commandPrefix);
+
+            int dd = unchecked((sbyte)(dir2 - physicalDirection));
+            int centerDistance = C2OriginalMovementMathV352.Norma(
+                Mathf.RoundToInt(destRealX) - centerRealX,
+                Mathf.RoundToInt(destRealY) - centerRealY);
+            if (!dontChangeOnClose && centerDistance < 256 && Math.Abs(dd) < 8)
+            {
+                audit = "HumanLocalSendTo_native_close_return";
+                return true;
+            }
+
+            byte createdDirection = dir2;
+            bool swapApplied = false;
+            if (Math.Abs(dd) >= 32)
+            {
+                if (order != null && order.Sym4f != null &&
+                    members.Count - commandPrefix <= order.UnitCount)
+                {
+                    int[] swap;
+                    if (dd >= 32 && dd < 96) swap = order.Sym4f;
+                    else if (dd <= -32 && dd > -96) swap = order.Sym4i;
+                    else swap = order.SymInv;
+                    if (swap != null)
+                    {
+                        ApplyFormationTurnSwapV360LikeOriginal(members, commandPrefix, swap);
+                        swapApplied = true;
+                    }
+                }
+                else if (order != null && order.SymInv != null &&
+                         members.Count - commandPrefix <= order.UnitCount)
+                {
+                    if (dd > 64 || dd < -64)
+                    {
+                        ApplyFormationTurnSwapV360LikeOriginal(
+                            members, commandPrefix, order.SymInv);
+                        swapApplied = true;
+                    }
+                }
+                else
+                {
+                    // Orders without symmetry rotate by one native +/-32 step per
+                    // HumanLocalSendTo call.  There is no autonomous turn state machine.
+                    createdDirection = unchecked((byte)(group.Direction + (dd > 0 ? 32 : -32)));
+                }
+            }
+
+            List<Vector2> slots = BuildFormationOrderSlotsAtV359LikeOriginal(
+                group, members, option, destRealX, destRealY, createdDirection);
+
+            // Brigade.cpp::CreateSimpleOrderedPositions performs one final six-way
+            // permutation of Memb[0..2] after FindCommandPlace has produced the
+            // three command slots.  This changes command-member identity only;
+            // soldier Memb[] ordering is already handled by ApplySwap/PORD.
+            ReorderThreeCommandMembersV41831LikeOriginal(members, slots, commandPrefix);
+
+            // Brigade::CreateOrderedPositions always calls OptimiseBrigadePosition2.
+            // The motion-field implementation remains the Unity representation of
+            // that original operation; it must not own turn state or member identity.
+            OptimizeFormationSlotsForMotionFieldV347LikeOriginal(
+                slots, members, destRealX, destRealY);
+
+            string shape = group.Shape;
+            int spacing = group.SpacingPercent;
+            RuntimeFormationV172LikeOriginal updated =
+                UpdateFormationLayoutPreserveMembershipV417LikeOriginal(
+                    group, members, slots, shape, commandPrefix,
+                    (source ?? "Brigade::HumanLocalSendTo") + "::CreateOrderedPositions");
+            if (updated == null) updated = group;
+            updated.Direction = createdDirection;
+            updated.SpacingPercent = spacing;
+            updated.UsesRoadMovement = false;
+
+            for (int i = 0; i < members.Count; i++)
+                if (members[i] != null) C2RoadUnitSpeedControllerV352.DetachLikeOriginal(members[i]);
+
+            accepted = QueueBrigadeKeepPositionsV416LikeOriginal(
+                updated, priority, ordType, source ?? "Brigade::HumanLocalSendTo");
+            // Native Brigade::KeepPositions calls KP->Process(this) synchronously.
+            ProcessQueuedBrigadeKeepPositionsNowV416LikeOriginal(updated);
+
+            audit = "ok HumanLocalSendTo accepted=" + accepted.ToString(CultureInfo.InvariantCulture) +
+                    " group=" + group.GroupId.ToString(CultureInfo.InvariantCulture) +
+                    " dir=" + createdDirection.ToString(CultureInfo.InvariantCulture) +
+                    " physicalDir=" + physicalDirection.ToString(CultureInfo.InvariantCulture) +
+                    " dd=" + dd.ToString(CultureInfo.InvariantCulture) +
+                    " swap=" + (swapApplied ? "1" : "0") +
+                    " mode=Brigade.cpp::HumanLocalSendTo_V4183";
+            return true;
+        }
+
+        // COSSACKS2/Brigade.cpp::CreateSimpleOrderedPositions: after the three
+        // FindCommandPlace calls, retail tests all 3! assignments of the three
+        // personal/command members and keeps the assignment with the smallest V.
+        // Slots remain fixed; only Memb[0..2] is permuted.
+        private static void ReorderThreeCommandMembersV41831LikeOriginal(
+            List<C2NeutralPeasantUnitInfoV2LikeOriginal> members,
+            IList<Vector2> slots,
+            int commandPrefix)
+        {
+            if (members == null || slots == null || commandPrefix != 3 ||
+                members.Count < 3 || slots.Count < 3)
+                return;
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal ob0 = members[0];
+            C2NeutralPeasantUnitInfoV2LikeOriginal ob1 = members[1];
+            C2NeutralPeasantUnitInfoV2LikeOriginal ob2 = members[2];
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] original = {
+                ob0, ob1, ob2
+            };
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] best = {
+                members[0], members[1], members[2]
+            };
+
+            int minD = 1000;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    for (int k = 0; k < 3; k++)
+                    {
+                        if (i == j || i == k || j == k) continue;
+
+                        // Exact vacancy gate from the original:
+                        // (Memb[i]!=0xFFFF || MID0==0xFFFF) && ...
+                        if ((members[i] == null && ob0 != null) ||
+                            (members[j] == null && ob1 != null) ||
+                            (members[k] == null && ob2 != null))
+                            continue;
+
+                        int dx0 = 0, dy0 = 0;
+                        int dx1 = 0, dy1 = 0;
+                        int dx2 = 0, dy2 = 0;
+
+                        NormalizeCommandApproachV41831LikeOriginal(ob0, slots[i], ref dx0, ref dy0);
+                        NormalizeCommandApproachV41831LikeOriginal(ob1, slots[j], ref dx1, ref dy1);
+                        NormalizeCommandApproachV41831LikeOriginal(ob2, slots[k], ref dx2, ref dy2);
+
+                        int dx = dx0 + dx1 + dx2;
+                        int dy = dy0 + dy1 + dy2;
+                        int r = C2OriginalMovementMathV352.Norma(dx, dy);
+                        if (r != 0)
+                        {
+                            dx = dx * 64 / r;
+                            dy = dy * 64 / r;
+                        }
+
+                        int v = -(dx * (dx0 + dx1 + dx2) +
+                                  dy * (dy0 + dy1 + dy2));
+                        if (v < minD)
+                        {
+                            minD = v;
+                            best[i] = original[0];
+                            best[j] = original[1];
+                            best[k] = original[2];
+                        }
+                    }
+                }
+            }
+
+            members[0] = best[0];
+            members[1] = best[1];
+            members[2] = best[2];
+        }
+
+        private static void NormalizeCommandApproachV41831LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit,
+            Vector2 slotReal,
+            ref int dx,
+            ref int dy)
+        {
+            if (unit == null) return;
+
+            int realX = Mathf.RoundToInt(unit.RealXFloat != 0.0f ? unit.RealXFloat : unit.RealX);
+            int realY = Mathf.RoundToInt(unit.RealYFloat != 0.0f ? unit.RealYFloat : unit.RealY);
+            int slotX = Mathf.RoundToInt(slotReal.x) >> 4;
+            int slotY = Mathf.RoundToInt(slotReal.y) >> 4;
+
+            dx = (realX >> 4) - slotX;
+            dy = (realY >> 4) - slotY;
+            int r = C2OriginalMovementMathV352.Norma(dx, dy);
+            if (r != 0)
+            {
+                dx = dx * 64 / r;
+                dy = dy * 64 / r;
             }
         }
 
@@ -2040,54 +2225,52 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             if (groups.Count == 0) return false;
 
+            int handled = 0;
             for (int g = 0; g < groups.Count; g++)
             {
                 RuntimeFormationV172LikeOriginal group = groups[g];
-                if (group == null) continue;
-                CancelBrigadeGoOnRoadV385ALikeOriginal(
-                    group.GroupId, cancelSource ?? "formation_rotate", false);
-                BeginBrigadeOrderV403LikeOriginal(
-                    group, false, cancelSource ?? "Multi.cpp::ComRotateBrigade");
-                group.TurnTargetDirection = targetDirection;
-                // Re-evaluate physical orientation even while an earlier turn is moving.
-                group.TurnActive = true;
-                group.NextTurnStepAt = 0.0f;
-                group.TurnStepDeadlineAt = 0.0f;
-                issued += StepFormationTurnV334LikeOriginal(group, cancelSource ?? "formation_rotate");
+                if (group == null || group.Direction == targetDirection) continue;
+
+                List<C2NeutralPeasantUnitInfoV2LikeOriginal> members =
+                    GetFormationOrderMembersV360LikeOriginal(group);
+                float centerX, centerY;
+                if (!ComputeBrigadeOrderedCenterV4183LikeOriginal(
+                        group, members, out centerX, out centerY))
+                    continue;
+
+                int accepted;
+                string localAudit;
+                if (IssueBrigadeHumanLocalSendToV4183LikeOriginal(
+                        group, centerX, centerY, targetDirection,
+                        (byte)(128 + 16), 0,
+                        cancelSource ?? "Multi.cpp::ComRotateBrigade",
+                        out accepted, out localAudit))
+                {
+                    issued += accepted;
+                    handled++;
+                }
             }
 
             audit = "ok issued=" + issued.ToString(CultureInfo.InvariantCulture) +
                     " groups=" + groups.Count.ToString(CultureInfo.InvariantCulture) +
+                    " handled=" + handled.ToString(CultureInfo.InvariantCulture) +
                     " direction=" + targetDirection.ToString(CultureInfo.InvariantCulture) +
-                    " mode=formation_turn_symmetry_v360 keepPositions=partial";
-            return issued > 0;
+                    " mode=Multi.cpp::ComRotateBrigade->HumanLocalSendTo_V4183";
+            return handled > 0;
         }
 
+        // V418.3: retained as a compatibility entry point for the runtime tick.
+        // Original CII has no autonomous StepFormationTurn/1.20s turn machine;
+        // all rotation geometry is created synchronously by HumanLocalSendTo.
         public static void TickFormationTurnsV334LikeOriginal()
         {
-            if (_groupsByIdV172LikeOriginal.Count == 0) return;
-            float now = Time.realtimeSinceStartup;
-            foreach (KeyValuePair<int, RuntimeFormationV172LikeOriginal> pair in _groupsByIdV172LikeOriginal)
-            {
-                RuntimeFormationV172LikeOriginal group = pair.Value;
-                if (group == null || !group.TurnActive || now < group.NextTurnStepAt) continue;
-                // BrigadeOrder_KeepPositions waits for the current +/-32 geometry
-                // step before CreateOrderedPositions advances to the next one.
-                // Reissuing a fresh destination every 0.10 s made ranks cross and
-                // visually collapse during a turn in the Unity transition layer.
-                if (now < group.TurnStepDeadlineAt && !AreFormationTurnSlotsSettledV358LikeOriginal(group))
-                {
-                    group.NextTurnStepAt = now + 0.04f;
-                    continue;
-                }
-                StepFormationTurnV334LikeOriginal(group, "formation_rotate_keep_positions");
-            }
         }
 
         public static void TickFormationKeepPositionsSpeedV358LikeOriginal()
         {
             // V385A executes the brigade-owned road order from the same central
             // simulation phase before ordinary KeepPositions speed equalisation.
+            TickBrigadeGlobalMovesV419LikeOriginal();
             TickBrigadeGoOnRoadV385ALikeOriginal();
             // City::ExecuteBrigades stand-ground timer runs on the same 40 ms
             // CII simulation quantum as the managed unit runtime.
@@ -2103,10 +2286,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 RuntimeFormationV172LikeOriginal group = pair.Value;
                 if (group == null) continue;
+                // The speed equalisation below belongs to
+                // BrigadeOrder_KeepPositions::Process. A pushed BITVA/RIFLE/ROAD
+                // order suspends it; no formation-side tick may keep owning speed.
+                if (!IsCurrentBrigadeNewOrderV418LikeOriginal(
+                        group, BrigadeOrderKeepPositionsV418LikeOriginal))
+                    continue;
                 int count = Mathf.Min(group.Units.Count, group.Slots.Count);
                 if (count <= 0) continue;
 
-                bool anyMoving = false;
                 int live = 0;
                 int minDistancePx = int.MaxValue;
                 long currentCenterX = 0;
@@ -2120,11 +2308,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     C2UnitOriginalRuntimeLinkLikeOriginal link = unit.RuntimeLinkCachedLikeOriginal;
                     C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
                     if (runtime == null) continue;
-                    anyMoving |= runtime.HasMoveTargetLikeOriginal;
-                    int ux = Mathf.RoundToInt((unit.RealXFloat != 0.0f ? unit.RealXFloat : unit.RealX) / 16.0f);
-                    int uy = Mathf.RoundToInt((unit.RealYFloat != 0.0f ? unit.RealYFloat : unit.RealY) / 16.0f);
-                    int sx = Mathf.RoundToInt(group.Slots[i].x / 16.0f);
-                    int sy = Mathf.RoundToInt(group.Slots[i].y / 16.0f);
+                    int ux = unit.RealX >> 4;
+                    int uy = unit.RealY >> 4;
+                    int sx = Mathf.RoundToInt(group.Slots[i].x) >> 4;
+                    int sy = Mathf.RoundToInt(group.Slots[i].y) >> 4;
                     int distance = C2OriginalMovementMathV352.Norma(ux - sx, uy - sy);
                     if (distance < minDistancePx) minDistancePx = distance;
                     currentCenterX += ux;
@@ -2134,15 +2321,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     live++;
                 }
 
-                if (!anyMoving)
-                {
-                    // A GoOnRoad order remains authoritative while members are in a
-                    // transition/stand frame between dynamic DestX/DestY updates.
-                    if (group.UsesRoadMovement) continue;
-                    SetFormationUnitSpeedV358LikeOriginal(group, count, 64);
-                    continue;
-                }
-                if (group.UsesRoadMovement || live <= 0) continue;
+                if (live <= 0) continue;
 
                 int centerDistancePx = C2OriginalMovementMathV352.Norma(
                     (int)(currentCenterX / live - destinationCenterX / live),
@@ -2158,17 +2337,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     C2UnitOriginalRuntimeLinkLikeOriginal link = unit.RuntimeLinkCachedLikeOriginal;
                     C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
                     if (runtime == null || runtime.Md == null) continue;
-                    int ux = Mathf.RoundToInt((unit.RealXFloat != 0.0f ? unit.RealXFloat : unit.RealX) / 16.0f);
-                    int uy = Mathf.RoundToInt((unit.RealYFloat != 0.0f ? unit.RealYFloat : unit.RealY) / 16.0f);
-                    int sx = Mathf.RoundToInt(group.Slots[i].x / 16.0f);
-                    int sy = Mathf.RoundToInt(group.Slots[i].y / 16.0f);
+                    int ux = unit.RealX >> 4;
+                    int uy = unit.RealY >> 4;
+                    int sx = Mathf.RoundToInt(group.Slots[i].x) >> 4;
+                    int sy = Mathf.RoundToInt(group.Slots[i].y) >> 4;
                     int distance = C2OriginalMovementMathV352.Norma(ux - sx, uy - sy);
                     if (centerDistancePx > 200) distance -= minDistancePx / 2;
-                    int motionDistance = Mathf.Max(1,
-                        runtime.OriginalMotionDistLikeOriginal > 0
-                            ? runtime.OriginalMotionDistLikeOriginal
-                            : runtime.Md.MotionDist);
-                    distance = distance * 48 / motionDistance;
+                    int motionDistance = runtime.Md.MotionDist;
+                    if (unit.NewStateV396LikeOriginal != 0 &&
+                        runtime.Md.Rate != null && runtime.Md.Rate.Length > 0 && runtime.Md.Rate[0] != 16)
+                        motionDistance = (motionDistance * runtime.Md.Rate[0]) >> 4;
+                    distance *= 48;
+                    if (motionDistance != 0) distance /= motionDistance;
                     normalizedDistanceSum += distance;
                     normalizedCount++;
                 }
@@ -2185,18 +2365,28 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     C2UnitOriginalRuntimeLinkLikeOriginal link = unit.RuntimeLinkCachedLikeOriginal;
                     C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
                     if (runtime == null || runtime.Md == null) continue;
-                    int ux = Mathf.RoundToInt((unit.RealXFloat != 0.0f ? unit.RealXFloat : unit.RealX) / 16.0f);
-                    int uy = Mathf.RoundToInt((unit.RealYFloat != 0.0f ? unit.RealYFloat : unit.RealY) / 16.0f);
-                    int sx = Mathf.RoundToInt(group.Slots[i].x / 16.0f);
-                    int sy = Mathf.RoundToInt(group.Slots[i].y / 16.0f);
+                    int ux = unit.RealX >> 4;
+                    int uy = unit.RealY >> 4;
+                    int sx = Mathf.RoundToInt(group.Slots[i].x) >> 4;
+                    int sy = Mathf.RoundToInt(group.Slots[i].y) >> 4;
                     int distance = C2OriginalMovementMathV352.Norma(ux - sx, uy - sy);
                     if (centerDistancePx > 200) distance -= minDistancePx / 2;
-                    int motionDistance = Mathf.Max(1,
-                        runtime.OriginalMotionDistLikeOriginal > 0
-                            ? runtime.OriginalMotionDistLikeOriginal
-                            : runtime.Md.MotionDist);
-                    int normalizedDistance = distance * 48 / motionDistance;
-                    int speed = Mathf.Clamp(normalizedDistance * 64 / averageNormalizedDistance, 10, 128);
+                    int motionDistance = runtime.Md.MotionDist;
+                    if (unit.NewStateV396LikeOriginal != 0 &&
+                        runtime.Md.Rate != null && runtime.Md.Rate.Length > 0 && runtime.Md.Rate[0] != 16)
+                        motionDistance = (motionDistance * runtime.Md.Rate[0]) >> 4;
+                    int normalizedDistance = distance * 48;
+                    if (motionDistance != 0) normalizedDistance /= motionDistance;
+                    int speed = normalizedDistance * 64 / averageNormalizedDistance;
+                    int randomSpeed = runtime.Md.BRandomSpeedLikeOriginal;
+                    if (randomSpeed > 0)
+                    {
+                        int index = unit.C2ObjectIndexV408LikeOriginal;
+                        int serial = unit.C2ObjectSerialLikeOriginal;
+                        speed += randomSpeed / 2 -
+                                 (index * speed + i * serial) % randomSpeed;
+                    }
+                    speed = Mathf.Clamp(speed, 10, 128);
                     runtime.OriginalUnitSpeedLikeOriginal = speed;
                     averageSpeed += speed;
                     speedCount++;
@@ -2211,7 +2401,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         C2NeutralPeasantUnitInfoV2LikeOriginal unit = group.Units[i];
                         C2UnitOriginalRuntimeLinkLikeOriginal link = unit != null ? unit.RuntimeLinkCachedLikeOriginal : null;
                         C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
-                        if (runtime != null)
+                        if (runtime != null && unit != null && !unit.IsDeadLikeOriginal)
                             runtime.OriginalUnitSpeedLikeOriginal =
                                 runtime.OriginalUnitSpeedLikeOriginal * (100 + boostPercent) / 100;
                     }
@@ -2231,81 +2421,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
                 if (runtime != null) runtime.OriginalUnitSpeedLikeOriginal = speed;
             }
-        }
-
-        private static bool AreFormationTurnSlotsSettledV358LikeOriginal(RuntimeFormationV172LikeOriginal group)
-        {
-            if (group == null) return true;
-            int count = Mathf.Min(group.Units.Count, group.Slots.Count);
-            const int originalKeepPositionToleranceReal = 6 * 16;
-            for (int i = 0; i < count; i++)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal unit = group.Units[i];
-                if (unit == null || !unit.isActiveAndEnabled || unit.IsDeadLikeOriginal) continue;
-                float ux = unit.RealXFloat != 0.0f ? unit.RealXFloat : unit.RealX;
-                float uy = unit.RealYFloat != 0.0f ? unit.RealYFloat : unit.RealY;
-                Vector2 slot = group.Slots[i];
-                if (C2OriginalMovementMathV352.Norma(
-                        Mathf.RoundToInt(ux - slot.x),
-                        Mathf.RoundToInt(uy - slot.y)) > originalKeepPositionToleranceReal)
-                    return false;
-            }
-            return true;
-        }
-
-        private static int StepFormationTurnV334LikeOriginal(RuntimeFormationV172LikeOriginal group, string source)
-        {
-            if (group == null || !group.TurnActive) return 0;
-            List<C2NeutralPeasantUnitInfoV2LikeOriginal> units = GetFormationOrderMembersV360LikeOriginal(group);
-            if (!units.Exists(u => u != null)) { group.TurnActive = false; return 0; }
-            int commandPrefix = ResolveOrderCommandCountV360LikeOriginal(group, units);
-            float centerX, centerY;
-            ComputeFormationGroupCenterV172LikeOriginal(group, units, out centerX, out centerY);
-            var record = ResolveRecordForGroupV320LikeOriginal(group);
-            var option = FindFormationOptionV320LikeOriginal(record, group.Shape);
-            var template = option != null ? option.OrderTemplate : null;
-            byte nextDirection;
-            if (template != null &&
-                units.Count - commandPrefix <= template.UnitCount)
-            {
-                byte physicalDirection = GetFormationPhysicalDirectionV360LikeOriginal(template, units, commandPrefix);
-                int[] swap = C2FormationSymmetryLikeOriginal.SelectTurnSwap(
-                    template, group.Direction, physicalDirection, group.TurnTargetDirection, out nextDirection);
-                ApplyFormationTurnSwapV360LikeOriginal(units, commandPrefix, swap);
-            }
-            else
-            {
-                // Imported groups without a valid order cannot use symmetry tables.
-                int delta = unchecked((sbyte)(group.TurnTargetDirection - group.Direction));
-                nextDirection = unchecked((byte)(group.Direction + Mathf.Clamp(delta, -32, 32)));
-            }
-            List<Vector2> slots = BuildFormationOrderSlotsAtV359LikeOriginal(
-                group, units, option, centerX, centerY, nextDirection);
-            OptimizeFormationSlotsForMotionFieldV347LikeOriginal(slots, units, centerX, centerY);
-            group.Units.Clear();
-            group.Units.AddRange(units);
-            group.CommandSlotCount = commandPrefix;
-            group.Slots.Clear();
-            group.Slots.AddRange(slots);
-            group.Direction = nextDirection;
-            group.TurnActive = nextDirection != group.TurnTargetDirection;
-            group.NextTurnStepAt = Time.realtimeSinceStartup + 0.04f;
-            // Completion timing is still the existing bridge; this patch ports
-            // member assignment, not all animation/order rules of KeepPositions.
-            group.TurnStepDeadlineAt = Time.realtimeSinceStartup + 1.20f;
-            group.UsesRoadMovement = false;
-            int issued = 0;
-            for (int i = 0; i < units.Count && i < slots.Count; i++)
-            {
-                if (units[i] == null) continue;
-                C2RoadUnitSpeedControllerV352.DetachLikeOriginal(units[i]);
-                units[i].SetFormationAssemblyDestinationRealLikeOriginal(
-                    slots[i].x, slots[i].y,
-                    C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                    nextDirection);
-                issued++;
-            }
-            return issued;
         }
 
         private static List<Vector2> BuildTranslatedGroupSlotsV172LikeOriginal(
@@ -2642,7 +2757,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                    " minPair=" + minPair.ToString("0", CultureInfo.InvariantCulture) + " ";
         }
 
-        private static bool TryGetRuntimeGroupByUnitV172LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit, out RuntimeFormationV172LikeOriginal group)
+        internal static bool TryGetRuntimeGroupByUnitV172LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit, out RuntimeFormationV172LikeOriginal group)
         {
             group = null;
             if (unit == null) return false;
@@ -2656,7 +2771,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // AI/neutral settlement formations are valid formation members even
             // though they cannot receive player orders. Command dispatch still
             // checks CanReceiveOrders; membership lookup must not destroy them.
-            if (unit == null || !unit.isActiveAndEnabled || unit.IsDeadLikeOriginal)
+            if (unit == null || unit.IsDeadLikeOriginal)
             {
                 RemoveUnitMembershipV172LikeOriginal(unit);
                 return false;

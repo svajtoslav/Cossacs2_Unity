@@ -28,7 +28,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private float _impactRealX;
         private float _impactRealY;
         private readonly WeaponEffectLikeOriginal[] _weaponEffects =
-            new WeaponEffectLikeOriginal[4];
+            new WeaponEffectLikeOriginal[C2CombatCoreV408LikeOriginal.NAttTypesV413LikeOriginal];
         private ComplexCannonProfileLikeOriginal _complexCannon;
         private int _complexCannonStage;
         private float _complexCannonStageEndsAt;
@@ -64,6 +64,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // V406: AttackSelected advances the brigade as one body; BrigadeOrder_Bitva
         // may instead let an individual AttackObj close locally on its EnemyID.
         private bool _allowLocalMeleeApproachV406LikeOriginal = true;
+        // LocalOrder->info.BuildObj.ObjX/ObjY used by NewMon.cpp::SetDestUnit.
+        private int _attackOldDestCellXV413LikeOriginal = int.MinValue;
+        private int _attackOldDestCellYV413LikeOriginal = int.MinValue;
 
         private sealed class WeaponEffectLikeOriginal
         {
@@ -110,11 +113,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 new Dictionary<string, ComplexCannonProfileLikeOriginal>(
                     StringComparer.OrdinalIgnoreCase);
 
+        // V413 COSSACKS2/Weapon.cpp::TraceObjectsInLine adapter. Retail MCount is a
+        // 128-original-pixel spatial grid. Rebuild the managed equivalent once per
+        // simulation tick so a volley does not perform N full-scene scans.
+        private static readonly Dictionary<long, List<C2NeutralPeasantUnitInfoV2LikeOriginal>>
+            TraceUnitCellsV413LikeOriginal =
+                new Dictionary<long, List<C2NeutralPeasantUnitInfoV2LikeOriginal>>();
+        private static int _traceUnitCellsTickV413LikeOriginal = int.MinValue;
+
+        private static readonly Dictionary<int, Vector2Int[]> RadioRingOffsetsCacheV413LikeOriginal =
+            new Dictionary<int, Vector2Int[]>();
+
         private static readonly HashSet<int> GrenadeArmedUnits = new HashSet<int>();
         // BrigadeAI.cpp uses three different orders (MeleeAttack, Fire,
         // ThrowGrenade).  Keep that order choice until the next explicit weapon
         // command instead of re-selecting a weapon from distance every frame.
         private static readonly Dictionary<int, int> CommandModeByUnit = new Dictionary<int, int>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetV413SpatialCachesLikeOriginal()
+        {
+            TraceUnitCellsV413LikeOriginal.Clear();
+            RadioRingOffsetsCacheV413LikeOriginal.Clear();
+            _traceUnitCellsTickV413LikeOriginal = int.MinValue;
+        }
 
         // NewMon.cpp::Nation::CreateNewMonsterAt (SIMPLEMANAGE):
         //   if(NM->ArmAttack) G->ArmAttack=1;
@@ -186,6 +208,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 // every rifle-button click alter the current animation and thus
                 // the stamina line.
                 unit.RifleAttackV396LikeOriginal = (value & 127) != 0;
+                if (unit.RifleAttackV396LikeOriginal)
+                    C2FormationRuntimeV167LikeOriginal.SetRifleAttackIntentV434LikeOriginal(unit);
                 CommandModeByUnit[id] = unit.RifleAttackV396LikeOriginal ? 1 : 0;
                 return true;
             }
@@ -199,7 +223,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (oldCombatV399 != null &&
                 (unit.RifleAttackV396LikeOriginal ||
                  oldCombatV399._forcedOrderModeV395LikeOriginal == 1 ||
-                 oldCombatV399._attackMode == 1 ||
+                 oldCombatV399.IsRifleAttackStateV413LikeOriginal(oldCombatV399._attackMode) ||
                  oldCombatV399._rifleButtonVolleyV399LikeOriginal))
                 oldCombatV399.CancelForExternalOrderLikeOriginal(
                     "Multi.cpp_SetArmAttackState_melee_v399");
@@ -299,7 +323,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         soldier.GetComponent<C2CombatRuntimeV334LikeOriginal>();
                     if (combat != null &&
                         (combat._forcedOrderModeV395LikeOriginal == 1 ||
-                         combat._attackMode == 1 ||
+                         combat.IsRifleAttackStateV413LikeOriginal(combat._attackMode) ||
                          combat._rifleButtonVolleyV399LikeOriginal ||
                          combat._rifleBrigadeOrderV405LikeOriginal))
                         combat.CancelForExternalOrderLikeOriginal(
@@ -466,6 +490,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
 
+        internal static bool DetailedWeaponCycleLoggingV433 =
+            Array.IndexOf(Environment.GetCommandLineArgs(), "-c2LogWeaponCycles") >= 0;
+
         private void BeginWeaponCycleV390LikeOriginal(int mode, int pauseTicks)
         {
             _weaponCycleModeLikeOriginal = mode;
@@ -473,7 +500,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _weaponCycleStartedAtLikeOriginal = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal;
             _weaponCycleReadyAtLikeOriginal =
                 _weaponCycleStartedAtLikeOriginal + Mathf.Max(0, pauseTicks) / 25.0f;
-            Debug.Log("[C2:COMBAT FIRE V390] unit='" +
+            if (DetailedWeaponCycleLoggingV433) Debug.Log("[C2:COMBAT FIRE V390] unit='" +
                       (_unit != null ? _unit.SourceMonsterId : string.Empty) +
                       "' mode=" + mode.ToString(CultureInfo.InvariantCulture) +
                       " pauseTicks=" + pauseTicks.ToString(CultureInfo.InvariantCulture) +
@@ -557,6 +584,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _finishCurrentRifleAttackThenStopV405LikeOriginal = false;
             _finishPreExistingAttackObjThenStopV405LikeOriginal = false;
             _allowLocalMeleeApproachV406LikeOriginal = true;
+            if (_targetUnit != null)
+            {
+                _attackOldDestCellXV413LikeOriginal = MotionCellFromRealV413LikeOriginal(CurrentRealX(_targetUnit));
+                _attackOldDestCellYV413LikeOriginal = MotionCellFromRealV413LikeOriginal(CurrentRealY(_targetUnit));
+            }
+            else
+            {
+                _attackOldDestCellXV413LikeOriginal = int.MinValue;
+                _attackOldDestCellYV413LikeOriginal = int.MinValue;
+            }
             enabled = _active;
         }
 
@@ -580,14 +617,119 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
 
+        // Multi.cpp::ComThrowGrenade -> OneObject::NewAttackPoint(vx,vy,128+16,1,1).
+        // This is a point order, not AttackObj(enemy).  Retail installs ATTACK2
+        // immediately (NewState=LocalNewState=3) and only decrements NGrenades
+        // when NewAttackPoint accepts the order.
+        internal bool BeginGrenadePointAttackV409LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit,
+            int targetPixelX,
+            int targetPixelY)
+        {
+            if (unit == null || unit.IsDeadLikeOriginal || !unit.CanReceiveOrdersLikeOriginal())
+                return false;
+
+            // OneObject::NewAttackPoint rejects Hidden before any order state is
+            // modified.  HiddenInsideBuildingLikeOriginal is the existing managed
+            // representation of that engine visibility/inside state.
+            C2UnitOriginalRuntimeLinkLikeOriginal precheckLinkV412 =
+                unit.RuntimeLinkCachedLikeOriginal;
+            if (precheckLinkV412 != null && precheckLinkV412.Runtime != null &&
+                precheckLinkV412.Runtime.HiddenInsideBuildingLikeOriginal)
+                return false;
+
+            C2UnitOrderRuntimeV325LikeOriginal currentOrder =
+                C2UnitOrderRuntimeV325LikeOriginal.TryGetLikeOriginal(unit);
+            if (currentOrder != null &&
+                currentOrder.CurrentLikeOriginal == C2UnitOrderKindV325LikeOriginal.PreciseAttack)
+                return false; // CheckIfPossibleToBreakOrder: NewAttackPointLink cannot be broken.
+
+            float targetRealX = targetPixelX * 16.0f;
+            float targetRealY = targetPixelY * 16.0f;
+            BeginAttackLikeOriginal(
+                unit, null, null, new Vector3(targetRealX, 0.0f, targetRealY));
+            if (_unit == null) return false;
+
+            int ux = Mathf.RoundToInt(CurrentRealX(_unit)) >> 4;
+            int uy = Mathf.RoundToInt(CurrentRealY(_unit)) >> 4;
+            int dist = C2OriginalMovementMathV352.Norma(ux - targetPixelX, uy - targetPixelY);
+
+            // Do NOT reject the point here by ATTACK_RADIUS.  Retail
+            // OneObject::NewAttackPoint has no distance/range gate; it installs
+            // the point order and NewAttackPointLink -> AttackObjLink performs the
+            // later movement/range decision.  V411 added a Unity-only range test
+            // here and could refuse an order that the 1.1 source accepts.
+            _forcedOrderModeV395LikeOriginal = 2;
+            _targetFormationGroupIdV395LikeOriginal = -1;
+            _active = true;
+            enabled = true;
+            _attackMode = 2;
+            _impactRealX = targetRealX;
+            _impactRealY = targetRealY;
+            _impactApplied = false;
+            _attackInProgress = false;
+            _complexCannonStage = 0;
+            _complexCannonStageEndsAt = 0.0f;
+
+            // Multi.cpp::ComThrowGrenade does these assignments BEFORE
+            // NewAttackPoint: NewAnm=ATTACK2; delay=0; NewState=LocalNewState=3.
+            // Keep NewState and LocalNewState distinct in the managed runtime too;
+            // routing this through SetCombatPosture would incorrectly insert
+            // PATTACK2 before the grenade throw.
+            _unit.NewStateV396LikeOriginal = 3;
+            C2UnitOriginalRuntimeLinkLikeOriginal pointLinkV411 =
+                _unit.RuntimeLinkCachedLikeOriginal;
+            if (pointLinkV411 != null && pointLinkV411.Runtime != null)
+            {
+                C2UnitOriginalRuntime pointRuntimeV411 = pointLinkV411.Runtime;
+                pointRuntimeV411.PostureWeaponTypeLikeOriginal = 2;
+                pointRuntimeV411.LocalPostureWeaponTypeV411LikeOriginal = 2;
+                pointRuntimeV411.PendingPostureAfterNeutralLikeOriginal = -1;
+                pointRuntimeV411.PendingStandAnimIndexLikeOriginal = -1;
+                pointRuntimeV411.TransitionTargetLocalPostureV411LikeOriginal = int.MinValue;
+                // OB->delay=0 in ComThrowGrenade. Rifle delay must not block a
+                // manually ordered grenade attack.
+                pointLinkV411.ClearSlowRechargeDelayLikeOriginal();
+            }
+            _nextAttackAt = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal;
+            _slowRechargeInProgress = false;
+            _pendingSlowRechargeTicks = 0;
+            _waitState5ExitForReloadV403DLikeOriginal = false;
+            if (!_unit.PlayAttackOneShotV325LikeOriginal(2))
+            {
+                _active = false;
+                enabled = false;
+                return false;
+            }
+            _attackInProgress = true;
+            GrenadeArmedUnits.Remove(_unit.GetInstanceID());
+            CommandModeByUnit.Remove(_unit.GetInstanceID());
+            C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
+                _unit, C2UnitOrderKindV325LikeOriginal.PreciseAttack,
+                "Multi.cpp::ComThrowGrenade->NewAttackPoint",
+                "grenade_point_" + targetPixelX.ToString(CultureInfo.InvariantCulture) +
+                "_" + targetPixelY.ToString(CultureInfo.InvariantCulture));
+            Debug.Log("[C2:GRENADE POINT V411] unit='" + (_unit.SourceMonsterId ?? string.Empty) +
+                      "' targetPx=(" + targetPixelX.ToString(CultureInfo.InvariantCulture) +
+                      "," + targetPixelY.ToString(CultureInfo.InvariantCulture) +
+                      ") dist=" + dist.ToString(CultureInfo.InvariantCulture));
+            return true;
+        }
+
         internal void BeginMeleeAttackObjFromBrigadeBitvaV406LikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal unit,
             C2NeutralPeasantUnitInfoV2LikeOriginal targetUnit,
             bool allowLocalApproach)
         {
-            BeginAttackForcedModeV395LikeOriginal(
+            // BrigadeOrder_Bitva calls AttackObj; it does not hard-code attack slot 0.
+            // The live OneObject ArmAttack/RifleAttack state plus AttackMask/DET_RADIUS
+            // select NeedState inside AttackObjLink.
+            BeginAttackLikeOriginal(
                 unit, targetUnit, null,
-                targetUnit != null ? targetUnit.WorldPositionLikeOriginal : Vector3.zero, 0);
+                targetUnit != null ? targetUnit.WorldPositionLikeOriginal : Vector3.zero);
+            if (targetUnit != null)
+                C2FormationRuntimeV167LikeOriginal.TryGetFormationGroupIdV321LikeOriginal(
+                    targetUnit, out _targetFormationGroupIdV395LikeOriginal);
             _allowLocalMeleeApproachV406LikeOriginal = allowLocalApproach;
         }
 
@@ -596,8 +738,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2NeutralPeasantUnitInfoV2LikeOriginal targetUnit,
             Vector3 fallbackTargetWorld)
         {
-            BeginAttackForcedModeV395LikeOriginal(
-                unit, targetUnit, null, fallbackTargetWorld, 1);
+            if (unit != null) SetArmAttackStateValueV396LikeOriginal(unit, 129);
+            BeginAttackLikeOriginal(unit, targetUnit, null, fallbackTargetWorld);
             _rifleButtonVolleyV399LikeOriginal = _unit != null && targetUnit != null;
         }
 
@@ -609,8 +751,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2NeutralPeasantUnitInfoV2LikeOriginal targetUnit,
             Vector3 fallbackTargetWorld)
         {
-            BeginAttackForcedModeV395LikeOriginal(
-                unit, targetUnit, null, fallbackTargetWorld, 1);
+            // BrigadeOrder_RifleAttack also calls ordinary AttackObj. RifleAttack
+            // biases NeedState through CII state, but NOPAUSEDATTACK may legitimately
+            // select bayonet slot 0 while the musket delay is non-zero.
+            BeginAttackLikeOriginal(unit, targetUnit, null, fallbackTargetWorld);
             _rifleButtonVolleyV399LikeOriginal = false;
             _rifleBrigadeOrderV405LikeOriginal = _unit != null && targetUnit != null;
             _finishCurrentRifleAttackThenStopV405LikeOriginal = false;
@@ -664,15 +808,24 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // stays sticky exactly as in COSSACKS2.
         internal void SetMeleeLocalApproachV406LikeOriginal(bool allow)
         {
-            if (_forcedOrderModeV395LikeOriginal == 0)
+            // A native melee AttackObj created without a forced slot keeps
+            // _forcedOrderMode=-1 until AttackObjLink chooses NeedState.  V413
+            // treated only forced slot 0 as melee and therefore detached the
+            // managed execution object from the authoritative EnemyID.
+            if (_forcedOrderModeV395LikeOriginal <= 0)
                 _allowLocalMeleeApproachV406LikeOriginal = allow;
+        }
+
+        internal bool HasLiveBuildingTargetV431LikeOriginal()
+        {
+            return _targetBuilding != null && _targetBuilding.LifeLikeOriginal > 0;
         }
 
         internal bool TryGetLiveMeleeTargetV406LikeOriginal(
             out C2NeutralPeasantUnitInfoV2LikeOriginal target)
         {
             target = null;
-            if (_forcedOrderModeV395LikeOriginal != 0 ||
+            if (_forcedOrderModeV395LikeOriginal > 0 ||
                 (!_active && !_attackInProgress) ||
                 _targetUnit == null || _targetUnit.IsDeadLikeOriginal ||
                 !_targetUnit.isActiveAndEnabled)
@@ -828,6 +981,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Update()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Combat);
             if (_unit == null || _unit.IsDeadLikeOriginal)
             {
                 if (_unit != null) C2CombatCoreV408LikeOriginal.DeleteAttackObjV408LikeOriginal(_unit);
@@ -836,6 +990,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 enabled = false;
                 return;
             }
+
+            // NewMon.cpp::AttackObjLink does this on every process pass before
+            // distance/state handling: UnitSpeed=64; GroupSpeed=MotionDist.  The
+            // Unity runtime already derives its base group speed from MotionDist,
+            // so restore the native per-unit factor here.  Without this, the
+            // preceding KeepPositions equaliser can leave an attacker at 10..128
+            // and change SetDestUnit/contact timing after BITVA takes ownership.
+            C2UnitOriginalRuntimeLinkLikeOriginal attackSpeedLinkV415 =
+                _unit.RuntimeLinkCachedLikeOriginal;
+            if (attackSpeedLinkV415 != null && attackSpeedLinkV415.Runtime != null)
+                attackSpeedLinkV415.Runtime.OriginalUnitSpeedLikeOriginal = 64;
 
             // A killing active frame may set _active=false immediately, but Cossacks II
             // still finishes ATTACKx and then enters #ATTACK3.  Never throw away the
@@ -930,7 +1095,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // every frame.  The old V399 block below did exactly that and made two
             // touching formations jitter/cross while soldiers swapped victims.
             // Target replacement is now owned by C2BrigadeBattleV406LikeOriginal.
-            if (_active && _forcedOrderModeV395LikeOriginal != 0 && _targetUnit != null &&
+            if (_active && _forcedOrderModeV395LikeOriginal > 0 && _targetUnit != null &&
                 (_targetUnit.IsDeadLikeOriginal || !_targetUnit.isActiveAndEnabled) &&
                 _targetFormationGroupIdV395LikeOriginal >= 0)
             {
@@ -960,20 +1125,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return;
             }
 
-            // Do not let StopMoveAndFaceDirection issue a Stand animation over
-            // #ATTACK3 while the original SLOWRECHARGE cycle is running.
-            if (_slowRechargeInProgress)
-            {
-                C2UnitOriginalRuntimeLinkLikeOriginal rechargeLink =
-                    _unit.RuntimeLinkCachedLikeOriginal;
-                if (rechargeLink != null && rechargeLink.IsSlowRechargingLikeOriginal())
-                    return;
-                _slowRechargeInProgress = false;
-                _nextAttackAt = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal;
-                _weaponCycleReadyAtLikeOriginal = _nextAttackAt;
-            }
-
-
             float tx, ty;
             GetTargetRealLikeOriginal(out tx, out ty);
             float ux = CurrentRealX(_unit);
@@ -985,35 +1136,70 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2UnitOriginalRuntimeLinkLikeOriginal link =
                 _unit.RuntimeLinkCachedLikeOriginal;
 
-            int mode = SelectAttackModeLikeOriginal(distOriginalPixels, false);
+            float detDistanceV413, attackDistanceV413;
+            ComputeAttackDistancesV413LikeOriginal(
+                distOriginalPixels, out detDistanceV413, out attackDistanceV413);
+            bool delayActiveV413 = HasAttackDelayV413LikeOriginal(link);
+            int mode = ResolveNeedStateV413LikeOriginal(
+                detDistanceV413, attackDistanceV413, delayActiveV413, false);
             if (mode < 0)
             {
-                int commandedMode;
-                bool commandedMelee =
-                    _forcedOrderModeV395LikeOriginal == 0 ||
-                    (CommandModeByUnit.TryGetValue(_unit.GetInstanceID(), out commandedMode) &&
-                     commandedMode == 0);
-                // AttackSelected/MoveBrigadeForwardToAttack moves the BRIGADE.
-                // Retail does not replace that with 120 private chase paths.  The
-                // destination is deliberately shifted through the enemy line and
-                // contact/AttackObj stops each soldier as an enemy enters ATTACK0
-                // range.  Therefore a formation melee order must never fall back to
-                // the generic per-unit approach code, even after one member has
-                // already consumed his local move target.
-                if (commandedMelee && _targetFormationGroupIdV395LikeOriginal >= 0 &&
+                // AttackObjLink: NeedState==-1 deletes AttackObj and falls back to
+                // smart movement toward the target. BrigadeOrder_Bitva may create a
+                // new AttackObj on its next process pass.
+                C2CombatCoreV408LikeOriginal.DeleteAttackObjV408LikeOriginal(_unit);
+                _active = false;
+                enabled = false;
+                if (_targetUnit != null)
+                    _unit.SetMoveDestinationRealLikeOriginal(
+                        tx, ty,
+                        C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
+                        false, 0);
+                return;
+            }
+
+            // NeedState is chosen by DET_RADIUS/AttackMask first. Only after that
+            // does AttackObjLink test the actual ATTACK_RADIUS for that state.
+            float minR = AttackMinForModeLikeOriginal(mode);
+            float maxR = AttackMaxForModeLikeOriginal(mode);
+            // AttackObjLink always extends the max strike radius by the victim's
+            // AddShotRadius (DR2 += OB->newMons->AddShotRadius).
+            int targetAddShotRadiusV413 = TargetAddShotRadiusV413LikeOriginal();
+            float effectiveMaxR = maxR + targetAddShotRadiusV413;
+            if (maxR <= 0.0f)
+            {
+                C2CombatCoreV408LikeOriginal.DeleteAttackObjV408LikeOriginal(_unit);
+                _active = false;
+                enabled = false;
+                return;
+            }
+
+            bool insideAttackRadiusV413 =
+                detDistanceV413 >= minR && attackDistanceV413 < effectiveMaxR;
+            if (!insideAttackRadiusV413)
+            {
+                // AttackSelected moves the brigade body. A soldier participating in
+                // that contact march must not create a private chase path until the
+                // brigade order allows local AttackObj approach.
+                if (mode == 0 && _targetFormationGroupIdV395LikeOriginal >= 0 &&
                     !_allowLocalMeleeApproachV406LikeOriginal)
                     return;
 
-                // NewMon.cpp::AttackObjLink uses SetDestUnit at the exact MaxR
-                // when too far, and backs to (3*MaxR+MinR)/4 when too close.
-                int approachMode = ResolveApproachModeLikeOriginal();
-                if (approachMode < 0) return;
-                float minR = AttackMinForModeLikeOriginal(approachMode);
-                float maxR = AttackMaxForModeLikeOriginal(approachMode);
-                if (maxR <= 0.0f) return;
-                float wantedPixels = distOriginalPixels < minR
-                    ? (maxR * 3.0f + minR) * 0.25f
-                    : maxR;
+                C2CombatCoreV408LikeOriginal.MdTraits attackerTraitsV413 =
+                    C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+                float movementDistanceV413 =
+                    C2CombatCoreV408LikeOriginal.IsRifleWeaponSlotV413LikeOriginal(attackerTraitsV413, mode)
+                        ? attackDistanceV413 : detDistanceV413;
+                if (movementDistanceV413 >= effectiveMaxR && _targetUnit != null)
+                {
+                    // NewMon.cpp::AttackObjLink -> SetDestUnit. ReqR uses
+                    // GetMaxAttackRadius(NeedState), before the victim DR2 extension.
+                    SetDestUnitV413LikeOriginal(_targetUnit, Mathf.RoundToInt(maxR));
+                    return;
+                }
+
+                // Too close: NewMonsterSendTo to (3*MaxR+MinR)/4.
+                float wantedPixels = (maxR * 3.0f + minR) * 0.25f;
                 float dReal = Mathf.Max(1.0f, distOriginalPixels * 16.0f);
                 float wantedReal = wantedPixels * 16.0f;
                 float ax = tx - dx / dReal * wantedReal;
@@ -1025,18 +1211,34 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return;
             }
 
-            byte facing = DirectionFromDeltaLikeOriginal(dx, dy);
-            _unit.StopMoveAndFaceDirectionLikeOriginal(facing);
+            // NOPAUSEDATTACK may choose bayonet slot 0 while ATTACK3 reload is
+            // running. Native CII leaves delay intact but breaks the recharge
+            // animation so the no-wait attack can play.
+            if (!IsRifleAttackStateV413LikeOriginal(mode) && delayActiveV413 && link != null &&
+                link.IsSlowRechargingLikeOriginal())
+            {
+                link.InterruptSlowRechargeAnimationForExternalOrderV399LikeOriginal(
+                    "AttackObjLink_NoWaitMask_V413");
+                _slowRechargeInProgress = false;
+            }
 
-            if (mode == 1 && link != null)
+            byte facing = DirectionFromDeltaLikeOriginal(dx, dy);
+            // V410 / NewMon.cpp::AttackObjLink: do not snap to EnDir. Retail
+            // rotates by MRot/RotUnit and returns until abs(ddir)<=MRot1. Only
+            // after that may TryToStand/ATTACK proceed. This also prevents a
+            // soldier reaching contact backwards and striking in the same tick.
+            if (!_unit.AdvanceAttackFacingV411LikeOriginal(facing, mode))
+                return;
+
+            if (IsRifleAttackStateV413LikeOriginal(mode) && link != null)
             {
                 int reloadRemaining, reloadMaximum;
                 bool reloadPlaying;
                 if (link.TryGetSlowRechargeProgressLikeOriginal(
                         1, out reloadRemaining, out reloadMaximum, out reloadPlaying))
                 {
-                    // If movement/retargeting interrupted #ATTACK3, resume the
-                    // original slow-recharge state before another shot is legal.
+                    // If movement/no-wait melee interrupted #ATTACK3, resume the
+                    // original slow-recharge state before another firearm shot.
                     if (!reloadPlaying && reloadRemaining > 0)
                     {
                         if (link.BeginSlowRechargeLikeOriginal(reloadRemaining))
@@ -1044,12 +1246,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         else
                         {
                             link.ClearSlowRechargeDelayLikeOriginal();
-                            _nextAttackAt = Mathf.Max(
-                                C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal,
-                                C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal + reloadRemaining / 25.0f);
+                            _nextAttackAt = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal +
+                                            reloadRemaining / 25.0f;
                         }
                     }
                     return;
+                }
+                if (_slowRechargeInProgress || float.IsPositiveInfinity(_nextAttackAt))
+                {
+                    _slowRechargeInProgress = false;
+                    _nextAttackAt = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal;
+                    _weaponCycleReadyAtLikeOriginal = _nextAttackAt;
                 }
             }
 
@@ -1059,6 +1266,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _unit.SetCombatPostureV322LikeOriginal(mode, true);
             if (link != null && !link.IsCombatPostureReadyV335LikeOriginal(mode))
                 return; // PATTACK/TRANSxy must finish before ATTACKx.
+
+            // NewMon.cpp::AttackObjLink calls CheckBreaksBetweenPoints immediately
+            // before the attack animation (except LocalNewState==3/grenade and
+            // MotionStyle==2/SHEEPS). A blocked shot either approaches the enemy or
+            // drops the local AttackObj while standing ground.
+            // COSSACKS2/NewMon.cpp keeps object/unit results from
+            // CheckBreaksBetweenPoints shootable: WRes < ULIMIT jumps to DoShot1.
+            // Only the ownerless/ground class (WRes >= ULIMIT) prevents the shot.
+            // The managed CII bar representation exposes owned bars, so those must
+            // never be treated as a blocker here.
+            if (CheckBreaksBetweenPointsV413LikeOriginal(mode, tx, ty) ==
+                C2ShotBreakKindV413LikeOriginal.GroundOrOwnerlessBar)
+            {
+                if (C2FormationRuntimeV167LikeOriginal.IsUnitStandGroundV403LikeOriginal(_unit))
+                {
+                    C2CombatCoreV408LikeOriginal.DeleteAttackObjV408LikeOriginal(_unit);
+                    _active = false;
+                    enabled = false;
+                }
+                else
+                {
+                    // NewMon.cpp uses NewMonsterSendTo(OB->GetAttX/GetAttY,
+                    // 128+16,1,OB,30). The Unity movement layer remains the path
+                    // adapter; target coordinates and order outcome are preserved.
+                    _unit.SetMoveDestinationRealLikeOriginal(
+                        tx, ty,
+                        C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
+                        false, 0);
+                }
+                return;
+            }
 
             if (mode == 2 && !TryConsumeGrenadeLikeOriginal())
             {
@@ -1077,17 +1315,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal + fireTicks / 25.0f;
                 return;
             }
-            // MD attack slots are zero based: slot 0 is #ATTACK (without a
-            // suffix), slot 1 is #ATTACK1, grenade slot 2 is #ATTACK2.
-            int animationModeV403D = mode;
-            // NewMon.cpp: Attack5 = SitInFormations && NewState==5;
-            // if(NeedState==1 && Attack5) NeedState=4.  Keep the weapon/effect
-            // mode as rifle (1), but play ATTACK4 for the @ front-row soldiers
-            // that reached full StandGround.
-            if (mode == 1 &&
-                C2FormationRuntimeV167LikeOriginal.IsUnitSpecialFormationState5V403DLikeOriginal(_unit))
-                animationModeV403D = 4;
-            if (!_unit.PlayAttackOneShotV325LikeOriginal(animationModeV403D)) return;
+            // MD attack slots are zero based. Under SITINFORMATIONS state 4 is
+            // a real native attack state (NeedState=4), not an animation alias.
+            if (!_unit.PlayAttackOneShotV325LikeOriginal(mode)) return;
             _attackMode = mode;
             _impactRealX = tx;
             _impactRealY = ty;
@@ -1100,16 +1330,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             C2UnitOriginalRuntimeLinkLikeOriginal link =
                 _unit != null ? _unit.RuntimeLinkCachedLikeOriginal : null;
-            int frame, count, activeFrame;
+            int previousFrame, frame, count, activeFrame;
             bool attacking;
             if (link == null ||
-                !link.TryGetAttackTimingV335LikeOriginal(
-                    out frame, out count, out activeFrame, out attacking))
+                !link.TryGetAttackTimingV415LikeOriginal(
+                    out previousFrame, out frame, out count, out activeFrame, out attacking))
             {
                 _attackInProgress = false;
                 return;
             }
-            if (!_impactApplied && attacking && frame >= activeFrame)
+            // NewMon.cpp::AttackObjLink fires only when ActiveFrame is crossed:
+            // NewCurSprite > NewCurSpritePrev && af >= prev && af < current.
+            // In particular af==current does NOT fire until the following frame.
+            bool crossedActiveFrameV415 = attacking && frame > previousFrame &&
+                activeFrame >= previousFrame && activeFrame < frame;
+            if (!_impactApplied && crossedActiveFrameV415)
             {
                 WeaponEffectLikeOriginal effect = EffectForModeLikeOriginal(_attackMode);
                 if (!FireWeaponAtTargetLikeOriginal(
@@ -1124,8 +1359,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
                 _impactApplied = true;
                 int pauseTicks = Mathf.Max(0, PauseForModeLikeOriginal(_attackMode));
-                BeginWeaponCycleV390LikeOriginal(_attackMode, pauseTicks);
-                if (_attackMode == 1 && _rifleButtonVolleyV399LikeOriginal &&
+                bool rifleAttackStateV413 = IsRifleAttackStateV413LikeOriginal(_attackMode);
+                int cycleModeV413 = rifleAttackStateV413 ? 1 : _attackMode;
+                BeginWeaponCycleV390LikeOriginal(cycleModeV413, pauseTicks);
+                if (rifleAttackStateV413 && _rifleButtonVolleyV399LikeOriginal &&
                     !_rifleBrigadeOrderV405LikeOriginal)
                 {
                     // BrigadeOrder_RifleAttack::Process/Destructor clears the red
@@ -1138,13 +1375,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 // NewMon.cpp enters the SLOWRECHARGE/#ATTACK3 branch only for
                 // firearm weapon kinds. A bayonet/melee ATTACK0 on the same unit
                 // must never reload the musket.
-                bool slowRechargeThisShot = _slowRecharge && _attackMode == 1;
+                bool slowRechargeThisShot = _slowRecharge && rifleAttackStateV413;
                 if (slowRechargeThisShot && pauseTicks > 0)
                 {
                     // Queue delay/MaxDelay immediately on the shot frame. The HUD
                     // must go to 0-ready now, while #ATTACK1 recovery is still playing.
                     if (link != null)
-                        link.QueueSlowRechargeLikeOriginal(_attackMode, pauseTicks);
+                        link.QueueSlowRechargeLikeOriginal(1, pauseTicks);
                     _pendingSlowRechargeTicks = pauseTicks;
                     _nextAttackAt = float.PositiveInfinity;
                 }
@@ -1164,7 +1401,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (_pendingSlowRechargeTicks > 0)
                 {
                     int rechargeTicks = _pendingSlowRechargeTicks;
-                    if (_attackMode == 1 &&
+                    if (IsRifleAttackStateV413LikeOriginal(_attackMode) &&
                         C2FormationRuntimeV167LikeOriginal.LeaveUnitSpecialFormationState5ForReloadV403DLikeOriginal(_unit))
                     {
                         _waitState5ExitForReloadV403DLikeOriginal = true;
@@ -1187,7 +1424,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         // completed, so extend the HUD cycle to the actual reload end.
                         _weaponCycleReadyAtLikeOriginal =
                             C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal + rechargeTicks / 25.0f;
-                        Debug.Log("[C2:COMBAT RELOAD V390] unit='" +
+                        if (DetailedWeaponCycleLoggingV433) Debug.Log("[C2:COMBAT RELOAD V390] unit='" +
                                   (_unit != null ? _unit.SourceMonsterId : string.Empty) +
                                   "' mode=" + _attackMode.ToString(CultureInfo.InvariantCulture) +
                                   " animation=#ATTACK3 ticks=" +
@@ -1221,7 +1458,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     return;
                 }
 
-                if (_finishCurrentRifleAttackThenStopV405LikeOriginal && _attackMode == 1)
+                if (_finishCurrentRifleAttackThenStopV405LikeOriginal &&
+                    IsRifleAttackStateV413LikeOriginal(_attackMode))
                 {
                     _finishCurrentRifleAttackThenStopV405LikeOriginal = false;
                     _rifleBrigadeOrderV405LikeOriginal = false;
@@ -1237,7 +1475,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     return;
                 }
 
-                if (_rifleButtonVolleyV399LikeOriginal && _attackMode == 1)
+                if (_rifleButtonVolleyV399LikeOriginal &&
+                    IsRifleAttackStateV413LikeOriginal(_attackMode))
                 {
                     _rifleButtonVolleyV399LikeOriginal = false;
                     _active = false;
@@ -1310,91 +1549,177 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return C2FormationRuntimeV167LikeOriginal.ConsumeGrenadesV326LikeOriginal(_unit, 1) > 0;
         }
 
-        private int SelectAttackModeLikeOriginal(float distance, bool skipGrenade)
+
+        // COSSACKS2/NewMon.cpp::AttackObjLink NeedState selection.  Detection
+        // radii and material masks decide the state first; ATTACK_RADIUS is tested
+        // later for movement/strike distance.
+        private int ResolveNeedStateV413LikeOriginal(
+            float dst1,
+            float dstx,
+            bool delayActive,
+            bool attackGroundMode)
         {
-            if (_forcedOrderModeV395LikeOriginal >= 0)
+            if (_unit == null) return -1;
+            C2CombatCoreV408LikeOriginal.MdTraits traits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+
+            // NewAttackPoint/AttGroundMod owns its explicit attack state.
+            if (_forcedOrderModeV395LikeOriginal == 2 && attackGroundMode)
+                return 2;
+
+            bool armOnly =
+                _unit.ArmAttackV396LikeOriginal &&
+                !(_unit.RifleAttackV396LikeOriginal || attackGroundMode);
+            bool shotOnly =
+                _unit.RifleAttackV396LikeOriginal &&
+                !(_unit.ArmAttackV396LikeOriginal || attackGroundMode);
+
+            if (_targetBuilding != null)
             {
-                int forced = _forcedOrderModeV395LikeOriginal;
-                if (forced == 0)
-                    return HasAttackModeLikeOriginal(0) && InRange(distance, _md.AttackRadius0Min, _md.AttackRadius0) ? 0 : -1;
-                if (forced == 1)
-                    return HasAttackModeLikeOriginal(1) && InRange(distance, _md.AttackRadius1Min, _md.AttackRadius1) ? 1 : -1;
-                if (forced == 2)
-                    return !skipGrenade && HasAttackModeLikeOriginal(2) && InRange(distance, _md.AttackRadius2Min, _md.AttackRadius2) ? 2 : -1;
+                // AttackObjLink clears both restrictions for buildings.
+                armOnly = false;
+                shotOnly = false;
             }
 
-            // C2 BrigadeAI has separate Fire/MeleeAttack/ThrowGrenade commands.
-            // Grenade is never an automatic "best range" choice.
-            bool grenadeArmed = !skipGrenade && _unit != null &&
-                                GrenadeArmedUnits.Contains(_unit.GetInstanceID());
-            if (grenadeArmed)
+            byte targetMask = TargetMathMaskV413LikeOriginal();
+            if (attackGroundMode) targetMask = 0xFF;
+
+            // NewMon.cpp: Attack5=SitInFormations && OBJ->NewState==5.
+            // With SIMPLEMANAGE, SHOTONLY selects real state 4, and ordinary
+            // state-1 selection is remapped to state 4 as well.
+            bool attack5 = traits.SitInFormations &&
+                C2FormationRuntimeV167LikeOriginal.IsUnitSpecialFormationState5V403DLikeOriginal(_unit);
+
+            int needState = -1;
+            if (shotOnly)
             {
-                if (HasAttackModeLikeOriginal(2) && InRange(distance, _md.AttackRadius2Min, _md.AttackRadius2)) return 2;
-                return -1; // ComThrowGrenade is a separate order; never silently turn it into melee/fire.
+                needState = attack5 ? 4 : 1;
             }
-            int commandedMode;
-            if (_unit != null && CommandModeByUnit.TryGetValue(_unit.GetInstanceID(), out commandedMode))
+            else if (armOnly)
             {
-                if (commandedMode == 0)
-                    return HasAttackModeLikeOriginal(0) && InRange(distance, _md.AttackRadius0Min, _md.AttackRadius0) ? 0 : -1;
-                if (commandedMode == 1)
-                    return HasAttackModeLikeOriginal(1) && InRange(distance, _md.AttackRadius1Min, _md.AttackRadius1) ? 1 : -1;
-                return -1;
+                // Keep CII's ARMONLY slot choice. CheckAttAbility has already
+                // validated the broader KillMask material relation.
+                needState = 0;
+            }
+            else
+            {
+                for (int i = 0; i < C2CombatCoreV408LikeOriginal.NAttTypesV413LikeOriginal; i++)
+                {
+                    if (dst1 >= traits.DetRadius1[i] &&
+                        dstx <= traits.DetRadius2[i] &&
+                        (traits.AttackMask[i] & targetMask) != 0)
+                        needState = i; // CII intentionally lets later slots win.
+                }
+
+                if (needState == 1 && attack5) needState = 4;
+
+                // NOPAUSEDATTACK overrides the ordinary state while delay!=0.
+                if (delayActive && traits.NoWaitMask != 0)
+                {
+                    int mask = traits.NoWaitMask;
+                    for (int i = 0; i < C2CombatCoreV408LikeOriginal.NAttTypesV413LikeOriginal; i++)
+                    {
+                        if ((mask & (1 << i)) == 0) continue;
+                        if (dst1 >= traits.DetRadius1[i] &&
+                            dstx <= traits.DetRadius2[i] &&
+                            (traits.AttackMask[i] & targetMask) != 0)
+                            needState = i;
+                    }
+                    if (needState == 1 && attack5) needState = 4;
+                }
             }
 
-            // NewMon.cpp + AttackSelected: ARMATTACK infantry starts in arm mode.
-            // RifleAttack is a persistent OneObject flag set by command 129; range
-            // never promotes an arm-order to a rifle-order by itself.
-            if (_unit != null && _unit.ArmAttackCapableV396LikeOriginal)
-            {
-                if (_unit.RifleAttackV396LikeOriginal)
-                    return HasAttackModeLikeOriginal(1) && InRange(distance, _md.AttackRadius1Min, _md.AttackRadius1) ? 1 : -1;
-                if (_unit.ArmAttackV396LikeOriginal)
-                    return HasAttackModeLikeOriginal(0) && InRange(distance, _md.AttackRadius0Min, _md.AttackRadius0) ? 0 : -1;
-                return -1;
-            }
-
-            // Non-ARMATTACK objects keep the generic/artillery slot behaviour.
-            if (HasAttackModeLikeOriginal(1) && InRange(distance, _md.AttackRadius1Min, _md.AttackRadius1)) return 1;
-            if (HasAttackModeLikeOriginal(0) && InRange(distance, _md.AttackRadius0Min, _md.AttackRadius0)) return 0;
-            if (_artillery && HasAttackModeLikeOriginal(0) && distance <= Mathf.Max(1, _md.AttackRadius0)) return 0;
-            return -1;
+            return needState;
         }
 
-        private static bool InRange(float d, int min, int max)
+        private byte TargetMathMaskV413LikeOriginal()
         {
-            return max > 0 && d >= Mathf.Max(0, min) && d <= max;
+            if (_targetUnit != null)
+                return C2CombatCoreV408LikeOriginal.GetMathMaskV409LikeOriginal(_targetUnit);
+            if (_targetBuilding != null)
+                return C2CombatCoreV408LikeOriginal.GetTraitsForBuildingV413LikeOriginal(
+                    _targetBuilding).MathMask;
+            return 0xFF;
         }
 
-        private float MaxAttackRadiusLikeOriginal()
+        private int TargetAddShotRadiusV413LikeOriginal()
         {
-            return Mathf.Max(80, Mathf.Max(_md.AttackRadius0, Mathf.Max(_md.AttackRadius1, _md.AttackRadius2)));
+            if (_targetUnit != null)
+                return C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_targetUnit).AddShotRadius;
+            if (_targetBuilding != null)
+                return C2CombatCoreV408LikeOriginal.GetTraitsForBuildingV413LikeOriginal(
+                    _targetBuilding).AddShotRadius;
+            return 0;
         }
 
-        private int ResolveApproachModeLikeOriginal()
+        private bool HasAttackDelayV413LikeOriginal(C2UnitOriginalRuntimeLinkLikeOriginal link)
         {
-            if (_forcedOrderModeV395LikeOriginal >= 0) return _forcedOrderModeV395LikeOriginal;
-            if (_unit != null && GrenadeArmedUnits.Contains(_unit.GetInstanceID())) return 2;
-            int commandedMode;
-            if (_unit != null && CommandModeByUnit.TryGetValue(_unit.GetInstanceID(), out commandedMode))
-                return commandedMode;
-            if (_unit != null && _unit.ArmAttackCapableV396LikeOriginal)
-                return _unit.RifleAttackV396LikeOriginal ? 1 : 0;
-            if (HasAttackModeLikeOriginal(1)) return 1;
-            if (HasAttackModeLikeOriginal(0)) return 0;
-            return -1;
+            if (link != null)
+            {
+                int remaining, maximum;
+                bool playing;
+                if (link.TryGetSlowRechargeProgressLikeOriginal(
+                        1, out remaining, out maximum, out playing) &&
+                    (remaining > 0 || playing))
+                    return true;
+            }
+            return C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal < _nextAttackAt;
+        }
+
+        private void ComputeAttackDistancesV413LikeOriginal(
+            float planarDistanceOriginalPixels,
+            out float dst1,
+            out float dstx)
+        {
+            dst1 = planarDistanceOriginalPixels;
+            dstx = planarDistanceOriginalPixels;
+            if (_unit == null) return;
+
+            int ux = Mathf.RoundToInt(CurrentRealX(_unit)) >> 4;
+            int uy = Mathf.RoundToInt(CurrentRealY(_unit)) >> 4;
+            int sourceRz = ShotTerrainHeightV413LikeOriginal(_unit, ux, uy);
+            int targetRz = sourceRz;
+            if (_targetUnit != null)
+            {
+                int tx = Mathf.RoundToInt(CurrentRealX(_targetUnit)) >> 4;
+                int ty = Mathf.RoundToInt(CurrentRealY(_targetUnit)) >> 4;
+                targetRz = ShotTerrainHeightV413LikeOriginal(_targetUnit, tx, ty);
+            }
+            else if (_targetBuilding != null && _targetBuilding.OwnerMode != null)
+            {
+                targetRz = _targetBuilding.OwnerMode.C2OriginalFogTerrainHeightV1LikeOriginal(
+                    _targetBuilding.RealX >> 4, _targetBuilding.RealY >> 4);
+            }
+
+            int dst = Mathf.RoundToInt(planarDistanceOriginalPixels);
+            int corrected = dst - ((sourceRz - targetRz) << 1);
+            if (dst < 150) corrected = dst;
+            if (corrected > dst) corrected = dst;
+            if (dst - corrected > 300) corrected = dst - 300;
+            if (corrected < 120 && dst > 120) corrected = 120;
+            dst1 = dst;
+            dstx = corrected;
+        }
+
+        private bool IsRifleAttackStateV413LikeOriginal(int mode)
+        {
+            C2CombatCoreV408LikeOriginal.MdTraits traits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            return C2CombatCoreV408LikeOriginal.IsRifleWeaponSlotV413LikeOriginal(traits, mode);
         }
 
         private float AttackMinForModeLikeOriginal(int mode)
         {
-            return mode == 2 ? Mathf.Max(0, _md.AttackRadius2Min) :
-                (mode == 1 ? Mathf.Max(0, _md.AttackRadius1Min) : Mathf.Max(0, _md.AttackRadius0Min));
+            C2CombatCoreV408LikeOriginal.MdTraits traits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            return Mathf.Max(0, C2CombatCoreV408LikeOriginal.AttackRadiusMinV413LikeOriginal(traits, mode));
         }
 
         private float AttackMaxForModeLikeOriginal(int mode)
         {
-            return mode == 2 ? Mathf.Max(0, _md.AttackRadius2) :
-                (mode == 1 ? Mathf.Max(0, _md.AttackRadius1) : Mathf.Max(0, _md.AttackRadius0));
+            C2CombatCoreV408LikeOriginal.MdTraits traits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            return Mathf.Max(0, C2CombatCoreV408LikeOriginal.AttackRadiusMaxV413LikeOriginal(traits, mode));
         }
 
         private bool FireWeaponAtTargetLikeOriginal(
@@ -1408,8 +1733,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             // NewMon.cpp consumes RASTRATA_NA_VISTREL immediately for ordinary
             // weapons. SLOWRECHARGE pays when #ATTACK3/recharge actually begins.
-            if (!(_slowRecharge && mode == 1) &&
-                !C2CombatCoreV408LikeOriginal.TryConsumeShotResourcesV408LikeOriginal(_unit, mode))
+            bool rifleAttackStateV413 = IsRifleAttackStateV413LikeOriginal(mode);
+            int resourceModeV413 = rifleAttackStateV413 ? 1 : mode;
+            if (!(_slowRecharge && rifleAttackStateV413) &&
+                !C2CombatCoreV408LikeOriginal.TryConsumeShotResourcesV408LikeOriginal(_unit, resourceModeV413))
                 return false;
 
             if (effect.HasWeapon)
@@ -1459,6 +1786,56 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             float travelSeconds = ProjectileTravelSecondsLikeOriginal(
                 effect, targetRealX, targetRealY);
+
+            // COSSACKS2/Weapon.cpp, FLY + time==0: retail does NOT damage
+            // EnemyID directly. It calls TraceObjectsInLine and may hit another
+            // unit or miss completely after CreateRazbros changed xD/yD.
+            if ((_targetUnit != null || _targetBuilding != null) &&
+                effect.Propagation == 3 && travelSeconds <= 0.0f)
+            {
+                float traceImpactRealX = targetRealX;
+                float traceImpactRealY = targetRealY;
+                C2NeutralPeasantUnitInfoV2LikeOriginal tracedUnit;
+                bool traced = TryTraceInstantFlyShotV413LikeOriginal(
+                    targetRealX, targetRealY, out tracedUnit,
+                    out traceImpactRealX, out traceImpactRealY);
+                if (traced)
+                {
+                    ApplyInstantFlyTraceDamageV413LikeOriginal(
+                        tracedUnit, damage, traceImpactRealX, traceImpactRealY);
+                }
+                else if (_targetBuilding != null)
+                {
+                    // Weapon.cpp::Create3DAnmObject case FLY/time==0: when
+                    // TraceObjectsInLine hits no unit, DestObj may still be the
+                    // attacked building. CII then applies DAMAGEDEC using the
+                    // deviated xD/yD distance minus the building AddShotRadius.
+                    int sx = Mathf.RoundToInt(CurrentRealX(_unit)) >> 4;
+                    int sy = Mathf.RoundToInt(CurrentRealY(_unit)) >> 4;
+                    int xd = Mathf.RoundToInt(targetRealX) >> 4;
+                    int yd = Mathf.RoundToInt(targetRealY) >> 4;
+                    int rr = C2OriginalMovementMathV352.Norma(xd - sx, yd - sy) -
+                             TargetAddShotRadiusV413LikeOriginal();
+                    if (rr < 0) rr = 0;
+                    C2CombatCoreV408LikeOriginal.MdTraits shooterTraits =
+                        C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+                    int decr = shooterTraits.DamageDecr[Mathf.Clamp(mode, 0, C2CombatCoreV408LikeOriginal.NAttTypesV413LikeOriginal - 1)];
+                    int buildingDamage = C2CombatCoreV408LikeOriginal.GetDamFallV408LikeOriginal(
+                        rr, decr, damage);
+                    ApplyDamageToTargetLikeOriginal(
+                        buildingDamage, radius, targetRealX, targetRealY, null);
+                }
+
+                if (modeOwner != null)
+                    end = modeOwner.SettlementMapPointToWorldV336LikeOriginal(
+                        traceImpactRealX / 16.0f, traceImpactRealY / 16.0f) + Vector3.up * 0.25f;
+                C2CombatProjectileVisualV336LikeOriginal.SpawnLikeOriginal(
+                    start, end, false, _artillery, _unit.Nation,
+                    0.0f, modeOwner, traceImpactRealX, traceImpactRealY, null,
+                    !shotFogEffect);
+                return true;
+            }
+
             if (travelSeconds <= 0.0f)
             {
                 impact(null, targetRealX, targetRealY);
@@ -1487,9 +1864,519 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return ticks > 0 ? (ticks + 1) / 25.0f : 0.0f;
         }
 
+        private enum C2ShotBreakKindV413LikeOriginal
+        {
+            Clear = -1,
+            Object = 0,
+            GroundOrOwnerlessBar = 1
+        }
+
+        // COSSACKS2/NewMon.cpp::CheckBreaksBetweenPoints -> CheckWpLine ->
+        // CheckFriendlyUnitsInLine. The return VALUE matters: AttackObjLink does
+        // not reject an object/unit result. Any WRes < ULIMIT jumps directly to
+        // DoShot1; only the ownerless/ground class WRes >= ULIMIT blocks firing.
+        private C2ShotBreakKindV413LikeOriginal CheckBreaksBetweenPointsV413LikeOriginal(
+            int attackMode,
+            float targetRealX,
+            float targetRealY)
+        {
+            if (_unit == null) return C2ShotBreakKindV413LikeOriginal.Clear;
+            if (attackMode == 2) return C2ShotBreakKindV413LikeOriginal.Clear; // LocalNewState==3.
+            if (string.Equals((_md.MotionStyle ?? string.Empty).Trim(), "SHEEPS",
+                    StringComparison.OrdinalIgnoreCase))
+                return C2ShotBreakKindV413LikeOriginal.Clear; // MotionStyle==2.
+
+            return CheckShotBreakV434LikeOriginal(_unit, _targetUnit, targetRealX, targetRealY);
+        }
+
+        internal static int CheckRifleSearchShotBreakV434LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit, C2NeutralPeasantUnitInfoV2LikeOriginal targetUnit)
+        {
+            return (int)CheckShotBreakV434LikeOriginal(unit, targetUnit,
+                CurrentRealX(targetUnit), CurrentRealY(targetUnit));
+        }
+
+        private static C2ShotBreakKindV413LikeOriginal CheckShotBreakV434LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit, C2NeutralPeasantUnitInfoV2LikeOriginal targetUnit,
+            float targetRealX, float targetRealY)
+        {
+            if (unit == null) return C2ShotBreakKindV413LikeOriginal.Clear;
+            C2BattleTerrainMode modeOwner = unit.OwnerMode != null
+                ? unit.OwnerMode : FindObjectOfType<C2BattleTerrainMode>();
+            if (modeOwner != null)
+            {
+                Vector3 startWorld = unit.transform != null
+                    ? unit.transform.position + Vector3.up * 0.55f : Vector3.zero;
+                C2UnitOriginalRuntimeLinkLikeOriginal link = unit.RuntimeLinkCachedLikeOriginal;
+                Vector3 weaponStart;
+                if (link != null && link.TryGetWeaponStartWorldLikeOriginal(0, out weaponStart))
+                    startWorld = weaponStart;
+                Vector3 endWorld = modeOwner.SettlementMapPointToWorldV336LikeOriginal(
+                    targetRealX / 16.0f, targetRealY / 16.0f) + Vector3.up * 0.25f;
+
+                // TryIntersect3DBarSegment returns a real building owner. In CII
+                // CheckWpLine that is an object ID (< ULIMIT), therefore
+                // AttackObjLink goes to DoShot1 rather than moving/cancelling.
+                if (C2BuildingRuntimeInfoV247LikeOriginal.TryIntersect3DBarSegmentV378LikeOriginal(
+                        modeOwner, startWorld, endWorld,
+                        out C2SettlementBuildingSelectableV1LikeOriginal intercepted,
+                        out float ignoredHitX, out float ignoredHitY) && intercepted != null)
+                    return C2ShotBreakKindV413LikeOriginal.Object;
+            }
+
+            // A friendly unit returned by CheckFriendlyUnitsInLine is likewise a
+            // normal object ID and therefore does not block AttackObjLink in the
+            // active COSSACKS2 branch. We still execute the scan so the adapter
+            // retains the original result classification for future callers.
+            if (TryFindFriendlyUnitBlockerV413LikeOriginal(unit, targetUnit, targetRealX, targetRealY))
+                return C2ShotBreakKindV413LikeOriginal.Object;
+
+            // The current Unity map layer has no representation for an ownerless
+            // high 3D bar (the CheckWpPoint 0xFFFF case). Do not invent one from a
+            // building owner or friendly body; represented CII data is clear here.
+            return C2ShotBreakKindV413LikeOriginal.Clear;
+        }
+
+        // Weapon.cpp::CheckFriendlyUnitsInLine. Its result is an object ID; in
+        // COSSACKS2 AttackObjLink that result is shootable (DoShot1), not a veto.
+        private static bool TryFindFriendlyUnitBlockerV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit, C2NeutralPeasantUnitInfoV2LikeOriginal targetUnit,
+            float targetRealX,
+            float targetRealY)
+        {
+            if (unit == null) return false;
+            C2CombatCoreV408LikeOriginal.MdTraits shooterTraits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(unit);
+            if (!shooterTraits.FriendlyFireCapable || unit.FriendlyFireV413LikeOriginal)
+                return false;
+
+            int xs = Mathf.RoundToInt(CurrentRealX(unit)) >> 4;
+            int ys = Mathf.RoundToInt(CurrentRealY(unit)) >> 4;
+            int xd = Mathf.RoundToInt(targetRealX) >> 4;
+            int yd = Mathf.RoundToInt(targetRealY) >> 4;
+            int zs = ShotTerrainHeightV413LikeOriginal(unit, xs, ys) + 32;
+            int zd = targetUnit != null
+                ? ShotTerrainHeightV413LikeOriginal(targetUnit,
+                    Mathf.RoundToInt(CurrentRealX(targetUnit)) >> 4,
+                    Mathf.RoundToInt(CurrentRealY(targetUnit)) >> 4) + 32
+                : zs;
+            int dx = xd - xs;
+            int dy = yd - ys;
+            int dzLine = zd - zs;
+            int len = Mathf.FloorToInt(Mathf.Sqrt((long)dx * dx + (long)dy * dy + (long)dzLine * dzLine));
+            if (len <= 0) return false;
+
+            EnsureTraceUnitCellsV413LikeOriginal();
+            byte shooterMask = C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(unit);
+            int minFriendlyR = shooterTraits.FreeShotDist;
+            int minFriendlyR2 = minFriendlyR + 100;
+            int n = (len >> 5) + 1;
+            int n2 = n + n;
+            int bestRange = 10000;
+            C2NeutralPeasantUnitInfoV2LikeOriginal best = null;
+            int lastCellX = int.MinValue;
+            int lastCellY = int.MinValue;
+
+            for (int step = 0; step < n2; step++)
+            {
+                int xx = (dx * step) / n;
+                int yy = (dy * step) / n;
+                int zz = zs + (dzLine * step) / n;
+                int cellX = (xs + xx) >> 7;
+                int cellY = (ys + yy) >> 7;
+                if (cellX == lastCellX && cellY == lastCellY) continue;
+                lastCellX = cellX;
+                lastCellY = cellY;
+
+                List<C2NeutralPeasantUnitInfoV2LikeOriginal> cellUnits;
+                if (!TraceUnitCellsV413LikeOriginal.TryGetValue(
+                        SpatialKeyV413LikeOriginal(cellX, cellY), out cellUnits) || cellUnits == null)
+                    continue;
+
+                for (int i = 0; i < cellUnits.Count; i++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal candidate = cellUnits[i];
+                    if (candidate == null || candidate == unit || candidate.IsDeadLikeOriginal ||
+                        !candidate.isActiveAndEnabled) continue;
+                    int ux = Mathf.RoundToInt(CurrentRealX(candidate)) >> 4;
+                    int uy = Mathf.RoundToInt(CurrentRealY(candidate)) >> 4;
+                    int range = C2OriginalMovementMathV352.Norma(ux - xs, uy - ys);
+                    bool myUnit = (C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(candidate) & shooterMask) != 0;
+                    int minRange = myUnit ? minFriendlyR : 1;
+                    if (range <= minRange || range >= bestRange) continue;
+                    int candidateRz = ShotTerrainHeightV413LikeOriginal(candidate, ux, uy);
+                    int dz = zz - candidateRz;
+                    if (dz <= 0 || dz >= 90) continue;
+
+                    long cross = (long)(ux - xs) * yy - (long)(uy - ys) * xx;
+                    int rayDistance = (int)(Math.Abs(cross) / Math.Max(1, len));
+                    rayDistance -= rayDistance >> 2;
+                    // CheckFriendlyUnitsInLine uses xx/yy (not dx/dy) here.
+                    long along = (long)(ux - xs) * xx + (long)(uy - ys) * yy;
+                    if (along <= 0) continue;
+                    if (myUnit && range < minFriendlyR2) rayDistance <<= 1;
+                    int unitRadius = Mathf.Max(1,
+                        C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(candidate).UnitRadius);
+                    if (rayDistance < unitRadius)
+                    {
+                        best = candidate;
+                        bestRange = range;
+                    }
+                }
+            }
+            return best != null &&
+                   (C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(best) & shooterMask) != 0;
+        }
+
+        // COSSACKS2/Weapon.cpp::TraceObjectsInLine. Coordinates are original
+        // pixels (RealX/RealY >> 4). The original samples up to twice the nominal
+        // ray length, respects FreeShotDist/UnitRadius, vertical RZ, 3D bars, then
+        // applies DAMAGEDEC to the unit actually intersected by the deviated ray.
+        private bool TryTraceInstantFlyShotV413LikeOriginal(
+            float targetRealX,
+            float targetRealY,
+            out C2NeutralPeasantUnitInfoV2LikeOriginal bestUnit,
+            out float impactRealX,
+            out float impactRealY)
+        {
+            bestUnit = null;
+            impactRealX = targetRealX;
+            impactRealY = targetRealY;
+            if (_unit == null) return false;
+
+            int xs = Mathf.RoundToInt(CurrentRealX(_unit)) >> 4;
+            int ys = Mathf.RoundToInt(CurrentRealY(_unit)) >> 4;
+            int xd = Mathf.RoundToInt(targetRealX) >> 4;
+            int yd = Mathf.RoundToInt(targetRealY) >> 4;
+            int zs = ShotTerrainHeightV413LikeOriginal(_unit, xs, ys) + 32;
+            int zd = _targetUnit != null
+                ? ShotTerrainHeightV413LikeOriginal(_targetUnit,
+                    Mathf.RoundToInt(CurrentRealX(_targetUnit)) >> 4,
+                    Mathf.RoundToInt(CurrentRealY(_targetUnit)) >> 4) + 32
+                : zs;
+            int dx = xd - xs;
+            int dy = yd - ys;
+            int dzLine = zd - zs;
+            int len = Mathf.FloorToInt(Mathf.Sqrt((long)dx * dx + (long)dy * dy + (long)dzLine * dzLine));
+            if (len <= 0) return false;
+
+            EnsureTraceUnitCellsV413LikeOriginal();
+            C2CombatCoreV408LikeOriginal.MdTraits shooterTraits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            int minFriendlyR = shooterTraits.FreeShotDist + shooterTraits.AddShotRadius;
+            int minFriendlyR2 = minFriendlyR + 100;
+            byte shooterMask = C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(_unit);
+            int shooterIndex = _unit.C2ObjectIndexV408LikeOriginal;
+
+            // The retail loop goes to N+N. Find the first 3D bar on that extended
+            // segment and ignore unit candidates beyond it, just as the loop breaks.
+            int barRange = int.MaxValue;
+            C2BattleTerrainMode modeOwner = _unit.OwnerMode != null
+                ? _unit.OwnerMode : FindObjectOfType<C2BattleTerrainMode>();
+            if (modeOwner != null)
+            {
+                Vector3 startWorld = _unit.transform != null
+                    ? _unit.transform.position + Vector3.up * 0.55f : Vector3.zero;
+                C2UnitOriginalRuntimeLinkLikeOriginal link = _unit.RuntimeLinkCachedLikeOriginal;
+                Vector3 weaponStart;
+                if (link != null && link.TryGetWeaponStartWorldLikeOriginal(0, out weaponStart))
+                    startWorld = weaponStart;
+                Vector3 nominalEnd = modeOwner.SettlementMapPointToWorldV336LikeOriginal(
+                    targetRealX / 16.0f, targetRealY / 16.0f) + Vector3.up * 0.25f;
+                Vector3 extendedEnd = startWorld + (nominalEnd - startWorld) * 2.0f;
+                if (C2BuildingRuntimeInfoV247LikeOriginal.TryIntersect3DBarSegmentV378LikeOriginal(
+                        modeOwner, startWorld, extendedEnd,
+                        out C2SettlementBuildingSelectableV1LikeOriginal ignoredOwner,
+                        out float hitRealX, out float hitRealY))
+                {
+                    int hx = Mathf.RoundToInt(hitRealX) >> 4;
+                    int hy = Mathf.RoundToInt(hitRealY) >> 4;
+                    barRange = C2OriginalMovementMathV352.Norma(hx - xs, hy - ys);
+                    impactRealX = hitRealX;
+                    impactRealY = hitRealY;
+                }
+            }
+
+            int n = (len >> 4) + 1;
+            int n2 = n + n;
+            int bestRange = 10000;
+            int lastCellX = int.MinValue;
+            int lastCellY = int.MinValue;
+
+            for (int step = 0; step < n2 && bestRange != 0; step++)
+            {
+                int xx = (dx * step) / n;
+                int yy = (dy * step) / n;
+                int zz = zs + (dzLine * step) / n;
+                int sampleRange = C2OriginalMovementMathV352.Norma(xx, yy);
+                if (sampleRange >= barRange) break;
+                int cellX = (xs + xx) >> 7;
+                int cellY = (ys + yy) >> 7;
+                if (cellX == lastCellX && cellY == lastCellY) continue;
+                lastCellX = cellX;
+                lastCellY = cellY;
+
+                List<C2NeutralPeasantUnitInfoV2LikeOriginal> cellUnits;
+                if (!TraceUnitCellsV413LikeOriginal.TryGetValue(
+                        SpatialKeyV413LikeOriginal(cellX, cellY), out cellUnits) || cellUnits == null)
+                    continue;
+
+                for (int i = 0; i < cellUnits.Count; i++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal candidate = cellUnits[i];
+                    if (candidate == null || candidate == _unit || candidate.IsDeadLikeOriginal ||
+                        !candidate.isActiveAndEnabled ||
+                        candidate.C2ObjectIndexV408LikeOriginal == shooterIndex)
+                        continue;
+
+                    int ux = Mathf.RoundToInt(CurrentRealX(candidate)) >> 4;
+                    int uy = Mathf.RoundToInt(CurrentRealY(candidate)) >> 4;
+                    int range = C2OriginalMovementMathV352.Norma(ux - xs, uy - ys);
+                    if (range >= barRange) continue;
+                    bool myUnit = (C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(candidate) & shooterMask) != 0;
+                    int minRange = myUnit ? minFriendlyR : 1;
+                    if (range <= minRange || range >= bestRange) continue;
+                    int candidateRz = ShotTerrainHeightV413LikeOriginal(candidate, ux, uy);
+                    int dz = zz - candidateRz;
+                    if (dz <= 0 || dz >= 90) continue;
+
+                    long cross = (long)(ux - xs) * yy - (long)(uy - ys) * xx;
+                    int rayDistance = (int)(Math.Abs(cross) / Math.Max(1, len));
+                    rayDistance -= rayDistance >> 2;
+                    long dot = (long)(ux - xs) * dx + (long)(uy - ys) * dy;
+                    if (dot <= 0) continue;
+                    if (myUnit && range < minFriendlyR2) rayDistance <<= 1;
+
+                    int unitRadius = Mathf.Max(1,
+                        C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(candidate).UnitRadius);
+                    if (rayDistance < unitRadius)
+                    {
+                        bestUnit = candidate;
+                        bestRange = range;
+                    }
+                }
+            }
+
+            if (bestUnit == null) return false;
+            impactRealX = (Mathf.RoundToInt(CurrentRealX(bestUnit)) >> 4) << 4;
+            impactRealY = (Mathf.RoundToInt(CurrentRealY(bestUnit)) >> 4) << 4;
+            return true;
+        }
+
+        private static int ShotTerrainHeightV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit, int originalPixelX, int originalPixelY)
+        {
+            if (unit == null || unit.OwnerMode == null) return 0;
+            return unit.OwnerMode.C2OriginalFogTerrainHeightV1LikeOriginal(originalPixelX, originalPixelY);
+        }
+
+        private void ApplyInstantFlyTraceDamageV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal victim,
+            int sourceDamage,
+            float impactRealX,
+            float impactRealY)
+        {
+            if (victim == null || _unit == null) return;
+            EnsureUnitLifeLikeOriginal(
+                victim, C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(victim));
+
+            int sx = Mathf.RoundToInt(CurrentRealX(_unit)) >> 4;
+            int sy = Mathf.RoundToInt(CurrentRealY(_unit)) >> 4;
+            int vx = Mathf.RoundToInt(CurrentRealX(victim)) >> 4;
+            int vy = Mathf.RoundToInt(CurrentRealY(victim)) >> 4;
+            int range = C2OriginalMovementMathV352.Norma(vx - sx, vy - sy);
+            C2CombatCoreV408LikeOriginal.MdTraits shooterTraits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            int decr = shooterTraits.DamageDecr[Mathf.Clamp(_attackMode, 0, C2CombatCoreV408LikeOriginal.NAttTypesV413LikeOriginal - 1)];
+            int damage = C2CombatCoreV408LikeOriginal.GetDamFallV408LikeOriginal(
+                range, decr, Mathf.Max(0, sourceDamage));
+
+            // Weapon.cpp Friend = newMons->FriendlyFire && !OneObject::FriendlyFire.
+            // In that state friendly bodies may intercept the ray but receive no damage.
+            byte shooterMask = C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(_unit);
+            bool sameMask = (C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(victim) & shooterMask) != 0;
+            bool protectFriendly = shooterTraits.FriendlyFireCapable && !_unit.FriendlyFireV413LikeOriginal;
+            if (protectFriendly && sameMask) return;
+
+            bool wasTarget = victim == _targetUnit;
+            bool wasAlive = victim.LifeLikeOriginal > 0 && !victim.IsDeadLikeOriginal;
+            C2CombatCoreV408LikeOriginal.MakeDamageV408LikeOriginal(
+                victim, damage, _unit, _attackMode, true);
+            bool killed = wasAlive && (victim.LifeLikeOriginal <= 0 || victim.IsDeadLikeOriginal);
+            if (killed && wasTarget) _active = false;
+        }
+
+        private static long SpatialKeyV413LikeOriginal(int x, int y)
+        {
+            return ((long)x << 32) ^ (uint)y;
+        }
+
+        private static void EnsureTraceUnitCellsV413LikeOriginal()
+        {
+            int tick = C2FormationRuntimeV167LikeOriginal.CurrentSimulationTickV403ELikeOriginal;
+            if (_traceUnitCellsTickV413LikeOriginal == tick) return;
+            _traceUnitCellsTickV413LikeOriginal = tick;
+            TraceUnitCellsV413LikeOriginal.Clear();
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] all =
+                C2NeutralPeasantUnitInfoV2LikeOriginal.C2GetActiveUnitsSnapshotV359LikeOriginal();
+            for (int i = 0; all != null && i < all.Length; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = all[i];
+                if (u == null || u.IsDeadLikeOriginal || !u.isActiveAndEnabled) continue;
+                int ux = Mathf.RoundToInt(CurrentRealX(u)) >> 4;
+                int uy = Mathf.RoundToInt(CurrentRealY(u)) >> 4;
+                long key = SpatialKeyV413LikeOriginal(ux >> 7, uy >> 7);
+                List<C2NeutralPeasantUnitInfoV2LikeOriginal> row;
+                if (!TraceUnitCellsV413LikeOriginal.TryGetValue(key, out row))
+                {
+                    row = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>(8);
+                    TraceUnitCellsV413LikeOriginal[key] = row;
+                }
+                row.Add(u);
+            }
+            foreach (KeyValuePair<long, List<C2NeutralPeasantUnitInfoV2LikeOriginal>> pair in TraceUnitCellsV413LikeOriginal)
+                pair.Value.Sort(delegate(C2NeutralPeasantUnitInfoV2LikeOriginal a, C2NeutralPeasantUnitInfoV2LikeOriginal b)
+                {
+                    int ai = a != null ? a.C2ObjectIndexV408LikeOriginal : int.MaxValue;
+                    int bi = b != null ? b.C2ObjectIndexV408LikeOriginal : int.MaxValue;
+                    return ai.CompareTo(bi);
+                });
+        }
+
+        // COSSACKS2/NewMon.cpp::SetDestUnit + path.cpp::FindBestPosition.
+        // The original works in 256-real-unit MotionField cells. Unity pathfinding
+        // remains an adapter, but target-cell selection and repath hysteresis below
+        // follow the CII 1.1 source branch-for-branch for ordinary infantry.
+        private bool SetDestUnitV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal target,
+            int requestedRadiusOriginalPixels)
+        {
+            if (_unit == null || target == null) return false;
+            // AttackObjLink passes NEWX/NEWY as OB->GetAttX/GetAttY >> 8.
+            // For an ordinary unit GetAttX/Y == RealX/Y; this is intentionally
+            // different from OneObject::x/y, which subtract Lx<<7.
+            int newX = Mathf.RoundToInt(CurrentRealX(target)) >> 8;
+            int newY = Mathf.RoundToInt(CurrentRealY(target)) >> 8;
+            // NewMon.cpp calls UnLockComplexObject(OB) before FindBestPosition.
+            // That toggles MFIELDS only for a true complex object (CObjIndex); an
+            // ordinary infantry target lives in the separate UnitsField and is not
+            // an MFIELDS obstacle. The bridge has no CObjIndex unit adapter here, so
+            // represented MFIELDS is left untouched instead of inventing a lock.
+            C2NeutralPeasantUnitInfoV2LikeOriginal unlockedComplexTarget = null;
+            // Native SetDestUnit ignores FindBestPosition's boolean result and
+            // continues with NEWX/NEWY (possibly unchanged).
+            FindBestPositionV413LikeOriginal(
+                _unit, unlockedComplexTarget, ref newX, ref newY, 40);
+
+            if (_attackOldDestCellXV413LikeOriginal == int.MinValue)
+            {
+                _attackOldDestCellXV413LikeOriginal = newX;
+                _attackOldDestCellYV413LikeOriginal = newY;
+            }
+
+            int unitX = MotionCellFromRealV413LikeOriginal(CurrentRealX(_unit));
+            int unitY = MotionCellFromRealV413LikeOriginal(CurrentRealY(_unit));
+            C2UnitOriginalRuntimeLinkLikeOriginal link = _unit.RuntimeLinkCachedLikeOriginal;
+            C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
+
+            // `if(!OB->newMons->Artilery)` in SetDestUnit refers to the victim.
+            if (!C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(target).Artilery)
+            {
+                int cpX = unitX;
+                int cpY = unitY;
+                if (runtime != null && runtime.HasMoveTargetLikeOriginal)
+                {
+                    cpX = MotionCellFromRealV413LikeOriginal(runtime.MoveTargetRealXLikeOriginal);
+                    cpY = MotionCellFromRealV413LikeOriginal(runtime.MoveTargetRealYLikeOriginal);
+                }
+                int dr = C2OriginalMovementMathV352.Norma(newX - unitX, newY - unitY);
+                int dr1 = C2OriginalMovementMathV352.Norma(newX - cpX, newY - cpY);
+                bool renew = false;
+                if (dr > 500) renew = dr1 > 30;
+                else if (dr > 100) renew = dr1 > 30;
+                else if (dr > 50) renew = dr1 > 20;
+                else if (dr > 30) renew = dr1 > 10;
+                if (dr > 30)
+                {
+                    IssueCombatCellDestinationV413LikeOriginal(renew ? newX : cpX, renew ? newY : cpY);
+                    return true;
+                }
+            }
+
+            bool hasPath = runtime != null &&
+                (runtime.HasMoveTargetLikeOriginal ||
+                 (runtime.MovePathRealWaypointsLikeOriginal != null && runtime.MovePathRealWaypointsLikeOriginal.Length > 0));
+            if (!hasPath)
+            {
+                IssueCombatCellDestinationV413LikeOriginal(newX, newY);
+                _attackOldDestCellXV413LikeOriginal = newX;
+                _attackOldDestCellYV413LikeOriginal = newY;
+                return true;
+            }
+
+            int dis = C2OriginalMovementMathV352.Norma(unitX - newX, unitY - newY);
+            int dis1 = C2OriginalMovementMathV352.Norma(
+                newX - _attackOldDestCellXV413LikeOriginal,
+                newY - _attackOldDestCellYV413LikeOriginal);
+            int dds = dis > 100 ? 20 : (dis > 50 ? 10 : (dis > 30 ? 5 : (dis > 10 ? 3 : 2)));
+            if (dis1 >= dds)
+            {
+                IssueCombatCellDestinationV413LikeOriginal(newX, newY);
+                _attackOldDestCellXV413LikeOriginal = newX;
+                _attackOldDestCellYV413LikeOriginal = newY;
+            }
+            else
+            {
+                IssueCombatCellDestinationV413LikeOriginal(
+                    _attackOldDestCellXV413LikeOriginal,
+                    _attackOldDestCellYV413LikeOriginal);
+            }
+            return true;
+        }
+
+        // COSSACKS2/path.cpp/CreateFullPath refreshes OneObject::x/y as
+        //   x=(RealX-(Lx<<7))>>8.
+        // Ordinary CII infantry are forced to Lx=1, so the MotionField cell is
+        // (Real-128)>>8, not Real>>8. This half-cell offset is essential for
+        // FindBestPosition/SetDestUnit parity and prevents attackers selecting
+        // the victim's occupied cell/corridor by a shifted grid.
+        private static int MotionCellFromRealV413LikeOriginal(float real)
+        {
+            return (Mathf.RoundToInt(real) - 128) >> 8;
+        }
+
+        private void IssueCombatCellDestinationV413LikeOriginal(int cellX, int cellY)
+        {
+            float realX = cellX * 256.0f + 128.0f;
+            float realY = cellY * 256.0f + 128.0f;
+            _unit.SetMoveDestinationRealLikeOriginal(
+                realX, realY,
+                C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
+                false, 0);
+        }
+
+        // Movement ownership lives in C2MovementSystemV425LikeOriginal. Combat only
+        // asks the movement system for the CII target cell; it no longer owns a second
+        // FindBestPosition/Radio/CheckRound implementation.
+        private static bool FindBestPositionV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal mover,
+            C2NeutralPeasantUnitInfoV2LikeOriginal unlockedTarget,
+            ref int xd,
+            ref int yd,
+            int radius)
+        {
+            if (mover == null) return false;
+            byte lockType = C2OriginalMovementSystemV425LikeOriginal.ResolveLockTypeV425LikeOriginal(mover);
+            return C2OriginalMovementSystemV425LikeOriginal.FindBestPositionV425LikeOriginal(
+                mover, ref xd, ref yd, radius, lockType);
+        }
+
         private int DamageForModeLikeOriginal(int mode)
         {
-            return mode == 2 ? _md.Damage2 : (mode == 1 ? _md.Damage1 : _md.Damage0);
+            C2CombatCoreV408LikeOriginal.MdTraits traits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            if (traits == null || mode < 0 || mode >= traits.MaxDamage.Length) return 0;
+            return traits.MaxDamage[mode];
         }
 
         private bool HasAttackModeLikeOriginal(int mode)
@@ -1511,7 +2398,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private int PauseForModeLikeOriginal(int mode)
         {
-            return mode == 2 ? _md.AttackPause2 : (mode == 1 ? _md.AttackPause1 : _md.AttackPause0);
+            C2CombatCoreV408LikeOriginal.MdTraits traits =
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            if (traits == null || mode < 0 || mode >= traits.AttackPause.Length) return 0;
+            return traits.AttackPause[mode];
         }
 
         private void ApplyDamageToTargetLikeOriginal(
@@ -1671,8 +2561,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static WeaponEffectLikeOriginal ResolveWeaponEffectLikeOriginal(
             C2OriginalProduceCatalogV13.C2MdIconInfoV13 md, int mode)
         {
-            int unitDamage = mode == 2 ? md.Damage2 : (mode == 1 ? md.Damage1 : md.Damage0);
-            string rootName = mode == 2 ? md.Weapon2 : (mode == 1 ? md.Weapon1 : md.Weapon0);
+            C2CombatCoreV408LikeOriginal.MdTraits traits =
+                C2CombatCoreV408LikeOriginal.GetTraitsForMdV413LikeOriginal(md);
+            int slot = Mathf.Clamp(mode, 0, C2CombatCoreV408LikeOriginal.NAttTypesV413LikeOriginal - 1);
+            int unitDamage = traits != null ? traits.MaxDamage[slot] : 0;
+            string rootName = traits != null ? traits.WeaponName[slot] : string.Empty;
             WeaponEffectLikeOriginal result = new WeaponEffectLikeOriginal
             {
                 HasWeapon = !string.IsNullOrWhiteSpace(rootName),
@@ -2254,6 +3147,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Update()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Smoke);
             if (_animation == null || _animation.Frames.Count == 0)
             {
                 Destroy(gameObject);
@@ -2616,6 +3510,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Update()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Projectiles);
             float t = Mathf.Clamp01((Time.realtimeSinceStartup - _born) / Mathf.Max(0.01f, _duration));
             Vector3 p = Vector3.Lerp(_start, _end, t);
             if (_arc)

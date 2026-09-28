@@ -1,4 +1,4 @@
-// C2UnitHudInteractionCompatV239.cs
+﻿// C2UnitHudInteractionCompatV239.cs
 // V245: compatibility bridge for unit HUD/interaction + runtime construction.
 // IMPORTANT: the old C2BuildingPlacementPreviewV27 stub is removed here;
 // the real preview lives in C2BuildingPlacementPreviewV27.cs.
@@ -232,6 +232,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public static void ForceReloadLikeOriginal()
         {
             _loaded = false;
+            _memberIdentityV422.Clear();
             _audit = "not_loaded";
             _memberToMd.Clear();
             _mdToMember.Clear();
@@ -827,7 +828,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _mdNationToMember.Add(nationKey, unitId);
         }
 
+        private static readonly Dictionary<(string Source, string Md, byte Nation), string> _memberIdentityV422 =
+            new Dictionary<(string, string, byte), string>();
+
         private static string ResolveMemberIdForSelectedUnit(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            if (unit == null) return string.Empty;
+            // CII reads the already resolved NewMonster identity. Repeating NDS
+            // name parsing for every member on every HUD/formation query adds no
+            // new information. Keys change on a nation or unit-type change.
+            var key = (unit.SourceMonsterId, unit.ResolvedMd, unit.Nation);
+            if (_memberIdentityV422.TryGetValue(key, out string member)) return member;
+            member = ResolveMemberIdForSelectedUnitUncachedV422(unit);
+            _memberIdentityV422[key] = member;
+            return member;
+        }
+
+        private static string ResolveMemberIdForSelectedUnitUncachedV422(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
             if (unit == null) return string.Empty;
             string suffix = ExtractNationSuffixFromIdLikeOriginal(unit.SourceMonsterId);

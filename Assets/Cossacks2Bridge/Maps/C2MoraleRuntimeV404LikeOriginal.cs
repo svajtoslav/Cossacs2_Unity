@@ -143,6 +143,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             FormationStates.Clear();
             PanicByUnit.Clear();
             ConfigByMdPath.Clear();
+            UnitConfigs.Clear();
             ConfigByDataRoot.Clear();
             PsixozByMdV404C.Clear();
             StartMoraleByMd.Clear();
@@ -160,6 +161,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal static void ApplyTiringMoraleStepV404LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Fatigue);
             if (unit == null || unit.IsDeadLikeOriginal) return;
             EnsureSoloInitializedV404LikeOriginal(unit);
 
@@ -234,11 +236,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal static void ReleaseUnitLikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
+            if (unit != null) UnitConfigs.Remove(unit);
             if (unit != null) PanicByUnit.Remove(unit);
         }
 
         internal static void TickGlobalV408LikeOriginal(int tick)
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Morale);
             int highWaterMark = C2NeutralPeasantUnitInfoV2LikeOriginal.C2ObjectHighWaterMarkLikeOriginal;
             int stride = GetMoraleSliceStrideLikeOriginal(highWaterMark);
             int processedBrigadeMembers = 0;
@@ -1254,7 +1258,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return no;
         }
 
+        private struct UnitConfigBinding
+        {
+            internal string Source, Md;
+            internal byte Nation;
+            internal MoraleConfig Config;
+        }
+        private static readonly Dictionary<C2NeutralPeasantUnitInfoV2LikeOriginal, UnitConfigBinding> UnitConfigs =
+            new Dictionary<C2NeutralPeasantUnitInfoV2LikeOriginal, UnitConfigBinding>();
+
+        internal static void InvalidateUnitConfigBindings() { UnitConfigs.Clear(); }
+
         private static MoraleConfig ConfigForUnitV404LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            if (unit == null) return ResolveConfigForUnitUncached(unit);
+            if (UnitConfigs.TryGetValue(unit, out UnitConfigBinding entry) &&
+                entry.Source == unit.SourceMonsterId && entry.Md == unit.ResolvedMd && entry.Nation == unit.Nation)
+                return entry.Config;
+            MoraleConfig config = ResolveConfigForUnitUncached(unit);
+            UnitConfigs[unit] = new UnitConfigBinding { Source = unit.SourceMonsterId,
+                Md = unit.ResolvedMd, Nation = unit.Nation, Config = config };
+            return config;
+        }
+
+        private static MoraleConfig ResolveConfigForUnitUncached(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
             string md = MdPathV404LikeOriginal(unit);
             MoraleConfig cfg;

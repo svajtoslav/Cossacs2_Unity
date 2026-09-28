@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -112,7 +112,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public bool UseViewerGpCacheLikeOriginal = true;
         public bool DecodeOnlyVisibleUnitFramesLikeOriginal = true;
         public float ViewerFrameVisibilityMarginPixelsLikeOriginal = 192.0f;
-        [Range(1, 16)] public int MaxViewerTextureUploadsPerFrameLikeOriginal = 2;
+        [HideInInspector] public int MaxViewerTextureUploadsPerFrameLikeOriginal = 2; // Legacy serialized field; current animation frames are never deferred.
         [Header("Cossacks II DrawUnits / Fog Of War")]
         public bool UseOriginalDrawUnitsCellVisibilityLikeOriginal = true;
         public bool UseOriginalFogOfWarLikeOriginal = true;
@@ -177,6 +177,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         [Header("Work / Build Animation Like Original")]
         public bool EnableWorkAnimationLikeOriginal = true;
         public bool WorkAnimationExternalPhaseLikeOriginal = true;
+        // Integration mirrors of GSets.CGame.ArcadeMode/NPlayers/MyNation used only
+        // by NewMon.cpp::ApplyTiring. Retail/default behavior keeps ArcadeMode off.
+        public bool OriginalArcadeModeV431LikeOriginal = false;
+        public int OriginalPlayerCountV431LikeOriginal = 1;
+        public int OriginalMyNationV431LikeOriginal = 0;
         public bool WorkStopsMoveLikeOriginal = true;
         public bool WorkFallbackToStandIfMissingLikeOriginal = true;
         public bool LogWorkAnimationLikeOriginal = false; // V46_LOG_CLEAN
@@ -417,7 +422,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private Camera _cachedBattleCameraLikeOriginal;
         private double _simulationAccumulatorLikeOriginal;
         private const double OriginalSimulationQuantumSecondsLikeOriginal = 0.040;
-        private const int MaxSimulationCatchUpStepsLikeOriginal = 1;
+        private const int MaxSimulationCatchUpStepsLikeOriginal = 8;
         private static readonly ProfilerMarker SimulationMarkerV370 = new ProfilerMarker("C2.Unit.SimulationV370");
         private static readonly ProfilerMarker FormationKeepMarkerV370 = new ProfilerMarker("C2.Unit.FormationKeepV370");
         private static readonly ProfilerMarker OrdersMarkerV370 = new ProfilerMarker("C2.Unit.OrdersV370");
@@ -492,6 +497,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private sealed class ViewerSpriteSurfaceLikeOriginal
         {
             public Texture2D Texture;
+            public bool Dirty;
             public int CursorX;
             public int CursorY;
             public int RowHeight;
@@ -555,6 +561,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _viewerGps.MaxCachedBytes = 64L * 1024L * 1024L;
         }
 
+        private int AccumulateSimulationStepsLikeOriginal(double renderDt)
+        {
+            // Ddex1.cpp::PreDrawGameProcess scales GameSpeed with elapsed time.
+            // This port uses fixed GameSpeed=256 quanta instead, so it must run
+            // every elapsed quantum. One step per render slowed the entire game
+            // below 25 FPS. Bound long editor stalls to the existing 250 ms cap.
+            _simulationAccumulatorLikeOriginal += Math.Max(0.0, Math.Min(0.25, renderDt));
+            int steps = Math.Min(MaxSimulationCatchUpStepsLikeOriginal,
+                (int)Math.Floor((_simulationAccumulatorLikeOriginal + 0.0000001) / OriginalSimulationQuantumSecondsLikeOriginal));
+            _simulationAccumulatorLikeOriginal -= steps * OriginalSimulationQuantumSecondsLikeOriginal;
+            if (_simulationAccumulatorLikeOriginal < 0.0) _simulationAccumulatorLikeOriginal = 0.0;
+            if (steps >= MaxSimulationCatchUpStepsLikeOriginal &&
+                _simulationAccumulatorLikeOriginal > OriginalSimulationQuantumSecondsLikeOriginal)
+                _simulationAccumulatorLikeOriginal = OriginalSimulationQuantumSecondsLikeOriginal;
+            return steps;
+        }
+
         private void Update()
         {
             if (C2BattleTerrainMode.EditorTestModeLikeOriginal && UseOriginalFogOfWarLikeOriginal)
@@ -586,6 +609,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             using var wholeUpdateScopeV371 = WholeUpdateMarkerV371.Auto();
 
+            using var wholeUpdateScopeV371Cost = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Units);
+
             long wholeUpdateStartedLikeOriginal = ProfileUnitRuntimePhasesLikeOriginal
                 ? global::System.Diagnostics.Stopwatch.GetTimestamp()
                 : 0L;
@@ -605,19 +630,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 ? FindBattleCameraLikeOriginal()
                 : null;
 
-            // Cossacks II advances GameSpeed=256 once per 40 ms quantum.  Running
+            // Use the 40 ms Skirmish cadence from the game's EngineSettings.xml.
+            // CII varies GameSpeed; this adapter uses equivalent fixed quanta. Running
             // pathfinding, collision buckets and frame counters on every Unity
             // render frame made the port 2.4x heavier at 60 FPS and changed MD
             // animation timing.  Keep rendering independent, but tick the original
             // simulation at its exact 25 Hz cadence.
-            _simulationAccumulatorLikeOriginal += Math.Max(0.0, Math.Min(0.25, renderDt));
-            int simulationSteps = 0;
-            while (_simulationAccumulatorLikeOriginal + 0.0000001 >= OriginalSimulationQuantumSecondsLikeOriginal &&
-                   simulationSteps < MaxSimulationCatchUpStepsLikeOriginal)
+            int simulationSteps = AccumulateSimulationStepsLikeOriginal(renderDt);
+            for (int simulationStep = 0; simulationStep < simulationSteps; simulationStep++)
             {
                 using var simulationScopeV370 = SimulationMarkerV370.Auto();
-                _simulationAccumulatorLikeOriginal -= OriginalSimulationQuantumSecondsLikeOriginal;
-                simulationSteps++;
+                using var movementFieldsV433 = C2OriginalMovementSystemV425LikeOriginal.PrepareFieldBatchV433();
 
                 long phaseStarted = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
                 // NewMon.cpp::ProcessNewMonsters refreshes MCount/NMsList through
@@ -634,7 +657,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (ProfileUnitRuntimePhasesLikeOriginal)
                         _profileBucketTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - phaseStarted;
 
-                    if (UseOriginalDrawUnitsCellVisibilityLikeOriginal)
                     {
                         phaseStarted = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
                         RebuildOriginalDrawUnitCellsLikeOriginal();
@@ -653,30 +675,44 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (ProfileUnitRuntimePhasesLikeOriginal)
                     _profileBoidsTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - phaseStarted;
 
+                // Motion.cpp/path.cpp keep MFIELDS GLock and UnitsField alive across
+                // simulation quanta. Rebuild the managed mirrors from current unit state
+                // before orders/pathfinding consume them.
+                C2OriginalMovementSystemV425LikeOriginal.RebuildDynamicUnitFieldsV425LikeOriginal();
+
                 phaseStarted = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
                 using (FormationKeepMarkerV370.Auto())
+                using (C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Formation))
                     C2FormationRuntimeV167LikeOriginal.TickFormationKeepPositionsSpeedV358LikeOriginal();
                 if (ProfileUnitRuntimePhasesLikeOriginal)
                     _profileFormationKeepTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - phaseStarted;
 
                 phaseStarted = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
-                using (OrdersMarkerV370.Auto())
-                    C2OriginalOrderChainV352.TickActiveOrdersLikeOriginal();
-                if (ProfileUnitRuntimePhasesLikeOriginal)
-                    _profileOrderTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - phaseStarted;
-
-                phaseStarted = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
                 using (StepAllMarkerV370.Auto())
+                using (C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Movement))
                 {
+                    // LongProcesses: nation 0..7, then each object's LocalOrder
+                    // immediately followed by its MotionStyle. Keeping all orders
+                    // in a backwards pass used stale occupancy for every soldier.
+                    for (int nationV433 = 0; nationV433 < 8; nationV433++)
                     for (int i = 0; i < _units.Count; i++)
                     {
                         C2UnitOriginalRuntime u = _units[i];
-                        if (u == null || u.Md == null) continue;
+                        if (u == null || u.Md == null || (u.Info != null ? u.Info.Nation : 0) != nationV433) continue;
+                        long orderStartV433 = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
+                        C2OriginalOrderChainV352.TickUnitOrderV433LikeOriginal(u.Info);
+                        if (ProfileUnitRuntimePhasesLikeOriginal)
+                            _profileOrderTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - orderStartV433;
                         StepUnitRuntimeLikeOriginal(u, (float)OriginalSimulationQuantumSecondsLikeOriginal);
                     }
                 }
                 if (ProfileUnitRuntimePhasesLikeOriginal)
                     _profileStepTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - phaseStarted;
+
+                // NewMon.cpp::LongProcesses calls PerformPathFiding AFTER all
+                // object motion. A queued CreatePath prepares next tick's DestX.
+                using (C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Paths))
+                    C2OriginalMovementSystemV425LikeOriginal.PerformPathFindingV425LikeOriginal();
 
                 // COSSACKS2/BoidsExtension.cpp::ProcessingGame stops the
                 // neighbor-force path completely at MAXOBJECT >= BoidsOffLimit.
@@ -700,10 +736,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     _profileFogAndTurnsTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - phaseStarted;
                 if (ProfileUnitRuntimePhasesLikeOriginal) _profileSimulationStepsLikeOriginal++;
             }
-            if (simulationSteps >= MaxSimulationCatchUpStepsLikeOriginal &&
-                _simulationAccumulatorLikeOriginal > OriginalSimulationQuantumSecondsLikeOriginal)
-                _simulationAccumulatorLikeOriginal = OriginalSimulationQuantumSecondsLikeOriginal;
-
             // Benchmark-only isolation switch. It is never serialized and stays
             // false in normal play. The scale harness uses it to split simulation
             // cost from Unity's dynamic-mesh and render submission cost.
@@ -713,6 +745,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             long drawListStartedLikeOriginal = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
             Camera drawCameraLikeOriginal;
             using (DrawListMarkerV370.Auto())
+            using (C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.DrawList))
             {
                 drawCameraLikeOriginal = FindBattleCameraLikeOriginal();
                 if (UseOriginalDrawUnitsCellVisibilityLikeOriginal)
@@ -743,6 +776,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Quaternion frameTransformRotation = frameTransformCamera != null
                 ? frameTransformCamera.transform.rotation : Quaternion.identity;
             using (RenderVisibleMarkerV370.Auto())
+            using (C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Sprites))
             {
                 for (int i = 0; i < renderUnitCountLikeOriginal; i++)
                 {
@@ -754,7 +788,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (renderRelevant)
                     {
                         _visualRenderRelevantV373LikeOriginal++;
-                        if (u.FrameUploadPendingLikeOriginal && !SkipUnitFrameApplyForPerformanceDiagnosisV373)
+                        // MiniMap4X.cpp::DrawSpriteUnit advances OctantInfo on render
+                        // frames, including frames without a simulation/animation tick.
+                        bool settlingDirection = u.OctantInfo != 0xFF && (u.OctantInfo >> 4) != 0;
+                        if ((u.FrameUploadPendingLikeOriginal || settlingDirection) && !SkipUnitFrameApplyForPerformanceDiagnosisV373)
                             u.FrameUploadPendingLikeOriginal = !ApplyUnitFrameLikeOriginal(u, "draw_units_visible");
                         if (!SkipUnitRenderTransformForPerformanceDiagnosisV373)
                         {
@@ -773,6 +810,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!SkipGpsBatchBuildForPerformanceDiagnosisV373)
             {
                 using (BatchBuildMarkerV370.Auto())
+                using (C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Batches))
                     RebuildOriginalGpsUnitBatchesLikeOriginal(renderUnitCountLikeOriginal);
             }
             if (ProfileUnitRuntimePhasesLikeOriginal)
@@ -1160,6 +1198,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             u.MoveTargetRealXLikeOriginal = probe.RealX;
             u.MoveTargetRealYLikeOriginal = probe.RealY;
             u.OriginalMotionDistLikeOriginal = md != null && md.MotionDist > 0 ? md.MotionDist : Mathf.RoundToInt(OriginalMotionDefaultSpeedOriginalPixelsPerSecond);
+            u.OriginalGroupSpeedV431LikeOriginal = u.OriginalMotionDistLikeOriginal;
             u.OriginalMoreCharacterSpeedPercentLikeOriginal = md != null && md.MoreCharacterSpeedPercent > 0 ? md.MoreCharacterSpeedPercent : 100;
             u.BaseMoveSpeedOriginalPixelsPerSecondLikeOriginal = ResolveMdMoveSpeedOriginalPixelsPerSecondLikeOriginal(md);
             u.MoveSpeedOriginalPixelsPerSecondLikeOriginal = u.BaseMoveSpeedOriginalPixelsPerSecondLikeOriginal;
@@ -1656,6 +1695,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int? directRealY = null)
         {
             using var profileScope = SpawnMarkerLikeOriginal.Auto();
+            using var profileScopeCost = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Spawn);
             bool profile = ProfileUnitRuntimePhasesLikeOriginal;
             long started = profile ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0;
             try
@@ -1687,6 +1727,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             spawned = null;
             audit = string.Empty;
+            // Map Group[] must be loaded before simulation producers create units.
+            // Otherwise InitializeAllUnits releases the first newborns while DIP
+            // still retains their identities and waits forever for their exit.
+            if (!_started || !_initialized || _busy)
+            { audit = "unit_map_initialization_pending"; return false; }
             if (item == null) { audit = "item=<null>"; return false; }
             if (battle == null) battle = UnityEngine.Object.FindObjectOfType<C2BattleTerrainMode>();
             if (battle == null) { audit = "battle=<null>"; return false; }
@@ -1766,6 +1811,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                     spawnRealX = Mathf.RoundToInt(adjustedBornPathLikeOriginal[0].x);
                     spawnRealY = Mathf.RoundToInt(adjustedBornPathLikeOriginal[0].y);
+
+                    // COSSACKS2/Build.cpp::ProduceObjLink:
+                    //   CreateNewMonsterAt(..., nc>1 ? GetDir(PTX[1]-PTX[0], PTY[1]-PTY[0]) : -1);
+                    //   OB->RealDir = GetDir(PTX[1]-PTX[0], PTY[1]-PTY[0]);
+                    //   OB->GraphDir = OB->RealDir;
+                    // The old Unity port created the first visible frame with building.RealDir
+                    // and corrected it only when the first precise movement tick started.
+                    // That produced the visible sideways-spawn -> snap-turn regression.
+                    if (bornPath.Length > 1)
+                    {
+                        probe.RealDir = C2OriginalMovementMathV352.GetDir(
+                            Mathf.RoundToInt(bornPath[1].x - bornPath[0].x),
+                            Mathf.RoundToInt(bornPath[1].y - bornPath[0].y));
+                    }
+
                     bornExitPathLikeOriginal = adjustedBornPathLikeOriginal;
                     // FIX19:
                     // Pure original production exit: raw BORNPOINTS[0..N] only.
@@ -1851,6 +1911,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 spawned.RealY = spawnRealY;
                 spawned.RealXFloat = spawnRealX;
                 spawned.RealYFloat = spawnRealY;
+                C2LiveUnitCellIndex.PositionChanged(spawned);
                 // V277: MapPixelToWorld is map/pipeline position scale only.
                 // It is not the visual sprite/frame scale. Never inherit building visual/legacy scale into unit size.
                 float inheritedMapPixelToWorld = building != null ? building.MapPixelToWorld : spawned.MapPixelToWorld;
@@ -1932,7 +1993,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         " preciseLastIndexWillBe=" + (hasBornExitPathLikeOriginal && bornExitPathLikeOriginal != null ? Mathf.Max(0, bornExitPathLikeOriginal.Length - 2) : -1).ToString(CultureInfo.InvariantCulture) +
                         " postBornOrder=" + (hasRallyPointLikeOriginal ? "rally" : (hasBornExitPathLikeOriginal ? "original_lastBorn_random_4096" : "none")) +
                         " runtimePath=" + FormatRealPathLikeOriginal(runtimePathLikeOriginal));
-                    SetRuntimeMovePathRealLikeOriginal(u, runtimePathLikeOriginal, C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal, false, 0, hasBornExitPathLikeOriginal, "production_bornpoints_exit", false);
+                    C2OriginalOrderChainV352.SubmitBornExitV433LikeOriginal(u.Info, runtimePathLikeOriginal,
+                        hasBornExitPathLikeOriginal ? bornExitPathLikeOriginal.Length - 1 : 0);
                     if (hasBornExitPathLikeOriginal && u.Info != null)
                     {
                         // V202: Gate LINESORT is only for the unit exiting THIS exact completed building.
@@ -1992,6 +2054,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             info.OctantInfo = (byte)(u.OctantInfo & 255);
             info.RealXFloat = info.RealX;
             info.RealYFloat = info.RealY;
+            C2LiveUnitCellIndex.PositionChanged(info);
             info.RealDirPrecise = u.RealDirPrecise & 255;
             info.SortKey = SortingOrderBase + u.UnitOrder;
             info.FrameCount = CountTotalFrames(u.Md);
@@ -2024,108 +2087,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             info.VisualAudit = "unit_original_runtime_viewer_gp_cache";
         }
 
-        private void StepUnitRuntimeLikeOriginal(C2UnitOriginalRuntime u, float dt)
-        {
-            if (u == null || u.Md == null) return;
-
-            long tiringStarted = ProfileUnitRuntimePhasesLikeOriginal
-                ? global::System.Diagnostics.Stopwatch.GetTimestamp()
-                : 0L;
-            ApplyTiringLikeOriginal(u, dt);
-            if (ProfileUnitRuntimePhasesLikeOriginal)
-                _profileTiringTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - tiringStarted;
-
-            AnimModel beforeAnim = CurrentAnim(u);
-            int beforeFrame = beforeAnim != null ? FixedFrameIndexLikeOriginal(u, beforeAnim) : 0;
-            bool frameFinishedBefore = u.FrameFinishedLikeOriginal;
-
-            long stateStarted = ProfileUnitRuntimePhasesLikeOriginal
-                ? global::System.Diagnostics.Stopwatch.GetTimestamp()
-                : 0L;
-            UpdateOriginalObjectRuntimeStateLikeOriginal(u, dt);
-            if (ProfileUnitRuntimePhasesLikeOriginal)
-                _profileStateTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - stateStarted;
-
-            long animationStarted = ProfileUnitRuntimePhasesLikeOriginal
-                ? global::System.Diagnostics.Stopwatch.GetTimestamp()
-                : 0L;
-            AnimModel anim = CurrentAnim(u);
-            if (anim == null || anim.Frames.Count == 0)
-            {
-                if (ProfileUnitRuntimePhasesLikeOriginal)
-                    _profileAnimationTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - animationStarted;
-                return;
-            }
-
-            if (UseOriginalMotionFramesFromPath && u.State == C2UnitOriginalState.Motion)
-            {
-                ApplyMotionFrameFromPathLikeOriginal(u, anim);
-            }
-            else if (WorkAnimationExternalPhaseLikeOriginal && u.State == C2UnitOriginalState.Work)
-            {
-                // BuildObjLink in the original advances building progress on the worker's work-cycle boundary.
-                // In Unity the construction order owns _workPhase and calls SetWorkFramePhaseLikeOriginal(),
-                // so the runtime must not also advance #WORK by generic FPS or frames will drift/desync.
-                u.FrameFinishedLikeOriginal = false;
-            }
-            else
-            {
-                // Keep the original 8.8 fixed-point frame counter without
-                // rounding every Unity render frame independently.  The old
-                // RoundToInt/+1 path accumulated a visible drift and could
-                // advance an MD animation even when dt was zero.
-                double exactDelta =
-                    Math.Max(0.01, u.AnimFps) * 256.0 * Math.Max(0.0, dt) +
-                    u.AnimFrameLongRemainderLikeOriginal;
-                int delta = (int)Math.Floor(exactDelta);
-                u.AnimFrameLongRemainderLikeOriginal = exactDelta - delta;
-
-                int maxLong = Math.Max(1, anim.Frames.Count) << 8;
-                if (anim.Frames.Count <= 1)
-                {
-                    u.CurrentFrameLong = 0;
-                    u.FrameFinishedLikeOriginal = true;
-                }
-                else
-                {
-                    u.CurrentFrameLong += delta;
-                    if (u.CurrentFrameLong >= maxLong)
-                    {
-                        u.FrameFinishedLikeOriginal = true;
-                        if (ShouldLoopAnimationLikeOriginal(u, anim))
-                            u.CurrentFrameLong %= maxLong;
-                        else
-                            u.CurrentFrameLong = maxLong - 1;
-                    }
-                    else
-                    {
-                        u.FrameFinishedLikeOriginal = false;
-                    }
-                }
-            }
-
-            if (u.AnimState != null)
-            {
-                u.AnimState.CurrentFrameLong = u.CurrentFrameLong;
-                u.AnimState.FrameFinished = u.FrameFinishedLikeOriginal;
-            }
-
-            int afterFrame = FixedFrameIndexLikeOriginal(u, anim);
-            if (ProfileUnitRuntimePhasesLikeOriginal)
-                _profileAnimationTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - animationStarted;
-            bool frameChanged = afterFrame != beforeFrame ||
-                                frameFinishedBefore != u.FrameFinishedLikeOriginal ||
-                                string.IsNullOrEmpty(u.LastFrameKey);
-            if (frameChanged || u.FrameUploadPendingLikeOriginal)
-                // COSSACKS2 advances CurrentFrameLong in simulation, but resolves
-                // and submits the sprite later from MiniMap4X.cpp::DrawUnits.
-                // Keep the stages separate here as well.  If a slow render frame
-                // contains several 40 ms simulation quanta, only the final frame
-                // can be displayed; uploading every intermediate frame was pure
-                // work and multiplied the slowdown under load.
-                u.FrameUploadPendingLikeOriginal = true;
-        }
-
+        // V427: StepUnitRuntimeLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
         private bool ShouldMaterializeUnitFrameLikeOriginal(C2UnitOriginalRuntime u)
         {
             if (!DecodeOnlyVisibleUnitFramesLikeOriginal) return true;
@@ -3373,1046 +3335,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return GetInterpFowLikeOriginal(originalPixelX, (originalPixelY >> 1) - z) >= 850;
         }
 
-        private static void ApplyTiringLikeOriginal(C2UnitOriginalRuntime u, float dt)
-        {
-            if (u == null || u.Info == null || u.Md == null || dt <= 0.0f) return;
-            C2MoraleRuntimeV404LikeOriginal.TickPanicV404LikeOriginal(u.Info);
-            if (!C2MoraleRuntimeV404LikeOriginal.AllowTiringLikeOriginal(u.Info)) return;
-            // COSSACKS2 calls APPLY_TIRING from its active motion handlers (single-step
-            // and flying). The Unity runtime already invokes this once per active unit
-            // simulation quantum, so do not reinterpret fatigue as brigade-only storage.
-            if (u.CurrentAnimIndex < 0 || u.CurrentAnimIndex >= u.Md.Animations.Count) return;
-            AnimModel anim = u.Md.Animations[u.CurrentAnimIndex];
-            if (anim == null) return;
-
-            // NewMon.cpp::ApplyTiring, GameSpeed=256.  Negative animation tiring is
-            // multiplied by the current road-zone tiring only for BRIGADEORDER_GOONROAD.
-            int dtiring = anim.TiringChange;
-            if (dtiring < 0)
-            {
-                int roadTiring = C2FormationRuntimeV167LikeOriginal
-                    .GetRoadTiringMultiplierV403ELikeOriginal(u.Info);
-                dtiring = (dtiring * roadTiring) >> 8;
-            }
-
-            int tiring = Mathf.Clamp(u.Info.GetTiredLikeOriginal, 0, 100000);
-            tiring += (dtiring * OriginalGameSpeed256LikeOriginal) >> 8;
-            tiring = Mathf.Clamp(tiring, 0, 100000);
-            u.Info.GetTiredLikeOriginal = tiring;
-            u.Info.TiringRemainingPercentLikeOriginal = tiring / 1000.0f;
-
-            C2FormationRuntimeV167LikeOriginal.RefreshFormationTiringStateV403ELikeOriginal(u.Info);
-            C2MoraleRuntimeV404LikeOriginal.ApplyTiringMoraleStepV404LikeOriginal(u.Info);
-        }
-
-        private void UpdateOriginalObjectRuntimeStateLikeOriginal(C2UnitOriginalRuntime u, float dt)
-        {
-            if (u == null || u.Md == null) return;
-            AnimModel anim = CurrentAnim(u);
-            if (u.State == C2UnitOriginalState.Death)
-            {
-                if (anim != null && u.FrameFinishedLikeOriginal &&
-                    !anim.Name.StartsWith("#DEATHLIE", StringComparison.OrdinalIgnoreCase))
-                {
-                    int lie = ResolveAnimationIndexLikeOriginal(u.Md, "#DEATHLIE1");
-                    if (lie < 0) lie = ResolveAnimationIndexLikeOriginal(u.Md, "#DEATHLIE2");
-                    if (lie >= 0)
-                        SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Death, lie, true, "death_finished_lie_pose");
-                }
-                return;
-            }
-
-            // NewMon.cpp slow-recharge path uses anm_Attack+3 (#ATTACK3).
-            // `delay` is measured in 25 Hz game ticks and is consumed in
-            // complete reload-animation chunks, not in milliseconds.
-            if (u.State == C2UnitOriginalState.Recharge)
-            {
-                if (anim == null)
-                {
-                    // Keep the queued source delay. A missing clip must not magically
-                    // make the firearm ready again; combat can fall back to a timed gate.
-                    return;
-                }
-                if (!u.FrameFinishedLikeOriginal)
-                    return;
-
-                int reloadTicks = Math.Max(1, anim.Frames.Count);
-                // NewMon.cpp, SlowRecharge branch:
-                //   if(delay > NFrames) { delay -= NFrames; SetZeroFrame(); return; }
-                //   delay = 0;
-                // The final ATTACK3 cycle is the one that has just finished; when
-                // the remaining delay fits inside that cycle the original does NOT
-                // start one extra reload animation.
-                if (u.RechargeTicksRemainingLikeOriginal > reloadTicks)
-                {
-                    u.RechargeTicksRemainingLikeOriginal -= reloadTicks;
-                    SelectAnimationStateLikeOriginal(
-                        u, C2UnitOriginalState.Recharge, u.CurrentAnimIndex, true,
-                        "slow_recharge_cycle");
-                }
-                else
-                {
-                    u.RechargeTicksRemainingLikeOriginal = 0;
-                    int stand = ResolveRuntimeStandAnimationIndexV322LikeOriginal(u);
-                    if (stand < 0)
-                        stand = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
-                    if (stand >= 0)
-                        SelectAnimationStateLikeOriginal(
-                            u, C2UnitOriginalState.Stand, stand, true,
-                            "slow_recharge_finished");
-                    ClearRuntimeSlowRechargeDelayLikeOriginal(u);
-                }
-                return;
-            }
-
-            // NewMon.cpp preserves delay/MaxDelay across movement and retargeting.
-            // Once an interrupted musket becomes idle again it resumes ATTACK3
-            // automatically before another firearm shot can be issued.
-            if (u.RechargeTicksRemainingLikeOriginal > 0 &&
-                u.RechargeAttackModeLikeOriginal == 1 &&
-                u.State == C2UnitOriginalState.Stand &&
-                !u.HasMoveTargetLikeOriginal &&
-                !u.MoveDeferredUntilNeutralStandLikeOriginal)
-            {
-                if (BeginRuntimeSlowRechargeLikeOriginal(u, 0))
-                    return;
-            }
-
-            // NewMon.cpp::TryToMove never starts a motion frame while
-            // LocalNewState != NewState.  TryToStand must finish UATTACK/TRANSxy
-            // first.  Keep the destination queued until that transition reaches
-            // its final stand frame instead of letting the unit slide immediately.
-            if (u.MoveDeferredUntilNeutralStandLikeOriginal)
-            {
-                AnimModel deferredAnim = CurrentAnim(u);
-                bool mayBreakNow = deferredAnim == null ||
-                                   u.FrameFinishedLikeOriginal ||
-                                   deferredAnim.CanBeBroken ||
-                                   deferredAnim.MoveBreak;
-                if (u.State != C2UnitOriginalState.Transition && mayBreakNow)
-                {
-                    u.MoveDeferredUntilNeutralStandLikeOriginal = false;
-                    StartRuntimeMoveTargetNowLikeOriginal(u, "move_after_posture_transition");
-                    anim = CurrentAnim(u);
-                }
-            }
-
-            if (u.HasMoveTargetLikeOriginal && u.ActiveLikeOriginal)
-            {
-                float dx = u.MoveTargetRealXLikeOriginal - u.RuntimeRealXLikeOriginal;
-                float dy = u.MoveTargetRealYLikeOriginal - u.RuntimeRealYLikeOriginal;
-                float distReal = Mathf.Sqrt(dx * dx + dy * dy);
-                float stopReal = Mathf.Max(0.01f, OriginalMotionMinStopDistanceOriginalPixels) * 16.0f;
-
-                if (distReal > stopReal)
-                {
-                    if (ProfileUnitRuntimePhasesLikeOriginal) _profileMovingCallsLikeOriginal++;
-
-                    // NewMon.cpp switch(MotionStyle) case SINGLESTEP ->
-                    // MotionHandlerForSingleStepObjects. This handler changes RealX/RealY
-                    // directly once per exact 40 ms simulation quantum; it does NOT call
-                    // TryToMove/CheckPosition or the Unity per-frame motion-field slider.
-                    if (IsMdSingleStepPassThroughLikeOriginal(u))
-                    {
-                        AdvanceSingleStepMotionV352LikeOriginal(u, dx, dy, distReal);
-                        return;
-                    }
-                    float speedOriginalPx = ResolveRuntimeMoveSpeedOriginalPixelsPerSecondLikeOriginal(u, u.MoveSpeedOriginalPixelsPerSecondLikeOriginal);
-                    // NewMon.cpp::TryToMove applies MoreCharacter::Rate[NewState-1]
-                    // after the base/group speed. SINGLESTEP has its own exact branch
-                    // below; ordinary motion needs the same one-time state multiplier.
-                    if (u.PostureWeaponTypeLikeOriginal >= 0 && u.Md != null &&
-                        u.Md.Rate != null && u.PostureWeaponTypeLikeOriginal < u.Md.Rate.Length)
-                    {
-                        int rateV405B = u.Md.Rate[u.PostureWeaponTypeLikeOriginal];
-                        speedOriginalPx = Mathf.Max(1.0f, speedOriginalPx * rateV405B / 16.0f);
-                    }
-
-                    float speedRealPerSecond = Mathf.Max(1.0f, speedOriginalPx * 16.0f);
-                    float stepReal = Mathf.Min(distReal, speedRealPerSecond * Mathf.Max(0f, dt));
-
-                    float nx = dx / Mathf.Max(0.0001f, distReal);
-                    float ny = dy / Mathf.Max(0.0001f, distReal);
-                    long movingPhaseStarted = ProfileUnitRuntimePhasesLikeOriginal
-                        ? global::System.Diagnostics.Stopwatch.GetTimestamp()
-                        : 0L;
-                    ApplyOriginalSingleStepBoidsSteeringLikeOriginal(u, ref nx, ref ny, ref stepReal);
-                    stepReal = Mathf.Min(distReal, stepReal);
-                    if (ProfileUnitRuntimePhasesLikeOriginal)
-                        _profileBoidsTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - movingPhaseStarted;
-
-                    float beforeRealX;
-                    float beforeRealY;
-                    movingPhaseStarted = ProfileUnitRuntimePhasesLikeOriginal
-                        ? global::System.Diagnostics.Stopwatch.GetTimestamp()
-                        : 0L;
-                    bool movedByMotionField = TryAdvanceRuntimeRealWithOriginalMotionFieldLikeOriginal(u, nx, ny, stepReal, out beforeRealX, out beforeRealY);
-                    if (ProfileUnitRuntimePhasesLikeOriginal)
-                        _profileMotionFieldTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - movingPhaseStarted;
-
-                    byte realDir = DirectionFromRealDeltaLikeOriginal(nx, ny);
-                    SetRuntimeFacingLikeOriginal(u, realDir);
-
-                    if (!movedByMotionField)
-                    {
-                        if (ProfileUnitRuntimePhasesLikeOriginal)
-                        {
-                            _profileBlockedMoveCallsLikeOriginal++;
-                            movingPhaseStarted = global::System.Diagnostics.Stopwatch.GetTimestamp();
-                        }
-                        // SINGLESTEP only fails on terrain/building bars. Other
-                        // units are a steering influence and never a hard bar.
-                        if (!IsMdSingleStepPassThroughLikeOriginal(u))
-                        {
-                            bool yielded = TryResolveMovingUnitBlockLikeOriginal(
-                                u,
-                                beforeRealX + nx * stepReal,
-                                beforeRealY + ny * stepReal,
-                                nx,
-                                ny);
-                            if (!yielded)
-                                TryRequestIdleBlockerYieldAsideLikeOriginal(u, beforeRealX + nx * stepReal, beforeRealY + ny * stepReal, nx, ny);
-                        }
-
-                        TryRefreshBlockedRouteLikeOriginal(u);
-                        // Original Motion.cpp refuses a blocked step; do not let unit feet enter building bars.
-                        // Keep target and animation state, next tick may slide or path may be refreshed by caller.
-                        int blockedMotion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-                        if (blockedMotion >= 0 && u.State != C2UnitOriginalState.Motion)
-                            SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Motion, blockedMotion, false, "move_blocked_wait_original_motionfield");
-                        if (ProfileUnitRuntimePhasesLikeOriginal)
-                            _profileBlockedMoveTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - movingPhaseStarted;
-                        return;
-                    }
-
-                    long worldSyncStarted = ProfileUnitRuntimePhasesLikeOriginal
-                        ? global::System.Diagnostics.Stopwatch.GetTimestamp()
-                        : 0L;
-                    if (UseContinuousWorldDeltaForOriginalMotion)
-                        UpdateRuntimeWorldAndRealContinuousLikeOriginal(u, beforeRealX, beforeRealY);
-                    else
-                        UpdateRuntimeWorldAndRealLikeOriginal(u);
-                    if (ProfileUnitRuntimePhasesLikeOriginal)
-                        _profileWorldSyncTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - worldSyncStarted;
-
-                    int motion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-                    if (motion >= 0 && u.State != C2UnitOriginalState.Motion)
-                        SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Motion, motion, false, "move_start_path");
-
-                    if (LogOriginalMotionOnce && _originalMotionLogs < 10)
-                    {
-                        _originalMotionLogs++;
-                        AnimModel ma = CurrentAnim(u);
-                        int frames = ma != null ? ma.Frames.Count : 0;
-                        Debug.Log(LogPrefix + " ORIGINAL_MOTION_PATH unit='" + (u.Probe != null ? u.Probe.MonsterId : "") + "'" +
-                                  " speedPxSec=" + speedOriginalPx.ToString("0.###", CultureInfo.InvariantCulture) +
-                                  " speedRealSec=" + speedRealPerSecond.ToString("0.###", CultureInfo.InvariantCulture) +
-                                  " stepReal=" + stepReal.ToString("0.###", CultureInfo.InvariantCulture) +
-                                  " totalPath=" + u.TotalPathLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) +
-                                  " rInFrame=" + GetMotionRInFrameLikeOriginal(u, ma).ToString(CultureInfo.InvariantCulture) +
-                                  " continuousWorldDelta=" + UseContinuousWorldDeltaForOriginalMotion +
-                                  " frames=" + frames.ToString(CultureInfo.InvariantCulture) +
-                                  " real=(" + u.RuntimeRealXLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + "," + u.RuntimeRealYLikeOriginal.ToString("0.###", CultureInfo.InvariantCulture) + ")");
-                    }
-                    return;
-                }
-
-                float finishBeforeRealX = u.RuntimeRealXLikeOriginal;
-                float finishBeforeRealY = u.RuntimeRealYLikeOriginal;
-
-                // FIX7:
-                // NewMonsterPreciseSendTo under OrderedUnlimitedMotion must really finish the
-                // current BORNPOINTS waypoint.  FIX6 still used CheckBar on the final snap;
-                // for EngKaz this meant: the unit came within stopReal of the last exit point,
-                // CheckBar said "still inside/too close to building radius", the code did not
-                // copy RuntimeRealX/Y to the target, but still advanced/finished the path.
-                // Visually the unit stopped short inside the barracks exit.
-                //
-                // Original Build.cpp path:
-                //   SetOrderedUnlimitedMotion(0);
-                //   NewMonsterPreciseSendTo(BORNPOINTS[1..N], 16, 2+128);
-                // so BORNPOINTS waypoints are allowed to complete even if MFIELDS/CheckBar
-                // would reject the bar.  Normal post-born rally remains CheckBar-routed.
-                bool preciseBornWaypointLikeOriginal =
-                    u.PreciseBornPathLikeOriginal &&
-                    (u.MovePathRealWaypointsLikeOriginal == null ||
-                     u.PreciseBornPathLastWaypointIndexLikeOriginal < 0 ||
-                     u.MovePathIndexLikeOriginal <= u.PreciseBornPathLastWaypointIndexLikeOriginal);
-
-                bool canFinishAtTargetLikeOriginal =
-                    preciseBornWaypointLikeOriginal ||
-                    CanRuntimeUnitFinishTargetRealLikeOriginal(u, u.MoveTargetRealXLikeOriginal, u.MoveTargetRealYLikeOriginal);
-
-                if (canFinishAtTargetLikeOriginal)
-                {
-                    u.RuntimeRealXLikeOriginal = u.MoveTargetRealXLikeOriginal;
-                    u.RuntimeRealYLikeOriginal = u.MoveTargetRealYLikeOriginal;
-                    if (UseContinuousWorldDeltaForOriginalMotion)
-                        UpdateRuntimeWorldAndRealContinuousLikeOriginal(u, finishBeforeRealX, finishBeforeRealY);
-                    else
-                        UpdateRuntimeWorldAndRealLikeOriginal(u);
-                }
-                else
-                {
-                    if (TryRetargetBlockedFinishToFreePositionLikeOriginal(u))
-                        return;
-
-                    EmitBornStopAuditLikeOriginal(u, "blocked_finish_checkbar", "normal waypoint refused by CheckBar; target kept alive");
-                    // Normal movement must not silently consume a blocked target/waypoint.
-                    // Keep the target alive so the unit can retry/slide/reroute next tick.
-                    int blockedMotion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-                    if (blockedMotion >= 0 && u.State != C2UnitOriginalState.Motion)
-                        SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Motion, blockedMotion, false, "move_finish_blocked_wait_original_checkbar");
-                    return;
-                }
-
-                EmitBornExitAuditLikeOriginal(u, preciseBornWaypointLikeOriginal ? "waypoint_finish_precise" : "waypoint_finish_normal", "canFinish=" + canFinishAtTargetLikeOriginal);
-                if (AdvanceRuntimeMoveWaypointLikeOriginal(u))
-                    return;
-
-                if (TryStartGotoFinePositionAfterProductionLikeOriginal(u, "move_finished_after_production"))
-                    return;
-
-                EmitBornStopAuditLikeOriginal(u, "move_finished", "all waypoints consumed; selecting stand");
-                // Groups.cpp::PositionOrder::SendToPosition appends RotUnit(...,2)
-                // after SmartSend for a directed RMB command.  Do not snap direction:
-                // execute Brigade.cpp::RotUnit/RotUnitLink until that order completes.
-                if (u.HasFinalFacingDirLikeOriginal &&
-                    !AdvanceFinalRotUnitV352LikeOriginal(u, u.FinalFacingDirLikeOriginal))
-                    return;
-
-                u.HasMoveTargetLikeOriginal = false;
-                u.HasFinalFacingDirLikeOriginal = false;
-                u.FinalRotUnitActiveV352LikeOriginal = false;
-                u.MovePreservesCombatPostureV405BLikeOriginal = false;
-                if (u.Info != null)
-                    u.Info.C2NeutralPeasantUnitsV15SetMovingFlagLikeOriginal(false, false);
-
-                int stand = ResolveRuntimeStandAnimationIndexV322LikeOriginal(u);
-                if (stand < 0) stand = ResolveAnimationIndexLikeOriginal(u.Md, RestAnimationName);
-                if (stand >= 0 && u.State != C2UnitOriginalState.Stand)
-                    SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Stand, stand, true, "move_finished");
-
-                int postureAfterMove = u.PostureAfterMoveLikeOriginal;
-                u.PostureAfterMoveLikeOriginal = -1;
-                if (postureAfterMove >= 0)
-                {
-                    SetRuntimeCombatPostureV322LikeOriginal(u, postureAfterMove, true);
-                    return;
-                }
-            }
-
-            if (u.State == C2UnitOriginalState.Transition && anim != null && u.FrameFinishedLikeOriginal)
-            {
-                if (u.PendingPostureAfterNeutralLikeOriginal >= 0)
-                {
-                    int requested = u.PendingPostureAfterNeutralLikeOriginal;
-                    int requestedStand = u.PendingStandAnimIndexLikeOriginal;
-                    u.PendingPostureAfterNeutralLikeOriginal = -1;
-                    if (TryStartPostureTransitionV326LikeOriginal(
-                            u, -1, requested, true, requestedStand,
-                            "posture_neutral_to_requested"))
-                        return;
-                }
-                int stand = u.PendingStandAnimIndexLikeOriginal;
-                u.PendingStandAnimIndexLikeOriginal = -1;
-                if (stand < 0)
-                    stand = ResolveRuntimeStandAnimationIndexV322LikeOriginal(u);
-                if (stand < 0)
-                    stand = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
-                if (stand >= 0)
-                    SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Stand, stand, true, "posture_transition_finished");
-                if (u.MoveDeferredUntilNeutralStandLikeOriginal)
-                {
-                    u.MoveDeferredUntilNeutralStandLikeOriginal = false;
-                    StartRuntimeMoveTargetNowLikeOriginal(u, "move_after_posture_transition");
-                }
-                return;
-            }
-
-            if (u.State == C2UnitOriginalState.Rest && anim != null && u.FrameFinishedLikeOriginal)
-            {
-                int stand = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
-                if (stand >= 0) SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Stand, stand, true, "rest_finished");
-                return;
-            }
-
-            if (u.State == C2UnitOriginalState.Attack && anim != null && u.FrameFinishedLikeOriginal)
-            {
-                int stand = ResolveRuntimeStandAnimationIndexV322LikeOriginal(u);
-                if (stand < 0) stand = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
-                if (stand >= 0)
-                    SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Stand, stand, true, "attack_finished");
-                if (u.Info != null)
-                    C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
-                        u.Info, C2UnitOrderKindV325LikeOriginal.Stand, "attack_finished", string.Empty);
-                return;
-            }
-
-            if (u.State == C2UnitOriginalState.Stand &&
-                u.PostureWeaponTypeLikeOriginal < 0 &&
-                EnableOriginalRestRandomLikeOriginal &&
-                Time.unscaledTime >= u.NextRestCheckTime)
-            {
-                int rest = ResolveAnimationIndexLikeOriginal(u.Md, RestAnimationName);
-                bool canRest = rest >= 0 && u.Md.Animations[rest].Frames.Count > 1;
-                float roll = StableUnitRandom01LikeOriginal(u.Probe, 97 + u.RestRollCounter++);
-                u.NextRestCheckTime = Time.unscaledTime + StableUnitRandomRangeLikeOriginal(u.Probe, 191 + u.RestRollCounter, RestMinDelaySeconds, RestMaxDelaySeconds);
-                if (canRest && roll <= Mathf.Clamp01(RestChancePerCheck))
-                {
-                    SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Rest, rest, true, "rest_random");
-                    return;
-                }
-            }
-        }
-
-        internal void SetRuntimeMoveDestinationWorldLikeOriginal(C2UnitOriginalRuntime u, Vector3 targetWorld, float speedOriginalPixelsPerSecond)
-        {
-            if (u == null || !u.ActiveLikeOriginal) return;
-            if (u.State == C2UnitOriginalState.Death) return;
-
-            C2BattleTerrainMode mode = u.Info != null ? u.Info.OwnerMode : _battle;
-            float px;
-            float py;
-            if (mode != null && mode.C2NeutralPeasantUnitsV2WorldToOriginalPixelV15LikeOriginal(targetWorld, out px, out py))
-            {
-                SetRuntimeMoveDestinationRealLikeOriginal(u, px * 16.0f, py * 16.0f, speedOriginalPixelsPerSecond, false, 0);
-                return;
-            }
-
-            targetWorld.y = u.WorldPosition.y;
-            u.MoveTargetWorldLikeOriginal = targetWorld;
-            u.MoveSpeedOriginalPixelsPerSecondLikeOriginal = ResolveRuntimeMoveSpeedOriginalPixelsPerSecondLikeOriginal(u, speedOriginalPixelsPerSecond);
-            u.HasMoveTargetLikeOriginal = true;
-            u.BlockedFinishRetargetAttemptLikeOriginal = 0;
-            if (u.Info != null) u.Info.C2NeutralPeasantUnitsV15SetMovingFlagLikeOriginal(true, false);
-        }
-
-        internal void SetRuntimeMoveDestinationRealLikeOriginal(C2UnitOriginalRuntime u, float destRealX, float destRealY, float speedOriginalPixelsPerSecond, bool hasFinalFacingDir, byte finalFacingDir)
-        {
-            SetRuntimeMoveDestinationRealInternalLikeOriginal(u, destRealX, destRealY, speedOriginalPixelsPerSecond, hasFinalFacingDir, finalFacingDir, true, false, "direct_order");
-        }
-
-        internal void SetRuntimeValidatedDirectMoveDestinationRealLikeOriginal(
-            C2UnitOriginalRuntime u,
-            float destRealX,
-            float destRealY,
-            float speedOriginalPixelsPerSecond,
-            bool hasFinalFacingDir,
-            byte finalFacingDir,
-            bool preciseBornPath,
-            string source)
-        {
-            SetRuntimeMoveDestinationRealInternalLikeOriginal(
-                u,
-                destRealX,
-                destRealY,
-                speedOriginalPixelsPerSecond,
-                hasFinalFacingDir,
-                finalFacingDir,
-                false,
-                preciseBornPath,
-                source ?? "validated_direct_order");
-        }
-
-        internal void SetRuntimeMovePathRealLikeOriginal(C2UnitOriginalRuntime u, Vector2[] pathReal, float speedOriginalPixelsPerSecond, bool hasFinalFacingDir, byte finalFacingDir, bool preciseBornPath, string source, bool finalAllowsUnitOverlapFinish = false, bool terrainPathValidated = false)
-        {
-            if (u == null) return;
-            if (u.State == C2UnitOriginalState.Death) return;
-
-            EnsureRuntimeRealFromInfoLikeOriginal(u);
-
-            if (pathReal == null || pathReal.Length == 0)
-                return;
-
-            if (!preciseBornPath && !terrainPathValidated && RouteUnitMoveThroughBuildingLockPointsLikeOriginal)
-            {
-                Vector2 from = new Vector2(u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal);
-                int radius = ResolveRuntimeUnitRadiusCellsLikeOriginal(u);
-                for (int i = 0; i < pathReal.Length; i++)
-                {
-                    Vector2 to = pathReal[i];
-                    if (!C2BuildingRuntimeInfoV247LikeOriginal.CanTravelStraightRealV247LikeOriginal(from.x, from.y, to.x, to.y, radius))
-                    {
-                        Vector2 goal = pathReal[pathReal.Length - 1];
-                        SetRuntimeMoveDestinationRealInternalLikeOriginal(u, goal.x, goal.y,
-                            speedOriginalPixelsPerSecond, hasFinalFacingDir, finalFacingDir, true, false,
-                            source ?? "path_revalidation", finalAllowsUnitOverlapFinish);
-                        return;
-                    }
-                    from = to;
-                }
-            }
-            u.PostureAfterMoveLikeOriginal = -1;
-            u.MovePathRealWaypointsLikeOriginal = pathReal;
-            u.MovePathIndexLikeOriginal = 0;
-            u.HasFinalFacingDirLikeOriginal = hasFinalFacingDir;
-            u.FinalFacingDirLikeOriginal = finalFacingDir;
-            u.PreciseBornPathLikeOriginal = preciseBornPath;
-            u.PreciseBornPathLastWaypointIndexLikeOriginal = preciseBornPath ? Mathf.Max(0, pathReal.Length - 1) : -1;
-            u.MovePathFinalAllowsUnitOverlapFinishLikeOriginal = finalAllowsUnitOverlapFinish;
-            // A blocked-finish retarget can itself produce an A* waypoint path.
-            // Resetting the counter here made every such path the "first" retry
-            // again, causing an endless FindUnitPosition/A* loop for hundreds of
-            // units. Preserve its bounded retry counter across the replacement
-            // path; only a genuinely new external order starts from zero.
-            if (!string.Equals(source, "blocked_finish_find_unit_position", StringComparison.OrdinalIgnoreCase))
-                u.BlockedFinishRetargetAttemptLikeOriginal = 0;
-
-            if (u.Info != null)
-                u.Info.C2NeutralPeasantUnitsV15SetMovingFlagLikeOriginal(true, preciseBornPath);
-
-            // FIX12: Do NOT call SetRuntimeMoveDestinationRealInternalLikeOriginal here.
-            // That helper is for single-target orders and deliberately clears
-            // MovePathRealWaypointsLikeOriginal. BORN exit needs the whole chain:
-            // BORNPOINTS[1..N] + optional post-born rally/scatter order.
-            Vector2 first = pathReal[0];
-            SetRuntimeMoveTargetOnlyLikeOriginal(u, first.x, first.y, speedOriginalPixelsPerSecond, finalAllowsUnitOverlapFinish && pathReal.Length == 1);
-
-            if (LogBornExitAuditLikeOriginal && _bornExitAuditLogs < Mathf.Max(1, MaxBornExitAuditLogsLikeOriginal))
-            {
-                _bornExitAuditLogs++;
-                Debug.Log(LogPrefix + " BORN_STOP path_set_preserved source='" + (source ?? "path_order") + "'" +
-                          " pathCount=" + pathReal.Length.ToString(CultureInfo.InvariantCulture) +
-                          " idx=0" +
-                          " first=(" + first.x.ToString("F0", CultureInfo.InvariantCulture) + "," + first.y.ToString("F0", CultureInfo.InvariantCulture) + ")" +
-                          " precise=" + preciseBornPath);
-            }
-        }
-
-        private void SetRuntimeMoveDestinationRealInternalLikeOriginal(C2UnitOriginalRuntime u, float destRealX, float destRealY, float speedOriginalPixelsPerSecond, bool hasFinalFacingDir, byte finalFacingDir, bool allowBuildingPath, bool preciseBornPath, string source, bool targetAllowsUnitOverlapFinish = false)
-        {
-            if (u == null) return;
-            if (u.State == C2UnitOriginalState.Death) return;
-
-            EnsureRuntimeRealFromInfoLikeOriginal(u);
-            u.PostureAfterMoveLikeOriginal = -1;
-
-            if (allowBuildingPath && RouteUnitMoveThroughBuildingLockPointsLikeOriginal)
-            {
-                Vector2[] path;
-                bool directTravelClear;
-                bool pathBuilt = C2BattleTerrainMode.C2BuildingMotionFieldV1TryBuildPathOrDirectRealLikeOriginal(
-                    u.RuntimeRealXLikeOriginal,
-                    u.RuntimeRealYLikeOriginal,
-                    destRealX,
-                    destRealY,
-                    out path,
-                    out directTravelClear,
-                    Mathf.Max(512, BuildingPathMaxSearchCellsLikeOriginal),
-                    "runtime:" + (source ?? "direct_order"),
-                    ResolveRuntimeUnitRadiusCellsLikeOriginal(u));
-                if (pathBuilt && path != null && path.Length > 0)
-                {
-                    SetRuntimeMovePathRealLikeOriginal(u, path, speedOriginalPixelsPerSecond, hasFinalFacingDir, finalFacingDir, preciseBornPath, source ?? "building_lockpoints_path", targetAllowsUnitOverlapFinish, true);
-                    if (LogBuildingPathOnceLikeOriginal && _buildingPathLogs < 20)
-                    {
-                        _buildingPathLogs++;
-                        Debug.Log(LogPrefix + " BUILDING_LOCKPOINTS_PATH unit='" + (u.Probe != null ? u.Probe.MonsterId : string.Empty) + "'" +
-                                  " source='" + (source ?? string.Empty) + "'" +
-                                  " waypoints=" + path.Length.ToString(CultureInfo.InvariantCulture) +
-                                  " from=(" + u.RuntimeRealXLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.RuntimeRealYLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
-                                  " to=(" + destRealX.ToString("0.0", CultureInfo.InvariantCulture) + "," + destRealY.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
-                                  " rule=LOCKPOINTS/BUILDLOCKPOINTS_ASTAR_then_original_motion_frames");
-                    }
-                    return;
-                }
-                if (!directTravelClear)
-                {
-                    // No route is different from a clear direct segment.  The old
-                    // fall-through issued a straight order through water/buildings
-                    // and then retried blocked finish forever.
-                    u.HasMoveTargetLikeOriginal = false;
-                    u.MovePathRealWaypointsLikeOriginal = null;
-                    u.MovePathIndexLikeOriginal = 0;
-                    u.PreciseBornPathLikeOriginal = false;
-                    u.PreciseBornPathLastWaypointIndexLikeOriginal = -1;
-                    if (u.Info != null)
-                        u.Info.C2NeutralPeasantUnitsV15SetMovingFlagLikeOriginal(false, false);
-                    if (C2NeutralPeasantUnitsLogGateV45LikeOriginal.Verbose)
-                        Debug.Log(LogPrefix + " MOVE_REJECT no_passable_route unit='" +
-                                  (u.Probe != null ? u.Probe.MonsterId : string.Empty) +
-                                  "' source='" + (source ?? string.Empty) + "' from=(" +
-                                  u.RuntimeRealXLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                                  u.RuntimeRealYLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + ") to=(" +
-                                  destRealX.ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                                  destRealY.ToString("0.0", CultureInfo.InvariantCulture) + ")");
-                    return;
-                }
-            }
-
-            u.MovePathRealWaypointsLikeOriginal = null;
-            u.MovePathIndexLikeOriginal = 0;
-            u.PreciseBornPathLastWaypointIndexLikeOriginal = preciseBornPath ? 0 : -1;
-            u.MovePathFinalAllowsUnitOverlapFinishLikeOriginal = false;
-            u.HasFinalFacingDirLikeOriginal = hasFinalFacingDir;
-            u.FinalFacingDirLikeOriginal = finalFacingDir;
-            u.PreciseBornPathLikeOriginal = preciseBornPath;
-            if (!string.Equals(source, "blocked_finish_find_unit_position", StringComparison.OrdinalIgnoreCase))
-                u.BlockedFinishRetargetAttemptLikeOriginal = 0;
-
-            SetRuntimeMoveTargetOnlyLikeOriginal(u, destRealX, destRealY, speedOriginalPixelsPerSecond, targetAllowsUnitOverlapFinish);
-
-            if (u.Info != null)
-                u.Info.C2NeutralPeasantUnitsV15SetMovingFlagLikeOriginal(true, preciseBornPath);
-        }
-
-        private void SetRuntimeMoveTargetOnlyLikeOriginal(C2UnitOriginalRuntime u, float destRealX, float destRealY, float speedOriginalPixelsPerSecond, bool targetAllowsUnitOverlapFinish = false)
-        {
-            if (u == null) return;
-
-            u.MoveTargetRealXLikeOriginal = destRealX;
-            u.MoveTargetRealYLikeOriginal = destRealY;
-            // A newly installed SmartSend/PreciseSend destination replaces any transient
-            // RotUnit(Type=1) generated by the previous movement direction.
-            u.SingleStepRotateAtPlaceActiveV352LikeOriginal = false;
-            u.FinalRotUnitActiveV352LikeOriginal = false;
-            u.MoveSpeedOriginalPixelsPerSecondLikeOriginal = ResolveRuntimeMoveSpeedOriginalPixelsPerSecondLikeOriginal(u, speedOriginalPixelsPerSecond);
-            u.MoveTargetAllowsUnitOverlapFinishLikeOriginal = targetAllowsUnitOverlapFinish;
-
-            AnimModel motionAnim = null;
-            int motion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-            if (motion >= 0) motionAnim = u.Md.Animations[motion];
-
-            u.MoveRInFrameLikeOriginal = GetMotionRInFrameLikeOriginal(u, motionAnim);
-
-            float dx = destRealX - u.RuntimeRealXLikeOriginal;
-            float dy = destRealY - u.RuntimeRealYLikeOriginal;
-            if ((dx * dx + dy * dy) > 0.0001f)
-            {
-                if (u.State == C2UnitOriginalState.Transition)
-                {
-                    u.HasMoveTargetLikeOriginal = false;
-                    u.MoveDeferredUntilNeutralStandLikeOriginal = true;
-                }
-                else if (u.State != C2UnitOriginalState.Motion &&
-                         CurrentAnim(u) != null &&
-                         !u.FrameFinishedLikeOriginal &&
-                         !CurrentAnim(u).CanBeBroken &&
-                         !CurrentAnim(u).MoveBreak)
-                {
-                    // MotionHandlerForSingleStepObjects waits for an ordinary
-                    // animation to finish. BREAKANIMATION allows interruption
-                    // on any state change; MOVEBREAK allows it when DestX is set.
-                    u.HasMoveTargetLikeOriginal = false;
-                    u.MoveDeferredUntilNeutralStandLikeOriginal = true;
-                }
-                else if (u.PostureWeaponTypeLikeOriginal >= 0 &&
-                         !u.MovePreservesCombatPostureV405BLikeOriginal)
-                {
-                    int previousPosture = u.PostureWeaponTypeLikeOriginal;
-                    u.PostureWeaponTypeLikeOriginal = -1;
-                    u.HasMoveTargetLikeOriginal = false;
-                    u.MoveDeferredUntilNeutralStandLikeOriginal = true;
-
-                    int neutralStand = ResolveRuntimeStandAnimationIndexV322LikeOriginal(u);
-                    if (neutralStand < 0)
-                        neutralStand = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
-                    if (neutralStand < 0 ||
-                        !TryStartPostureTransitionV326LikeOriginal(
-                            u,
-                            previousPosture,
-                            previousPosture,
-                            false,
-                            neutralStand,
-                            "move_wait_posture_off"))
-                    {
-                        u.MoveDeferredUntilNeutralStandLikeOriginal = false;
-                        StartRuntimeMoveTargetNowLikeOriginal(u, "move_posture_off_no_transition");
-                    }
-                }
-                else
-                {
-                    StartRuntimeMoveTargetNowLikeOriginal(u, "move_order_received");
-                }
-            }
-
-            C2BattleTerrainMode mode = u.Info != null ? u.Info.OwnerMode : _battle;
-            if (mode != null)
-            {
-                Vector3 world = mode.C2NeutralPeasantUnitsV2OriginalPixelToWorldV15LikeOriginal(destRealX / 16.0f, destRealY / 16.0f);
-                u.MoveTargetWorldLikeOriginal = world;
-            }
-        }
-
-        private void StartRuntimeMoveTargetNowLikeOriginal(C2UnitOriginalRuntime u, string reason)
-        {
-            if (u == null || u.Md == null || u.State == C2UnitOriginalState.Death)
-                return;
-
-            float dx = u.MoveTargetRealXLikeOriginal - u.RuntimeRealXLikeOriginal;
-            float dy = u.MoveTargetRealYLikeOriginal - u.RuntimeRealYLikeOriginal;
-            u.HasMoveTargetLikeOriginal = (dx * dx + dy * dy) > 0.0001f;
-            if (!u.HasMoveTargetLikeOriginal)
-                return;
-
-            // MotionHandlerForSingleStepObjects owns BestDir/MinRotator.
-            // NewMonsterPreciseSendTo sets DestX/DestY; it does not teleport facing.
-            if (!IsMdSingleStepPassThroughLikeOriginal(u))
-                SetRuntimeFacingLikeOriginal(u, DirectionFromRealDeltaLikeOriginal(dx, dy));
-            int motion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-            if (motion >= 0 && u.State != C2UnitOriginalState.Motion)
-            {
-                SelectAnimationStateLikeOriginal(
-                    u,
-                    C2UnitOriginalState.Motion,
-                    motion,
-                    true,
-                    reason ?? "move_order_received");
-                ApplyUnitFrameLikeOriginal(u, reason ?? "move_order_received");
-            }
-        }
-
-        private bool AdvanceRuntimeMoveWaypointLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            if (u == null || u.MovePathRealWaypointsLikeOriginal == null)
-                return false;
-
-            // C2 NewMon.cpp::ClearUnlimitedLink first gets an obstructed newborn to
-            // a free bar, then clears UnlimitedMotion. This is a separate order after
-            // the MD exit chain, not a replacement for BORNPOINTS.
-            if (u.PreciseBornPathLikeOriginal &&
-                u.MovePathIndexLikeOriginal == u.PreciseBornPathLastWaypointIndexLikeOriginal &&
-                C2BuildingRuntimeInfoV247LikeOriginal.IsBlockedForUnitRealV247LikeOriginal(
-                    u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal, ResolveRuntimeUnitRadiusCellsLikeOriginal(u)))
-            {
-                float freeX, freeY;
-                bool free = C2BuildingRuntimeInfoV247LikeOriginal.TryFindNearestFreeRealV247LikeOriginal(
-                    u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal, out freeX, out freeY, 30, 7);
-                if (!free) free = C2BuildingRuntimeInfoV247LikeOriginal.TryFindNearestFreeRealV247LikeOriginal(
-                    u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal, out freeX, out freeY, 96,
-                    ResolveRuntimeUnitRadiusCellsLikeOriginal(u));
-                if (free)
-                {
-                    int at = u.MovePathIndexLikeOriginal + 1;
-                    Vector2[] extended = new Vector2[u.MovePathRealWaypointsLikeOriginal.Length + 1];
-                    Array.Copy(u.MovePathRealWaypointsLikeOriginal, 0, extended, 0, at);
-                    extended[at] = new Vector2(freeX, freeY);
-                    Array.Copy(u.MovePathRealWaypointsLikeOriginal, at, extended, at + 1,
-                        u.MovePathRealWaypointsLikeOriginal.Length - at);
-                    u.MovePathRealWaypointsLikeOriginal = extended;
-                    u.PreciseBornPathLastWaypointIndexLikeOriginal = at;
-                }
-                else
-                {
-                    // An enclosed/invalid map must not leave a permanent uncommandable unit.
-                    u.PreciseBornPathLikeOriginal = false;
-                    u.PreciseBornPathLastWaypointIndexLikeOriginal = -1;
-                    if (u.Info != null) u.Info.C2NeutralPeasantUnitsV15SetMovingFlagLikeOriginal(true, false);
-                }
-            }
-            u.MovePathIndexLikeOriginal++;
-            if (u.MovePathIndexLikeOriginal < 0 || u.MovePathIndexLikeOriginal >= u.MovePathRealWaypointsLikeOriginal.Length)
-            {
-                EmitBornExitAuditLikeOriginal(u, "advance_end", "pathEnded=1");
-                EmitBornStopAuditLikeOriginal(u, "advance_end", "pathEnded=1 before clearing path state");
-                u.MovePathRealWaypointsLikeOriginal = null;
-                u.MovePathIndexLikeOriginal = 0;
-                u.PreciseBornPathLikeOriginal = false;
-                u.PreciseBornPathLastWaypointIndexLikeOriginal = -1;
-                u.MovePathFinalAllowsUnitOverlapFinishLikeOriginal = false;
-                u.MoveTargetAllowsUnitOverlapFinishLikeOriginal = false;
-                return false;
-            }
-
-            Vector2 next = u.MovePathRealWaypointsLikeOriginal[u.MovePathIndexLikeOriginal];
-
-            // FIX6: OrderedUnlimitedMotion is only for the original BORNPOINTS exit chain.
-            // Once BORNPOINTS[1..N] are done, any appended rally/normal target must return
-            // to normal building CheckBar routing.  Otherwise produced units can either keep
-            // ghost-walking through LOCKPOINTS or fail to escape cleanly when the path changes.
-            if (u.PreciseBornPathLikeOriginal &&
-                u.PreciseBornPathLastWaypointIndexLikeOriginal >= 0 &&
-                u.MovePathIndexLikeOriginal > u.PreciseBornPathLastWaypointIndexLikeOriginal)
-            {
-                u.MovePathRealWaypointsLikeOriginal = null;
-                u.MovePathIndexLikeOriginal = 0;
-                u.PreciseBornPathLikeOriginal = false;
-                u.PreciseBornPathLastWaypointIndexLikeOriginal = -1;
-                EmitBornExitAuditLikeOriginal(u, "post_born_route", "next=(" + next.x.ToString("0.0", CultureInfo.InvariantCulture) + "," + next.y.ToString("0.0", CultureInfo.InvariantCulture) + ") returningToCheckBar=1");
-                SetRuntimeMoveDestinationRealInternalLikeOriginal(u, next.x, next.y, u.MoveSpeedOriginalPixelsPerSecondLikeOriginal, u.HasFinalFacingDirLikeOriginal, u.FinalFacingDirLikeOriginal, true, false, "post_born_rally_checkbar_route", false);
-                return true;
-            }
-
-            EmitBornExitAuditLikeOriginal(u, "advance_next", "next=(" + next.x.ToString("0.0", CultureInfo.InvariantCulture) + "," + next.y.ToString("0.0", CultureInfo.InvariantCulture) + ")");
-            bool finalAllowsUnitOverlapFinish = u.MovePathFinalAllowsUnitOverlapFinishLikeOriginal &&
-                u.MovePathRealWaypointsLikeOriginal != null &&
-                u.MovePathIndexLikeOriginal == u.MovePathRealWaypointsLikeOriginal.Length - 1;
-            SetRuntimeMoveTargetOnlyLikeOriginal(u, next.x, next.y, u.MoveSpeedOriginalPixelsPerSecondLikeOriginal, finalAllowsUnitOverlapFinish);
-            if (u.Info != null)
-                u.Info.C2NeutralPeasantUnitsV15SetMovingFlagLikeOriginal(true, u.PreciseBornPathLikeOriginal);
-            return true;
-        }
-
-        private static Vector2[] C2UnitOriginalRuntimeUseRawBornExitPathLikeOriginal(
-            Vector2[] rawBornPath,
-            out string audit)
-        {
-            // Original Build.cpp uses BORNPOINTS exactly:
-            // BORNPOINTS[0] = spawn; BORNPOINTS[1..N] = precise exit.
-            // No synthetic clearance point and no segment stretching.
-            if (rawBornPath == null || rawBornPath.Length == 0)
-            {
-                audit = "original_raw_bornpoints rawCount=0 adjustedCount=0 stretch=disabled clearance=disabled";
-                return rawBornPath;
-            }
-
-            Vector2[] points = new Vector2[rawBornPath.Length];
-            Array.Copy(rawBornPath, points, rawBornPath.Length);
-
-            audit = "original_raw_bornpoints" +
-                    " rawCount=" + rawBornPath.Length.ToString(CultureInfo.InvariantCulture) +
-                    " adjustedCount=" + points.Length.ToString(CultureInfo.InvariantCulture) +
-                    " stretch=disabled" +
-                    " clearance=disabled rallyMarker=DstX_DstY_only";
-            return points;
-        }
-
-        private static void C2UnitOriginalRuntimeAppendBornExitClearancePointV10LikeOriginal(
-            List<Vector2> realBornPoints,
-            out string audit)
-        {
-            audit = "clearance_skip";
-            if (realBornPoints == null || realBornPoints.Count < 2)
-                return;
-
-            Vector2 prev = realBornPoints[realBornPoints.Count - 2];
-            Vector2 last = realBornPoints[realBornPoints.Count - 1];
-            Vector2 dir = last - prev;
-            float len = dir.magnitude;
-            if (len < 0.001f)
-            {
-                audit = "clearance_zero_dir";
-                return;
-            }
-            dir /= len;
-
-            // Ported from old working 13_05 project:
-            //   forcedExtra = max(48, len * 0.35)
-            //   p = last + dir * forcedExtra
-            //   while near LOCKPOINTS: p += dir * 16
-            //
-            // Here the path is already in original Real coordinates, so:
-            //   48 local pixels -> 48*16 real units
-            //   16 local pixels -> 16*16 real units
-            float forcedExtraReal = Mathf.Max(48.0f * 16.0f, len * 0.35f);
-            Vector2 p = last + dir * forcedExtraReal;
-
-            int lockPushSteps = 0;
-            while (C2UnitOriginalRuntimeBornRealPointNearLockV10LikeOriginal(p, 2) && lockPushSteps < 16)
-            {
-                p += dir * (16.0f * 16.0f);
-                lockPushSteps++;
-            }
-
-            if ((p - last).sqrMagnitude < 64.0f)
-            {
-                audit = "clearance_too_small";
-                return;
-            }
-
-            realBornPoints.Add(p);
-            audit = "clearance_forced extraReal=" + Mathf.RoundToInt(forcedExtraReal).ToString(CultureInfo.InvariantCulture) +
-                    " lockPush=" + lockPushSteps.ToString(CultureInfo.InvariantCulture) +
-                    " lastReal=" + Mathf.RoundToInt(last.x).ToString(CultureInfo.InvariantCulture) + "/" + Mathf.RoundToInt(last.y).ToString(CultureInfo.InvariantCulture) +
-                    " clearanceReal=" + Mathf.RoundToInt(p.x).ToString(CultureInfo.InvariantCulture) + "/" + Mathf.RoundToInt(p.y).ToString(CultureInfo.InvariantCulture);
-        }
-
-        private static bool C2UnitOriginalRuntimeBornRealPointNearLockV10LikeOriginal(
-            Vector2 realPoint,
-            int radiusCells)
-        {
-            return C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(
-                realPoint.x,
-                realPoint.y,
-                Mathf.Max(0, radiusCells));
-        }
-
-        private static string FormatRealPathLikeOriginal(Vector2[] path)
-        {
-            if (path == null) return "<null>";
-            if (path.Length == 0) return "<empty>";
-            var sb = new System.Text.StringBuilder(path.Length * 32);
-            for (int i = 0; i < path.Length; i++)
-            {
-                if (i != 0) sb.Append(" -> ");
-                sb.Append(i.ToString(CultureInfo.InvariantCulture)).Append(":real(")
-                  .Append(path[i].x.ToString("0", CultureInfo.InvariantCulture)).Append(",")
-                  .Append(path[i].y.ToString("0", CultureInfo.InvariantCulture)).Append(") pix(")
-                  .Append((path[i].x / 16.0f).ToString("0.0", CultureInfo.InvariantCulture)).Append(",")
-                  .Append((path[i].y / 16.0f).ToString("0.0", CultureInfo.InvariantCulture)).Append(")");
-            }
-            return sb.ToString();
-        }
-
-        private void EmitBornExitAuditLikeOriginal(C2UnitOriginalRuntime u, string eventName, string details)
-        {
-            if (!LogBornExitAuditLikeOriginal) return;
-            if (_bornExitAuditLogs >= Mathf.Max(1, MaxBornExitAuditLogsLikeOriginal)) return;
-            _bornExitAuditLogs++;
-
-            string unit = u != null && u.Probe != null ? (u.Probe.MonsterId ?? string.Empty) : string.Empty;
-            string md = u != null && u.Md != null ? (u.Md.Name ?? string.Empty) : string.Empty;
-            string idx = u != null ? u.MovePathIndexLikeOriginal.ToString(CultureInfo.InvariantCulture) : "-";
-            string pathCount = (u != null && u.MovePathRealWaypointsLikeOriginal != null) ? u.MovePathRealWaypointsLikeOriginal.Length.ToString(CultureInfo.InvariantCulture) : "-";
-            string lastPrecise = u != null ? u.PreciseBornPathLastWaypointIndexLikeOriginal.ToString(CultureInfo.InvariantCulture) : "-";
-            string precise = u != null ? u.PreciseBornPathLikeOriginal.ToString() : "-";
-            string real = u != null ? "(" + u.RuntimeRealXLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.RuntimeRealYLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + ")" : "(-)";
-            string target = u != null ? "(" + u.MoveTargetRealXLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.MoveTargetRealYLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + ")" : "(-)";
-            string dist = "-";
-            if (u != null)
-            {
-                float dx = u.MoveTargetRealXLikeOriginal - u.RuntimeRealXLikeOriginal;
-                float dy = u.MoveTargetRealYLikeOriginal - u.RuntimeRealYLikeOriginal;
-                dist = Mathf.Sqrt(dx * dx + dy * dy).ToString("0.0", CultureInfo.InvariantCulture);
-            }
-
-            Debug.Log(LogPrefix + " BORN_EXIT_AUDIT event='" + (eventName ?? string.Empty) + "'" +
-                      " unit='" + unit + "' md='" + md + "'" +
-                      " idx=" + idx + " pathCount=" + pathCount +
-                      " precise=" + precise + " lastPrecise=" + lastPrecise +
-                      " real=" + real + " target=" + target + " distReal=" + dist +
-                      " rule=original_Build.cpp_SetOrderedUnlimitedMotion_then_NewMonsterPreciseSendTo_BORNPOINTS_1_to_N " +
-                      (details ?? string.Empty));
-        }
-
-        private void EmitBornStopAuditLikeOriginal(C2UnitOriginalRuntime u, string reason, string details)
-        {
-            if (!LogBornExitAuditLikeOriginal) return;
-            if (_bornExitAuditLogs >= Mathf.Max(1, MaxBornExitAuditLogsLikeOriginal)) return;
-            _bornExitAuditLogs++;
-
-            string unit = u != null && u.Probe != null ? (u.Probe.MonsterId ?? string.Empty) : string.Empty;
-            string md = u != null && u.Md != null ? (u.Md.Name ?? string.Empty) : string.Empty;
-            string real = u != null ? "(" + u.RuntimeRealXLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.RuntimeRealYLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + ")" : "(-)";
-            string target = u != null ? "(" + u.MoveTargetRealXLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.MoveTargetRealYLikeOriginal.ToString("0.0", CultureInfo.InvariantCulture) + ")" : "(-)";
-            string expectedFinal = (u != null && u.BornExpectedFinalValidLikeOriginal) ? "(" + u.BornExpectedFinalRealLikeOriginal.x.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.BornExpectedFinalRealLikeOriginal.y.ToString("0.0", CultureInfo.InvariantCulture) + ")" : "(-)";
-            string rawFinal = (u != null && u.BornRawFinalValidLikeOriginal) ? "(" + u.BornRawFinalRealLikeOriginal.x.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.BornRawFinalRealLikeOriginal.y.ToString("0.0", CultureInfo.InvariantCulture) + ")" : "(-)";
-            string clearance = (u != null && u.BornClearancePointValidLikeOriginal) ? "(" + u.BornClearancePointRealLikeOriginal.x.ToString("0.0", CultureInfo.InvariantCulture) + "," + u.BornClearancePointRealLikeOriginal.y.ToString("0.0", CultureInfo.InvariantCulture) + ")" : "(-)";
-            string idx = u != null ? u.MovePathIndexLikeOriginal.ToString(CultureInfo.InvariantCulture) : "-";
-            string pathCount = (u != null && u.MovePathRealWaypointsLikeOriginal != null) ? u.MovePathRealWaypointsLikeOriginal.Length.ToString(CultureInfo.InvariantCulture) : "-";
-            string precise = u != null ? u.PreciseBornPathLikeOriginal.ToString() : "-";
-            string lastPrecise = u != null ? u.PreciseBornPathLastWaypointIndexLikeOriginal.ToString(CultureInfo.InvariantCulture) : "-";
-            string distToExpected = "-";
-            if (u != null && u.BornExpectedFinalValidLikeOriginal)
-            {
-                float dx = u.BornExpectedFinalRealLikeOriginal.x - u.RuntimeRealXLikeOriginal;
-                float dy = u.BornExpectedFinalRealLikeOriginal.y - u.RuntimeRealYLikeOriginal;
-                distToExpected = Mathf.Sqrt(dx * dx + dy * dy).ToString("0.0", CultureInfo.InvariantCulture);
-            }
-
-            Debug.Log(LogPrefix + " BORN_STOP" +
-                      " reason='" + (reason ?? string.Empty) + "'" +
-                      " unit='" + unit + "' md='" + md + "'" +
-                      " real=" + real +
-                      " target=" + target +
-                      " rawFinalBorn=" + rawFinal +
-                      " expectedFinalBorn=" + expectedFinal +
-                      " clearancePoint=" + clearance +
-                      " distToExpected=" + distToExpected +
-                      " idx=" + idx + " pathCount=" + pathCount +
-                      " precise=" + precise + " lastPrecise=" + lastPrecise +
-                      " " + (details ?? string.Empty));
-        }
-
-        internal void SetRuntimeFacingLikeOriginal(C2UnitOriginalRuntime u, byte realDir)
-        {
-            if (u == null) return;
-            u.RealDirPrecise = realDir & 255;
-            u.OriginalRealDirPrecise256LikeOriginal = (realDir & 255) << 8;
-            u.OctantInfo = 0xFF;
-            if (u.Info != null)
-            {
-                u.Info.RealDir = realDir;
-                u.Info.GraphDir = realDir;
-                u.Info.RealDirPrecise = u.RealDirPrecise;
-                u.Info.OctantInfo = 0xFF;
-            }
-        }
-
-        private void UpdateRuntimeRealFromWorldLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            if (u == null || !u.ActiveLikeOriginal) return;
-            C2BattleTerrainMode mode = u.Info != null ? u.Info.OwnerMode : _battle;
-            if (mode == null) return;
-            float px;
-            float py;
-            if (!mode.C2NeutralPeasantUnitsV2WorldToOriginalPixelV15LikeOriginal(u.WorldPosition, out px, out py))
-                return;
-            int realX = Mathf.RoundToInt(px * 16.0f);
-            int realY = Mathf.RoundToInt(py * 16.0f);
-            u.RuntimeRealXLikeOriginal = realX;
-            u.RuntimeRealYLikeOriginal = realY;
-            if (u.Info != null)
-            {
-                u.Info.RealX = realX;
-                u.Info.RealY = realY;
-                u.Info.RealXFloat = realX;
-                u.Info.RealYFloat = realY;
-            }
-            if (u.Probe != null)
-            {
-                u.Probe.RealX = realX;
-                u.Probe.RealY = realY;
-            }
-        }
-
-        private void EnsureRuntimeRealFromInfoLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            if (u == null) return;
-            if (Mathf.Abs(u.RuntimeRealXLikeOriginal) > 0.001f || Mathf.Abs(u.RuntimeRealYLikeOriginal) > 0.001f) return;
-
-            if (u.Info != null)
-            {
-                u.RuntimeRealXLikeOriginal = Mathf.Abs(u.Info.RealXFloat) > 0.001f ? u.Info.RealXFloat : u.Info.RealX;
-                u.RuntimeRealYLikeOriginal = Mathf.Abs(u.Info.RealYFloat) > 0.001f ? u.Info.RealYFloat : u.Info.RealY;
-                return;
-            }
-
-            if (u.Probe != null)
-            {
-                u.RuntimeRealXLikeOriginal = u.Probe.RealX;
-                u.RuntimeRealYLikeOriginal = u.Probe.RealY;
-            }
-        }
-
-        private void UpdateRuntimeWorldAndRealLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            if (u == null) return;
-
-            if (u.Info != null)
-            {
-                u.Info.RealXFloat = u.RuntimeRealXLikeOriginal;
-                u.Info.RealYFloat = u.RuntimeRealYLikeOriginal;
-                u.Info.RealX = Mathf.RoundToInt(u.RuntimeRealXLikeOriginal);
-                u.Info.RealY = Mathf.RoundToInt(u.RuntimeRealYLikeOriginal);
-            }
-
-            if (u.Probe != null)
-            {
-                u.Probe.RealX = Mathf.RoundToInt(u.RuntimeRealXLikeOriginal);
-                u.Probe.RealY = Mathf.RoundToInt(u.RuntimeRealYLikeOriginal);
-            }
-
-            C2BattleTerrainMode mode = u.Info != null ? u.Info.OwnerMode : _battle;
-            if (mode != null)
-            {
-                Vector3 w = mode.C2NeutralPeasantUnitsV2OriginalPixelToWorldV15LikeOriginal(u.RuntimeRealXLikeOriginal / 16.0f, u.RuntimeRealYLikeOriginal / 16.0f);
-                u.WorldPosition = w;
-                if (u.Root != null)
-                    u.Root.transform.position = w;
-            }
-        }
-
-        private void UpdateRuntimeWorldAndRealContinuousLikeOriginal(C2UnitOriginalRuntime u, float beforeRealX, float beforeRealY)
-        {
-            // Keep the legacy setting/call sites compatible, but derive position from
-            // current RealX/Y exactly as placement and the preview do. Accumulating a
-            // separate unscaled world delta preserved each unit's old column offset
-            // and drifted at zoom scales whose backing step is not 32.
-            UpdateRuntimeWorldAndRealLikeOriginal(u);
-        }
-
+        // V427: ApplyTiringLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: UpdateOriginalObjectRuntimeStateLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeMoveDestinationWorldLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeMoveDestinationRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeValidatedDirectMoveDestinationRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeMovePathRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeMoveDestinationRealInternalLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeMoveTargetOnlyLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: StartRuntimeMoveTargetNowLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: AdvanceRuntimeMoveWaypointLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: C2UnitOriginalRuntimeUseRawBornExitPathLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: C2UnitOriginalRuntimeAppendBornExitClearancePointV10LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: C2UnitOriginalRuntimeBornRealPointNearLockV10LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: FormatRealPathLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: EmitBornExitAuditLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: EmitBornStopAuditLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeFacingLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: UpdateRuntimeRealFromWorldLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: EnsureRuntimeRealFromInfoLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: UpdateRuntimeWorldAndRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: UpdateRuntimeWorldAndRealContinuousLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
         private void UpdateUnitSortingOrderLikeOriginal(C2UnitOriginalRuntime u, Camera cam)
         {
             if (u == null) return;
@@ -4495,1798 +3438,65 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return wave + stable;
         }
 
-        private bool TryAdvanceRuntimeRealWithOriginalMotionFieldLikeOriginal(C2UnitOriginalRuntime u, float nx, float ny, float stepReal, out float beforeRealX, out float beforeRealY)
-        {
-            beforeRealX = u != null ? u.RuntimeRealXLikeOriginal : 0.0f;
-            beforeRealY = u != null ? u.RuntimeRealYLikeOriginal : 0.0f;
-
-            if (u == null)
-                return false;
-
-            if (!UseOriginalMotionFieldPerStepBlockLikeOriginal || !RouteUnitMoveThroughBuildingLockPointsLikeOriginal)
-            {
-                u.RuntimeRealXLikeOriginal += nx * stepReal;
-                u.RuntimeRealYLikeOriginal += ny * stepReal;
-                u.TotalPathLikeOriginal += stepReal;
-                return true;
-            }
-
-            if (u.PreciseBornPathLikeOriginal)
-            {
-                float nextX = beforeRealX + nx * stepReal;
-                float nextY = beforeRealY + ny * stepReal;
-                if (!CanPreciseBornUnitAdvanceWithDoorSpacingLikeOriginal(u, nextX, nextY))
-                    return false;
-
-                // C2 OrderedUnlimitedMotion applies only to the explicit birth/clearance chain.
-                u.RuntimeRealXLikeOriginal = nextX;
-                u.RuntimeRealYLikeOriginal = nextY;
-                u.TotalPathLikeOriginal += stepReal;
-                return true;
-            }
-
-            int currentRadiusCellsLikeOriginal = ResolveRuntimeUnitRadiusCellsLikeOriginal(u);
-            if (C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(beforeRealX, beforeRealY, currentRadiusCellsLikeOriginal))
-            {
-                float freeX;
-                float freeY;
-                if (C2BattleTerrainMode.C2BuildingMotionFieldV1TryFindNearestFreeRealLikeOriginal(beforeRealX, beforeRealY, out freeX, out freeY, 24))
-                {
-                    float edx = freeX - beforeRealX;
-                    float edy = freeY - beforeRealY;
-                    float elen = Mathf.Sqrt(edx * edx + edy * edy);
-                    if (elen > 1.0f)
-                    {
-                        float escapeStep = Mathf.Min(stepReal, elen);
-                        u.RuntimeRealXLikeOriginal = beforeRealX + (edx / elen) * escapeStep;
-                        u.RuntimeRealYLikeOriginal = beforeRealY + (edy / elen) * escapeStep;
-                        u.TotalPathLikeOriginal += escapeStep;
-                        return true;
-                    }
-                }
-            }
-
-            float fullDx = nx * stepReal;
-            float fullDy = ny * stepReal;
-            if (CanRuntimeUnitAdvanceSegmentRealLikeOriginal(
-                    u,
-                    beforeRealX,
-                    beforeRealY,
-                    beforeRealX + fullDx,
-                    beforeRealY + fullDy))
-            {
-                u.RuntimeRealXLikeOriginal = beforeRealX + fullDx;
-                u.RuntimeRealYLikeOriginal = beforeRealY + fullDy;
-                u.TotalPathLikeOriginal += Mathf.Sqrt(fullDx * fullDx + fullDy * fullDy);
-                return true;
-            }
-
-            // Original Motion.cpp does not blindly teleport through a blocked bar.  It tries
-            // neighbouring directions around the requested vector (TryDir dir, dir+1, dir-1, ...).
-            // This lightweight replica keeps continuous RealX/RealY movement but refuses building
-            // LOCKPOINTS/BUILDLOCKPOINTS every tick.
-            float baseAngle = Mathf.Atan2(ny, nx);
-            int maxTries = Mathf.Max(1, UnitMotionBlockMaxSlideTriesLikeOriginal);
-            int tries = 0;
-
-            for (int si = 0; si < MotionFieldSlideStepScalesLikeOriginal.Length; si++)
-            {
-                float scaledStep = Mathf.Max(UnitMotionBlockMinSlideStepRealLikeOriginal, stepReal * MotionFieldSlideStepScalesLikeOriginal[si]);
-                if (scaledStep > stepReal) scaledStep = stepReal;
-
-                for (int ai = 0; ai < MotionFieldSlideAngleStepsLikeOriginal.Length && tries < maxTries; ai++, tries++)
-                {
-                    float a = baseAngle + (MotionFieldSlideAngleStepsLikeOriginal[ai] * Mathf.PI / 8.0f); // 22.5 degrees per step
-                    float dx = Mathf.Cos(a) * scaledStep;
-                    float dy = Mathf.Sin(a) * scaledStep;
-                    float tx = beforeRealX + dx;
-                    float ty = beforeRealY + dy;
-                    if (!CanRuntimeUnitAdvanceSegmentRealLikeOriginal(u, beforeRealX, beforeRealY, tx, ty))
-                        continue;
-
-                    u.RuntimeRealXLikeOriginal = tx;
-                    u.RuntimeRealYLikeOriginal = ty;
-                    u.TotalPathLikeOriginal += Mathf.Sqrt(dx * dx + dy * dy);
-                    return true;
-                }
-
-                // Try a smaller straight step as a last chance for this scale.
-                float sdx = nx * scaledStep;
-                float sdy = ny * scaledStep;
-                if (CanRuntimeUnitAdvanceSegmentRealLikeOriginal(
-                        u,
-                        beforeRealX,
-                        beforeRealY,
-                        beforeRealX + sdx,
-                        beforeRealY + sdy))
-                {
-                    u.RuntimeRealXLikeOriginal = beforeRealX + sdx;
-                    u.RuntimeRealYLikeOriginal = beforeRealY + sdy;
-                    u.TotalPathLikeOriginal += Mathf.Sqrt(sdx * sdx + sdy * sdy);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool C2BuildingMotionFieldV1BlockedForTurnLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            // NewMon.cpp:18154 HaveRotAnm is false inside MFIELDS.CheckBar(x-1,y-1,3,3).
-            return C2BuildingRuntimeInfoV247LikeOriginal.IsBlockedForUnitRealV247LikeOriginal(
-                u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal, 1);
-        }
-
-        private int _routeRefreshFrameLikeOriginal = -1;
-        private int _routeRefreshCountLikeOriginal;
-        private void TryRefreshBlockedRouteLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            if (u == null || u.PreciseBornPathLikeOriginal || !u.HasMoveTargetLikeOriginal) return;
-            float now = Time.realtimeSinceStartup;
-            if (now < u.NextBlockedRouteRefreshLikeOriginal) return;
-            int frame = Time.frameCount;
-            if (_routeRefreshFrameLikeOriginal != frame)
-            { _routeRefreshFrameLikeOriginal = frame; _routeRefreshCountLikeOriginal = 0; }
-            if (_routeRefreshCountLikeOriginal >= 2) return;
-            _routeRefreshCountLikeOriginal++;
-            u.NextBlockedRouteRefreshLikeOriginal = now + 0.75f + (u.UnitOrder & 7) * 0.025f;
-            Vector2 goal = new Vector2(u.MoveTargetRealXLikeOriginal, u.MoveTargetRealYLikeOriginal);
-            if (u.MovePathRealWaypointsLikeOriginal != null && u.MovePathRealWaypointsLikeOriginal.Length > 0)
-                goal = u.MovePathRealWaypointsLikeOriginal[u.MovePathRealWaypointsLikeOriginal.Length - 1];
-            SetRuntimeMoveDestinationRealInternalLikeOriginal(u, goal.x, goal.y,
-                u.MoveSpeedOriginalPixelsPerSecondLikeOriginal, u.HasFinalFacingDirLikeOriginal,
-                u.FinalFacingDirLikeOriginal, true, false, "blocked_route_refresh");
-        }
-
-        private bool IsMdSingleStepPassThroughLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            return UseMdSingleStepPassThroughLikeOriginal &&
-                   u != null && u.Md != null &&
-                   string.Equals(u.Md.MotionStyle, "SINGLESTEP", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private void AdvanceSingleStepMotionV352LikeOriginal(
-            C2UnitOriginalRuntime u,
-            float remainingDxReal,
-            float remainingDyReal,
-            float remainingDistanceReal)
-        {
-            if (u == null || u.Md == null || remainingDistanceReal <= 0.0f) return;
-
-            // COSSACKS2/NewMon.cpp::MotionHandlerForSingleStepObjects.
-            // StepUnitRuntimeLikeOriginal is already driven by the original 40 ms quantum.
-            int r = Math.Max(1, u.OriginalMotionDistLikeOriginal > 0 ? u.OriginalMotionDistLikeOriginal : u.Md.MotionDist);
-            int rInFrame = r;
-
-            // NewMon.cpp GETTIRED path: only a member of a BR->IsTired brigade is
-            // slowed, and only when this soldier's own GetTired is below 5%.
-            // Solo units never receive this movement penalty.
-            if (u.Info != null &&
-                C2FormationRuntimeV167LikeOriginal.IsFormationTiredV403ELikeOriginal(u.Info) &&
-                u.Info.GetTiredLikeOriginal < 5000)
-                r -= (r >> 2);
-
-            // GroupSpeed base + UnitSpeed/SpeedScale/character multipliers.
-            int unitSpeed = u.OriginalUnitSpeedLikeOriginal <= 0 ? 64 : u.OriginalUnitSpeedLikeOriginal;
-            if (unitSpeed != 64)
-                r = (r * unitSpeed) >> 6;
-
-            r = (r * Math.Max(1, u.Md.SpeedScale)) >> 8;
-            r = (r * Math.Max(1, u.OriginalMoreCharacterSpeedPercentLikeOriginal)) / 100;
-
-            // NewState is represented by the active combat posture in this runtime.
-            // Rate[] is parsed from the original MD and defaults to 16.
-            int state = u.PostureWeaponTypeLikeOriginal >= 0 ? u.PostureWeaponTypeLikeOriginal + 1 : 0;
-            int autoSpeedAnm = u.Md.Rate != null && u.Md.Rate.Length > 0 ? u.Md.Rate[0] : 16;
-            if (state > 0 && u.Md.Rate != null && state - 1 < u.Md.Rate.Length)
-            {
-                int rate = u.Md.Rate[state - 1];
-                r = (r * rate) >> 4;
-                int spd = (unitSpeed * rate) >> 4;
-                if (autoSpeedAnm > 16)
-                {
-                    if (spd > 80)
-                        rInFrame = (rInFrame * autoSpeedAnm) >> 4;
-                }
-                else
-                {
-                    rInFrame = (rInFrame * rate) >> 4;
-                }
-            }
-            else if (autoSpeedAnm > 16 && unitSpeed > 80)
-            {
-                rInFrame = (rInFrame * autoSpeedAnm) >> 4;
-            }
-
-            int dx = Mathf.RoundToInt(remainingDxReal);
-            int dy = Mathf.RoundToInt(remainingDyReal);
-            // Original computes Nrm BEFORE BoidsSingleStep2 and never recomputes it.
-            int nrm = C2OriginalMovementMathV352.Norma(dx, dy);
-            if (nrm <= 0) return;
-
-            if (UseMdBoidsSteeringLikeOriginal &&
-                u.Md.BoidsMoving &&
-                _units.Count < Mathf.Max(1, OriginalBoidsOffLimitLikeOriginal) &&
-                nrm > 16 * 16 &&
-                !u.PreciseBornPathLikeOriginal)
-            {
-                int addSpeed = 0;
-                ApplyOriginalBoidsSingleStep2V352LikeOriginal(u, ref dx, ref dy, ref addSpeed);
-                r += addSpeed;
-                if (r < 1) r = 1;
-            }
-
-            int rs = r;
-            // GameSpeed=256 in the C2 source, therefore (R*GameSpeed)>>8 == R.
-            bool fixEnd = false;
-            if (nrm < rs)
-            {
-                rs = nrm;
-                fixEnd = true;
-            }
-
-            byte bestDir = C2OriginalMovementMathV352.GetDir(dx, dy);
-            byte currentDir = u.Info != null ? u.Info.RealDir : (byte)((u.OriginalRealDirPrecise256LikeOriginal >> 8) & 255);
-            int precise = u.OriginalRealDirPrecise256LikeOriginal;
-            if (((precise >> 8) & 255) != currentDir)
-                precise = currentDir << 8;
-
-            int ddir = (sbyte)(bestDir - currentDir);
-            int mr = Math.Max(1, u.Md.MinRotator);
-            if (nrm < rs * 4) mr <<= 1;
-
-            // COSSACKS2/NewMon.cpp::MotionHandlerForSingleStepObjects: rotation
-            // animations take priority over RotationAtPlaceSpeed while moving.
-            // Cavalry MDs (AusKDrg/AusKGus/AusKKir/AusKUln) provide @ROTATEL/@ROTATER
-            // plus RPLACESPEED; the original does NOT insert RotUnit for every course
-            // correction when those animations are available.
-            // Original reads BR->NewBOrder directly. Do not run a Unity
-            // GetComponent lookup for every moving unit every simulation tick.
-            bool goOnRoadV352 = u.OriginalGoOnRoadLikeOriginal;
-            int rotationAtPlaceSpeedV352 = goOnRoadV352 ? 0 : u.Md.RotationAtPlaceSpeed;
-
-            // NewMonster::GetAnimation(anm_RotateL/R) is a direct table lookup.
-            int rotateLIndexV357 = u.Md.RotateLAnimationIndexLikeOriginal;
-            int rotateRIndexV357 = u.Md.RotateRAnimationIndexLikeOriginal;
-
-            bool haveRotateAnimationsV357 =
-                !goOnRoadV352 &&
-                u.Md.HaveRotateAnimationsLikeOriginal &&
-                rotateLIndexV357 >= 0 && rotateLIndexV357 < u.Md.Animations.Count &&
-                u.Md.Animations[rotateLIndexV357] != null &&
-                u.Md.Animations[rotateLIndexV357].Frames.Count > 0 &&
-                !C2BuildingMotionFieldV1BlockedForTurnLikeOriginal(u);
-            bool useRotateAnimationsV357 = haveRotateAnimationsV357 && nrm > 120 * 16;
-
-            // C2 NewMon.cpp:17970 executes an existing RotUnitLink before motion.
-            // Having ROTATEL/ROTATER assets does not cancel a pending turn, especially
-            // inside the 120-pixel range where those moving-turn animations are unused.
-            if (u.SingleStepRotateAtPlaceActiveV352LikeOriginal)
-            {
-                if (rotationAtPlaceSpeedV352 <= 0)
-                    u.SingleStepRotateAtPlaceActiveV352LikeOriginal = false;
-                else
-                {
-                    AdvanceSingleStepRotUnitLinkV352LikeOriginal(u);
-                    return;
-                }
-            }
-
-            int goAnimIndexV357 = -1;
-            bool currentRotateLV357 = u.CurrentAnimIndex == rotateLIndexV357;
-            bool currentRotateRV357 = u.CurrentAnimIndex == rotateRIndexV357;
-            bool enterDoRotV357 = false;
-
-            if (Math.Abs(ddir) < mr)
-            {
-                int rsFlagV357 = 0;
-                if (useRotateAnimationsV357)
-                {
-                    if (!(currentRotateLV357 || currentRotateRV357))
-                    {
-                        currentDir = C2OriginalMovementMathV352.Quantize16(currentDir);
-                        precise = currentDir << 8;
-                    }
-                    else
-                    {
-                        enterDoRotV357 = true;
-                    }
-                    rsFlagV357 = 1;
-                }
-
-                if (rsFlagV357 == 0)
-                {
-                    currentDir = bestDir;
-                    precise = currentDir << 8;
-                    if (haveRotateAnimationsV357 && nrm > 120 * 16)
-                    {
-                        currentDir = C2OriginalMovementMathV352.Quantize16(currentDir);
-                        precise = currentDir << 8;
-                    }
-                }
-            }
-            else
-            {
-                enterDoRotV357 = true;
-            }
-
-            if (enterDoRotV357)
-            {
-                if (useRotateAnimationsV357)
-                {
-                    bool nowRotateV357 = currentRotateLV357 || currentRotateRV357;
-                    if (!nowRotateV357)
-                    {
-                        currentDir = C2OriginalMovementMathV352.Quantize16(currentDir);
-                        precise = currentDir << 8;
-
-                        // Source frame-coherency guard before entering ROTATEL/ROTATER.
-                        int rotateLNFramesV357 = Math.Max(1, u.Md.Animations[rotateLIndexV357].Frames.Count);
-                        AnimModel currentAnimV357 = CurrentAnim(u);
-                        int currentNFramesV357 = currentAnimV357 != null ? Math.Max(1, currentAnimV357.Frames.Count) : 1;
-                        int currentFrameV357 = currentAnimV357 != null ? FixedFrameIndexLikeOriginal(u, currentAnimV357) : 0;
-                        ushort phaseWordV357 = ddir < 0
-                            ? unchecked((ushort)(64 * 256 - precise))
-                            : unchecked((ushort)(precise - 64 * 256));
-                        int cfV357 = ((phaseWordV357 * rotateLNFramesV357) >> 16) % currentNFramesV357;
-                        if (currentNFramesV357 > 1 &&
-                            (cfV357 - currentFrameV357 + (currentNFramesV357 << 4)) % currentNFramesV357 >= 2)
-                            ddir = 0;
-                    }
-
-                    if (ddir < 0)
-                    {
-                        if (!currentRotateRV357 && rotateLIndexV357 >= 0)
-                        {
-                            goAnimIndexV357 = rotateLIndexV357;
-                            int nfV357 = Math.Max(1, u.Md.Animations[rotateLIndexV357].Frames.Count);
-                            int ddV357 = (65536 / nfV357) * rs / Math.Max(1, rInFrame);
-                            precise = (precise - ddV357) & 0xFFFF;
-                            currentDir = (byte)((precise >> 8) & 255);
-                        }
-                        else
-                        {
-                            goAnimIndexV357 = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-                            SyncMotionPhaseAfterRotateV357LikeOriginal(u, goAnimIndexV357, rInFrame);
-                        }
-                    }
-                    else if (ddir > 0)
-                    {
-                        if (!currentRotateLV357 && rotateRIndexV357 >= 0)
-                        {
-                            goAnimIndexV357 = rotateRIndexV357;
-                            int nfV357 = Math.Max(1, u.Md.Animations[rotateRIndexV357].Frames.Count);
-                            int ddV357 = (65536 / nfV357) * rs / Math.Max(1, rInFrame);
-                            precise = (precise + ddV357) & 0xFFFF;
-                            currentDir = (byte)((precise >> 8) & 255);
-                        }
-                        else
-                        {
-                            goAnimIndexV357 = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-                            SyncMotionPhaseAfterRotateV357LikeOriginal(u, goAnimIndexV357, rInFrame);
-                        }
-                    }
-                    else if (nowRotateV357)
-                    {
-                        goAnimIndexV357 = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-                        SyncMotionPhaseAfterRotateV357LikeOriginal(u, goAnimIndexV357, rInFrame);
-                    }
-                }
-                else if (rotationAtPlaceSpeedV352 > 0)
-                {
-                    // Original fallback only when HaveRotAnm is false.
-                    BeginSingleStepRotUnitV352LikeOriginal(u, bestDir);
-                    return;
-                }
-                else
-                {
-                    if (mr > 8)
-                    {
-                        rs = 0;
-                        if (ddir < 0) currentDir = (byte)(currentDir - mr);
-                        else currentDir = (byte)(currentDir + mr);
-                        precise = currentDir << 8;
-                    }
-                    else
-                    {
-                        if (ddir < 0) precise -= mr << 5;
-                        else precise += mr << 5;
-                        currentDir = (byte)((precise >> 8) & 255);
-                    }
-                }
-            }
-
-            u.OriginalRealDirPrecise256LikeOriginal = precise;
-            SetRuntimeFacingLikeOriginal(u, currentDir);
-            u.OriginalRealDirPrecise256LikeOriginal = precise;
-
-            float beforeRealX = u.RuntimeRealXLikeOriginal;
-            float beforeRealY = u.RuntimeRealYLikeOriginal;
-            float stepX = fixEnd ? u.MoveTargetRealXLikeOriginal - beforeRealX
-                : (rs * C2OriginalMovementMathV352.TCos[currentDir]) >> 8;
-            float stepY = fixEnd ? u.MoveTargetRealYLikeOriginal - beforeRealY
-                : (rs * C2OriginalMovementMathV352.TSin[currentDir]) >> 8;
-            float stepLength = Mathf.Sqrt(stepX * stepX + stepY * stepY);
-            if (stepLength > 0.0f)
-            {
-                float ignoredX, ignoredY;
-                if (!TryAdvanceRuntimeRealWithOriginalMotionFieldLikeOriginal(
-                    u, stepX / stepLength, stepY / stepLength, stepLength, out ignoredX, out ignoredY))
-                {
-                    TryRefreshBlockedRouteLikeOriginal(u);
-                    return;
-                }
-            }
-
-            u.MoveRInFrameLikeOriginal = Math.Max(1, rInFrame);
-            if (UseContinuousWorldDeltaForOriginalMotion)
-                UpdateRuntimeWorldAndRealContinuousLikeOriginal(u, beforeRealX, beforeRealY);
-            else
-                UpdateRuntimeWorldAndRealLikeOriginal(u);
-
-            int motion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-            int desiredMotionAnimV357 = goAnimIndexV357 >= 0 ? goAnimIndexV357 : motion;
-            if (desiredMotionAnimV357 >= 0 &&
-                (u.State != C2UnitOriginalState.Motion || u.CurrentAnimIndex != desiredMotionAnimV357))
-            {
-                SelectAnimationStateLikeOriginal(
-                    u, C2UnitOriginalState.Motion, desiredMotionAnimV357, false,
-                    goAnimIndexV357 >= 0
-                        ? "MotionHandlerForSingleStepObjects_rotate_anim_v357"
-                        : "MotionHandlerForSingleStepObjects_v357");
-            }
-        }
-
-        private void SyncMotionPhaseAfterRotateV357LikeOriginal(
-            C2UnitOriginalRuntime u,
-            int motionIndex,
-            int rInFrame)
-        {
-            if (u == null || u.Md == null || motionIndex < 0 || motionIndex >= u.Md.Animations.Count)
-                return;
-            AnimModel motion = u.Md.Animations[motionIndex];
-            int nf = motion != null ? motion.Frames.Count : 0;
-            if (nf <= 0) return;
-            AnimModel current = CurrentAnim(u);
-            int currentFrame = current != null ? FixedFrameIndexLikeOriginal(u, current) : 0;
-            int rf = Math.Max(1, rInFrame);
-            int fr = (((Math.Abs(Mathf.RoundToInt(u.TotalPathLikeOriginal + 100000.0f)) << 8) / rf) % (nf << 8)) >> 8;
-            int df = fr - (currentFrame % nf);
-            u.TotalPathLikeOriginal -= df * rf;
-        }
-
-        private void BeginSingleStepRotUnitV352LikeOriginal(C2UnitOriginalRuntime u, byte bestDir)
-        {
-            if (u == null || u.Md == null) return;
-            byte current = u.Info != null ? u.Info.RealDir : (byte)((u.OriginalRealDirPrecise256LikeOriginal >> 8) & 255);
-            // Brigade.cpp::RotUnit: RotSpeed first quantises the current direction and
-            // the requested direction to the 16-direction grid.
-            current = C2OriginalMovementMathV352.Quantize16(current);
-            u.OriginalRealDirPrecise256LikeOriginal = current << 8;
-            SetRuntimeFacingLikeOriginal(u, current);
-            u.OriginalRealDirPrecise256LikeOriginal = current << 8;
-
-            byte target = C2OriginalMovementMathV352.Quantize16(bestDir);
-            if (current == target)
-            {
-                // Exact RotUnit fast path: restore the unquantised requested Dir and
-                // return without creating the type-1 rotate order. Movement resumes next tick.
-                SetRuntimeFacingLikeOriginal(u, bestDir);
-                u.OriginalRealDirPrecise256LikeOriginal = bestDir << 8;
-                return;
-            }
-
-            u.SingleStepRotateAtPlaceTargetV352LikeOriginal = target;
-            u.SingleStepRotateAtPlaceActiveV352LikeOriginal = true;
-        }
-
-        private void AdvanceSingleStepRotUnitLinkV352LikeOriginal(C2UnitOriginalRuntime u)
-        {
-            if (u == null || u.Md == null || !u.SingleStepRotateAtPlaceActiveV352LikeOriginal) return;
-            int targetPrecise = u.SingleStepRotateAtPlaceTargetV352LikeOriginal << 8;
-            int precise = u.OriginalRealDirPrecise256LikeOriginal & 0xFFFF;
-            short dd = unchecked((short)(precise - targetPrecise));
-            int dr = Math.Max(1, u.Md.RotationAtPlaceSpeed); // GameSpeed==256 in C2.
-
-            if (Math.Abs((int)dd) < dr)
-            {
-                precise = targetPrecise & 0xFFFF;
-                u.SingleStepRotateAtPlaceActiveV352LikeOriginal = false;
-            }
-            else if (dd < 0)
-                precise = (precise + dr) & 0xFFFF;
-            else
-                precise = (precise - dr) & 0xFFFF;
-
-            u.OriginalRealDirPrecise256LikeOriginal = precise;
-            byte dir = (byte)((precise >> 8) & 255);
-            SetRuntimeFacingLikeOriginal(u, dir);
-            u.OriginalRealDirPrecise256LikeOriginal = precise;
-            ApplyRotateAtPlaceAnimationFrameV352LikeOriginal(u, precise);
-        }
-
+        // V427: TryAdvanceRuntimeRealWithOriginalMotionFieldLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: C2BuildingMotionFieldV1BlockedForTurnLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: IsMdSingleStepPassThroughLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: AdvanceSingleStepMotionV352LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SyncMotionPhaseAfterRotateV357LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: BeginSingleStepRotUnitV352LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: AdvanceSingleStepRotUnitLinkV352LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
         // Returns true when Brigade.cpp::RotUnitLink has completed the appended facing order.
-        private bool AdvanceFinalRotUnitV352LikeOriginal(C2UnitOriginalRuntime u, byte requestedDir)
-        {
-            if (u == null || u.Md == null) return true;
-
-            bool goOnRoadV352 = u.OriginalGoOnRoadLikeOriginal;
-            int effectiveRotationAtPlaceSpeedV352 = goOnRoadV352 ? 0 : u.Md.RotationAtPlaceSpeed;
-
-            if (!u.FinalRotUnitActiveV352LikeOriginal)
-            {
-                int rotSpeed = effectiveRotationAtPlaceSpeedV352;
-                byte current = u.Info != null ? u.Info.RealDir : (byte)((u.OriginalRealDirPrecise256LikeOriginal >> 8) & 255);
-                if (rotSpeed > 0)
-                {
-                    current = C2OriginalMovementMathV352.Quantize16(current);
-                    SetRuntimeFacingLikeOriginal(u, current);
-                    u.OriginalRealDirPrecise256LikeOriginal = current << 8;
-                    byte target16 = C2OriginalMovementMathV352.Quantize16(requestedDir);
-                    if (current == target16)
-                    {
-                        SetRuntimeFacingLikeOriginal(u, requestedDir);
-                        u.OriginalRealDirPrecise256LikeOriginal = requestedDir << 8;
-                        return true;
-                    }
-                    u.FinalRotUnitTargetV352LikeOriginal = target16;
-                }
-                else
-                {
-                    u.FinalRotUnitTargetV352LikeOriginal = requestedDir;
-                }
-                u.FinalRotUnitActiveV352LikeOriginal = true;
-                // RotUnit creates OrderType 12 now; RotUnitLink performs its first turn next tick.
-                return false;
-            }
-
-            int rotationAtPlaceSpeed = effectiveRotationAtPlaceSpeedV352;
-            if (rotationAtPlaceSpeed > 0)
-            {
-                int targetPrecise = u.FinalRotUnitTargetV352LikeOriginal << 8;
-                int precise = u.OriginalRealDirPrecise256LikeOriginal & 0xFFFF;
-                short dd = unchecked((short)(precise - targetPrecise));
-                int dr = Math.Max(1, rotationAtPlaceSpeed);
-                if (Math.Abs((int)dd) < dr)
-                {
-                    precise = targetPrecise & 0xFFFF;
-                    u.OriginalRealDirPrecise256LikeOriginal = precise;
-                    SetRuntimeFacingLikeOriginal(u, (byte)((precise >> 8) & 255));
-                    u.OriginalRealDirPrecise256LikeOriginal = precise;
-                    u.FinalRotUnitActiveV352LikeOriginal = false;
-                    return true;
-                }
-                if (dd < 0) precise = (precise + dr) & 0xFFFF;
-                else precise = (precise - dr) & 0xFFFF;
-                u.OriginalRealDirPrecise256LikeOriginal = precise;
-                SetRuntimeFacingLikeOriginal(u, (byte)((precise >> 8) & 255));
-                u.OriginalRealDirPrecise256LikeOriginal = precise;
-                ApplyRotateAtPlaceAnimationFrameV352LikeOriginal(u, precise);
-                return false;
-            }
-
-            int mrot = Math.Max(1, u.Md.MinRotator);
-            byte realDir = u.Info != null ? u.Info.RealDir : (byte)((u.OriginalRealDirPrecise256LikeOriginal >> 8) & 255);
-            byte target = u.FinalRotUnitTargetV352LikeOriginal;
-            sbyte delta = unchecked((sbyte)(realDir - target));
-            if (Math.Abs((int)delta) <= mrot)
-            {
-                SetRuntimeFacingLikeOriginal(u, target);
-                u.OriginalRealDirPrecise256LikeOriginal = target << 8;
-                u.FinalRotUnitActiveV352LikeOriginal = false;
-                return true;
-            }
-
-            int p = u.OriginalRealDirPrecise256LikeOriginal & 0xFFFF;
-            int dd2 = mrot << 8; // Mrot*GameSpeed, GameSpeed=256.
-            if (delta > 0) p = (p - dd2) & 0xFFFF;
-            else p = (p + dd2) & 0xFFFF;
-            u.OriginalRealDirPrecise256LikeOriginal = p;
-            SetRuntimeFacingLikeOriginal(u, (byte)((p >> 8) & 255));
-            u.OriginalRealDirPrecise256LikeOriginal = p;
-            return false;
-        }
-
-        private void ApplyRotateAtPlaceAnimationFrameV352LikeOriginal(C2UnitOriginalRuntime u, int precise)
-        {
-            if (u == null || u.Md == null) return;
-            int rotate = ResolveAnimationIndexLikeOriginal(u.Md, "@ROTATEATPLACE");
-            if (rotate < 0) rotate = ResolveAnimationIndexLikeOriginal(u.Md, "#ROTATEATPLACE");
-            if (rotate < 0) rotate = ResolveAnimationIndexLikeOriginal(u.Md, "ROTATEATPLACE");
-            if (rotate < 0 || rotate >= u.Md.Animations.Count) return;
-            AnimModel a = u.Md.Animations[rotate];
-            int nf = a != null ? a.Frames.Count : 0;
-            if (nf <= 0) return;
-            if (u.CurrentAnimIndex != rotate)
-                SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Motion, rotate, false, "RotUnitLink_RotateAtPlace_v352");
-            int wordDelta = unchecked((ushort)(precise - 64 * 256));
-            u.CurrentFrameLong = (wordDelta * nf) >> 8;
-            u.FrameFinishedLikeOriginal = false;
-        }
-
+        // V427: AdvanceFinalRotUnitV352LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V411 / COSSACKS2/NewMon.cpp::AttackObjLink rotation gate.
+        // needState is the original zero-based attack slot.  This keeps the
+        // retail MotionStyle numeric mapping (2=SHEEPS, 3=COMPLEXROTATE,
+        // 7=SINGLESTEP); V410 incorrectly applied the MotionStyle==2 branch to
+        // SINGLESTEP infantry.
+        // V427: AdvanceRuntimeAttackFacingV411LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // Compatibility entry retained for callers outside the combat runtime.
+        // V427: AdvanceRuntimeAttackFacingV410LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: MotionStyleCodeV411LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: ApplyRotateAtPlaceAnimationFrameV352LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
         // UnitAbility.cpp::BoidsSingleStep2 copied with the same coordinate units.
-        private void ApplyOriginalBoidsSingleStep2V352LikeOriginal(
-            C2UnitOriginalRuntime u,
-            ref int dx,
-            ref int dy,
-            ref int changeSpeed)
-        {
-            if (u == null) return;
-
-            dx >>= 4;
-            dy >>= 4;
-            int idd = C2OriginalMovementMathV352.Norma(dx, dy) + 1;
-            if (idd <= 16) return;
-
-            int mainDirNorma = Math.Max(1, Mathf.RoundToInt(OriginalBoidsMainDirectionNormLikeOriginal));
-            int idx = (dx * mainDirNorma) / idd;
-            int idy = (dy * mainDirNorma) / idd;
-
-            int p = u.UnitOrder << 2;
-            int ndx = p >= 0 && p + 3 < _originalBoidsCoordAndForceLikeOriginal.Length
-                ? Mathf.RoundToInt(_originalBoidsCoordAndForceLikeOriginal[p + 2]) : 0;
-            int ndy = p >= 0 && p + 3 < _originalBoidsCoordAndForceLikeOriginal.Length
-                ? Mathf.RoundToInt(_originalBoidsCoordAndForceLikeOriginal[p + 3]) : 0;
-            int ndd = C2OriginalMovementMathV352.Norma(ndx, ndy) + 1;
-            int densNorma = Math.Max(1, Mathf.RoundToInt(OriginalBoidsDensityNormLikeOriginal));
-            if (ndd > densNorma)
-            {
-                ndx = (ndx * densNorma) / ndd;
-                ndy = (ndy * densNorma) / ndd;
-            }
-
-            int changeSpeedW = Mathf.RoundToInt(OriginalBoidsChangeSpeedWeightLikeOriginal);
-            changeSpeed = ((changeSpeedW * (idx * ndx + idy * ndy)) / mainDirNorma) / 1000;
-
-            // MFIELDS.CheckPt(OB->x+(ndx>>8),OB->y+(ndy>>8)) is equivalent to
-            // probing the original Real coordinate displaced by ndx/ndy.
-            float probeX = u.RuntimeRealXLikeOriginal + ndx;
-            float probeY = u.RuntimeRealYLikeOriginal + ndy;
-            if (C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(probeX, probeY, 1))
-            {
-                ndx = 0;
-                ndy = 0;
-            }
-
-            dx = idx + ndx;
-            dy = idy + ndy;
-        }
-
-        private void ApplyOriginalSingleStepBoidsSteeringLikeOriginal(
-            C2UnitOriginalRuntime u,
-            ref float nx,
-            ref float ny,
-            ref float stepReal)
-        {
-            if (!UseMdBoidsSteeringLikeOriginal || u == null || u.Md == null ||
-                !u.Md.BoidsMoving || !IsMdSingleStepPassThroughLikeOriginal(u) ||
-                _units.Count >= Mathf.Max(1, OriginalBoidsOffLimitLikeOriginal))
-                return;
-
-            float remainingX = u.MoveTargetRealXLikeOriginal - u.RuntimeRealXLikeOriginal;
-            float remainingY = u.MoveTargetRealYLikeOriginal - u.RuntimeRealYLikeOriginal;
-            if (OriginalNormaLikeOriginal(remainingX, remainingY) <= 16.0f * 16.0f)
-                return;
-
-            float mainNorm = Mathf.Max(1.0f, OriginalBoidsMainDirectionNormLikeOriginal);
-            float directionNorm = Mathf.Max(0.0001f, OriginalNormaLikeOriginal(nx, ny));
-            float desiredX = nx * mainNorm / directionNorm;
-            float desiredY = ny * mainNorm / directionNorm;
-            int boidsBase = u.UnitOrder << 2;
-            float forceX = boidsBase >= 0 && boidsBase + 3 < _originalBoidsCoordAndForceLikeOriginal.Length
-                ? _originalBoidsCoordAndForceLikeOriginal[boidsBase + 2]
-                : 0.0f;
-            float forceY = boidsBase >= 0 && boidsBase + 3 < _originalBoidsCoordAndForceLikeOriginal.Length
-                ? _originalBoidsCoordAndForceLikeOriginal[boidsBase + 3]
-                : 0.0f;
-            float forceNorm = OriginalNormaLikeOriginal(forceX, forceY) + 1.0f;
-            float densNorm = Mathf.Max(1.0f, OriginalBoidsDensityNormLikeOriginal);
-            if (forceNorm > densNorm)
-            {
-                forceX = forceX * densNorm / forceNorm;
-                forceY = forceY * densNorm / forceNorm;
-            }
-
-            float probeX = u.RuntimeRealXLikeOriginal + forceX / 256.0f;
-            float probeY = u.RuntimeRealYLikeOriginal + forceY / 256.0f;
-            if (C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(probeX, probeY, 1))
-            {
-                forceX = 0.0f;
-                forceY = 0.0f;
-            }
-
-            float addSpeed = OriginalBoidsChangeSpeedWeightLikeOriginal *
-                             (desiredX * forceX + desiredY * forceY) /
-                             mainNorm / 1000.0f;
-            stepReal = Mathf.Max(1.0f, stepReal + addSpeed);
-
-            float steeringX = desiredX + forceX;
-            float steeringY = desiredY + forceY;
-            float steeringLength = Mathf.Sqrt(steeringX * steeringX + steeringY * steeringY);
-            if (steeringLength > 0.0001f)
-            {
-                nx = steeringX / steeringLength;
-                ny = steeringY / steeringLength;
-            }
-        }
-
-        private void UpdateOriginalBoidsPairForcesLikeOriginal()
-        {
-            // BoidsExtension::ProcessingGame does no coordinate fill or force
-            // calculation at all once MAXOBJECT reaches BoidsOffLimit.
-            if (!UseMdBoidsSteeringLikeOriginal ||
-                !_unitCollisionBucketsValidLikeOriginal ||
-                _units.Count >= Mathf.Max(1, OriginalBoidsOffLimitLikeOriginal))
-            {
-                _originalBoidsNeighborPairsLikeOriginal.Clear();
-                _originalBoidsSimulationTickLikeOriginal++;
-                return;
-            }
-
-            int required = _units.Count << 2;
-            if (_originalBoidsCoordAndForceLikeOriginal.Length < required)
-            {
-                int capacity = Mathf.NextPowerOfTwo(Mathf.Max(16, required));
-                _originalBoidsCoordAndForceLikeOriginal = new float[capacity];
-            }
-
-            // CPF_Stage1: write current coordinates and clear force slots.
-            for (int i = 0; i < _units.Count; i++)
-            {
-                int p = i << 2;
-                C2UnitOriginalRuntime u = _units[i];
-                if (u != null)
-                {
-                    _originalBoidsCoordAndForceLikeOriginal[p] = u.RuntimeRealXLikeOriginal;
-                    _originalBoidsCoordAndForceLikeOriginal[p + 1] = u.RuntimeRealYLikeOriginal;
-                }
-                else
-                {
-                    _originalBoidsCoordAndForceLikeOriginal[p] = 0.0f;
-                    _originalBoidsCoordAndForceLikeOriginal[p + 1] = 0.0f;
-                }
-                _originalBoidsCoordAndForceLikeOriginal[p + 2] = 0.0f;
-                _originalBoidsCoordAndForceLikeOriginal[p + 3] = 0.0f;
-            }
-
-            int refreshTicks = Mathf.Max(1, OriginalBoidsNeighborRefreshTicksLikeOriginal);
-            if (_originalBoidsNeighborPairsLikeOriginal.Count == 0 ||
-                (_originalBoidsSimulationTickLikeOriginal % refreshTicks) == 0)
-            {
-                RebuildOriginalBoidsNeighborPairsLikeOriginal();
-                _originalBoidsNeighborRefreshesLikeOriginal++;
-            }
-            _originalBoidsSimulationTickLikeOriginal++;
-
-            float minDistance = Mathf.Max(1.0f, OriginalBoidsMinDistanceOriginalPixelsLikeOriginal) * 16.0f;
-            for (int i = 0; i < _originalBoidsNeighborPairsLikeOriginal.Count; i++)
-            {
-                OriginalBoidsNeighborPairLikeOriginal pair = _originalBoidsNeighborPairsLikeOriginal[i];
-                if (pair.A < 0 || pair.B < 0 || pair.A >= _units.Count || pair.B >= _units.Count)
-                    continue;
-                C2UnitOriginalRuntime a = _units[pair.A];
-                C2UnitOriginalRuntime b = _units[pair.B];
-                if (!IsRuntimeUnitCollisionCandidateLikeOriginal(a, false) ||
-                    !IsRuntimeUnitCollisionCandidateLikeOriginal(b, false))
-                    continue;
-
-                int pa = pair.A << 2;
-                int pb = pair.B << 2;
-                float dx = _originalBoidsCoordAndForceLikeOriginal[pb] -
-                           _originalBoidsCoordAndForceLikeOriginal[pa];
-                float dy = _originalBoidsCoordAndForceLikeOriginal[pb + 1] -
-                           _originalBoidsCoordAndForceLikeOriginal[pa + 1];
-                if (Mathf.Abs(dx) < 0.0001f || Mathf.Abs(dy) < 0.0001f)
-                    continue;
-                float norm = OriginalNormaLikeOriginal(dx, dy) + 1.0f;
-                float overlap = minDistance - norm;
-                if (overlap <= 0.0f)
-                    continue;
-
-                float fx = dx * overlap * minDistance / norm;
-                float fy = dy * overlap * minDistance / norm;
-                _originalBoidsCoordAndForceLikeOriginal[pa + 2] -= fx;
-                _originalBoidsCoordAndForceLikeOriginal[pa + 3] -= fy;
-                _originalBoidsCoordAndForceLikeOriginal[pb + 2] += fx;
-                _originalBoidsCoordAndForceLikeOriginal[pb + 3] += fy;
-            }
-        }
-
-        private void RebuildOriginalBoidsNeighborPairsLikeOriginal()
-        {
-            _originalBoidsNeighborPairsLikeOriginal.Clear();
-            if (!_unitCollisionBucketsValidLikeOriginal)
-                return;
-
-            float cell = Mathf.Max(64.0f, OriginalUnitCollisionCellRealLikeOriginal);
-            float radius = Mathf.Max(1.0f, OriginalBoidsRadiusOriginalPixelsLikeOriginal) * 16.0f;
-            int range = Mathf.Max(1, Mathf.CeilToInt(radius / cell));
-            for (int i = 0; i < _units.Count; i++)
-            {
-                C2UnitOriginalRuntime a = _units[i];
-                if (!IsRuntimeUnitCollisionCandidateLikeOriginal(a, false)) continue;
-                int cx = Mathf.FloorToInt(a.RuntimeRealXLikeOriginal / cell);
-                int cy = Mathf.FloorToInt(a.RuntimeRealYLikeOriginal / cell);
-                for (int yy = cy - range; yy <= cy + range; yy++)
-                {
-                    for (int xx = cx - range; xx <= cx + range; xx++)
-                    {
-                        List<C2UnitOriginalRuntime> bucket;
-                        if (!_unitCollisionBucketsLikeOriginal.TryGetValue(UnitCollisionBucketKeyLikeOriginal(xx, yy), out bucket) ||
-                            bucket == null)
-                            continue;
-                        for (int bi = 0; bi < bucket.Count; bi++)
-                        {
-                            C2UnitOriginalRuntime b = bucket[bi];
-                            if (!IsRuntimeUnitCollisionCandidateLikeOriginal(b, false) || b.UnitOrder <= a.UnitOrder)
-                                continue;
-                            float dx = b.RuntimeRealXLikeOriginal - a.RuntimeRealXLikeOriginal;
-                            float dy = b.RuntimeRealYLikeOriginal - a.RuntimeRealYLikeOriginal;
-                            if (OriginalNormaLikeOriginal(dx, dy) >= radius)
-                                continue;
-                            _originalBoidsNeighborPairsLikeOriginal.Add(
-                                new OriginalBoidsNeighborPairLikeOriginal { A = i, B = b.UnitOrder });
-                        }
-                    }
-                }
-            }
-        }
-
-        private static float OriginalNormaLikeOriginal(float x, float y)
-        {
-            float ax = Mathf.Abs(x);
-            float ay = Mathf.Abs(y);
-            return (Mathf.Max(ax, ay) + ax + ay) * 0.5f;
-        }
-
-        private bool TryRetargetBlockedFinishToFreePositionLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            if (u == null || u.PreciseBornPathLikeOriginal)
-                return false;
-
-            if (!UseOriginalProducedRallyFindUnitPositionLikeOriginal || !UseOriginalUnitCollisionCheckPositionLikeOriginal)
-                return false;
-
-            if (u.BlockedFinishRetargetAttemptLikeOriginal >= 3)
-                return false;
-
-            Vector2 freeReal;
-            if (!TryFindProducedRallyFreePositionRealLikeOriginal(u, u.MoveTargetRealXLikeOriginal, u.MoveTargetRealYLikeOriginal, out freeReal))
-                return false;
-
-            float dxTarget = freeReal.x - u.MoveTargetRealXLikeOriginal;
-            float dyTarget = freeReal.y - u.MoveTargetRealYLikeOriginal;
-            if (dxTarget * dxTarget + dyTarget * dyTarget < 1.0f)
-                return false;
-
-            u.BlockedFinishRetargetAttemptLikeOriginal++;
-            EmitBornStopAuditLikeOriginal(
-                u,
-                "blocked_finish_find_unit_position",
-                "retargetAttempt=" + u.BlockedFinishRetargetAttemptLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                " oldTarget=(" + u.MoveTargetRealXLikeOriginal.ToString("0", CultureInfo.InvariantCulture) +
-                "," + u.MoveTargetRealYLikeOriginal.ToString("0", CultureInfo.InvariantCulture) + ")" +
-                " free=(" + freeReal.x.ToString("0", CultureInfo.InvariantCulture) +
-                "," + freeReal.y.ToString("0", CultureInfo.InvariantCulture) + ")");
-
-            SetRuntimeMoveDestinationRealInternalLikeOriginal(
-                u,
-                freeReal.x,
-                freeReal.y,
-                u.MoveSpeedOriginalPixelsPerSecondLikeOriginal > 0.001f
-                    ? u.MoveSpeedOriginalPixelsPerSecondLikeOriginal
-                    : C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                u.HasFinalFacingDirLikeOriginal,
-                u.FinalFacingDirLikeOriginal,
-                true,
-                false,
-                "blocked_finish_find_unit_position",
-                false);
-            return true;
-        }
-
-        private bool CanRuntimeUnitOccupyRealLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            if (u == null) return false;
-            if (u.PreciseBornPathLikeOriginal) return true;
-            if (!CanRuntimeUnitOccupyTerrainLikeOriginal(u, realX, realY))
-                return false;
-            return CanRuntimeUnitOccupyOtherUnitsLikeOriginal(u, realX, realY);
-        }
-
-        private bool CanRuntimeUnitAdvanceRealLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            if (u == null) return false;
-            if (u.PreciseBornPathLikeOriginal) return true;
-            if (!CanRuntimeUnitOccupyTerrainLikeOriginal(u, realX, realY))
-                return false;
-            if (IsMdSingleStepPassThroughLikeOriginal(u))
-                return true;
-            if (!UseOriginalUnitCollisionHardStepBlockLikeOriginal)
-                return true;
-            return CanRuntimeUnitOccupyOtherUnitsLikeOriginal(u, realX, realY);
-        }
-
-        private bool CanRuntimeUnitAdvanceSegmentRealLikeOriginal(
-            C2UnitOriginalRuntime u,
-            float fromRealX,
-            float fromRealY,
-            float toRealX,
-            float toRealY)
-        {
-            if (!CanRuntimeUnitAdvanceRealLikeOriginal(u, toRealX, toRealY))
-                return false;
-            if (u == null || u.PreciseBornPathLikeOriginal ||
-                !UseOriginalMotionFieldPerStepBlockLikeOriginal ||
-                !RouteUnitMoveThroughBuildingLockPointsLikeOriginal)
-                return true;
-
-            int radiusCells = ResolveRuntimeUnitRadiusCellsLikeOriginal(u);
-            // A unit already caught by a newly-created lock uses the existing nearest-free escape
-            // rule.  Segment rejection here would otherwise prevent it from leaving the building.
-            if (C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(
-                    fromRealX, fromRealY, radiusCells))
-                return true;
-
-            return C2BuildingRuntimeInfoV247LikeOriginal.CanTravelStraightRealV247LikeOriginal(
-                fromRealX, fromRealY, toRealX, toRealY, radiusCells);
-        }
-
-        private bool CanRuntimeUnitFinishTargetRealLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            if (u == null) return false;
-            if (u.MoveTargetAllowsUnitOverlapFinishLikeOriginal)
-                return CanRuntimeUnitOccupyTerrainLikeOriginal(u, realX, realY);
-            if (!CanRuntimeUnitOccupyTerrainLikeOriginal(u, realX, realY))
-                return false;
-            if (!UseOriginalUnitCollisionCheckPositionLikeOriginal)
-                return true;
-            return CanRuntimeUnitAvoidOtherUnitsAndReservedTargetsLikeOriginal(u, realX, realY);
-        }
-
-        private Vector2 ResolveProducedRallyDestinationRealLikeOriginal(C2UnitOriginalRuntime u, int rallyRealX, int rallyRealY, out string audit)
-        {
-            // Original Build.cpp: if OBJ->DstX is set, produced unit is not sent to the
-            // exact marker.  It first gets dx/dy = DstX/DstY + (rando()%2048)-1024,
-            // then FindUnitPosition may move that candidate to a nearby free place.
-            // If no free place is found, the original keeps the scattered dx/dy, not the
-            // rally center.  Falling back to the exact rally center is what made the
-            // 121st+ produced units visually glue into one pixel after the collision ring
-            // was full.
-            int order = u != null ? u.UnitOrder : 0;
-            UnitProbe probe = u != null ? u.Probe : null;
-            float scatterX = StableUnitRandomRangeLikeOriginal(probe, 6101 + order, -1024.0f, 1024.0f);
-            float scatterY = StableUnitRandomRangeLikeOriginal(probe, 6102 + order, -1024.0f, 1024.0f);
-            float desiredX = rallyRealX + scatterX;
-            float desiredY = rallyRealY + scatterY;
-
-            Vector2 finalReal;
-            bool found = TryFindProducedRallyFreePositionRealLikeOriginal(u, desiredX, desiredY, out finalReal);
-            if (!found)
-                finalReal = new Vector2(desiredX, desiredY);
-
-            audit = "rally=dstXDstY_original_Build_cpp_651_654_scatter_then_FindUnitPosition" +
-                    " baseReal=(" + rallyRealX.ToString(CultureInfo.InvariantCulture) + "," + rallyRealY.ToString(CultureInfo.InvariantCulture) + ")" +
-                    " scatterReal=(" + scatterX.ToString("0", CultureInfo.InvariantCulture) + "," + scatterY.ToString("0", CultureInfo.InvariantCulture) + ")" +
-                    " desiredReal=(" + desiredX.ToString("0", CultureInfo.InvariantCulture) + "," + desiredY.ToString("0", CultureInfo.InvariantCulture) + ")" +
-                    " finalReal=(" + finalReal.x.ToString("0", CultureInfo.InvariantCulture) + "," + finalReal.y.ToString("0", CultureInfo.InvariantCulture) + ")" +
-                    " foundFree=" + found +
-                    " fallback=scattered_not_center";
-            return finalReal;
-        }
-
-        private bool TryStartGotoFinePositionAfterProductionLikeOriginal(C2UnitOriginalRuntime u, string reason)
-        {
-            if (!UseOriginalGotoFinePositionAfterProductionLikeOriginal) return false;
-            if (u == null || u.State == C2UnitOriginalState.Death) return false;
-            if (!u.NeedsGotoFinePositionLikeOriginal) return false;
-            // A brigade owns this destination. A stale production-exit flag must
-            // not replace its slot with an unrelated free point after the first move.
-            if (u.Info != null && C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(u.Info))
-            {
-                u.NeedsGotoFinePositionLikeOriginal = false;
-                return false;
-            }
-            if (u.PreciseBornPathLikeOriginal) return false;
-
-            int maxAttempts = Mathf.Max(0, OriginalGotoFinePositionMaxAttemptsLikeOriginal);
-            if (maxAttempts <= 0 || u.GotoFinePositionAttemptsLikeOriginal >= maxAttempts)
-            {
-                u.NeedsGotoFinePositionLikeOriginal = false;
-                return false;
-            }
-
-            Vector2 fineReal;
-            bool found = TryFindProducedRallyFreePositionRealLikeOriginal(
-                u,
-                u.RuntimeRealXLikeOriginal,
-                u.RuntimeRealYLikeOriginal,
-                out fineReal);
-
-            float dx = fineReal.x - u.RuntimeRealXLikeOriginal;
-            float dy = fineReal.y - u.RuntimeRealYLikeOriginal;
-            float minMove = Mathf.Max(1.0f, OriginalGotoFinePositionMinMoveRealLikeOriginal);
-            if (!found || dx * dx + dy * dy < minMove * minMove)
-            {
-                u.NeedsGotoFinePositionLikeOriginal = false;
-                LogGotoFinePositionLikeOriginal(u, reason, found ? "already_free" : "no_free_position", fineReal);
-                return false;
-            }
-
-            u.GotoFinePositionAttemptsLikeOriginal++;
-            SetRuntimeMoveDestinationRealInternalLikeOriginal(
-                u,
-                fineReal.x,
-                fineReal.y,
-                u.MoveSpeedOriginalPixelsPerSecondLikeOriginal > 0.001f
-                    ? u.MoveSpeedOriginalPixelsPerSecondLikeOriginal
-                    : C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                false,
-                0,
-                true,
-                false,
-                "goto_fine_position_after_production",
-                false);
-
-            LogGotoFinePositionLikeOriginal(u, reason, "send_to_free_position", fineReal);
-            return true;
-        }
-
-        private void LogGotoFinePositionLikeOriginal(C2UnitOriginalRuntime u, string reason, string result, Vector2 fineReal)
-        {
-            if (!LogOriginalGotoFinePositionLikeOriginal) return;
-            if (_gotoFinePositionLogsLikeOriginal >= Mathf.Max(1, MaxOriginalGotoFinePositionLogsLikeOriginal)) return;
-
-            _gotoFinePositionLogsLikeOriginal++;
-            Debug.Log(LogPrefix + " GOTO_FINE_POSITION original=Build.cpp_727_779" +
-                      " unit='" + (u != null && u.Probe != null ? u.Probe.MonsterId : string.Empty) + "'" +
-                      " order=" + (u != null ? u.UnitOrder.ToString(CultureInfo.InvariantCulture) : "0") +
-                      " attempt=" + (u != null ? u.GotoFinePositionAttemptsLikeOriginal.ToString(CultureInfo.InvariantCulture) : "0") +
-                      "/" + Mathf.Max(0, OriginalGotoFinePositionMaxAttemptsLikeOriginal).ToString(CultureInfo.InvariantCulture) +
-                      " reason='" + (reason ?? string.Empty) + "'" +
-                      " result='" + (result ?? string.Empty) + "'" +
-                      " from=(" + (u != null ? u.RuntimeRealXLikeOriginal.ToString("0", CultureInfo.InvariantCulture) : "0") +
-                      "," + (u != null ? u.RuntimeRealYLikeOriginal.ToString("0", CultureInfo.InvariantCulture) : "0") + ")" +
-                      " to=(" + fineReal.x.ToString("0", CultureInfo.InvariantCulture) +
-                      "," + fineReal.y.ToString("0", CultureInfo.InvariantCulture) + ")");
-        }
-
-        private bool TryFindProducedRallyFreePositionRealLikeOriginal(C2UnitOriginalRuntime u, float wantedRealX, float wantedRealY, out Vector2 finalReal)
-        {
-            finalReal = new Vector2(wantedRealX, wantedRealY);
-            if (!UseOriginalProducedRallyFindUnitPositionLikeOriginal)
-                return false;
-
-            int rings = Mathf.Clamp(OriginalProducedRallyFindUnitPositionRingsLikeOriginal, 1, 50);
-            const float ringStepReal = 512.0f; // NewMon.cpp::FindUnitPosition SH=9.
-            for (int ring = 0; ring < rings; ring++)
-            {
-                if (ring == 0)
-                {
-                    if (CanProducedRallyCandidateRealLikeOriginal(u, wantedRealX, wantedRealY))
-                    {
-                        finalReal = new Vector2(wantedRealX, wantedRealY);
-                        return true;
-                    }
-                    continue;
-                }
-
-                int count = ring * 8;
-                int start = Mathf.Abs(((u != null ? u.UnitOrder : 0) * 37 + ring * 13)) % Mathf.Max(1, count);
-                for (int i = 0; i < count; i++)
-                {
-                    Vector2Int off = SquareRingOffsetLikeOriginal((i + start) % count, ring);
-                    float x = wantedRealX + off.x * ringStepReal;
-                    float y = wantedRealY + off.y * ringStepReal;
-                    if (!CanProducedRallyCandidateRealLikeOriginal(u, x, y))
-                        continue;
-
-                    finalReal = new Vector2(x, y);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool CanProducedRallyCandidateRealLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            if (!CanRuntimeUnitOccupyTerrainLikeOriginal(u, realX, realY))
-                return false;
-            if (!UseOriginalUnitCollisionCheckPositionLikeOriginal)
-                return true;
-            return CanRuntimeUnitAvoidOtherUnitsAndReservedTargetsLikeOriginal(u, realX, realY);
-        }
-
-        private bool CanRuntimeUnitAvoidOtherUnitsAndReservedTargetsLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            float selfRadius = ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(u);
-            for (int i = 0; i < _units.Count; i++)
-            {
-                C2UnitOriginalRuntime other = _units[i];
-                if (other == null || ReferenceEquals(other, u)) continue;
-                if (!IsRuntimeUnitCollisionCandidateLikeOriginal(other, true)) continue;
-                // Members of one brigade intentionally reserve close orders.lst slots.
-                // Treating those reservations as ordinary unit collisions made every
-                // soldier reject his own place during the final CheckPosition pass and
-                // retarget to a common "free" area, visually gluing the brigade together.
-                if (C2FormationRuntimeV167LikeOriginal.AreUnitsInSameFormationV321LikeOriginal(u.Info, other.Info))
-                    continue;
-
-                float minDist = selfRadius + ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(other);
-                if (IsPointInsideRuntimeUnitRadiusLikeOriginal(realX, realY, other.RuntimeRealXLikeOriginal, other.RuntimeRealYLikeOriginal, minDist))
-                    return false;
-
-                Vector2 reserved;
-                if (TryGetRuntimeUnitReservedDestinationRealLikeOriginal(other, out reserved) &&
-                    IsPointInsideRuntimeUnitRadiusLikeOriginal(realX, realY, reserved.x, reserved.y, minDist))
-                    return false;
-            }
-
-            return true;
-        }
-
-        private static bool IsPointInsideRuntimeUnitRadiusLikeOriginal(float x, float y, float ox, float oy, float radius)
-        {
-            float dx = x - ox;
-            float dy = y - oy;
-            return dx * dx + dy * dy < radius * radius;
-        }
-
-        private static bool TryGetRuntimeUnitReservedDestinationRealLikeOriginal(C2UnitOriginalRuntime other, out Vector2 reserved)
-        {
-            reserved = Vector2.zero;
-            if (other == null)
-                return false;
-            if (other.MovePathRealWaypointsLikeOriginal != null && other.MovePathRealWaypointsLikeOriginal.Length > 0)
-            {
-                reserved = other.MovePathRealWaypointsLikeOriginal[other.MovePathRealWaypointsLikeOriginal.Length - 1];
-                return true;
-            }
-            if (other.HasMoveTargetLikeOriginal)
-            {
-                reserved = new Vector2(other.MoveTargetRealXLikeOriginal, other.MoveTargetRealYLikeOriginal);
-                return true;
-            }
-            return false;
-        }
-
-        private static Vector2Int SquareRingOffsetLikeOriginal(int index, int ring)
-        {
-            if (ring <= 0)
-                return Vector2Int.zero;
-
-            int side = ring * 2;
-            int count = ring * 8;
-            int idx = ((index % count) + count) % count;
-            if (idx < side)
-                return new Vector2Int(-ring + idx, -ring);
-            idx -= side;
-            if (idx < side)
-                return new Vector2Int(ring, -ring + idx);
-            idx -= side;
-            if (idx < side)
-                return new Vector2Int(ring - idx, ring);
-            idx -= side;
-            return new Vector2Int(-ring, ring - idx);
-        }
-
-        private bool CanRuntimeUnitOccupyTerrainLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            if (u == null) return false;
-            if (!UseOriginalMotionFieldPerStepBlockLikeOriginal) return true;
-            if (!RouteUnitMoveThroughBuildingLockPointsLikeOriginal) return true;
-
-            int radiusCells = ResolveRuntimeUnitRadiusCellsLikeOriginal(u);
-            if (!C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(realX, realY, radiusCells))
-                return true;
-
-            // FIX3: if the unit is already inside a locked cell (bad spawn/old save/previous patch),
-            // allow only steps that move it closer to the nearest free cell. This reproduces the
-            // practical effect of original UnlimitedMotion/BORN escape without allowing normal
-            // movement through buildings.
-            if (C2BattleTerrainMode.C2BuildingMotionFieldV1IsBlockedForUnitRealLikeOriginal(u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal, radiusCells))
-            {
-                float freeX;
-                float freeY;
-                if (C2BattleTerrainMode.C2BuildingMotionFieldV1TryFindNearestFreeRealLikeOriginal(u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal, out freeX, out freeY, 24))
-                {
-                    float cdx = freeX - u.RuntimeRealXLikeOriginal;
-                    float cdy = freeY - u.RuntimeRealYLikeOriginal;
-                    float ndx = freeX - realX;
-                    float ndy = freeY - realY;
-                    float curD = cdx * cdx + cdy * cdy;
-                    float newD = ndx * ndx + ndy * ndy;
-                    if (newD < curD - 1.0f)
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool CanPreciseBornUnitAdvanceWithDoorSpacingLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            // Original Build.cpp sends produced units through BORNPOINTS using
-            // OrderedUnlimitedMotion. It does not serialize them into a Unity-side
-            // FIFO queue at the doorway. Precise born movement already ignores normal
-            // unit collision below, so allow every produced unit to traverse the exact
-            // exit path and disperse at its rally destination.
-            return true;
-        }
-
-        private bool CanRuntimeUnitOccupyOtherUnitsLikeOriginal(C2UnitOriginalRuntime u, float realX, float realY)
-        {
-            if (!UseOriginalUnitCollisionCheckPositionLikeOriginal) return true;
-            if (!_unitCollisionBucketsValidLikeOriginal || _unitCollisionBucketsLikeOriginal.Count == 0) return true;
-            if (u == null || u.PreciseBornPathLikeOriginal) return true;
-
-            float cell = Mathf.Max(64.0f, OriginalUnitCollisionCellRealLikeOriginal);
-            int cx = Mathf.FloorToInt(realX / cell);
-            int cy = Mathf.FloorToInt(realY / cell);
-            float selfRadius = ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(u);
-
-            for (int yy = cy - 1; yy <= cy + 1; yy++)
-            {
-                for (int xx = cx - 1; xx <= cx + 1; xx++)
-                {
-                    List<C2UnitOriginalRuntime> bucket;
-                    if (!_unitCollisionBucketsLikeOriginal.TryGetValue(UnitCollisionBucketKeyLikeOriginal(xx, yy), out bucket) || bucket == null)
-                        continue;
-
-                    for (int i = 0; i < bucket.Count; i++)
-                    {
-                        C2UnitOriginalRuntime other = bucket[i];
-                        if (other == null || ReferenceEquals(other, u)) continue;
-                        if (!IsRuntimeUnitCollisionCandidateLikeOriginal(other, false)) continue;
-                        if (C2FormationRuntimeV167LikeOriginal.AreUnitsInSameFormationV321LikeOriginal(u.Info, other.Info))
-                            continue;
-                        // Cossacks II moving crowds do not form an impenetrable Unity
-                        // collider wall. Both orders remain valid and their sprites can
-                        // cross; only a standing unit yields aside. Hard-blocking two
-                        // moving brigades was the source of stalled/bent lines.
-                        if (u.HasMoveTargetLikeOriginal && other.HasMoveTargetLikeOriginal)
-                            continue;
-
-                        float dx = realX - other.RuntimeRealXLikeOriginal;
-                        float dy = realY - other.RuntimeRealYLikeOriginal;
-                        float minDist = selfRadius + ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(other);
-                        if (dx * dx + dy * dy < minDist * minDist)
-                            return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        private bool TryRequestIdleBlockerYieldAsideLikeOriginal(C2UnitOriginalRuntime mover, float blockedRealX, float blockedRealY, float moveNx, float moveNy)
-        {
-            if (!UseOriginalIdleUnitYieldAsideLikeOriginal)
-                return false;
-            if (mover == null || mover.PreciseBornPathLikeOriginal)
-                return false;
-            if (!_unitCollisionBucketsValidLikeOriginal || _unitCollisionBucketsLikeOriginal.Count == 0)
-                return false;
-
-            C2UnitOriginalRuntime blocker;
-            if (!TryFindRuntimeUnitBlockingPositionLikeOriginal(mover, blockedRealX, blockedRealY, out blocker))
-                return false;
-            if (!IsRuntimeUnitFreeToYieldAsideLikeOriginal(blocker))
-                return false;
-
-            Vector2 yieldTarget;
-            if (!TryPickIdleYieldAsideTargetLikeOriginal(mover, blocker, moveNx, moveNy, out yieldTarget))
-                return false;
-
-            blocker.NextYieldAsideAllowedAtLikeOriginal =
-                Time.realtimeSinceStartup + Mathf.Max(0.05f, OriginalIdleUnitYieldAsideCooldownSecondsLikeOriginal);
-            SetRuntimeMoveDestinationRealInternalLikeOriginal(
-                blocker,
-                yieldTarget.x,
-                yieldTarget.y,
-                blocker.MoveSpeedOriginalPixelsPerSecondLikeOriginal > 0.001f
-                    ? blocker.MoveSpeedOriginalPixelsPerSecondLikeOriginal
-                    : C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                false,
-                0,
-                true,
-                false,
-                "idle_yield_aside_for_moving_unit",
-                false);
-
-            if (_idleYieldAsideLogsLikeOriginal < Mathf.Max(0, MaxOriginalIdleYieldAsideLogsLikeOriginal))
-            {
-                _idleYieldAsideLogsLikeOriginal++;
-                Debug.Log(LogPrefix + " IDLE_YIELD_ASIDE original=free_unit_steps_aside_for_path" +
-                          " mover='" + (mover.Probe != null ? mover.Probe.MonsterId : string.Empty) + "'" +
-                          " blocker='" + (blocker.Probe != null ? blocker.Probe.MonsterId : string.Empty) + "'" +
-                          " blocked=(" + blockedRealX.ToString("0", CultureInfo.InvariantCulture) +
-                          "," + blockedRealY.ToString("0", CultureInfo.InvariantCulture) + ")" +
-                          " target=(" + yieldTarget.x.ToString("0", CultureInfo.InvariantCulture) +
-                          "," + yieldTarget.y.ToString("0", CultureInfo.InvariantCulture) + ")");
-            }
-
-            return true;
-        }
-
-        private bool TryResolveMovingUnitBlockLikeOriginal(
-            C2UnitOriginalRuntime mover,
-            float blockedRealX,
-            float blockedRealY,
-            float moveNx,
-            float moveNy)
-        {
-            if (!UseOriginalMovingUnitMutualYieldLikeOriginal || mover == null)
-                return false;
-
-            C2UnitOriginalRuntime blocker;
-            if (!TryFindRuntimeUnitBlockingPositionLikeOriginal(mover, blockedRealX, blockedRealY, out blocker) ||
-                blocker == null ||
-                !blocker.HasMoveTargetLikeOriginal ||
-                blocker.PreciseBornPathLikeOriginal ||
-                blocker.State == C2UnitOriginalState.Death ||
-                Time.realtimeSinceStartup < blocker.NextYieldAsideAllowedAtLikeOriginal)
-                return false;
-
-            // Motion.cpp accumulates NextForceX/NextForceY for dynamic neighbours.
-            // It does not replace either unit's global order. Preserve both paths and
-            // apply only a deterministic lateral force to the unit with lower
-            // right-of-way, so two builders/cavalry columns cannot mirror-lock.
-            C2UnitOriginalRuntime yielding = mover.UnitOrder <= blocker.UnitOrder
-                ? blocker
-                : mover;
-            C2UnitOriginalRuntime counterpart = ReferenceEquals(yielding, mover)
-                ? blocker
-                : mover;
-
-            float sideSign = ((mover.UnitOrder ^ blocker.UnitOrder) & 1) == 0 ? 1.0f : -1.0f;
-            Vector2 side = new Vector2(-moveNy * sideSign, moveNx * sideSign);
-            Vector2 away = new Vector2(
-                yielding.RuntimeRealXLikeOriginal - counterpart.RuntimeRealXLikeOriginal,
-                yielding.RuntimeRealYLikeOriginal - counterpart.RuntimeRealYLikeOriginal);
-            Vector2 direction = side * 0.8f;
-            if (away.sqrMagnitude > 0.0001f)
-                direction += away.normalized * 0.6f;
-            if (direction.sqrMagnitude < 0.0001f)
-                return false;
-            direction.Normalize();
-
-            float step = Mathf.Max(8.0f, OriginalMovingUnitMutualYieldStepRealLikeOriginal);
-            float beforeX = yielding.RuntimeRealXLikeOriginal;
-            float beforeY = yielding.RuntimeRealYLikeOriginal;
-            float nextX = beforeX + direction.x * step;
-            float nextY = beforeY + direction.y * step;
-            if (!CanRuntimeUnitOccupyTerrainLikeOriginal(yielding, nextX, nextY) ||
-                !CanRuntimeUnitOccupyOtherUnitsExceptLikeOriginal(yielding, counterpart, nextX, nextY))
-                return false;
-
-            yielding.RuntimeRealXLikeOriginal = nextX;
-            yielding.RuntimeRealYLikeOriginal = nextY;
-            yielding.NextYieldAsideAllowedAtLikeOriginal =
-                Time.realtimeSinceStartup + Mathf.Max(0.02f, OriginalMovingUnitMutualYieldCooldownSecondsLikeOriginal);
-            if (UseContinuousWorldDeltaForOriginalMotion)
-                UpdateRuntimeWorldAndRealContinuousLikeOriginal(yielding, beforeX, beforeY);
-            else
-                UpdateRuntimeWorldAndRealLikeOriginal(yielding);
-            return true;
-        }
-
-        private bool CanRuntimeUnitOccupyOtherUnitsExceptLikeOriginal(
-            C2UnitOriginalRuntime unit,
-            C2UnitOriginalRuntime ignored,
-            float realX,
-            float realY)
-        {
-            if (!_unitCollisionBucketsValidLikeOriginal || unit == null)
-                return true;
-
-            float cell = Mathf.Max(64.0f, OriginalUnitCollisionCellRealLikeOriginal);
-            int cx = Mathf.FloorToInt(realX / cell);
-            int cy = Mathf.FloorToInt(realY / cell);
-            float selfRadius = ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(unit);
-            for (int yy = cy - 1; yy <= cy + 1; yy++)
-            {
-                for (int xx = cx - 1; xx <= cx + 1; xx++)
-                {
-                    List<C2UnitOriginalRuntime> bucket;
-                    if (!_unitCollisionBucketsLikeOriginal.TryGetValue(UnitCollisionBucketKeyLikeOriginal(xx, yy), out bucket) ||
-                        bucket == null)
-                        continue;
-                    for (int i = 0; i < bucket.Count; i++)
-                    {
-                        C2UnitOriginalRuntime other = bucket[i];
-                        if (other == null || ReferenceEquals(other, unit) || ReferenceEquals(other, ignored))
-                            continue;
-                        if (!IsRuntimeUnitCollisionCandidateLikeOriginal(other, false))
-                            continue;
-                        if (C2FormationRuntimeV167LikeOriginal.AreUnitsInSameFormationV321LikeOriginal(unit.Info, other.Info))
-                            continue;
-
-                        float dx = realX - other.RuntimeRealXLikeOriginal;
-                        float dy = realY - other.RuntimeRealYLikeOriginal;
-                        float minDist = selfRadius + ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(other);
-                        if (dx * dx + dy * dy < minDist * minDist)
-                            return false;
-                    }
-                }
-            }
-            return true;
-        }
-
-        private bool TryFindRuntimeUnitBlockingPositionLikeOriginal(C2UnitOriginalRuntime mover, float realX, float realY, out C2UnitOriginalRuntime blocker)
-        {
-            blocker = null;
-            if (mover == null) return false;
-
-            float cell = Mathf.Max(64.0f, OriginalUnitCollisionCellRealLikeOriginal);
-            int cx = Mathf.FloorToInt(realX / cell);
-            int cy = Mathf.FloorToInt(realY / cell);
-            float selfRadius = ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(mover);
-            float bestD2 = float.MaxValue;
-
-            for (int yy = cy - 1; yy <= cy + 1; yy++)
-            {
-                for (int xx = cx - 1; xx <= cx + 1; xx++)
-                {
-                    List<C2UnitOriginalRuntime> bucket;
-                    if (!_unitCollisionBucketsLikeOriginal.TryGetValue(UnitCollisionBucketKeyLikeOriginal(xx, yy), out bucket) || bucket == null)
-                        continue;
-
-                    for (int i = 0; i < bucket.Count; i++)
-                    {
-                        C2UnitOriginalRuntime other = bucket[i];
-                        if (other == null || ReferenceEquals(other, mover)) continue;
-                        if (!IsRuntimeUnitCollisionCandidateLikeOriginal(other, false)) continue;
-                        if (C2FormationRuntimeV167LikeOriginal.AreUnitsInSameFormationV321LikeOriginal(mover.Info, other.Info))
-                            continue;
-
-                        float dx = realX - other.RuntimeRealXLikeOriginal;
-                        float dy = realY - other.RuntimeRealYLikeOriginal;
-                        float minDist = selfRadius + ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(other);
-                        float d2 = dx * dx + dy * dy;
-                        if (d2 >= minDist * minDist || d2 >= bestD2)
-                            continue;
-
-                        bestD2 = d2;
-                        blocker = other;
-                    }
-                }
-            }
-
-            return blocker != null;
-        }
-
-        private static bool IsRuntimeUnitFreeToYieldAsideLikeOriginal(C2UnitOriginalRuntime blocker)
-        {
-            if (blocker == null || !blocker.ActiveLikeOriginal)
-                return false;
-            if (blocker.State == C2UnitOriginalState.Death || blocker.PreciseBornPathLikeOriginal || blocker.HasMoveTargetLikeOriginal)
-                return false;
-            if (Time.realtimeSinceStartup < blocker.NextYieldAsideAllowedAtLikeOriginal)
-                return false;
-            if (blocker.Info != null)
-            {
-                if (C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(blocker.Info))
-                    return false;
-                C2BuildWorkerOrderV245LikeOriginal build = blocker.Info.GetComponent<C2BuildWorkerOrderV245LikeOriginal>();
-                if (build != null && build.enabled && blocker.State == C2UnitOriginalState.Work)
-                    return false;
-            }
-            return true;
-        }
-
-        private bool TryPickIdleYieldAsideTargetLikeOriginal(C2UnitOriginalRuntime mover, C2UnitOriginalRuntime blocker, float moveNx, float moveNy, out Vector2 target)
-        {
-            target = Vector2.zero;
-            if (mover == null || blocker == null)
-                return false;
-
-            float step = Mathf.Max(128.0f, OriginalIdleUnitYieldAsideStepRealLikeOriginal);
-            Vector2 sideA = new Vector2(-moveNy, moveNx);
-            Vector2 sideB = new Vector2(moveNy, -moveNx);
-            Vector2 away = new Vector2(
-                blocker.RuntimeRealXLikeOriginal - mover.RuntimeRealXLikeOriginal,
-                blocker.RuntimeRealYLikeOriginal - mover.RuntimeRealYLikeOriginal);
-            if (away.sqrMagnitude < 1.0f)
-                away = sideA;
-            away.Normalize();
-
-            Vector2[] dirs = new Vector2[]
-            {
-                sideA.sqrMagnitude > 0.0001f ? sideA.normalized : away,
-                sideB.sqrMagnitude > 0.0001f ? sideB.normalized : -away,
-                away,
-                -away
-            };
-
-            for (int s = 0; s < IdleYieldStepScalesLikeOriginal.Length; s++)
-            {
-                for (int d = 0; d < dirs.Length; d++)
-                {
-                    Vector2 dir = dirs[d];
-                    if (dir.sqrMagnitude < 0.0001f) continue;
-
-                    Vector2 candidate = new Vector2(
-                        blocker.RuntimeRealXLikeOriginal + dir.x * step * IdleYieldStepScalesLikeOriginal[s],
-                        blocker.RuntimeRealYLikeOriginal + dir.y * step * IdleYieldStepScalesLikeOriginal[s]);
-                    if (!CanRuntimeUnitOccupyRealLikeOriginal(blocker, candidate.x, candidate.y))
-                        continue;
-
-                    target = candidate;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private void RebuildRuntimeUnitCollisionBucketsLikeOriginal()
-        {
-            // Reuse the bucket lists.  Clearing the dictionary alone discarded one
-            // List + backing array per occupied cell, twice per rendered frame.  On
-            // maps with hundreds of units that was the dominant managed-GC stream.
-            foreach (KeyValuePair<long, List<C2UnitOriginalRuntime>> pair in _unitCollisionBucketsLikeOriginal)
-            {
-                List<C2UnitOriginalRuntime> oldBucket = pair.Value;
-                if (oldBucket == null) continue;
-                oldBucket.Clear();
-                _unitCollisionBucketPoolLikeOriginal.Push(oldBucket);
-            }
-            _unitCollisionBucketsLikeOriginal.Clear();
-            _unitCollisionBucketsValidLikeOriginal = false;
-            if (!UseOriginalUnitCollisionCheckPositionLikeOriginal &&
-                !UseOriginalUnitSeparationForcesLikeOriginal &&
-                !UseMdBoidsSteeringLikeOriginal)
-                return;
-
-            float cell = Mathf.Max(64.0f, OriginalUnitCollisionCellRealLikeOriginal);
-            for (int i = 0; i < _units.Count; i++)
-            {
-                C2UnitOriginalRuntime u = _units[i];
-                if (!IsRuntimeUnitCollisionCandidateLikeOriginal(u, false)) continue;
-
-                int cx = Mathf.FloorToInt(u.RuntimeRealXLikeOriginal / cell);
-                int cy = Mathf.FloorToInt(u.RuntimeRealYLikeOriginal / cell);
-                long key = UnitCollisionBucketKeyLikeOriginal(cx, cy);
-                List<C2UnitOriginalRuntime> bucket;
-                if (!_unitCollisionBucketsLikeOriginal.TryGetValue(key, out bucket) || bucket == null)
-                {
-                    bucket = _unitCollisionBucketPoolLikeOriginal.Count > 0
-                        ? _unitCollisionBucketPoolLikeOriginal.Pop()
-                        : new List<C2UnitOriginalRuntime>(16);
-                    _unitCollisionBucketsLikeOriginal[key] = bucket;
-                }
-                bucket.Add(u);
-            }
-
-            _unitCollisionBucketsValidLikeOriginal = true;
-        }
-
-        private void ApplyRuntimeUnitSeparationForcesLikeOriginal(float dt)
-        {
-            if (!_unitCollisionBucketsValidLikeOriginal || _unitCollisionBucketsLikeOriginal.Count == 0)
-                return;
-
-            float cell = Mathf.Max(64.0f, OriginalUnitCollisionCellRealLikeOriginal);
-            float maxPush = Mathf.Max(1.0f, OriginalUnitSeparationMaxPushRealPerFrameLikeOriginal);
-            int maxNeighbors = Mathf.Max(1, OriginalUnitSeparationMaxNeighborsLikeOriginal);
-
-            for (int i = 0; i < _units.Count; i++)
-            {
-                C2UnitOriginalRuntime u = _units[i];
-                if (!IsRuntimeUnitCollisionCandidateLikeOriginal(u, false)) continue;
-                if (IsMdSingleStepPassThroughLikeOriginal(u)) continue;
-                // A brigade member owns a fixed orders.lst slot. Generic pairwise
-                // separation must not shove that member out of the formation; the
-                // hard CheckPosition-style step block below still prevents two
-                // different formations from walking through one another. Free units
-                // may yield or be separated around the rigid brigade footprint.
-                if (u.Info != null &&
-                    C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(u.Info))
-                    continue;
-
-                float selfRadius = ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(u);
-                int cx = Mathf.FloorToInt(u.RuntimeRealXLikeOriginal / cell);
-                int cy = Mathf.FloorToInt(u.RuntimeRealYLikeOriginal / cell);
-                float pushX = 0.0f;
-                float pushY = 0.0f;
-                int touched = 0;
-
-                for (int yy = cy - 1; yy <= cy + 1; yy++)
-                {
-                    for (int xx = cx - 1; xx <= cx + 1; xx++)
-                    {
-                        List<C2UnitOriginalRuntime> bucket;
-                        if (!_unitCollisionBucketsLikeOriginal.TryGetValue(UnitCollisionBucketKeyLikeOriginal(xx, yy), out bucket) || bucket == null)
-                            continue;
-
-                        for (int b = 0; b < bucket.Count; b++)
-                        {
-                            C2UnitOriginalRuntime other = bucket[b];
-                            if (other == null || ReferenceEquals(other, u)) continue;
-                            if (!IsRuntimeUnitCollisionCandidateLikeOriginal(other, false)) continue;
-                            if (C2FormationRuntimeV167LikeOriginal.AreUnitsInSameFormationV321LikeOriginal(u.Info, other.Info))
-                                continue;
-                            if (u.HasMoveTargetLikeOriginal && other.HasMoveTargetLikeOriginal)
-                                continue;
-
-                            float dx = u.RuntimeRealXLikeOriginal - other.RuntimeRealXLikeOriginal;
-                            float dy = u.RuntimeRealYLikeOriginal - other.RuntimeRealYLikeOriginal;
-                            float minDist = selfRadius + ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(other);
-                            float d2 = dx * dx + dy * dy;
-                            if (d2 >= minDist * minDist)
-                                continue;
-
-                            float d = Mathf.Sqrt(Mathf.Max(0.0001f, d2));
-                            if (d < 1.0f)
-                            {
-                                float a = StableUnitCollisionAngleLikeOriginal(u, other);
-                                dx = Mathf.Cos(a);
-                                dy = Mathf.Sin(a);
-                                d = 1.0f;
-                            }
-
-                            float strength = (minDist - d) * 0.5f;
-                            pushX += (dx / d) * strength;
-                            pushY += (dy / d) * strength;
-                            touched++;
-                            if (touched >= maxNeighbors)
-                                break;
-                        }
-                        if (touched >= maxNeighbors) break;
-                    }
-                    if (touched >= maxNeighbors) break;
-                }
-
-                if (touched <= 0)
-                    continue;
-
-                float len = Mathf.Sqrt(pushX * pushX + pushY * pushY);
-                if (len <= 0.001f)
-                    continue;
-
-                float clamp = Mathf.Min(maxPush, len);
-                float beforeX = u.RuntimeRealXLikeOriginal;
-                float beforeY = u.RuntimeRealYLikeOriginal;
-                float nextX = beforeX + pushX / len * clamp;
-                float nextY = beforeY + pushY / len * clamp;
-                if (!CanRuntimeUnitOccupyTerrainLikeOriginal(u, nextX, nextY))
-                    continue;
-
-                u.RuntimeRealXLikeOriginal = nextX;
-                u.RuntimeRealYLikeOriginal = nextY;
-                if (UseContinuousWorldDeltaForOriginalMotion)
-                    UpdateRuntimeWorldAndRealContinuousLikeOriginal(u, beforeX, beforeY);
-                else
-                    UpdateRuntimeWorldAndRealLikeOriginal(u);
-            }
-        }
-
-        private bool IsRuntimeUnitCollisionCandidateLikeOriginal(C2UnitOriginalRuntime u, bool includePreciseBorn)
-        {
-            if (u == null || !u.ActiveLikeOriginal) return false;
-            if (u.State == C2UnitOriginalState.Death) return false;
-            if (u.HiddenInsideBuildingLikeOriginal) return false;
-            if (!includePreciseBorn && u.PreciseBornPathLikeOriginal) return false;
-            return true;
-        }
-
-        internal void SetRuntimeHiddenInsideBuildingLikeOriginal(C2UnitOriginalRuntime u, bool hidden)
-        {
-            if (u == null || u.HiddenInsideBuildingLikeOriginal == hidden) return;
-            u.HiddenInsideBuildingLikeOriginal = hidden;
-            SetUnitForceRenderingOffLikeOriginal(u, hidden);
-        }
-
-        private float ResolveRuntimeUnitCollisionRadiusRealLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            float radius = 0.0f;
-            if (u != null && u.Info != null)
-            {
-                if (u.Info.GeometryRadius2Real > 0)
-                    radius = u.Info.GeometryRadius2Real;
-                else if (u.Info.UnitRadius > 0)
-                    radius = u.Info.UnitRadius * 16.0f;
-            }
-            if (radius <= 0.0f && u != null && u.Md != null && u.Md.GeometryRadius2 > 0)
-                radius = u.Md.GeometryRadius2 * 16.0f;
-            if (radius <= 0.0f)
-                radius = 160.0f;
-            return Mathf.Clamp(radius, OriginalUnitCollisionMinRadiusRealLikeOriginal, OriginalUnitCollisionMaxRadiusRealLikeOriginal);
-        }
-
-        private static long UnitCollisionBucketKeyLikeOriginal(int x, int y)
-        {
-            unchecked
-            {
-                return ((long)x << 32) ^ (uint)y;
-            }
-        }
-
-        private static float StableUnitCollisionAngleLikeOriginal(C2UnitOriginalRuntime a, C2UnitOriginalRuntime b)
-        {
-            int seed = 17;
-            seed = seed * 31 + (a != null ? a.UnitOrder : 0);
-            seed = seed * 31 + (b != null ? b.UnitOrder : 0);
-            seed ^= seed << 13;
-            seed ^= seed >> 17;
-            seed ^= seed << 5;
-            return ((seed & 4095) / 4096.0f) * Mathf.PI * 2.0f;
-        }
-
-        private static int ResolveRuntimeUnitRadiusCellsLikeOriginal(C2UnitOriginalRuntime u)
-        {
-            int radiusCells = 1;
-            if (u != null && u.Info != null)
-            {
-                // Radius2 is in original pixels in our probe layer when available.
-                // Motion.cpp checks a bar around (Real - Lx<<7)>>8; radius 1 cell is the safe
-                // minimum that prevents walking through building LOCKPOINTS without blocking all paths.
-                radiusCells = Mathf.Clamp(Mathf.RoundToInt(Mathf.Max(8.0f, u.Info.UnitRadius) / 16.0f), 1, 2);
-            }
-            return radiusCells;
-        }
-
-        private static byte DirectionFromRealDeltaLikeOriginal(float dx, float dy)
-        {
-            int ix = Mathf.RoundToInt(dx);
-            int iy = Mathf.RoundToInt(dy);
-            return C2OriginalMovementMathV352.GetDir(ix, iy);
-        }
-
-        private int GetMotionRInFrameLikeOriginal(C2UnitOriginalRuntime u, AnimModel motionAnim)
-        {
-            float speedPx = u != null && u.MoveSpeedOriginalPixelsPerSecondLikeOriginal > 0.001f
-                ? u.MoveSpeedOriginalPixelsPerSecondLikeOriginal
-                : OriginalMotionDefaultSpeedOriginalPixelsPerSecond;
-
-            float fps = Mathf.Max(1.0f, u != null ? u.AnimFps : DefaultAnimFps);
-            int rInFrame = Mathf.Max(1, Mathf.RoundToInt((speedPx * 16.0f) / fps));
-            if (u != null) u.MoveRInFrameLikeOriginal = rInFrame;
-            return rInFrame;
-        }
-
-        private void ApplyMotionFrameFromPathLikeOriginal(C2UnitOriginalRuntime u, AnimModel anim)
-        {
-            if (u == null || anim == null || anim.Frames.Count <= 0)
-            {
-                if (u != null) u.CurrentFrameLong = 0;
-                return;
-            }
-
-            int nf = Mathf.Max(1, anim.Frames.Count);
-
-            // NewMon.cpp SINGLESTEP: ROTATEL/ROTATER frames are indexed directly
-            // by RealDirPrecise, not by TotalPath. Driving these animations from path
-            // made horses visibly spin through camera angles while following a curve.
-            if (string.Equals(anim.Name, "@ROTATEL", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(anim.Name, "#ROTATEL", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(anim.Name, "ROTATEL", StringComparison.OrdinalIgnoreCase))
-            {
-                ushort phase = unchecked((ushort)(64 * 256 - u.OriginalRealDirPrecise256LikeOriginal));
-                u.CurrentFrameLong = (phase * nf) >> 8;
-                u.FrameFinishedLikeOriginal = false;
-                return;
-            }
-            if (string.Equals(anim.Name, "@ROTATER", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(anim.Name, "#ROTATER", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(anim.Name, "ROTATER", StringComparison.OrdinalIgnoreCase))
-            {
-                ushort phase = unchecked((ushort)(u.OriginalRealDirPrecise256LikeOriginal - 64 * 256));
-                u.CurrentFrameLong = (phase * nf) >> 8;
-                u.FrameFinishedLikeOriginal = false;
-                return;
-            }
-
-            int rf = Mathf.Max(1, u.MoveRInFrameLikeOriginal > 0 ? u.MoveRInFrameLikeOriginal : GetMotionRInFrameLikeOriginal(u, anim));
-            int maxLong = nf << 8;
-
-            int path = Mathf.Abs(Mathf.RoundToInt(u.TotalPathLikeOriginal + 100000.0f));
-            u.CurrentFrameLong = ((path << 8) / rf) % maxLong;
-            u.FrameFinishedLikeOriginal = false;
-        }
-
+        // V427: ApplyOriginalBoidsSingleStep2V352LikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: ApplyOriginalSingleStepBoidsSteeringLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: UpdateOriginalBoidsPairForcesLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: RebuildOriginalBoidsNeighborPairsLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: OriginalNormaLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryRetargetBlockedFinishToFreePositionLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitOccupyRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitAdvanceRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitAdvanceSegmentRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitFinishTargetRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: ResolveProducedRallyDestinationRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryStartGotoFinePositionAfterProductionLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: LogGotoFinePositionLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryFindProducedRallyFreePositionRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanProducedRallyCandidateRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitAvoidOtherUnitsAndReservedTargetsLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: IsPointInsideRuntimeUnitRadiusLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryGetRuntimeUnitReservedDestinationRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SquareRingOffsetLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitOccupyTerrainLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanPreciseBornUnitAdvanceWithDoorSpacingLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitOccupyOtherUnitsLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryRequestIdleBlockerYieldAsideLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryResolveMovingUnitBlockLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: CanRuntimeUnitOccupyOtherUnitsExceptLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryFindRuntimeUnitBlockingPositionLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: IsRuntimeUnitFreeToYieldAsideLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: TryPickIdleYieldAsideTargetLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: RebuildRuntimeUnitCollisionBucketsLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: ApplyRuntimeUnitSeparationForcesLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: IsRuntimeUnitCollisionCandidateLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeHiddenInsideBuildingLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: ResolveRuntimeUnitCollisionRadiusRealLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: UnitCollisionBucketKeyLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: StableUnitCollisionAngleLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: ResolveRuntimeUnitRadiusCellsLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: DirectionFromRealDeltaLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: GetMotionRInFrameLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: ApplyMotionFrameFromPathLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
         internal int GetRuntimeWorkFrameCountLikeOriginal(C2UnitOriginalRuntime u, byte realDir)
         {
             if (!EnableWorkAnimationLikeOriginal || u == null || u.Md == null) return 0;
@@ -6328,7 +3538,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (frameIndex < 0) frameIndex += nf;
 
             if (WorkStopsMoveLikeOriginal)
+            {
+                C2OriginalOrderChainV352.StopTaskMoveV433LikeOriginal(u.Info);
                 u.HasMoveTargetLikeOriginal = false;
+            }
 
             SetRuntimeFacingLikeOriginal(u, realDir);
 
@@ -6385,7 +3598,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (frameIndex < 0) frameIndex += nf;
 
             if (WorkStopsMoveLikeOriginal)
+            {
+                C2OriginalOrderChainV352.StopTaskMoveV433LikeOriginal(u.Info);
                 u.HasMoveTargetLikeOriginal = false;
+            }
 
             SetRuntimeFacingLikeOriginal(u, realDir);
 
@@ -6436,7 +3652,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (frameIndex < 0) frameIndex += nf;
 
             if (WorkStopsMoveLikeOriginal)
+            {
+                C2OriginalOrderChainV352.StopTaskMoveV433LikeOriginal(u.Info);
                 u.HasMoveTargetLikeOriginal = false;
+            }
 
             SetRuntimeFacingLikeOriginal(u, realDir);
 
@@ -6636,163 +3855,371 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ApplyUnitFrameLikeOriginal(u, "stop_build_work");
         }
 
-        internal void SetRuntimeMovingFlagLikeOriginal(C2UnitOriginalRuntime u, bool moving)
-        {
-            if (u == null) return;
-            if (u.State == C2UnitOriginalState.Death) return;
-
-            u.HasMoveTargetLikeOriginal = moving && u.HasMoveTargetLikeOriginal;
-            if (moving && u.Md != null)
-            {
-                int motion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-                if (motion >= 0 && u.State != C2UnitOriginalState.Motion)
-                    SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Motion, motion, true, "moving_flag_true");
-                return;
-            }
-
-            if (u.Md != null)
-            {
-                int stand = ResolveRuntimeStandAnimationIndexV322LikeOriginal(u);
-                if (stand >= 0) SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Stand, stand, true, "moving_flag_false");
-            }
-        }
-
+        // V427: SetRuntimeMovingFlagLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
         internal void SetRuntimeCombatPostureV322LikeOriginal(
             C2UnitOriginalRuntime u,
             int weaponType,
             bool active)
         {
             if (u == null || u.Md == null || u.State == C2UnitOriginalState.Death) return;
-            int requestedPosture = active ? weaponType : -1;
+
+            // NewMon.cpp SETATTSTATE writes NewState immediately. LocalNewState is
+            // separate and is changed only by TryToStand's actual transition path.
+            int requestedPosture = active ? Mathf.Max(0, weaponType) : -1;
+            int oldDesiredV411 = u.PostureWeaponTypeLikeOriginal;
+            u.PostureWeaponTypeLikeOriginal = requestedPosture;
+
+            // Reissuing SETATTSTATE with the same NewState does not restart or
+            // truncate ATTACK/PATTACK/UATTACK in retail.
+            if (oldDesiredV411 == requestedPosture &&
+                (u.State == C2UnitOriginalState.Attack ||
+                 u.State == C2UnitOriginalState.Recharge ||
+                 u.State == C2UnitOriginalState.Transition))
+                return;
+
             if (u.HasMoveTargetLikeOriginal || u.MoveDeferredUntilNeutralStandLikeOriginal)
             {
-                // Formation code may request the destination posture immediately
-                // after assigning slots.  In the original this is NewState after
-                // movement, not permission to interrupt UATTACK and walk armed.
                 u.PostureAfterMoveLikeOriginal = requestedPosture;
                 return;
             }
-            int previousPosture = u.PostureWeaponTypeLikeOriginal;
-            if (u.PostureWeaponTypeLikeOriginal == requestedPosture)
-            {
-                // Original SETATTSTATE only writes NewState. If the requested
-                // value is already there, TryToStand never starts PATTACK/
-                // UATTACK again merely because another animation is currently
-                // visible. Reissuing the same HUD command must therefore be
-                // idempotent in every runtime state, not only in PSTAND.
-                return;
-            }
-            u.PostureWeaponTypeLikeOriginal = requestedPosture;
-            if (u.HasMoveTargetLikeOriginal) return;
 
-            int stand = ResolveRuntimeStandAnimationIndexV322LikeOriginal(u);
-            if (stand < 0) stand = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
-            if (stand < 0) return;
-            if (TryStartPostureTransitionV326LikeOriginal(
-                    u,
-                    previousPosture,
-                    weaponType,
-                    active,
-                    stand,
-                    active ? "weapon_posture_on" : "weapon_posture_off"))
-            {
-                ApplyUnitFrameLikeOriginal(u, active ? "weapon_posture_on_transition" : "weapon_posture_off_transition");
-                return;
-            }
-            SelectAnimationStateLikeOriginal(
+            TryToStandRuntimeV411LikeOriginal(
                 u,
-                C2UnitOriginalState.Stand,
-                stand,
-                true,
-                active ? "weapon_posture_on" : "weapon_posture_off");
-            ApplyUnitFrameLikeOriginal(u, active ? "weapon_posture_on" : "weapon_posture_off");
+                false,
+                active ? "weapon_posture_on_v411" : "weapon_posture_off_v411");
+            ApplyUnitFrameLikeOriginal(
+                u,
+                active ? "weapon_posture_on_v411" : "weapon_posture_off_v411");
         }
 
-        private bool TryStartPostureTransitionV326LikeOriginal(
+        // BrigadeOrders.cpp::BrigadeOrder_KeepPositions::Process drives NewState/
+        // GroundState through TryToStand while the brigade finishes assembling.
+        // Keep that entry point on the runtime owner so the brigade adapter does not
+        // reimplement posture-transition selection.
+        internal void ApplyRuntimeKeepPositionsGroundStateV415LikeOriginal(
             C2UnitOriginalRuntime u,
-            int previousPosture,
-            int weaponType,
-            bool active,
-            int targetStand,
+            int state,
             string reason)
         {
-            if (u == null || u.Md == null || targetStand < 0)
-                return false;
-            // NewMon.cpp TryToStand first tries the direct LocalNewState ->
-            // NewState transition (TRANSxy). This is essential for KARE:
-            // state 4 -> melee state 0 must play TRANS40 instead of restarting
-            // the generic PATTACK sequence from an unrelated pose.
-            int transition = -1;
-            if (active && previousPosture >= 0 && previousPosture != weaponType)
+            if (u == null || u.Info == null) return;
+            state = Mathf.Clamp(state, 0, 16);
+            if (u.Info.NewStateV396LikeOriginal != state)
             {
-                string direct =
-                    "#TRANS" +
-                    previousPosture.ToString(CultureInfo.InvariantCulture) +
-                    weaponType.ToString(CultureInfo.InvariantCulture);
-                transition = ResolveAnimationIndexLikeOriginal(u.Md, direct);
-                if (transition < 0)
+                u.Info.NewStateV396LikeOriginal = state;
+                u.Info.GroundStateV396LikeOriginal = state;
+                u.PostureWeaponTypeLikeOriginal = state > 0 ? state - 1 : -1;
+                TryToStandRuntimeV411LikeOriginal(u, false, reason ?? "KeepPositions");
+            }
+        }
+
+        internal bool IsRuntimeKeepPositionsPostureReadyV415LikeOriginal(
+            C2UnitOriginalRuntime u,
+            int state)
+        {
+            if (u == null || u.Md == null) return true;
+            int desiredLocal = state > 0 ? state - 1 : -1;
+            if (u.LocalPostureWeaponTypeV411LikeOriginal != desiredLocal) return false;
+            AnimModel anim = CurrentAnim(u);
+            return anim == null || u.FrameFinishedLikeOriginal || anim.CanBeBroken;
+        }
+
+        // V412 - managed port of the represented combat-posture portion of
+        // COSSACKS2/NewMon.cpp::TryToStand.  The full-function inventory also
+        // contains engine-side blocking/rest/Brigade/CObjIndex behavior that is
+        // not represented by this adapter; do not label the whole C++ function 1=1.
+        // For the represented transition path, decision order follows retail:
+        // TRANSxy -> DIRECTTRANS -> TRANS01/10 -> TRANSX3/3X -> UATTACK -> neutral
+        // -> PATTACK -> PSTAND -> STAND.
+        private void TryToStandRuntimeV411LikeOriginal(
+            C2UnitOriginalRuntime u,
+            bool rest,
+            string reason)
+        {
+            if (u == null || u.Md == null || u.State == C2UnitOriginalState.Death) return;
+
+            int desired = u.PostureWeaponTypeLikeOriginal;          // NewState-1, -1 == state 0
+            int local = u.LocalPostureWeaponTypeV411LikeOriginal;   // LocalNewState-1
+            if (desired >= 16) desired = -1;
+            if (local >= 16) local = -1;
+            u.PostureWeaponTypeLikeOriginal = desired;
+            u.LocalPostureWeaponTypeV411LikeOriginal = local;
+
+            // NewState != LocalNewState.
+            if (desired != local)
+            {
+                if (local >= 0)
                 {
-                    direct =
-                        "@TRANS" +
-                        previousPosture.ToString(CultureInfo.InvariantCulture) +
-                        weaponType.ToString(CultureInfo.InvariantCulture);
-                    transition = ResolveAnimationIndexLikeOriginal(u.Md, direct);
+                    // 1) GetAnimation(anm_Trans+n1-1+(n2-1)*10).
+                    if (desired >= 0)
+                    {
+                        // Retail condition is literally if(n1&n2), not merely
+                        // "both non-zero". n1/n2 are 1-based NewState values.
+                        // This matters for 1<->2 where DIRECTTRANS must win over
+                        // the later special TRANS01/TRANS10 branch.
+                        int n1V411 = local + 1;
+                        int n2V411 = desired + 1;
+                        int trans = (n1V411 & n2V411) != 0
+                            ? ResolveTransitionXYV411LikeOriginal(u.Md, local, desired)
+                            : -1;
+                        if (trans >= 0)
+                        {
+                            u.LocalPostureWeaponTypeV411LikeOriginal = desired;
+                            u.PendingPostureAfterNeutralLikeOriginal = -1;
+                            u.PendingStandAnimIndexLikeOriginal = ResolveStandForPostureV411LikeOriginal(u, desired);
+                            u.TransitionTargetLocalPostureV411LikeOriginal = desired;
+                            SelectAnimationStateLikeOriginal(
+                                u, C2UnitOriginalState.Transition, trans, true,
+                                (reason ?? "TryToStand") + "_TRANS" + local + desired);
+                            return;
+                        }
+
+                        // 2) NewMonster::TransMask / DIRECTTRANS. No clip is played.
+                        if (local < u.Md.DirectTransitionMaskLikeOriginal.Length &&
+                            desired < u.Md.DirectTransitionMaskLikeOriginal.Length &&
+                            (u.Md.DirectTransitionMaskLikeOriginal[local] & (1 << desired)) != 0)
+                        {
+                            // NewMon.cpp::TryToStand DIRECTTRANS is deliberately
+                            // state-only: LocalNewState=n2; return.  It does NOT
+                            // install PSTAND in this pass.  The next TryToStand pass
+                            // handles the now-equal state.
+                            u.LocalPostureWeaponTypeV411LikeOriginal = desired;
+                            u.PendingPostureAfterNeutralLikeOriginal = -1;
+                            u.PendingStandAnimIndexLikeOriginal = -1;
+                            u.TransitionTargetLocalPostureV411LikeOriginal = int.MinValue;
+                            return;
+                        }
+
+                        // 3) Retail special TRANS01 / TRANS10. These normally map
+                        // to the same named MD clips, but retain the explicit branch
+                        // because some data sets omit the generic transition table.
+                        if ((local == 0 && desired == 1) || (local == 1 && desired == 0))
+                        {
+                            string tname = local == 0 ? "#TRANS01" : "#TRANS10";
+                            int tr = ResolveAnimationIndexLikeOriginal(u.Md, tname);
+                            if (tr < 0)
+                                tr = ResolveAnimationIndexLikeOriginal(
+                                    u.Md, local == 0 ? "@TRANS01" : "@TRANS10");
+                            if (tr >= 0)
+                            {
+                                u.LocalPostureWeaponTypeV411LikeOriginal = desired;
+                                u.PendingStandAnimIndexLikeOriginal = ResolveStandForPostureV411LikeOriginal(u, desired);
+                                u.TransitionTargetLocalPostureV411LikeOriginal = desired;
+                                SelectAnimationStateLikeOriginal(
+                                    u, C2UnitOriginalState.Transition, tr, true,
+                                    (reason ?? "TryToStand") + "_TRANS01_10");
+                                return;
+                            }
+                        }
+
+                        // 4) n2==4 / n1==4 branches: #TRANSX3 and #TRANS3X.
+                        if (desired == 3 &&
+                            (u.Md.TransXMaskLikeOriginal & (1 << local)) != 0)
+                        {
+                            int tr = ResolveAnimationIndexLikeOriginal(u.Md, "#TRANSX3");
+                            if (tr < 0) tr = ResolveAnimationIndexLikeOriginal(u.Md, "@TRANSX3");
+                            if (tr >= 0)
+                            {
+                                u.LocalPostureWeaponTypeV411LikeOriginal = desired;
+                                u.PendingStandAnimIndexLikeOriginal = ResolveStandForPostureV411LikeOriginal(u, desired);
+                                u.TransitionTargetLocalPostureV411LikeOriginal = desired;
+                                SelectAnimationStateLikeOriginal(
+                                    u, C2UnitOriginalState.Transition, tr, true,
+                                    (reason ?? "TryToStand") + "_TRANSX3");
+                                return;
+                            }
+                        }
+                        if (local == 3 &&
+                            (u.Md.TransXMaskLikeOriginal & (1 << desired)) != 0)
+                        {
+                            int tr = ResolveAnimationIndexLikeOriginal(u.Md, "#TRANS3X");
+                            if (tr < 0) tr = ResolveAnimationIndexLikeOriginal(u.Md, "@TRANS3X");
+                            if (tr >= 0)
+                            {
+                                u.LocalPostureWeaponTypeV411LikeOriginal = desired;
+                                u.PendingStandAnimIndexLikeOriginal = ResolveStandForPostureV411LikeOriginal(u, desired);
+                                u.TransitionTargetLocalPostureV411LikeOriginal = desired;
+                                SelectAnimationStateLikeOriginal(
+                                    u, C2UnitOriginalState.Transition, tr, true,
+                                    (reason ?? "TryToStand") + "_TRANS3X");
+                                return;
+                            }
+                        }
+                    }
+
+                    // 5) Transform old LocalNewState to neutral through UATTACK.
+                    int uattack = ResolveUAttackForPostureV411LikeOriginal(u.Md, local);
+                    u.LocalPostureWeaponTypeV411LikeOriginal = -1;
+                    u.TransitionTargetLocalPostureV411LikeOriginal = -1;
+                    u.PendingPostureAfterNeutralLikeOriginal = desired;
+                    u.PendingStandAnimIndexLikeOriginal = ResolveStandForPostureV411LikeOriginal(u, desired);
+                    if (uattack >= 0)
+                    {
+                        SelectAnimationStateLikeOriginal(
+                            u, C2UnitOriginalState.Transition, uattack, true,
+                            (reason ?? "TryToStand") + "_UATTACK_to_neutral");
+                        return;
+                    }
+
+                    // Exact NewMon.cpp fallback: when UATTACK is absent, set
+                    // STAND + LocalNewState=0 and RETURN.  The original never starts
+                    // PATTACK for the requested state in this same pass.
+                    u.PendingPostureAfterNeutralLikeOriginal = -1;
+                    u.PendingStandAnimIndexLikeOriginal = -1;
+                    int neutralStand = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
+                    if (neutralStand >= 0)
+                        SelectAnimationStateLikeOriginal(
+                            u, C2UnitOriginalState.Stand, neutralStand, true,
+                            (reason ?? "TryToStand") + "_neutral_fallback_return");
+                    return;
                 }
-            }
-            // NewMon.cpp::TryToStand: after explicit TRANSxy, DIRECTTRANS is
-            // checked before UATTACK/PATTACK. It changes LocalNewState directly
-            // and costs no transition animation. This is why AusGrn/AusGre with
-            // DIRECTTRANS 0 1 can fire from bayonet-ready posture sooner than
-            // from neutral march posture (which still needs PATTACK1).
-            if (transition < 0 && active && previousPosture >= 0 && previousPosture != weaponType &&
-                previousPosture < u.Md.DirectTransitionMaskLikeOriginal.Length &&
-                weaponType >= 0 && weaponType < u.Md.DirectTransitionMaskLikeOriginal.Length &&
-                (u.Md.DirectTransitionMaskLikeOriginal[previousPosture] & (1 << weaponType)) != 0)
-            {
-                u.PendingPostureAfterNeutralLikeOriginal = -1;
-                u.PendingStandAnimIndexLikeOriginal = -1;
-                return false;
-            }
-            if (transition < 0 && active && previousPosture >= 0 && previousPosture != weaponType)
-            {
-                string oldSuffix = previousPosture > 0
-                    ? previousPosture.ToString(CultureInfo.InvariantCulture)
-                    : string.Empty;
-                transition = ResolveAnimationIndexLikeOriginal(u.Md, "#UATTACK" + oldSuffix);
-                if (transition < 0)
-                    transition = ResolveAnimationIndexLikeOriginal(u.Md, "@UATTACK" + oldSuffix);
-                if (transition >= 0)
+
+                // 6) LocalNewState==0 -> requested state through PATTACK.
+                if (desired >= 0)
                 {
-                    // TryToStand first lowers the old weapon state to neutral,
-                    // then raises the requested state. Skipping this stage made
-                    // rifle/grenade/melee transitions look like truncated attacks.
-                    u.PendingPostureAfterNeutralLikeOriginal = weaponType;
+                    int pattack = ResolvePAttackForPostureV411LikeOriginal(u.Md, desired);
+                    u.LocalPostureWeaponTypeV411LikeOriginal = desired;
+                    u.PendingPostureAfterNeutralLikeOriginal = -1;
+                    u.TransitionTargetLocalPostureV411LikeOriginal = desired;
+                    int targetStand = ResolveStandForPostureV411LikeOriginal(u, desired);
                     u.PendingStandAnimIndexLikeOriginal = targetStand;
-                    SelectAnimationStateLikeOriginal(
-                        u, C2UnitOriginalState.Transition, transition, true,
-                        reason + "_old_to_neutral");
-                    return true;
+                    if (pattack >= 0)
+                    {
+                        SelectAnimationStateLikeOriginal(
+                            u, C2UnitOriginalState.Transition, pattack, true,
+                            (reason ?? "TryToStand") + "_PATTACK_from_neutral");
+                        return;
+                    }
+
+                    // PATTACK missing -> PSTAND if enabled, otherwise STAND.
+                    if (targetStand >= 0)
+                    {
+                        SelectAnimationStateLikeOriginal(
+                            u, C2UnitOriginalState.Stand, targetStand, true,
+                            (reason ?? "TryToStand") + "_PSTAND_fallback");
+                        return;
+                    }
                 }
+
+                int stand0 = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
+                if (stand0 >= 0)
+                    SelectAnimationStateLikeOriginal(
+                        u, C2UnitOriginalState.Stand, stand0, true,
+                        (reason ?? "TryToStand") + "_STAND_fallback");
+                return;
             }
-            string suffix = weaponType > 0
-                ? weaponType.ToString(CultureInfo.InvariantCulture)
-                : string.Empty;
-            string primary = active ? "#PATTACK" + suffix : "#UATTACK" + suffix;
-            string fallback = active ? "@PATTACK" + suffix : "@UATTACK" + suffix;
-            if (transition < 0)
-                transition = ResolveAnimationIndexLikeOriginal(u.Md, primary);
-            if (transition < 0)
-                transition = ResolveAnimationIndexLikeOriginal(u.Md, fallback);
-            if (transition < 0)
-                return false;
-            u.PendingStandAnimIndexLikeOriginal = targetStand;
-            SelectAnimationStateLikeOriginal(
-                u,
-                C2UnitOriginalState.Transition,
-                transition,
-                true,
-                reason ?? "posture_transition");
-            return true;
+
+            // NewState == LocalNewState. TryToStand is reached after the current
+            // unbreakable attack/transition has finished; never truncate one if a
+            // managed caller happens to ask for the same state mid-animation.
+            if (u.State == C2UnitOriginalState.Attack ||
+                u.State == C2UnitOriginalState.Recharge ||
+                (u.State == C2UnitOriginalState.Transition && !u.FrameFinishedLikeOriginal))
+                return;
+
+            if (desired >= 0)
+            {
+                // NewState==LocalNewState!=0: first try the exact PSTAND slot.
+                // In this equal-state branch retail deliberately does NOT fall
+                // back to STAND for MotionStyle==8 (FLY).  V411 used the generic
+                // resolver, which always fell back to STAND and changed this rule.
+                // RestA1 remains a separately inventoried adapter gap below.
+                int exactPostureStandV412 = ResolveExactPostureStandV412LikeOriginal(u.Md, desired);
+                if (exactPostureStandV412 >= 0)
+                {
+                    SelectAnimationStateLikeOriginal(
+                        u, C2UnitOriginalState.Stand, exactPostureStandV412, true,
+                        (reason ?? "TryToStand_equal") + "_PSTAND");
+                }
+                else if (MotionStyleCodeV411LikeOriginal(u.Md.MotionStyle) != 8)
+                {
+                    int equalFallbackStandV412 = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
+                    if (equalFallbackStandV412 >= 0)
+                        SelectAnimationStateLikeOriginal(
+                            u, C2UnitOriginalState.Stand, equalFallbackStandV412, true,
+                            (reason ?? "TryToStand_equal") + "_STAND_fallback");
+                }
+                return;
+            }
+
+            // Exact neutral gate from NewMon.cpp: ordinary neutral units are reset
+            // to STAND only for SINGLESTEP, or after the current animation finished.
+            // V411 reset STAND unconditionally and could truncate a neutral one-shot.
+            if (MotionStyleCodeV411LikeOriginal(u.Md.MotionStyle) == 7 ||
+                u.FrameFinishedLikeOriginal)
+            {
+                int neutral = ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
+                if (neutral < 0) neutral = ResolveAnimationIndexLikeOriginal(u.Md, RestAnimationName);
+                if (neutral >= 0 && u.State != C2UnitOriginalState.Attack &&
+                    u.State != C2UnitOriginalState.Recharge)
+                    SelectAnimationStateLikeOriginal(
+                        u, C2UnitOriginalState.Stand, neutral, true,
+                        (reason ?? "TryToStand") + (rest ? "_rest_allowed" : "_neutral"));
+            }
+        }
+
+        private int ResolveTransitionXYV411LikeOriginal(MdModel md, int fromPosture, int toPosture)
+        {
+            if (md == null || fromPosture < 0 || toPosture < 0) return -1;
+            string n = "#TRANS" +
+                       fromPosture.ToString(CultureInfo.InvariantCulture) +
+                       toPosture.ToString(CultureInfo.InvariantCulture);
+            int idx = ResolveAnimationIndexLikeOriginal(md, n);
+            if (idx < 0)
+                idx = ResolveAnimationIndexLikeOriginal(md, "@" + n.Substring(1));
+            return idx;
+        }
+
+        private int ResolvePAttackForPostureV411LikeOriginal(MdModel md, int posture)
+        {
+            if (md == null || posture < 0) return -1;
+            string suffix = posture > 0 ? posture.ToString(CultureInfo.InvariantCulture) : string.Empty;
+            int idx = ResolveAnimationIndexLikeOriginal(md, "#PATTACK" + suffix);
+            if (idx < 0) idx = ResolveAnimationIndexLikeOriginal(md, "@PATTACK" + suffix);
+            return idx;
+        }
+
+        private int ResolveUAttackForPostureV411LikeOriginal(MdModel md, int posture)
+        {
+            if (md == null || posture < 0) return -1;
+            string suffix = posture > 0 ? posture.ToString(CultureInfo.InvariantCulture) : string.Empty;
+            int idx = ResolveAnimationIndexLikeOriginal(md, "#UATTACK" + suffix);
+            if (idx < 0) idx = ResolveAnimationIndexLikeOriginal(md, "@UATTACK" + suffix);
+            return idx;
+        }
+
+        private int ResolveStandForPostureV411LikeOriginal(C2UnitOriginalRuntime u, int posture)
+        {
+            if (u == null || u.Md == null) return -1;
+            if (posture >= 0)
+            {
+                string suffix = posture > 0 ? posture.ToString(CultureInfo.InvariantCulture) : string.Empty;
+                int idx = ResolveAnimationIndexLikeOriginal(u.Md, "#PSTAND" + suffix);
+                if (idx < 0) idx = ResolveAnimationIndexLikeOriginal(u.Md, "@PSTAND" + suffix);
+                if (idx >= 0) return idx;
+            }
+            return ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
+        }
+
+        private int ResolveExactPostureStandV412LikeOriginal(MdModel md, int posture)
+        {
+            if (md == null || posture < 0) return -1;
+            string suffix = posture > 0 ? posture.ToString(CultureInfo.InvariantCulture) : string.Empty;
+            int idx = ResolveAnimationIndexLikeOriginal(md, "#PSTAND" + suffix);
+            if (idx < 0) idx = ResolveAnimationIndexLikeOriginal(md, "@PSTAND" + suffix);
+            return idx;
+        }
+
+        private void SelectSteadyPostureStandV411LikeOriginal(
+            C2UnitOriginalRuntime u,
+            int posture,
+            string reason)
+        {
+            if (u == null || u.Md == null) return;
+            int stand = ResolveStandForPostureV411LikeOriginal(u, posture);
+            if (stand >= 0)
+                SelectAnimationStateLikeOriginal(
+                    u, C2UnitOriginalState.Stand, stand, true,
+                    (reason ?? "TryToStand") + "_PSTAND");
         }
 
         internal bool PlayRuntimeAttackOneShotV325LikeOriginal(C2UnitOriginalRuntime u, int attackState)
@@ -6934,10 +4361,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (u == null || u.Md == null) return -1;
             string[] candidates = null;
-            if (u.PostureWeaponTypeLikeOriginal >= 0)
+            int localPostureV411 = u.LocalPostureWeaponTypeV411LikeOriginal;
+            if (localPostureV411 >= 0)
             {
-                string suffix = u.PostureWeaponTypeLikeOriginal > 0
-                    ? u.PostureWeaponTypeLikeOriginal.ToString(CultureInfo.InvariantCulture)
+                string suffix = localPostureV411 > 0
+                    ? localPostureV411.ToString(CultureInfo.InvariantCulture)
                     : string.Empty;
                 candidates = new[] { "#PSTAND" + suffix, "@PSTAND" + suffix };
             }
@@ -6950,37 +4378,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return ResolveAnimationIndexLikeOriginal(u.Md, StandAnimationName);
         }
 
-        internal void SetRuntimeMotionStateLikeOriginal(C2UnitOriginalRuntime u, byte realDir, bool backMotion)
-        {
-            if (u == null || u.Md == null || u.State == C2UnitOriginalState.Death) return;
-            SetRuntimeFacingLikeOriginal(u, realDir);
-            int motion = ResolveRuntimeMotionAnimationIndexV223LikeOriginal(u);
-            if (motion >= 0 && u.State != C2UnitOriginalState.Motion)
-                SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Motion, motion, true, backMotion ? "compat_back_motion" : "compat_motion");
-        }
-
-        internal void SetRuntimeWalkPathFrameLikeOriginal(C2UnitOriginalRuntime u, float totalPathReal, float rInFrameReal)
-        {
-            if (u == null || u.Md == null || u.State == C2UnitOriginalState.Death) return;
-            u.TotalPathLikeOriginal = Mathf.Max(0.0f, totalPathReal);
-            u.MoveRInFrameLikeOriginal = Mathf.Max(1, Mathf.RoundToInt(rInFrameReal));
-            AnimModel anim = CurrentAnim(u);
-            if (u.State == C2UnitOriginalState.Motion && anim != null && anim.Frames.Count > 0)
-            {
-                ApplyMotionFrameFromPathLikeOriginal(u, anim);
-                ApplyUnitFrameLikeOriginal(u, "compat_walk_path_frame");
-            }
-        }
-
-        private static byte DirectionFromWorldDeltaLikeOriginal(Vector3 d)
-        {
-            if (d.sqrMagnitude < 0.0001f) return 0;
-            float angle = Mathf.Atan2(-d.z, d.x) * Mathf.Rad2Deg;
-            int raw = Mathf.RoundToInt(Mathf.Repeat(angle / 360.0f * 256.0f, 256.0f));
-            int snapped = (raw + 8) & 0xF0;
-            return (byte)(snapped & 255);
-        }
-
+        // V427: SetRuntimeMotionStateLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: SetRuntimeWalkPathFrameLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
+        // V427: DirectionFromWorldDeltaLikeOriginal physically moved to C2MovementSystemV425LikeOriginal.cs.
         private bool ShouldLoopAnimationLikeOriginal(C2UnitOriginalRuntime u, AnimModel anim)
         {
             if (u == null || anim == null) return false;
@@ -6999,13 +4399,22 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private void SelectAnimationStateLikeOriginal(C2UnitOriginalRuntime u, C2UnitOriginalState state, int animIndex, bool resetFrame, string reason)
         {
             if (u == null || u.Md == null || animIndex < 0 || animIndex >= u.Md.Animations.Count) return;
+            bool animationChangedLikeOriginal = u.State != state || u.CurrentAnimIndex != animIndex;
             u.State = state;
             u.CurrentAnimIndex = animIndex;
+            // FrameFinished belongs to the currently selected NewAnm.  Even paths that
+            // intentionally preserve CurrentFrameLong (SINGLESTEP motion phase) must not
+            // carry the completion latch from the previous Stand/Work animation.
+            if (animationChangedLikeOriginal)
+                u.FrameFinishedLatchedForOrdersLikeOriginal = false;
+            if (animationChangedLikeOriginal || resetFrame)
+                u.FrameUploadPendingLikeOriginal = true;
             if (resetFrame)
             {
                 u.CurrentFrameLong = 0;
                 u.AnimFrameLongRemainderLikeOriginal = 0.0;
                 u.FrameFinishedLikeOriginal = false;
+                u.FrameFinishedLatchedForOrdersLikeOriginal = false;
                 u.LastFrameKey = string.Empty;
             }
             if (u.AnimState == null) u.AnimState = new C2UnitOriginalAnimationState();
@@ -7226,8 +4635,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             bool directNationColor = false;
             if (!cacheHasTexture)
             {
-                if (!TryReserveViewerTextureUploadLikeOriginal(texKey, out audit))
-                    return false;
 
                 Color32 nationColor = C2PlayerColorsLikeOriginal.GetNatColorByPlayer(ownerPlayerIndexLikeOriginal);
                 if (_viewerGps.GetRenderedFrameNationColor(
@@ -7347,36 +4754,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return true;
         }
 
-        private bool TryReserveViewerTextureUploadLikeOriginal(string textureKey, out string audit)
+        private void LateUpdate()
         {
-            int frame = Time.frameCount;
-            if (_viewerTextureUploadFrameLikeOriginal != frame)
+            // Resolve every requested animation frame synchronously, then upload
+            // each changed shared surface once before rendering. A per-frame
+            // quota on individual sprites made whole brigades show old poses.
+            for (int i = 0; i < _viewerSpriteSurfacesLikeOriginal.Count; i++)
             {
-                _viewerTextureUploadFrameLikeOriginal = frame;
-                _viewerTextureUploadsThisFrameLikeOriginal = 0;
+                var surface = _viewerSpriteSurfacesLikeOriginal[i];
+                if (!surface.Dirty || surface.Texture == null) continue;
+                surface.Texture.Apply(false, false);
+                surface.Dirty = false;
             }
-
-            int budget = Mathf.Max(1, MaxViewerTextureUploadsPerFrameLikeOriginal);
-            if (_viewerTextureUploadsThisFrameLikeOriginal >= budget)
-            {
-                audit = "viewer_texture_budget_defer uploadsThisFrame=" +
-                        _viewerTextureUploadsThisFrameLikeOriginal.ToString(CultureInfo.InvariantCulture) +
-                        " budget=" + budget.ToString(CultureInfo.InvariantCulture);
-                float now = Time.realtimeSinceStartup;
-                if (now >= _nextViewerTextureDeferredPerfAtLikeOriginal)
-                {
-                    _nextViewerTextureDeferredPerfAtLikeOriginal = now + 0.5f;
-                    C2RuntimeDiagnosticsV1.MarkPerfEvent(
-                        "UNIT_TEXTURE_BUDGET_DEFER",
-                        audit + " cache=" + _viewerTextureByFrame.Count.ToString(CultureInfo.InvariantCulture) +
-                        " tex='" + ShortPerfTextLikeOriginal(textureKey, 72) + "'");
-                }
-                return false;
-            }
-
-            _viewerTextureUploadsThisFrameLikeOriginal++;
-            audit = string.Empty;
-            return true;
         }
 
         private Texture2D PackViewerFrameOnSpriteSurfaceLikeOriginal(Texture2D frameTexture, out Rect uv)
@@ -7399,21 +4788,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             if (surface == null)
             {
-                surface = new ViewerSpriteSurfaceLikeOriginal();
-                surface.Texture = new Texture2D(ViewerSpriteSurfaceSideLikeOriginal, ViewerSpriteSurfaceSideLikeOriginal,
-                    TextureFormat.RGBA32, false, false);
-                surface.Texture.name = "C2ViewerSpriteSurface_" + _viewerSpriteSurfacesLikeOriginal.Count.ToString(CultureInfo.InvariantCulture);
-                surface.Texture.filterMode = FilterMode.Point;
-                surface.Texture.wrapMode = TextureWrapMode.Clamp;
-                surface.Texture.SetPixels32(new Color32[ViewerSpriteSurfaceSideLikeOriginal * ViewerSpriteSurfaceSideLikeOriginal]);
-                surface.Texture.Apply(false, false);
-                _viewerSpriteSurfacesLikeOriginal.Add(surface);
+                surface = CreateViewerSpriteSurfaceLikeOriginal();
                 if (!surface.TryAllocate(frameTexture.width, frameTexture.height, out dst))
                     return frameTexture;
             }
 
             surface.Texture.SetPixels32(dst.x, dst.y, dst.width, dst.height, frameTexture.GetPixels32());
-            surface.Texture.Apply(false, false);
+            surface.Dirty = true;
             float inv = 1.0f / ViewerSpriteSurfaceSideLikeOriginal;
             uv = new Rect(dst.x * inv, dst.y * inv, dst.width * inv, dst.height * inv);
             return surface.Texture;
@@ -7444,7 +4825,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     return null;
             }
 
-            Color32[] pixels = new Color32[rendered.Width * rendered.Height];
+            var pixels = surface.Texture.GetRawTextureData<Color32>();
             float boost = Mathf.Clamp(alphaBoost, 1.0f, 2.0f);
             for (int y = 0; y < rendered.Height; y++)
             {
@@ -7455,12 +4836,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     byte a = rendered.Rgba[si + 3];
                     if (a != 0 && a != 255 && boost > 1.0001f)
                         a = (byte)Mathf.Min(255, Mathf.RoundToInt(a * boost));
-                    pixels[y * rendered.Width + x] = new Color32(
+                    pixels[(dst.y + y) * ViewerSpriteSurfaceSideLikeOriginal + dst.x + x] = new Color32(
                         rendered.Rgba[si], rendered.Rgba[si + 1], rendered.Rgba[si + 2], a);
                 }
             }
-            surface.Texture.SetPixels32(dst.x, dst.y, dst.width, dst.height, pixels);
-            surface.Texture.Apply(false, false);
+            surface.Dirty = true;
             float inv = 1.0f / ViewerSpriteSurfaceSideLikeOriginal;
             uv = new Rect(dst.x * inv, dst.y * inv, dst.width * inv, dst.height * inv);
             return surface.Texture;
@@ -7474,8 +4854,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             surface.Texture.name = "C2ViewerSpriteSurface_" + _viewerSpriteSurfacesLikeOriginal.Count.ToString(CultureInfo.InvariantCulture);
             surface.Texture.filterMode = FilterMode.Point;
             surface.Texture.wrapMode = TextureWrapMode.Clamp;
-            surface.Texture.SetPixels32(new Color32[ViewerSpriteSurfaceSideLikeOriginal * ViewerSpriteSurfaceSideLikeOriginal]);
-            surface.Texture.Apply(false, false);
+            var pixels = surface.Texture.GetRawTextureData<Color32>();
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = default(Color32);
+            surface.Dirty = true;
             _viewerSpriteSurfacesLikeOriginal.Add(surface);
             return surface;
         }
@@ -8861,6 +6242,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void RebuildOriginalGpsUnitBatchesLikeOriginal(int renderUnitCountLikeOriginal)
         {
+            RebuildSelectionMarkBatchesV420(renderUnitCountLikeOriginal);
             if (!UseOriginalGpsUnitBatchRendererLikeOriginal)
             {
                 RestoreIndividualUnitRenderersLikeOriginal();
@@ -9046,6 +6428,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void ClearOriginalGpsUnitBatchesLikeOriginal()
         {
+            ClearSelectionMarkBatchesV420();
             foreach (OriginalGpsUnitBatchLikeOriginal batch in _originalGpsUnitBatchByTextureLikeOriginal.Values)
             {
                 if (batch == null) continue;
@@ -9123,6 +6506,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private void UpdateSelectionRingLikeOriginal(C2UnitOriginalRuntime u)
         {
             if (u == null) return;
+            if (UseOriginalGpsUnitBatchRendererLikeOriginal && UseBatchedSelectionMarksV420)
+            {
+                if (u.SelectionRingObject != null && u.SelectionRingObject.activeSelf)
+                    u.SelectionRingObject.SetActive(false);
+                return; // collected once in RebuildSelectionMarkBatchesV420
+            }
             if (u.Selected && u.SelectionRingObject == null)
                 CreateSelectionRingLikeOriginal(u, u.VisibleLayerLikeOriginal);
             if (u.SelectionRingObject == null) return;
@@ -9440,6 +6829,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 string suffix = state.ToString(CultureInfo.InvariantCulture);
                 md.PostureMotionLAnimationIndicesV376LikeOriginal[state] = ResolveFinalAnimationIndexLikeOriginal(
                     md, "#MOTION_L" + suffix, "@MOTION_L" + suffix, "MOTION_L" + suffix);
+                md.PostureMotionRAnimationIndicesV411LikeOriginal[state] = ResolveFinalAnimationIndexLikeOriginal(
+                    md, "#MOTION_R" + suffix, "@MOTION_R" + suffix, "MOTION_R" + suffix);
             }
             md.RotateLAnimationIndexLikeOriginal = ResolveFinalAnimationIndexLikeOriginal(
                 md, "#ROTATEL", "@ROTATEL", "ROTATEL");
@@ -9805,6 +7196,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         md.MotionStyle = t[1].ToUpperInvariant();
                         continue;
                     }
+                    if (string.Equals(t[0], "COMPLEXOBJECT", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
+                    {
+                        md.ComplexObjectIdLikeOriginal = t[1];
+                        continue;
+                    }
                     if (string.Equals(t[0], "ARTPODGOTOVKA", StringComparison.OrdinalIgnoreCase))
                     {
                         md.Artpodgotovka = true;
@@ -9815,6 +7211,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         int rotationAtPlaceSpeed;
                         if (TryParseInt(t[1], out rotationAtPlaceSpeed))
                             md.RotationAtPlaceSpeed = Math.Max(0, rotationAtPlaceSpeed);
+                        continue;
+                    }
+                    if (string.Equals(t[0], "BRANDOMPOS", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
+                    {
+                        int randomPos;
+                        if (TryParseInt(t[1], out randomPos))
+                            md.BRandomPosLikeOriginal = Math.Max(0, randomPos);
+                        continue;
+                    }
+                    if (string.Equals(t[0], "BRANDOMSPEED", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
+                    {
+                        int randomSpeed;
+                        if (TryParseInt(t[1], out randomSpeed))
+                            md.BRandomSpeedLikeOriginal = Math.Max(0, randomSpeed);
+                        continue;
+                    }
+                    if (string.Equals(t[0], "DONTSTUCKINENEMY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        md.DontStuckInEnemyLikeOriginal = true;
+                        continue;
+                    }
+                    if (string.Equals(t[0], "LOWCOLLISION", StringComparison.OrdinalIgnoreCase))
+                    {
+                        md.LowCollisionLikeOriginal = true;
                         continue;
                     }
                     if (string.Equals(t[0], "BOIDSMOVING", StringComparison.OrdinalIgnoreCase))
@@ -9848,6 +7268,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                             md.Rate[rateIndex] = rateValue;
                         continue;
                     }
+                    if (string.Equals(t[0], "STOPDISTANCE", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
+                    {
+                        int distance;
+                        if (TryParseInt(t[1], out distance)) md.StopDistance = Math.Min(distance,300);
+                        continue;
+                    }
                     if (string.Equals(t[0], "SPEEDSCALE", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
                     {
                         int percent;
@@ -9864,6 +7290,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     {
                         int value;
                         if (TryParseInt(t[1], out value)) md.FormationDistanceScale = value;
+                        continue;
+                    }
+                    if (string.Equals(t[0], "FLYPARAM", StringComparison.OrdinalIgnoreCase) && t.Length >= 3)
+                    {
+                        int h0;
+                        int h;
+                        if (TryParseInt(t[1], out h0) && TryParseInt(t[2], out h))
+                        {
+                            md.StartFlyHeightLikeOriginal = h0;
+                            md.FlyHeightLikeOriginal = h;
+                        }
+                        else malformed++;
+                        continue;
+                    }
+                    if (string.Equals(t[0], "WATERROUND", StringComparison.OrdinalIgnoreCase))
+                    {
+                        md.WaterActiveLikeOriginal = true;
+                        continue;
+                    }
+                    if (string.Equals(t[0], "KINETIC", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
+                    {
+                        int value;
+                        if (TryParseInt(t[1], out value)) md.KineticLimitLikeOriginal = Math.Max(0, value);
+                        else malformed++;
                         continue;
                     }
                     if (string.Equals(t[0], "MINDISTANCETOENTERROAD", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
@@ -9904,6 +7354,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         else malformed++;
                         continue;
                     }
+                    if (string.Equals(t[0], "USETRANSX", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
+                    {
+                        int state;
+                        if (TryParseInt(t[1], out state) && state >= 0 && state < 16)
+                            md.TransXMaskLikeOriginal |= 1 << state;
+                        else
+                            malformed++;
+                        continue;
+                    }
                     if (string.Equals(t[0], "TIREDCHANGE", StringComparison.OrdinalIgnoreCase) && t.Length >= 3)
                     {
                         int tiringChange;
@@ -9911,6 +7370,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                             md.TiringOverridesLikeOriginal[NormalizeAnimationNameLikeOriginal(t[1])] = tiringChange;
                         else
                             malformed++;
+                        continue;
+                    }
+                    if (string.Equals(t[0], "SLOWFRAME", StringComparison.OrdinalIgnoreCase) && t.Length >= 5)
+                    {
+                        int slowAnim = ResolveAnimationIndexLikeOriginal(md, NormalizeAnimationNameLikeOriginal(t[1]));
+                        int start;
+                        int end;
+                        int speed;
+                        if (slowAnim >= 0 &&
+                            TryParseInt(t[2], out start) && TryParseInt(t[3], out end) && TryParseInt(t[4], out speed))
+                        {
+                            AnimModel slow = md.Animations[slowAnim];
+                            slow.SlowFrameStartLikeOriginal = start;
+                            slow.SlowFrameEndLikeOriginal = end;
+                            slow.SlowFrameSpeedLikeOriginal = speed;
+                        }
+                        // NewMon.cpp ignores a null animation lookup here.
                         continue;
                     }
                     if ((string.Equals(t[0], "BREAKANIMATION", StringComparison.OrdinalIgnoreCase) ||
@@ -10451,6 +7927,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int GeometryRadius1 = 1;
             public int GeometryRadius2 = 10;
             public int MotionDist = 42;
+            public int StopDistance = 256; // NewMonster constructor, native real units
             // COSSACKS2/NewMon.cpp NewMonster defaults / MD parser.
             public int SpeedScale = 256;
             public int SpeedScaleOnTrees;
@@ -10468,13 +7945,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // NewMonster::TransMask populated by DIRECTTRANS a b. Indices are
             // zero-based attack states, exactly as in the MD command.
             public readonly int[] DirectTransitionMaskLikeOriginal = new int[16];
+            // NewMonster::TransXMask populated by USETRANSX n. TryToStand uses
+            // it for state<->charge-state (#TRANSX3/#TRANS3X) transitions.
+            public int TransXMaskLikeOriginal;
             public readonly int[] Rate = CreateDefaultRatesLikeOriginal();
             public int VisionType;
             public bool DontAffectFogOfWar;
             public int MoreCharacterSpeedPercent = 100;
             public string MotionStyle = string.Empty;
+            public string ComplexObjectIdLikeOriginal = string.Empty;
+            // NewMon.cpp NewMonster defaults; FLYPARAM overrides them.
+            public int StartFlyHeightLikeOriginal = 60;
+            public int FlyHeightLikeOriginal = 100;
+            public int KineticLimitLikeOriginal;
+            public bool WaterActiveLikeOriginal;
             public int RotateStep = 16;
             public bool BoidsMoving;
+            // NewMonster::BRandomPos, used by Brigade::KeepPositions immediately
+            // after CreateOrderedPositions to jitter each member's BR->posX/posY.
+            public int BRandomPosLikeOriginal;
+            // NewMonster::BRandomSpeed, applied by BrigadeOrder_KeepPositions after
+            // proportional speed equalisation. AusGrn.MD uses BRANDOMSPEED 14.
+            public int BRandomSpeedLikeOriginal;
+            public bool DontStuckInEnemyLikeOriginal;
+            public bool LowCollisionLikeOriginal;
             public int BoidsMovingMinDist = -1;
             public int BoidsMovingWeight = -1;
             public bool CanBuild;
@@ -10501,6 +7995,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // Direct equivalents of NewMonster::GetAnimation(anm_*) hot lookups.
             public int MotionLAnimationIndexLikeOriginal = -1;
             public readonly int[] PostureMotionLAnimationIndicesV376LikeOriginal = new int[16];
+            public readonly int[] PostureMotionRAnimationIndicesV411LikeOriginal = new int[16];
             public int RotateLAnimationIndexLikeOriginal = -1;
             public int RotateRAnimationIndexLikeOriginal = -1;
             public bool HaveRotateAnimationsLikeOriginal;
@@ -10539,6 +8034,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int[] ActivePtY;
             public int DoubleShot;
             public int TiringChange;
+            // NewMon.cpp::SLOWFRAME: used by MotionHandlerForFlyingObjects while turning.
+            public int SlowFrameStartLikeOriginal;
+            public int SlowFrameEndLikeOriginal;
+            public int SlowFrameSpeedLikeOriginal = 100;
             public int SourceLine;
             public string RawLine;
             public readonly List<FrameModel> Frames = new List<FrameModel>();
@@ -10660,6 +8159,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal bool IsFrameFinishedLikeOriginal
         {
             get { return Runtime != null && Runtime.FrameFinishedLikeOriginal; }
+        }
+
+        // Stable SetNextFrame completion state for external order adapters.
+        // FrameFinishedLikeOriginal is still used by the current renderer/state adapter;
+        // this latch survives visual looping until SelectAnimationState/SetZeroFrame.
+        internal bool IsFrameFinishedLatchedForOrdersLikeOriginal
+        {
+            get { return Runtime != null && Runtime.FrameFinishedLatchedForOrdersLikeOriginal; }
         }
 
         internal bool CanReceiveOrdersLikeOriginal()
@@ -10856,6 +8363,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Owner.SetRuntimeCombatPostureV322LikeOriginal(Runtime, weaponType, active);
         }
 
+        internal void ApplyKeepPositionsGroundStateV415LikeOriginal(int state, string reason)
+        {
+            if (Owner != null && Runtime != null)
+                Owner.ApplyRuntimeKeepPositionsGroundStateV415LikeOriginal(Runtime, state, reason);
+        }
+
+        internal bool IsKeepPositionsPostureReadyV415LikeOriginal(int state)
+        {
+            return Owner == null || Runtime == null ||
+                   Owner.IsRuntimeKeepPositionsPostureReadyV415LikeOriginal(Runtime, state);
+        }
+
         internal bool PlayAttackOneShotV325LikeOriginal(int attackState)
         {
             return Owner != null && Runtime != null &&
@@ -10921,17 +8440,39 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                        Runtime, muzzleIndex, out world);
         }
 
+        internal bool AdvanceAttackFacingV410LikeOriginal(byte enemyDir)
+        {
+            return Owner != null && Runtime != null &&
+                   Owner.AdvanceRuntimeAttackFacingV410LikeOriginal(Runtime, enemyDir);
+        }
+
+        internal bool AdvanceAttackFacingV411LikeOriginal(byte enemyDir, int needState)
+        {
+            return Owner != null && Runtime != null &&
+                   Owner.AdvanceRuntimeAttackFacingV411LikeOriginal(Runtime, enemyDir, needState);
+        }
+
         internal bool IsCombatPostureReadyV335LikeOriginal(int weaponType)
         {
             return Runtime != null &&
                    Runtime.State == C2UnitOriginalState.Stand &&
                    !Runtime.HasMoveTargetLikeOriginal &&
-                   Runtime.PostureWeaponTypeLikeOriginal == weaponType;
+                   Runtime.PostureWeaponTypeLikeOriginal == weaponType &&
+                   Runtime.LocalPostureWeaponTypeV411LikeOriginal == weaponType;
         }
 
         internal bool TryGetAttackTimingV335LikeOriginal(
             out int frame, out int frameCount, out int activeFrame, out bool attacking)
         {
+            int previousFrame;
+            return TryGetAttackTimingV415LikeOriginal(
+                out previousFrame, out frame, out frameCount, out activeFrame, out attacking);
+        }
+
+        internal bool TryGetAttackTimingV415LikeOriginal(
+            out int previousFrame, out int frame, out int frameCount, out int activeFrame, out bool attacking)
+        {
+            previousFrame = 0;
             frame = 0;
             frameCount = 0;
             activeFrame = 0;
@@ -10944,15 +8485,25 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Runtime.Md.Animations[Runtime.CurrentAnimIndex];
             if (anim == null || anim.Frames.Count == 0) return false;
             frame = Mathf.Clamp(Runtime.CurrentFrameLong >> 8, 0, anim.Frames.Count - 1);
+            previousFrame = Runtime.PreviousFrameAnimIndexV415LikeOriginal == Runtime.CurrentAnimIndex
+                ? Mathf.Clamp(Runtime.PreviousFrameIndexV415LikeOriginal, 0, anim.Frames.Count - 1)
+                : frame;
             frameCount = anim.Frames.Count;
             activeFrame = anim.ActiveFrame;
-            // NewMon.cpp only replaces zero with max(4,NFrames/2).
-            // 0xFF means that the MD never supplied an active point; clamping
-            // it into the clip incorrectly manufactured a shot event.
+            // NewMon.cpp::AttackObjLink:
+            //   if(!af) af=OBJ->NewAnm->NFrames/2; if(af<4) af=4;
+            // 0xFF remains 0xFF; manufacturing a clipped active point would be wrong.
             if (activeFrame == 0)
-                activeFrame = Mathf.Max(4, frameCount / 2);
+                activeFrame = frameCount / 2;
+            if (activeFrame < 4)
+                activeFrame = 4;
             attacking = Runtime.State == C2UnitOriginalState.Attack;
             return true;
+        }
+
+        internal bool IsUnlimitedMotionV415LikeOriginal
+        {
+            get { return Runtime != null && Runtime.PreciseBornPathLikeOriginal; }
         }
 
         internal void SetMotionStateLikeOriginal(byte realDir, bool backMotion)
@@ -10968,7 +8519,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
     }
 
-    public sealed class C2UnitOriginalRuntime
+    public sealed partial class C2UnitOriginalRuntime
     {
         public object ProbeRaw;
         internal object RawRecord;
@@ -11005,7 +8556,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal bool Selected;
         internal Vector3 WorldPosition;
         internal int CurrentAnimIndex;
+        // Exact NewMon.cpp split: PostureWeaponType == NewState-1 (desired),
+        // LocalPostureWeaponType == LocalNewState-1 (actually transformed state).
+        // V410 conflated the two, which could skip PATTACK/UATTACK/TRANS stages.
         internal int PostureWeaponTypeLikeOriginal = -1;
+        internal int LocalPostureWeaponTypeV411LikeOriginal = -1;
+        internal int TransitionTargetLocalPostureV411LikeOriginal = int.MinValue;
         internal int PostureAfterMoveLikeOriginal = -1;
         internal bool MoveDeferredUntilNeutralStandLikeOriginal;
         // Multi.cpp::SendSelectedToXY -> GroupSendSelectedTo(...,Prio=128):
@@ -11014,8 +8570,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal int PendingStandAnimIndexLikeOriginal = -1;
         internal int PendingPostureAfterNeutralLikeOriginal = -1;
         internal int CurrentFrameLong;
+        // NewCurSpritePrev equivalent used by C2 AttackObjLink active-frame crossing.
+        internal int PreviousFrameIndexV415LikeOriginal;
+        internal int PreviousFrameAnimIndexV415LikeOriginal = -1;
         internal double AnimFrameLongRemainderLikeOriginal;
         internal bool FrameFinishedLikeOriginal;
+        internal bool FrameFinishedLatchedForOrdersLikeOriginal;
         internal int RechargeTicksRemainingLikeOriginal;
         internal int RechargeTicksMaximumLikeOriginal;
         internal int RechargeAttackModeLikeOriginal = -1;
@@ -11065,6 +8625,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal float MoveSpeedOriginalPixelsPerSecondLikeOriginal;
         internal float BaseMoveSpeedOriginalPixelsPerSecondLikeOriginal;
         internal int OriginalMotionDistLikeOriginal;
+        // OneObject::GroupSpeed is distinct from UnitSpeed and MotionDist.
+        internal int OriginalGroupSpeedV431LikeOriginal;
         internal int OriginalUnitSpeedLikeOriginal = 64;
         // Cached equivalent of BR->NewBOrder == BRIGADEORDER_GOONROAD.
         internal bool OriginalGoOnRoadLikeOriginal;
@@ -11076,6 +8638,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal bool HasFinalFacingDirLikeOriginal;
         internal bool SingleStepRotateAtPlaceActiveV352LikeOriginal;
         internal byte SingleStepRotateAtPlaceTargetV352LikeOriginal;
+        // NewMon.cpp::AttackObjLink -> RotUnit per-object state. These two
+        // fields were present in V410/V411 but were accidentally dropped while
+        // merging V412 onto the newer 19.09 runtime.
+        internal bool AttackRotateAtPlaceActiveV410LikeOriginal;
+        internal byte AttackRotateAtPlaceTargetV410LikeOriginal;
         internal bool FinalRotUnitActiveV352LikeOriginal;
         internal byte FinalRotUnitTargetV352LikeOriginal;
         internal Vector2[] MovePathRealWaypointsLikeOriginal;

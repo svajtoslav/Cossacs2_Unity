@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
@@ -284,6 +284,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2ActiveUnitsRegistryRevisionV359LikeOriginal++;
             }
             _registeredV365LikeOriginal = true;
+            C2LiveUnitCellIndex.PositionChanged(this);
             C2AttachUnityProxyV366LikeOriginal(root);
         }
 
@@ -326,6 +327,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2ActiveUnitsSnapshotDirtyV359LikeOriginal = true;
                 C2ActiveUnitsRegistryRevisionV359LikeOriginal++;
             }
+            C2LiveUnitCellIndex.Remove(this);
             _registeredV365LikeOriginal = false;
             C2ReleaseObjectIdentityV408LikeOriginal();
         }
@@ -361,6 +363,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _rootGameObjectV365LikeOriginal = null;
         }
 
+        internal static int C2ActiveUnitCountForDiagnostics => C2ActiveUnitsV359LikeOriginal.Count;
+
         public static C2NeutralPeasantUnitInfoV2LikeOriginal[] C2GetActiveUnitsSnapshotV359LikeOriginal()
         {
             if (!C2ActiveUnitsSnapshotDirtyV359LikeOriginal)
@@ -386,7 +390,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public string SourceMonsterId = string.Empty;
         public string ResolvedMd = string.Empty;
         public int RecordIndex;
-        public byte Nation;
+        private byte _NationV420;
+        public byte Nation
+        {
+            get { return _NationV420; }
+            set
+            {
+                if (_NationV420 == value) return;
+                _NationV420 = value;
+                C2LiveUnitCellIndex.AllegianceChanged(this);
+            }
+        }
         public ushort NIndex;
         public int RealX;
         public int RealY;
@@ -408,11 +422,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public bool ControllableByPlayer = false;
         // DIP_SimpleBuilding gives villagers NMask=GetNatNMASK(Owner)|128:
         // settlement AI commands them, the human player does not.
-        public bool SettlementAiControlledLikeOriginal;
+        private bool _SettlementAiControlledLikeOriginalV420;
+        public bool SettlementAiControlledLikeOriginal
+        {
+            get { return _SettlementAiControlledLikeOriginalV420; }
+            set
+            {
+                if (_SettlementAiControlledLikeOriginalV420 == value) return;
+                _SettlementAiControlledLikeOriginalV420 = value;
+                C2LiveUnitCellIndex.AllegianceChanged(this);
+            }
+        }
         // Visual NNUM remains 7 for settlement population. NMask allegiance
         // follows the settlement Owner and is used by combat/AI only.
-        public int SettlementAllegianceNationLikeOriginal = -1;
+        private int _SettlementAllegianceNationLikeOriginalV420 = -1;
+        public int SettlementAllegianceNationLikeOriginal
+        {
+            get { return _SettlementAllegianceNationLikeOriginalV420; }
+            set
+            {
+                if (_SettlementAllegianceNationLikeOriginalV420 == value) return;
+                _SettlementAllegianceNationLikeOriginalV420 = value;
+                C2LiveUnitCellIndex.AllegianceChanged(this);
+            }
+        }
         public int UnitRadius = 16;
+        // COSSACKS2 OneObject::ActivityState: 0 normal, 1 peaceful, 2 aggressive.
+        // Kept as engine data so BrigadeOrder_Bitva/AttackObj can use the same gates.
+        public byte ActivityStateV413LikeOriginal;
+        // OneObject::FriendlyFire is the per-object toggle used only when the MD
+        // declares FRIENDLYFIRE. Creation memset leaves it false in retail.
+        public bool FriendlyFireV413LikeOriginal;
         public int MotionDist = 40;
         public int GeometryRadius2Real = 160;
         public bool CanBuildLikeOriginal;
@@ -561,10 +601,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return CanReceiveOrdersLikeOriginal() && (CanBuildLikeOriginal || PioneerLikeOriginal || IsPeasantLikeOriginal());
         }
 
+        private string _peasantSourceV420, _peasantMdV420;
+        private bool _peasantValueV420, _peasantBoundV420;
+
         public bool IsPeasantLikeOriginal()
         {
+            if (_peasantBoundV420 && string.Equals(_peasantSourceV420, SourceMonsterId, StringComparison.Ordinal) &&
+                string.Equals(_peasantMdV420, ResolvedMd, StringComparison.Ordinal)) return _peasantValueV420;
+            _peasantSourceV420 = SourceMonsterId;
+            _peasantMdV420 = ResolvedMd;
+            _peasantBoundV420 = true;
             string id = ((SourceMonsterId ?? string.Empty) + " " + (ResolvedMd ?? string.Empty)).ToLowerInvariant();
-            return id.IndexOf("kri", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            return _peasantValueV420 = id.IndexOf("kri", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    id.IndexOf("peasant", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    id.IndexOf("worker", StringComparison.OrdinalIgnoreCase) >= 0;
         }
@@ -808,6 +856,44 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 link.SetCombatPostureV322LikeOriginal(weaponType, active);
         }
 
+        public bool AdvanceAttackFacingV410LikeOriginal(byte enemyDir)
+        {
+            // AttackObjLink has entered attack radius: retail clears the local
+            // destination/path while it rotates. Cancel movement here WITHOUT
+            // creating a generic Stand order (that order was the old source of
+            // combat-order interference).
+            _hasMoveTarget = false;
+            _hasLastMoveRequestLikeOriginal = false;
+            _v170PreciseBornpointMoveIgnoresBuildingBlockLikeOriginal = false;
+            _v170PreciseBornpointSourceBuildingRecordLikeOriginal = int.MinValue;
+            if (SpriteAnimator != null) SpriteAnimator.SetMovingLikeOriginal(false);
+            C2NeutralPeasantFallbackMoveV311LikeOriginal mover =
+                GetComponent<C2NeutralPeasantFallbackMoveV311LikeOriginal>();
+            if (mover != null) mover.CancelLikeOriginal();
+
+            C2UnitOriginalRuntimeLinkLikeOriginal link = RuntimeLink;
+            if (link != null) return link.AdvanceAttackFacingV410LikeOriginal(enemyDir);
+            SetFacingDirectionLikeOriginal(enemyDir);
+            return true;
+        }
+
+        public bool AdvanceAttackFacingV411LikeOriginal(byte enemyDir, int needState)
+        {
+            _hasMoveTarget = false;
+            _hasLastMoveRequestLikeOriginal = false;
+            _v170PreciseBornpointMoveIgnoresBuildingBlockLikeOriginal = false;
+            _v170PreciseBornpointSourceBuildingRecordLikeOriginal = int.MinValue;
+            if (SpriteAnimator != null) SpriteAnimator.SetMovingLikeOriginal(false);
+            C2NeutralPeasantFallbackMoveV311LikeOriginal mover =
+                GetComponent<C2NeutralPeasantFallbackMoveV311LikeOriginal>();
+            if (mover != null) mover.CancelLikeOriginal();
+
+            C2UnitOriginalRuntimeLinkLikeOriginal link = RuntimeLink;
+            if (link != null) return link.AdvanceAttackFacingV411LikeOriginal(enemyDir, needState);
+            SetFacingDirectionLikeOriginal(enemyDir);
+            return true;
+        }
+
         public void StopMoveAndFaceDirectionLikeOriginal(byte realDir)
         {
             C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
@@ -868,343 +954,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
     }
 
-    internal static class C2GameplayLooseGroupMoveLikeOriginal
-    {
-        private const float C2LooseGroupDefaultRadius2RealLikeOriginal = 160.0f;
-        private const int C2LooseGroupFormDistLikeOriginal = 270;
+// V432 integration probe: declaration supplied by consolidated file.
 
-        // Compatibility overload: ordinary command is OrdType 0.
-        public static int IssueMoveLikeOriginal(
-            System.Collections.Generic.IList<C2NeutralPeasantUnitInfoV2LikeOriginal> sourceUnits,
-            float destRealCenterX,
-            float destRealCenterY,
-            bool hasFinalFacingDir,
-            byte finalFacingDir,
-            string cancelSource,
-            out string audit)
-        {
-            return IssueMoveLikeOriginal(
-                sourceUnits, destRealCenterX, destRealCenterY,
-                hasFinalFacingDir, finalFacingDir, 0,
-                cancelSource, out audit);
-        }
-
-        public static int IssueMoveLikeOriginal(
-            System.Collections.Generic.IList<C2NeutralPeasantUnitInfoV2LikeOriginal> sourceUnits,
-            float destRealCenterX,
-            float destRealCenterY,
-            bool hasFinalFacingDir,
-            byte finalFacingDir,
-            byte ordType,
-            string cancelSource,
-            out string audit)
-        {
-            int formationIssued;
-            string formationAudit;
-            if (C2FormationRuntimeV167LikeOriginal.TryIssueMoveV167LikeOriginal(
-                    sourceUnits,
-                    destRealCenterX,
-                    destRealCenterY,
-                    hasFinalFacingDir,
-                    finalFacingDir,
-                    ordType,
-                    cancelSource,
-                    out formationIssued,
-                    out formationAudit))
-            {
-                audit = "original_formation_move " + formationAudit;
-                return formationIssued;
-            }
-
-            var units = new System.Collections.Generic.List<C2NeutralPeasantUnitInfoV2LikeOriginal>(
-                sourceUnits != null ? sourceUnits.Count : 0);
-            float centerX = 0.0f;
-            float centerY = 0.0f;
-            float maxRadius2 = 0.0f;
-            int type1 = -1;
-            int type2 = -1;
-            bool allPus = true;
-
-            if (sourceUnits != null)
-            {
-                for (int i = 0; i < sourceUnits.Count; i++)
-                {
-                    C2NeutralPeasantUnitInfoV2LikeOriginal u = sourceUnits[i];
-                    if (u == null || !u.isActiveAndEnabled || !u.CanReceivePlayerOrdersLikeOriginal()) continue;
-                    units.Add(u);
-                    float ux = u.RealXFloat != 0.0f ? u.RealXFloat : u.RealX;
-                    float uy = u.RealYFloat != 0.0f ? u.RealYFloat : u.RealY;
-                    centerX += ux;
-                    centerY += uy;
-                    float rr = u.GeometryRadius2Real > 0 ? u.GeometryRadius2Real : C2LooseGroupDefaultRadius2RealLikeOriginal;
-                    if (rr > maxRadius2) maxRadius2 = rr;
-                    if (type1 < 0) type1 = u.NIndex;
-                    else if (type1 != u.NIndex) type2 = u.NIndex;
-
-                    // Groups.cpp::ExGroupSendSelectedTo AllPus:
-                    // Usage==PushkaID OR newMons->Artpodgotovka for every loose unit.
-                    C2UnitOriginalRuntimeLinkLikeOriginal mdLink = u.RuntimeLinkCachedLikeOriginal;
-                    C2UnitOriginalRuntime mdRuntime = mdLink != null ? mdLink.Runtime : null;
-                    bool pushka = mdRuntime != null && mdRuntime.Md != null &&
-                                  string.Equals(mdRuntime.Md.Usage, "PUSHKA", StringComparison.OrdinalIgnoreCase);
-                    bool artpodgotovka = mdRuntime != null && mdRuntime.Md != null && mdRuntime.Md.Artpodgotovka;
-                    if (!pushka && !artpodgotovka) allPus = false;
-                }
-            }
-
-            int n = units.Count;
-            if (n == 0)
-            {
-                audit = "C2 Groups.cpp ExGroupSendSelectedTo issued=0 reason=no_controllable_units";
-                return 0;
-            }
-            centerX /= n;
-            centerY /= n;
-
-            // Groups.cpp::ExGroupSendSelectedTo always resolves LastDirection before
-            // PositionOrder::SendToPosition.  A normal RMB click starts with DIRECT=512,
-            // then loose-only selection resolves LastDirection=GetDir(destination-center).
-            // SendToPosition appends RotUnit(...,LastDirection,2) after SmartSend for
-            // OrdType 0/2.  Therefore ordinary clicks have a final facing too; V350/V351
-            // incorrectly passed HasFinalFacing=false and dropped that Order1 node.
-            int clickRdxV352 = Mathf.RoundToInt(centerX - destRealCenterX);
-            int clickRdyV352 = Mathf.RoundToInt(centerY - destRealCenterY);
-            byte pordLastDirectionV352 = hasFinalFacingDir
-                ? finalFacingDir
-                : C2OriginalMovementMathV352.GetDir(-clickRdxV352, -clickRdyV352);
-
-            if (n == 1)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal single = units[0];
-                float fromX = single.RealXFloat != 0.0f ? single.RealXFloat : single.RealX;
-                float fromY = single.RealYFloat != 0.0f ? single.RealYFloat : single.RealY;
-                Vector2[] smartPath;
-                bool singleDirectClearV353;
-                bool built = C2BattleTerrainMode.C2BuildingMotionFieldV1TryBuildPathOrDirectRealLikeOriginal(
-                    fromX, fromY, destRealCenterX, destRealCenterY,
-                    out smartPath, out singleDirectClearV353, 4096,
-                    "NewMonsterSmartSendTo_single_v352");
-                bool ok;
-                if (built && smartPath != null && smartPath.Length > 0)
-                    ok = C2OriginalOrderChainV352.SubmitPath(
-                        single, smartPath, true, pordLastDirectionV352, ordType,
-                        cancelSource ?? "PORD_single_NewMonsterSmartSendTo_v352");
-                else
-                    // The Unity project does not contain C2's generated TopoGraf arrays.
-                    // A missing adapter route must not eat a valid player command; the
-                    // exact PreciseSend destination remains the final fallback.
-                    ok = C2OriginalOrderChainV352.SubmitMove(
-                        single, destRealCenterX, destRealCenterY,
-                        true, pordLastDirectionV352, ordType,
-                        cancelSource ?? "PORD_single_NewMonsterPreciseSendTo_fallback_v352");
-                audit = "C2 PORD.SendToPosition single issued=" + (ok ? "1" : "0") +
-                        " smartPath=" + (smartPath != null ? smartPath.Length.ToString() : "0") +
-                        " directClear=" + singleDirectClearV353.ToString();
-                return ok ? 1 : 0;
-            }
-
-            // Groups.cpp::ExGroupSendSelectedTo. With DIRECT=512, rdx/rdy are
-            // average selected RealX/Y minus the clicked RealX/Y.
-            int rdx = clickRdxV352;
-            int rdy = clickRdyV352;
-            if (hasFinalFacingDir)
-            {
-                rdx = C2OriginalMovementMathV352.TCos[finalFacingDir] << 4;
-                rdy = C2OriginalMovementMathV352.TSin[finalFacingDir] << 4;
-            }
-
-            // PositionOrder::CreateRotatedPositions starts by dx>>=4,dy>>=4,
-            // then rotates that vector 90 degrees.
-            int dx = rdx >> 4;
-            int dy = rdy >> 4;
-            if (dx == 0 && dy == 0) dx = 1;
-
-            int lx = (int)Mathf.Sqrt(n);
-            int ly;
-            if (allPus)
-            {
-                // Groups.cpp::PositionOrder::CreateRotatedPositions2.
-                ly = lx << 2;
-                lx >>= 2;
-                if (n < 10)
-                {
-                    lx = 1;
-                    ly = n;
-                }
-            }
-            else
-            {
-                // Groups.cpp::PositionOrder::CreateRotatedPositions.
-                ly = lx * 5 / 3;
-                lx = lx * 3 / 5;
-                if (n < 4)
-                {
-                    lx = 1;
-                    ly = n;
-                }
-            }
-            int dd = dx;
-            dx = dy;
-            dy = -dd;
-
-            // The source performs this grow block twice, not an unbounded while.
-            for (int grow = 0; grow < 2; grow++)
-            {
-                int nn = lx * ly;
-                if (nn < n)
-                {
-                    if (nn + lx >= n) ly++;
-                    else if (nn + ly >= n) lx++;
-                    else { ly++; lx++; }
-                }
-            }
-            if (lx < 1) lx = 1;
-            if (ly < 1) ly = 1;
-
-            // UNISORT.CreateByLine(Ids,NUnits,dx>>4,dy>>4), ascending.
-            int sortDx = dx >> 4;
-            int sortDy = dy >> 4;
-            units.Sort(delegate(C2NeutralPeasantUnitInfoV2LikeOriginal a, C2NeutralPeasantUnitInfoV2LikeOriginal b)
-            {
-                int ax = Mathf.RoundToInt((a.RealXFloat != 0.0f ? a.RealXFloat : a.RealX)) >> 5;
-                int ay = Mathf.RoundToInt((a.RealYFloat != 0.0f ? a.RealYFloat : a.RealY)) >> 5;
-                int bx = Mathf.RoundToInt((b.RealXFloat != 0.0f ? b.RealXFloat : b.RealX)) >> 5;
-                int by = Mathf.RoundToInt((b.RealYFloat != 0.0f ? b.RealYFloat : b.RealY)) >> 5;
-                long ap = (long)ax * sortDx + (long)ay * sortDy;
-                long bp = (long)bx * sortDx + (long)by * sortDy;
-                return ap.CompareTo(bp);
-            });
-
-            // Then every row is sorted by -dy>>4,dx>>4 exactly like Groups.cpp.
-            int px0 = 0;
-            for (int iy = 0; iy < ly; iy++)
-            {
-                int rowCount = n - px0;
-                if (rowCount > lx) rowCount = lx;
-                if (rowCount <= 0) break;
-                int rowStart = px0;
-                int rowSortDx = (-dy) >> 4;
-                int rowSortDy = dx >> 4;
-                units.Sort(rowStart, rowCount, Comparer<C2NeutralPeasantUnitInfoV2LikeOriginal>.Create(
-                    delegate(C2NeutralPeasantUnitInfoV2LikeOriginal a, C2NeutralPeasantUnitInfoV2LikeOriginal b)
-                    {
-                        int ax = Mathf.RoundToInt((a.RealXFloat != 0.0f ? a.RealXFloat : a.RealX)) >> 5;
-                        int ay = Mathf.RoundToInt((a.RealYFloat != 0.0f ? a.RealYFloat : a.RealY)) >> 5;
-                        int bx = Mathf.RoundToInt((b.RealXFloat != 0.0f ? b.RealXFloat : b.RealX)) >> 5;
-                        int by = Mathf.RoundToInt((b.RealYFloat != 0.0f ? b.RealYFloat : b.RealY)) >> 5;
-                        long ap = (long)ax * rowSortDx + (long)ay * rowSortDy;
-                        long bp = (long)bx * rowSortDx + (long)by * rowSortDy;
-                        return ap.CompareTo(bp);
-                    }));
-                px0 += rowCount;
-            }
-
-            int maxR = Mathf.RoundToInt(maxRadius2);
-            if (allPus)
-            {
-                // CreateRotatedPositions2: no mixed-type FORMDIST clamp and no 3/4 squeeze.
-                maxR <<= 2;
-            }
-            else
-            {
-                if (type2 != -1 && maxR > C2LooseGroupFormDistLikeOriginal * 4)
-                    maxR = C2LooseGroupFormDistLikeOriginal * 4;
-                maxR = maxR * 3 / 4;
-                maxR <<= 2;
-            }
-
-            int nr = C2OriginalMovementMathV352.Norma(dx, dy);
-            if (nr <= 0) nr = 1;
-            int vx = dx * maxR / nr;
-            int vy = dy * maxR / nr;
-            int dxx = (-(lx - 1) * vy + (ly - 1) * vx) >> 1;
-            int dyy = ((lx - 1) * vx + (ly - 1) * vy) >> 1;
-
-            var slots = new System.Collections.Generic.List<Vector2>(n);
-            int pos = 0;
-            for (int iy = 0; iy < ly; iy++)
-            {
-                for (int ix = 0; ix < lx; ix++)
-                {
-                    if (pos < n)
-                    {
-                        slots.Add(new Vector2(
-                            Mathf.RoundToInt(destRealCenterX) - ix * vy + iy * vx - dxx,
-                            Mathf.RoundToInt(destRealCenterY) + ix * vx + iy * vy - dyy));
-                    }
-                    pos++;
-                }
-            }
-
-            // NewMonsterSmartSendTo receives the common center plus dx/dy offset.
-            // C2 SmartSend validates each object's shifted waypoint and shrinks an
-            // offset near obstructions (NewMon.cpp:17193-17212, 17288-17302).
-            // Share the center route, never impose a rigid translated route on a crowd.
-            Vector2[] centerPath;
-            bool directClear;
-            bool pathBuilt = C2BattleTerrainMode.C2BuildingMotionFieldV1TryBuildPathOrDirectRealLikeOriginal(
-                centerX, centerY, destRealCenterX, destRealCenterY,
-                out centerPath, out directClear, 4096,
-                "NewMonsterSmartSendTo_center_v352");
-            if (!pathBuilt && directClear)
-                centerPath = new Vector2[] { new Vector2(destRealCenterX, destRealCenterY) };
-
-            int issued = 0;
-            for (int i = 0; i < units.Count && i < slots.Count; i++)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal u = units[i];
-                Vector2 slot = slots[i];
-                float offX = slot.x - destRealCenterX;
-                float offY = slot.y - destRealCenterY;
-                bool ok;
-                if (centerPath != null && centerPath.Length > 0)
-                {
-                    Vector2[] unitPath = new Vector2[centerPath.Length];
-                    Vector2 previous = new Vector2(u.RealXFloat, u.RealYFloat);
-                    int radius = Mathf.Clamp(Mathf.RoundToInt(Mathf.Max(8.0f, u.UnitRadius) / 16.0f), 1, 2);
-                    for (int k = 0; k < centerPath.Length; k++)
-                    {
-                        float factor = 1.0f;
-                        Vector2 candidate = centerPath[k];
-                        for (int attempt = 0; attempt < 14; attempt++)
-                        {
-                            candidate = centerPath[k] + new Vector2(offX, offY) * factor;
-                            if (C2BuildingRuntimeInfoV247LikeOriginal.CanTravelStraightRealV247LikeOriginal(
-                                previous.x, previous.y, candidate.x, candidate.y, radius)) break;
-                            factor = attempt == 12 ? 0.0f : factor * 0.75f;
-                        }
-                        unitPath[k] = candidate;
-                        previous = candidate;
-                    }
-                    // Runtime validates the entire chain from this unit's actual position;
-                    // if even the common route is obstructed it builds an individual path.
-                    ok = C2OriginalOrderChainV352.SubmitPath(
-                        u, unitPath, true, pordLastDirectionV352, ordType,
-                        cancelSource ?? "PORD_NewMonsterSmartSendTo_v352");
-                }
-                else
-                {
-                    // If the substitute topology database has no route, do not throw away
-                    // an otherwise valid user click: issue the same final PreciseSend target.
-                    ok = C2OriginalOrderChainV352.SubmitMove(
-                        u, slot.x, slot.y, true, pordLastDirectionV352, ordType,
-                        cancelSource ?? "PORD_NewMonsterPreciseSendTo_fallback_v352");
-                }
-                if (ok) issued++;
-            }
-
-            audit = "C2 Groups.cpp->PORD.CreateRotatedPositions->SendToPosition->NewMonsterSmartSendTo" +
-                    " issued=" + issued.ToString() +
-                    " units=" + n.ToString() +
-                    " grid=" + lx.ToString() + "x" + ly.ToString() +
-                    " maxR=" + maxR.ToString() +
-                    " allPus=" + allPus.ToString() +
-                    " ordType=" + ordType.ToString() +
-                    " lastDirection=" + pordLastDirectionV352.ToString() +
-                    " centerPath=" + (centerPath != null ? centerPath.Length.ToString() : "0");
-            return issued;
-        }
-    }
 
     public sealed partial class C2BattleTerrainMode
     {
@@ -1314,6 +1065,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _unit.RealYFloat = realY;
             _unit.RealX = Mathf.RoundToInt(realX);
             _unit.RealY = Mathf.RoundToInt(realY);
+            C2LiveUnitCellIndex.PositionChanged(_unit);
 
             if (_unit.OwnerMode != null)
             {

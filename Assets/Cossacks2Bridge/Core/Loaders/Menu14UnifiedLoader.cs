@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -655,7 +656,7 @@ namespace Cossacks2Bridge.Core.Loaders
         // ------------------------------------------------------------------
         // Tiny balanced-tag tree for the original XML-like syntax.
         // ------------------------------------------------------------------
-        private sealed class LiteNode
+        internal sealed class LiteNode
         {
             public string Tag = string.Empty;
             public string Source = string.Empty;
@@ -700,6 +701,12 @@ namespace Cossacks2Bridge.Core.Loaders
                 return n?.DirectText() ?? string.Empty;
             }
 
+            public string Value(string tag, string fallback)
+            {
+                string s = Value(tag);
+                return string.IsNullOrWhiteSpace(s) ? fallback : s;
+            }
+
             public string ValueLast(string tag)
             {
                 for (int i = Children.Count - 1; i >= 0; i--)
@@ -714,7 +721,13 @@ namespace Cossacks2Bridge.Core.Loaders
             public int Int(string tag, int fallback = 0)
             {
                 string s = Value(tag);
-                return int.TryParse((s ?? string.Empty).Trim(), out int v) ? v : fallback;
+                return int.TryParse((s ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : fallback;
+            }
+
+            public float Float(string tag, float fallback = 0f)
+            {
+                string s = Value(tag);
+                return float.TryParse((s ?? string.Empty).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : fallback;
             }
 
             public bool Bool(string tag, bool fallback)
@@ -727,7 +740,7 @@ namespace Cossacks2Bridge.Core.Loaders
             }
         }
 
-        private static class LiteDocument
+        internal static class LiteDocument
         {
             public static LiteNode Parse(string source)
             {

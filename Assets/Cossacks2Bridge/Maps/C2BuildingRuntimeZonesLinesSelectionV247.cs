@@ -1,4 +1,4 @@
-// C2BuildingRuntimeZonesLinesSelectionV247.cs
+﻿// C2BuildingRuntimeZonesLinesSelectionV247.cs
 // V249: 23_05 bridge layer. Keeps building menu/production and fixes LINESORT overlay with engine DrawSpriteBuilding coordinates.
 // Keeps C2BuildingObjectsLikeOriginal.cs as the only renderer, but attaches gameplay/debug data to its rendered buildings:
 // - selectable building component for HUD/menu
@@ -649,6 +649,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int cx = RealToCellV247LikeOriginal(realX);
             int cy = RealToCellV247LikeOriginal(realY);
             HashSet<Vector2Int> blocked = GetBlockedCellsV247LikeOriginal();
+            // The water test above still applies on maps without building locks.
+            if (blocked.Count == 0) return false;
 
             for (int dy = -r; dy <= r; dy++)
             {
@@ -762,75 +764,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return true;
         }
 
-        private static float PathHeuristicV247LikeOriginal(Vector2Int a, Vector2Int b)
-        {
-            int dx = Mathf.Abs(a.x - b.x);
-            int dy = Mathf.Abs(a.y - b.y);
-            int mn = Mathf.Min(dx, dy);
-            int mx = Mathf.Max(dx, dy);
-            return (mx - mn) + mn * 1.41421356f;
-        }
-
-        private struct PathOpenNodeV347LikeOriginal
-        {
-            public Vector2Int Cell;
-            public float F;
-            public float G;
-        }
-
-        private static void PathHeapPushV347LikeOriginal(
-            List<PathOpenNodeV347LikeOriginal> heap,
-            PathOpenNodeV347LikeOriginal value)
-        {
-            int at = heap.Count;
-            heap.Add(value);
-            while (at > 0)
-            {
-                int parent = (at - 1) >> 1;
-                PathOpenNodeV347LikeOriginal pv = heap[parent];
-                if (pv.F < value.F || pv.F == value.F && pv.G <= value.G)
-                    break;
-                heap[at] = pv;
-                at = parent;
-            }
-            heap[at] = value;
-        }
-
-        private static PathOpenNodeV347LikeOriginal PathHeapPopV347LikeOriginal(
-            List<PathOpenNodeV347LikeOriginal> heap)
-        {
-            PathOpenNodeV347LikeOriginal result = heap[0];
-            int lastIndex = heap.Count - 1;
-            PathOpenNodeV347LikeOriginal tail = heap[lastIndex];
-            heap.RemoveAt(lastIndex);
-            if (lastIndex == 0)
-                return result;
-
-            int at = 0;
-            int count = heap.Count;
-            while (true)
-            {
-                int left = at * 2 + 1;
-                if (left >= count) break;
-                int right = left + 1;
-                int child = left;
-                if (right < count)
-                {
-                    PathOpenNodeV347LikeOriginal lv = heap[left];
-                    PathOpenNodeV347LikeOriginal rv = heap[right];
-                    if (rv.F < lv.F || rv.F == lv.F && rv.G < lv.G)
-                        child = right;
-                }
-                PathOpenNodeV347LikeOriginal cv = heap[child];
-                if (tail.F < cv.F || tail.F == cv.F && tail.G <= cv.G)
-                    break;
-                heap[at] = cv;
-                at = child;
-            }
-            heap[at] = tail;
-            return result;
-        }
-
         public static bool TryBuildPathRealV247LikeOriginal(
             float startRealX,
             float startRealY,
@@ -902,142 +835,44 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Vector2Int start = new Vector2Int(RealToCellV247LikeOriginal(freeStartX), RealToCellV247LikeOriginal(freeStartY));
             Vector2Int target = new Vector2Int(RealToCellV247LikeOriginal(dstX), RealToCellV247LikeOriginal(dstY));
 
-            int directDx = Mathf.Abs(target.x - start.x);
-            int directDy = Mathf.Abs(target.y - start.y);
-            int pad = Mathf.Clamp(Mathf.Max(24, Mathf.Max(directDx, directDy) / 2 + 16), 24, 128);
-            int minX = Mathf.Min(start.x, target.x) - pad;
-            int maxX = Mathf.Max(start.x, target.x) + pad;
-            int minY = Mathf.Min(start.y, target.y) - pad;
-            int maxY = Mathf.Max(start.y, target.y) + pad;
+            // CII fpath/FPathFinder.cpp walks both sides of each obstacle until
+            // it rejoins the original line. The previous adapter exhaustively
+            // expanded an A* region for every failed formation correction.
+            // Reuse the original linked-point workspace; no per-search frontier.
+            s_fpathRadiusV421 = radiusCells;
+            C2BattleTerrainMode mode = ResolveFPathModeV421LikeOriginal();
+            if (mode != null && mode.C2TopologyTryGetMapGeometryV401LikeOriginal(
+                    out int addsh, out int mapSx, out int mapSy, out string sourcePath))
+            { s_fpathWidthV421 = mapSx; s_fpathHeightV421 = mapSy; }
+            else { s_fpathWidthV421 = s_fpathHeightV421 = 4096; }
+            if (s_fpathV421.GetPath(start.x, start.y, target.x, target.y) == null)
+                return false;
+            s_fpathV421.Bending(2);
+            s_fpathResultV421.Clear();
+            if (startAdjusted) s_fpathResultV421.Add(new Vector2(freeStartX, freeStartY));
+            for (var point = s_fpathV421.WayPoints.First; point != null; point = point.Next)
+                s_fpathResultV421.Add(new Vector2(CellCenterToRealV247LikeOriginal(point.x), CellCenterToRealV247LikeOriginal(point.y)));
+            s_fpathResultV421.Add(new Vector2(dstX, dstY));
+            waypoints = s_fpathResultV421.ToArray();
+            return true;
+        }
 
-            // The old bridge used a linear scan over the open set.  Allowing
-            // 12-24k expansions turned a single unreachable shore order into
-            // a multi-second main-thread stall.  Original C2 routes through
-            // bounded topology regions and retries later; keep this local
-            // LOCKPOINT fallback bounded as well.
-            int maxSearch = Mathf.Clamp(maxSearchCells, 256, 4096);
+        private static C2BattleTerrainMode s_fpathModeV421;
+        private static C2BattleTerrainMode ResolveFPathModeV421LikeOriginal()
+        {
+            if (s_fpathModeV421 == null)
+                s_fpathModeV421 = UnityEngine.Object.FindFirstObjectByType<C2BattleTerrainMode>();
+            return s_fpathModeV421;
+        }
 
-            // The original routes through a topology table. This local fallback
-            // still has to search LOCKPOINT cells, but its frontier must not be
-            // linearly rescanned. The former List min-search + Contains made a
-            // single 4096-cell route take 100+ ms and froze the game when a few
-            // groups moved. A binary heap keeps identical A* costs and bounds.
-            var open = new List<PathOpenNodeV347LikeOriginal>(256);
-            var came = new Dictionary<Vector2Int, Vector2Int>(1024);
-            var bestG = new Dictionary<Vector2Int, float>(1024);
-            var closed = new HashSet<Vector2Int>();
-
-            bestG[start] = 0.0f;
-            PathHeapPushV347LikeOriginal(open, new PathOpenNodeV347LikeOriginal
-            {
-                Cell = start,
-                G = 0.0f,
-                F = PathHeuristicV247LikeOriginal(start, target)
-            });
-            bool found = false;
-            int expanded = 0;
-
-            while (open.Count > 0 && expanded < maxSearch)
-            {
-                PathOpenNodeV347LikeOriginal openNode = PathHeapPopV347LikeOriginal(open);
-                Vector2Int cur = openNode.Cell;
-
-                if (closed.Contains(cur)) continue;
-                float currentBestG;
-                if (!bestG.TryGetValue(cur, out currentBestG) || openNode.G > currentBestG)
-                    continue; // stale heap entry after a cheaper route was found
-                closed.Add(cur);
-                expanded++;
-
-                if (cur == target)
-                {
-                    found = true;
-                    break;
-                }
-
-                for (int ny = -1; ny <= 1; ny++)
-                {
-                    for (int nx = -1; nx <= 1; nx++)
-                    {
-                        if (nx == 0 && ny == 0) continue;
-                        Vector2Int nb = new Vector2Int(cur.x + nx, cur.y + ny);
-                        if (nb.x < minX || nb.x > maxX || nb.y < minY || nb.y > maxY) continue;
-                        if (closed.Contains(nb)) continue;
-
-                        float nbRealX = CellCenterToRealV247LikeOriginal(nb.x);
-                        float nbRealY = CellCenterToRealV247LikeOriginal(nb.y);
-                        if (IsBlockedForUnitRealV247LikeOriginal(nbRealX, nbRealY, radiusCells)) continue;
-
-                        if (nx != 0 && ny != 0)
-                        {
-                            float sideXReal = CellCenterToRealV247LikeOriginal(cur.x + nx);
-                            float sideYReal = CellCenterToRealV247LikeOriginal(cur.y);
-                            float upXReal = CellCenterToRealV247LikeOriginal(cur.x);
-                            float upYReal = CellCenterToRealV247LikeOriginal(cur.y + ny);
-                            if (IsBlockedForUnitRealV247LikeOriginal(sideXReal, sideYReal, radiusCells)) continue;
-                            if (IsBlockedForUnitRealV247LikeOriginal(upXReal, upYReal, radiusCells)) continue;
-                        }
-
-                        float step = (nx != 0 && ny != 0) ? 1.41421356f : 1.0f;
-                        float ng = bestG[cur] + step;
-
-                        float oldG;
-                        if (bestG.TryGetValue(nb, out oldG) && ng >= oldG)
-                            continue;
-
-                        bestG[nb] = ng;
-                        came[nb] = cur;
-                        PathHeapPushV347LikeOriginal(open, new PathOpenNodeV347LikeOriginal
-                        {
-                            Cell = nb,
-                            G = ng,
-                            F = ng + PathHeuristicV247LikeOriginal(nb, target)
-                        });
-                    }
-                }
-            }
-
-            if (!found) return false;
-
-            var cells = new List<Vector2Int>(128);
-            Vector2Int p = target;
-            cells.Add(p);
-            while (p != start)
-            {
-                Vector2Int prev;
-                if (!came.TryGetValue(p, out prev)) break;
-                p = prev;
-                cells.Add(p);
-            }
-            cells.Reverse();
-
-            var result = new List<Vector2>(cells.Count + 1);
-            if (startAdjusted)
-                result.Add(new Vector2(freeStartX, freeStartY));
-
-            for (int i = 0; i < cells.Count; i++)
-                result.Add(new Vector2(CellCenterToRealV247LikeOriginal(cells[i].x), CellCenterToRealV247LikeOriginal(cells[i].y)));
-
-            result.Add(new Vector2(dstX, dstY));
-
-            // C2 SmartSend checks direct visibility before choosing the next topology
-            // point. Keep only visible bends, not a stop/turn at every 16-pixel cell.
-            var smooth = new List<Vector2>();
-            Vector2 anchor = new Vector2(startRealX, startRealY);
-            int cursor = 0;
-            if (startAdjusted) { smooth.Add(result[0]); anchor = result[0]; cursor = 1; }
-            while (cursor < result.Count)
-            {
-                int next = cursor;
-                for (int k = result.Count - 1; k > cursor; k--)
-                    if (CanTravelStraightRealV247LikeOriginal(anchor.x, anchor.y, result[k].x, result[k].y, radiusCells))
-                    { next = k; break; }
-                smooth.Add(result[next]);
-                anchor = result[next];
-                cursor = next + 1;
-            }
-            waypoints = smooth.ToArray();
-            return waypoints != null && waypoints.Length > 0;
+        private static int s_fpathRadiusV421, s_fpathWidthV421 = 4096, s_fpathHeightV421 = 4096;
+        private static readonly List<Vector2> s_fpathResultV421 = new List<Vector2>(128);
+        private static readonly C2FPathFinderV421LikeOriginal s_fpathV421 =
+            new C2FPathFinderV421LikeOriginal(IsFreeFPathCellV421LikeOriginal);
+        private static bool IsFreeFPathCellV421LikeOriginal(int x, int y)
+        {
+            return x >= 0 && y >= 0 && x < s_fpathWidthV421 && y < s_fpathHeightV421 &&
+                !IsBlockedForUnitRealV247LikeOriginal(CellCenterToRealV247LikeOriginal(x), CellCenterToRealV247LikeOriginal(y), s_fpathRadiusV421);
         }
 
         public static void HardCleanupOverlayV295LikeOriginal()

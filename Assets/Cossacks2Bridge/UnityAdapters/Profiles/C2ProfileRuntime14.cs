@@ -33,6 +33,9 @@ namespace Cossacks2Bridge.UnityAdapters.Profiles
             public int recruits;
             public int resource;
             public int villages;
+            // CSectStatData::m_iSabotageID (final-1.4 display state).
+            // VISUAL3 persists/projects it but does not execute diversion gameplay.
+            public int sabotageId;
         }
 
         [Serializable]
@@ -137,7 +140,8 @@ namespace Cossacks2Bridge.UnityAdapters.Profiles
                             population = s.population,
                             recruits = s.recruits,
                             resource = s.resource,
-                            villages = s.villages
+                            villages = s.villages,
+                            sabotageId = s.sabotageId
                         });
                     }
                 }
@@ -252,7 +256,7 @@ namespace Cossacks2Bridge.UnityAdapters.Profiles
                             id = AttrInt(line,"id",0), owner = AttrInt(line,"owner",0),
                             defence = AttrInt(line,"defence",0), population = AttrInt(line,"population",0),
                             recruits = AttrInt(line,"recruits",0), resource = AttrInt(line,"resource",0),
-                            villages = AttrInt(line,"villages",0)
+                            villages = AttrInt(line,"villages",0), sabotageId = AttrInt(line,"sabotageId",0)
                         };
                         cur.sectors.Add(sec);
                     }
@@ -408,7 +412,8 @@ namespace Cossacks2Bridge.UnityAdapters.Profiles
                               .Append(" population=\"").Append(s.population).Append('"')
                               .Append(" recruits=\"").Append(s.recruits).Append('"')
                               .Append(" resource=\"").Append(s.resource).Append('"')
-                              .Append(" villages=\"").Append(s.villages).AppendLine("\" />");
+                              .Append(" villages=\"").Append(s.villages).Append('"')
+                              .Append(" sabotageId=\"").Append(s.sabotageId).AppendLine("\" />");
                         }
                     }
                     if (p.stats != null)

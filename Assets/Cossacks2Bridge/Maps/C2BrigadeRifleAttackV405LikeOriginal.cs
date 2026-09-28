@@ -72,11 +72,28 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ArmedGroupsLikeOriginal[groupId] = representative;
             int readyV405, delayedV405;
             CountRifleReadinessLikeOriginal(representative, out readyV405, out delayedV405);
-            Debug.Log("[C2:RIFLE V405 ARMED] group=" + groupId.ToString(CultureInfo.InvariantCulture) +
+            Debug.Log("[C2:RIFLE V418 ARMED] group=" + groupId.ToString(CultureInfo.InvariantCulture) +
                       " ready=" + readyV405.ToString(CultureInfo.InvariantCulture) +
                       " delayed=" + delayedV405.ToString(CultureInfo.InvariantCulture) +
-                      " source=Multi.cpp::SetArmAttackState_129");
-            TryStartFromBrigadeLoopLikeOriginal(groupId, representative, "SetArmAttackState_129");
+                      " source=Multi.cpp::SetArmAttackState_only");
+            // Multi.cpp::SetArmAttackState only changes OneObject::RifleAttack.
+            // It does NOT create BrigadeOrder_RifleAttack. Creation happens only at
+            // the original BrigadeRifleAttack call sites (Bitva/KeepPositions/etc.).
+        }
+
+        internal static void StartBrigadeRifleAttackV418LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal representative,
+            string source)
+        {
+            if (representative == null) return;
+            int groupId;
+            if (!C2FormationRuntimeV167LikeOriginal.TryGetFormationGroupIdV321LikeOriginal(
+                    representative, out groupId))
+                return;
+            EnsureHostLikeOriginal();
+            ArmedGroupsLikeOriginal[groupId] = representative;
+            TryStartFromBrigadeLoopLikeOriginal(
+                groupId, representative, source ?? "BrigadeRifleAttack");
         }
 
         // Explicit rifle-off / melee replacement. ClearFormationRifleAttackState
@@ -116,7 +133,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (unit == null) return false;
             int groupId;
             return C2FormationRuntimeV167LikeOriginal.TryGetFormationGroupIdV321LikeOriginal(
-                       unit, out groupId) && OrdersLikeOriginal.ContainsKey(groupId);
+                       unit, out groupId) && OrdersLikeOriginal.ContainsKey(groupId) &&
+                   C2FormationRuntimeV167LikeOriginal.IsCurrentBrigadeNewOrderV418LikeOriginal(
+                       unit, C2FormationRuntimeV167LikeOriginal.BrigadeOrderRifleAttackV418LikeOriginal);
         }
 
         private static void EnsureHostLikeOriginal()
@@ -142,8 +161,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (tick == _lastProcessTickLikeOriginal) return;
             _lastProcessTickLikeOriginal = tick;
 
-            // Brigade::Bitva / BrigadeOrder_Bitva / KeepPositions: when the rifle
-            // flag is armed but no rifle order exists, wait for delay==0, then create it.
+            // SetArmAttackState is only a flag mutation in retail. Keep this map
+            // as ownership/cache storage, but never synthesize BrigadeRifleAttack from
+            // an armed flag alone. Original brigade processors invoke it explicitly.
             if (ArmedGroupsLikeOriginal.Count > 0)
             {
                 int[] armed = new int[ArmedGroupsLikeOriginal.Count];
@@ -154,12 +174,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     C2NeutralPeasantUnitInfoV2LikeOriginal representative;
                     if (!ArmedGroupsLikeOriginal.TryGetValue(groupId, out representative)) continue;
                     if (!GroupHasAnyRifleFlagLikeOriginal(representative))
-                    {
                         ArmedGroupsLikeOriginal.Remove(groupId);
-                        continue;
-                    }
-                    if (!OrdersLikeOriginal.ContainsKey(groupId))
-                        TryStartFromBrigadeLoopLikeOriginal(groupId, representative, "Brigade::Bitva_delay0");
                 }
             }
 
@@ -171,6 +186,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 OrderLikeOriginal order;
                 if (!OrdersLikeOriginal.TryGetValue(ids[i], out order) || order == null) continue;
+                if (!C2FormationRuntimeV167LikeOriginal.IsCurrentBrigadeNewOrderV418LikeOriginal(
+                        order.Representative,
+                        C2FormationRuntimeV167LikeOriginal.BrigadeOrderRifleAttackV418LikeOriginal))
+                    continue; // preserved in NewBOrder->Next while another order owns the head.
                 if (!ProcessLikeOriginal(order, animTime))
                     DeleteOrderLikeOriginal(order.GroupId, "ProcessPre_false", true);
             }
@@ -181,7 +200,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2NeutralPeasantUnitInfoV2LikeOriginal representative,
             string source)
         {
-            if (representative == null || OrdersLikeOriginal.ContainsKey(groupId)) return;
+            if (representative == null) return;
+            byte currentOrderV418 =
+                C2FormationRuntimeV167LikeOriginal.GetCurrentBrigadeNewOrderIdV418LikeOriginal(representative);
+            if (currentOrderV418 == C2FormationRuntimeV167LikeOriginal.BrigadeOrderRifleAttackV418LikeOriginal)
+                return;
+            if (OrdersLikeOriginal.ContainsKey(groupId)) return;
 
             List<C2NeutralPeasantUnitInfoV2LikeOriginal> members;
             int resolvedGroup;
@@ -209,14 +233,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             if (trigger == null) return;
 
-            // Brigade.cpp::BrigadeRifleAttack creates only if the current NewBOrder
-            // is absent or is not BRIGADEORDER_RIFLEATTACK. The V405 dictionary is
-            // the managed NewBOrder slot for this order type.
+            // Brigade.cpp::BrigadeRifleAttack: CreateNewBOrder(1,RA). V418 keeps
+            // the actual NewBOrder chain; this dictionary stores only RA's payload.
             OrderLikeOriginal ra = new OrderLikeOriginal();
             ra.GroupId = groupId;
             ra.Representative = representative;
             ra.OnlyOneBrig = trigger.SearchOnlyThisBrigadeToKillV407LikeOriginal;
             OrdersLikeOriginal[groupId] = ra;
+
+            C2FormationRuntimeV167LikeOriginal.CreateBrigadeNewOrderForRifleV418LikeOriginal(
+                representative, source ?? "BrigadeRifleAttack");
 
             Debug.Log("[C2:RIFLE V405 CREATE] group=" + groupId.ToString(CultureInfo.InvariantCulture) +
                       " orderId=" + BrigadeOrderRifleAttackIdLikeOriginal.ToString(CultureInfo.InvariantCulture) +
@@ -602,6 +628,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!OrdersLikeOriginal.TryGetValue(groupId, out order)) return;
             OrdersLikeOriginal.Remove(groupId);
             ArmedGroupsLikeOriginal.Remove(groupId);
+
+            if (order != null && order.Representative != null)
+                C2FormationRuntimeV167LikeOriginal.DeleteBrigadeNewOrderForRifleV418LikeOriginal(
+                    order.Representative, reason ?? "BrigadeOrder_RifleAttack_delete");
 
             List<C2NeutralPeasantUnitInfoV2LikeOriginal> members = null;
             if (order != null && order.Representative != null)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -13,12 +13,26 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
     // Unity-only seams are object storage, movement, rendering and projectile visuals.
     internal static class C2CombatCoreV408LikeOriginal
     {
+        internal const int NAttTypesV413LikeOriginal = 12; // MapDiscr.h: CONQUEST is defined in CII 1.1.
+
         internal sealed class MdTraits
         {
             public int MaxAttackers = 12;
             public int ArmRadius = 100;
             public byte KillMask;
             public byte MathMask;
+            // NewMonster attack-state tables. CANKILL copies KillMask to all
+            // AttackMask slots; ATTMASK may override individual slots later.
+            public readonly byte[] AttackMask = new byte[NAttTypesV413LikeOriginal];
+            public readonly int[] AttackRadius1 = new int[NAttTypesV413LikeOriginal];
+            public readonly int[] AttackRadius2 = new int[NAttTypesV413LikeOriginal];
+            public readonly int[] DetRadius1 = new int[NAttTypesV413LikeOriginal];
+            public readonly int[] DetRadius2 = new int[NAttTypesV413LikeOriginal];
+            public readonly int[] MaxDamage = new int[NAttTypesV413LikeOriginal];
+            public readonly int[] AttackPause = new int[NAttTypesV413LikeOriginal];
+            public readonly string[] WeaponName = new string[NAttTypesV413LikeOriginal];
+            public byte NoWaitMask;
+            public bool ArmAttackDefinition;
             public bool Immortal;
             public bool UnbeatableWhenFree;
             public bool Priest;
@@ -26,9 +40,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public bool Capture;
             public bool No25;
             public bool Building;
+            public bool CanBeInFocusOfFormation;
             public bool Pushka;
             public bool Artilery;
             public bool SlowRecharge;
+            // NewMon.cpp::SITINFORMATIONS. Under CII/SIMPLEMANAGE this creates
+            // real attack state 4 from state 1, rather than an animation-only alias.
+            public bool SitInFormations;
             public byte LockType;
             public int Razbros;
             public int SkillDamageBonus;
@@ -40,11 +58,28 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int StrikeForce = 100;
             public int StrikeProbability;
             public int RotationAtPlaceSpeed;
+            // COSSACKS2/NewMon.cpp NewMonster defaults + MD commands used by
+            // Weapon.cpp::TraceObjectsInLine. These are original-pixel units.
+            public int UnitRadius = 16;
+            public int FreeShotDist = 150;
+            public int AddShotRadius;
+            public bool FriendlyFireCapable;
             public int MissInsideProbability;
             public int MissHeightProbability100;
             public int MaxMissHeightProbability = 100;
-            public readonly string[] WeaponKind = new string[4];
-            public readonly int[] DamageDecr = { 65535, 65535, 65535, 65535 };
+            public readonly string[] WeaponKind = new string[NAttTypesV413LikeOriginal];
+            public readonly int[] DamageDecr = new int[NAttTypesV413LikeOriginal];
+
+            public MdTraits()
+            {
+                // NewMonster ctor: WeaponKind[i]=0; NRES [WEAPONS] index 0 is MECH.
+                // DamageDecr defaults to 65535 for every native attack slot.
+                for (int i = 0; i < DamageDecr.Length; i++)
+                {
+                    DamageDecr[i] = 65535;
+                    WeaponKind[i] = "MECH";
+                }
+            }
             public readonly Dictionary<string, int> Protection = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             public readonly Dictionary<int, List<ShotResource>> ShotResources = new Dictionary<int, List<ShotResource>>();
         }
@@ -130,6 +165,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal static void TickGlobalV408LikeOriginal()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.CombatGlobal);
             int tick = C2FormationRuntimeV167LikeOriginal.CurrentSimulationTickV403ELikeOriginal;
             if (tick == _lastGlobalTick) return;
             _lastGlobalTick = tick;
@@ -146,6 +182,51 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // DIP_SimpleBuilding population uses GetNatNMASK(owner)|128.
             if (unit.SettlementAiControlledLikeOriginal) mask |= 128;
             return unchecked((byte)mask);
+        }
+
+        internal static byte GetMathMaskV409LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            return unit != null ? GetTraitsV408LikeOriginal(unit).MathMask : (byte)0;
+        }
+
+        // COSSACKS2/MapDiscr.h defines CONQUEST in the supplied 1.1 source,
+        // therefore NAttTypes is 12 (not 4). Megapolis.cpp::UpdateAttackR scans
+        // that complete table. Keep the combat envelope on the parsed native table.
+        internal static void GetAttackRadiusEnvelopeV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit, out int minR, out int maxR)
+        {
+            MdTraits traits = GetTraitsV408LikeOriginal(unit);
+            minR = 10000;
+            maxR = 0;
+            for (int type = 0; type < NAttTypesV413LikeOriginal; type++)
+            {
+                int r2 = traits.AttackRadius2[type];
+                if (r2 == 0) continue;
+                int r1 = traits.AttackRadius1[type];
+                if (r1 < minR) minR = r1;
+                if (r2 > maxR) maxR = r2;
+            }
+            if (maxR < minR)
+            {
+                minR = 0;
+                maxR = 0;
+            }
+        }
+
+        internal static int GetMinAttackRadiusV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            int minR, maxR;
+            GetAttackRadiusEnvelopeV413LikeOriginal(unit, out minR, out maxR);
+            return minR;
+        }
+
+        internal static int GetMaxAttackRadiusV413LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            int minR, maxR;
+            GetAttackRadiusEnvelopeV413LikeOriginal(unit, out minR, out maxR);
+            return maxR;
         }
 
         internal static bool CanAttackRelationV408LikeOriginal(
@@ -165,12 +246,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (attacker == null || victim == null) return false;
             MdTraits a = GetTraitsV408LikeOriginal(attacker);
+            if (a.Priest || a.Shaman) return true;
             MdTraits v = GetTraitsV408LikeOriginal(victim);
-            byte attackMask = a.KillMask;
-            // Retail AttackObjLink combines KillMask with AttackMask[]; the current
-            // MD bridge has no separate AttackMask storage, and CANKILL is the exact
-            // material gate available in supplied MD data.
-            return attackMask == 0 || v.MathMask == 0 || (attackMask & v.MathMask) != 0;
+            // NewMon.cpp::AttackObjLink (active COSSACKS2/SIMPLEMANAGE):
+            //   AMASK = KillMask | AttackMask[0] | AttackMask[1] | AttackMask[2];
+            //   if(!(OB->MathMask & AMASK)) DeleteLastOrder();
+            // Slot 3 is deliberately NOT part of this early material gate in 1.1.
+            byte attackMask = (byte)(a.KillMask | a.AttackMask[0] | a.AttackMask[1] | a.AttackMask[2]);
+            return (v.MathMask & attackMask) != 0;
         }
 
         private static bool CheckAttAbilityV408LikeOriginal(
@@ -240,9 +323,20 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             preciseAttack = false;
             if (!IsAliveV408LikeOriginal(attacker) || !IsAliveV408LikeOriginal(victim) || attacker == victim) return false;
+            C2UnitOriginalRuntimeLinkLikeOriginal readyLink = attacker.RuntimeLinkCachedLikeOriginal;
+            if (readyLink != null && !readyLink.IsReadyLikeOriginal) return false; // OneObject::Ready
             MdTraits at = GetTraitsV408LikeOriginal(attacker);
             MdTraits vt = GetTraitsV408LikeOriginal(victim);
             if (vt.Immortal) return false;
+
+            // NewMon.cpp::OneObject::AttackObj SIMPLEMANAGE branch. An ARMATTACK
+            // definition rejects low-priority autonomous AttackObj requests while
+            // neither ArmAttack nor RifleAttack is enabled. Command/high-bit orders
+            // are still accepted exactly as in C2 1.1.
+            int nativePrioV414 = prio1 == 254 ? 16 + 128 : prio1;
+            if (at.ArmAttackDefinition && nativePrioV414 < 128 &&
+                !(attacker.ArmAttackV396LikeOriginal || attacker.RifleAttackV396LikeOriginal))
+                return false;
             if (!CanAttackRelationV408LikeOriginal(attacker, victim)) return false;
             if (!CheckAttAbilityV408LikeOriginal(attacker, victim))
             {
@@ -255,7 +349,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             if (!CanDamageMaterialV408LikeOriginal(attacker, victim)) return false;
 
-            int prio = prio1 == 254 ? 16 + 128 : prio1;
+            int prio = nativePrioV414;
             int ax = Mathf.RoundToInt(CurrentRealXV408LikeOriginal(attacker));
             int ay = Mathf.RoundToInt(CurrentRealYV408LikeOriginal(attacker));
             int vx = Mathf.RoundToInt(CurrentRealXV408LikeOriginal(victim));
@@ -267,6 +361,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int victimGroup;
             bool victimInArmy = C2FormationRuntimeV167LikeOriginal.TryGetFormationGroupIdV321LikeOriginal(victim, out victimGroup);
             int armRadius = at.ArmRadius;
+            // NewMon.cpp::AttackObj: aggressive state expands ARMR to 2000.
+            // GSets.AllowFormationsStatesProcessing defaults to false in CII 1.1,
+            // so normal state keeps the MD ArmRadius here.
+            if (attacker.ActivityStateV413LikeOriginal == 2) armRadius = 2000;
             if (inArmy && !attacker.RifleAttackV396LikeOriginal && distPixels > armRadius && (prio1 & 127) < 14)
             {
                 int only = attacker.SearchOnlyThisBrigadeToKillV407LikeOriginal;
@@ -290,7 +388,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // AttackList.cpp overflow gate is active only for short-ranged attack sets.
             C2OriginalProduceCatalogV13.C2MdIconInfoV13 md =
                 C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(attacker);
-            int maxAttackRadius = Mathf.Max(md.AttackRadius0, Mathf.Max(md.AttackRadius1, md.AttackRadius2));
+            int minAttackRadius, maxAttackRadius;
+            GetAttackRadiusEnvelopeV413LikeOriginal(attacker, out minAttackRadius, out maxAttackRadius);
             if (maxAttackRadius < 160 && GetNAttackersV408LikeOriginal(victim) >= at.MaxAttackers)
             {
                 if (distPixels > 150 && !inArmy)
@@ -303,6 +402,64 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         false, 0);
                 }
                 return false;
+            }
+
+            // COSSACKS2/NewMon.cpp::OneObject::AttackObj, active COSSACKS2/SIMPLEMANAGE
+            // branch. A formation infantryman does NOT immediately install a private
+            // AttackObj for an ordinary enemy. The first non-contact request creates
+            // Brigade::Bitva and returns; priority 128+15 is the deliberate exception
+            // used by MotionHandlerForSingleStepObjects after physical contact.
+            if (!vt.CanBeInFocusOfFormation && inArmy && prio1 != 128 + 15 &&
+                !at.Artilery && !vt.Building)
+            {
+                if (!attacker.RifleAttackV396LikeOriginal)
+                {
+                    if (prio1 == 254) return true;
+                    if (!C2FormationRuntimeV167LikeOriginal.HasActiveBrigadeBitvaV414LikeOriginal(attacker))
+                    {
+                        bool hasNewBOrderV415 =
+                            C2FormationRuntimeV167LikeOriginal.HasManagedNonBitvaBrigadeOrderV415LikeOriginal(attacker);
+                        if (hasNewBOrderV415)
+                        {
+                            // NewMon.cpp: an existing non-BITVA BR->NewBOrder only turns into
+                            // BITVA when BR->AttEnm is set. Otherwise AttackObj returns true.
+                            if (C2FormationRuntimeV167LikeOriginal.HasBrigadeAttackEnemyIntentV414LikeOriginal(attacker))
+                            {
+                                // The source condition is `(Prio1&128)>=14`; with the high
+                                // priority bit set this is intentionally true. Keep it literally.
+                                if (distPixels < armRadius || (prio1 & 128) >= 14)
+                                {
+                                    C2FormationRuntimeV167LikeOriginal.ActivateBrigadeBitvaFromAttackObjV414LikeOriginal(
+                                        attacker, "NewMon.cpp::AttackObj_InArmy_Bitva");
+                                    return true;
+                                }
+                                return false;
+                            }
+                            return true;
+                        }
+
+                        // Exact C2 branch: BR->NewBOrder == NULL -> BR->Bitva(); return true.
+                        C2FormationRuntimeV167LikeOriginal.ActivateBrigadeBitvaFromAttackObjV414LikeOriginal(
+                            attacker, "NewMon.cpp::AttackObj_no_NewBOrder_Bitva_v415");
+                        return true;
+                    }
+                }
+                else
+                {
+                    // NewMon.cpp::AttackObj rifle branch:
+                    // if(BR->NewBOrder&&(BR->NewBOrder->GetBrigadeOrderPrio()&127)) return true;
+                    // The supplied C2 1.1 BrigadeOrders.cpp leaves GetBrigadeOrderPrio()
+                    // at the base implementation (0) for every represented order. Do not
+                    // substitute HumanGlobalSendTo/GoOnRoad payload priority here.
+                    C2FormationRuntimeV167LikeOriginal.RuntimeFormationV172LikeOriginal rifleGroupV418;
+                    if (C2FormationRuntimeV167LikeOriginal.TryGetRuntimeGroupByUnitV172LikeOriginal(
+                            attacker, out rifleGroupV418) && rifleGroupV418 != null &&
+                        C2FormationRuntimeV167LikeOriginal.HasCurrentBrigadeNewOrderV418LikeOriginal(rifleGroupV418) &&
+                        (C2FormationRuntimeV167LikeOriginal.GetCurrentBrigadeOrderPrioV418LikeOriginal(rifleGroupV418) & 127) != 0)
+                        return true;
+                    // Retail sets STRELOK=1 here, but STRELOK is not read afterwards
+                    // in this function in the supplied source. Continue to individual AttackObj.
+                }
             }
 
             C2UnitOrderRuntimeV325LikeOriginal currentOrder = C2UnitOrderRuntimeV325LikeOriginal.TryGetLikeOriginal(attacker);
@@ -322,7 +479,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         Mathf.RoundToInt(CurrentRealXV408LikeOriginal(old) - CurrentRealXV408LikeOriginal(attacker)),
                         Mathf.RoundToInt(CurrentRealYV408LikeOriginal(old) - CurrentRealYV408LikeOriginal(attacker)));
                     int newDist = C2OriginalMovementMathV352.Norma(vx - ax, vy - ay);
-                    int minAttackReal = Mathf.Max(0, md.AttackRadius0Min) << 4;
+                    int minAttackReal = Mathf.Max(0, minAttackRadius) << 4;
                     if (newDist <= minAttackReal || oldDist <= newDist) return false;
                 }
             }
@@ -489,16 +646,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int attackType)
         {
             if (!IsAliveV408LikeOriginal(shooter) || !IsAliveV408LikeOriginal(victim)) return 0;
-            C2OriginalProduceCatalogV13.C2MdIconInfoV13 md =
-                C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(shooter);
+            MdTraits shooterTraits = GetTraitsV408LikeOriginal(shooter);
             int dist = C2OriginalMovementMathV352.Norma(
                 Mathf.RoundToInt(CurrentRealXV408LikeOriginal(shooter) - CurrentRealXV408LikeOriginal(victim)),
                 Mathf.RoundToInt(CurrentRealYV408LikeOriginal(shooter) - CurrentRealYV408LikeOriginal(victim))) >> 4;
-            int maxRadius = AttackRadiusMaxV408LikeOriginal(md, attackType);
+            int slot = Mathf.Clamp(attackType, 0, NAttTypesV413LikeOriginal - 1);
+            int maxRadius = AttackRadiusMaxV413LikeOriginal(shooterTraits, slot);
             if (attackType != 0 && maxRadius > 0 && dist > maxRadius) return 0;
-            int damage = DamageForAttackTypeV408LikeOriginal(md, attackType);
+            int damage = shooterTraits.MaxDamage[slot];
             if (attackType != 0)
-                damage = GetDamFallV408LikeOriginal(dist, GetTraitsV408LikeOriginal(shooter).DamageDecr[Mathf.Clamp(attackType, 0, 3)], damage);
+                damage = GetDamFallV408LikeOriginal(dist, shooterTraits.DamageDecr[slot], damage);
             return MakeDamageV408LikeOriginal(victim, damage, shooter, attackType, false);
         }
 
@@ -577,7 +734,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (act && sender != null)
                 C2MoraleRuntimeV404LikeOriginal.OnUnitDamageV404LikeOriginal(victim, sender, attackType);
 
-            if (sender != null && attackType >= 0 && attackType < 4)
+            if (sender != null && attackType >= 0 && attackType < NAttTypesV413LikeOriginal)
             {
                 MdTraits st = GetTraitsV408LikeOriginal(sender);
                 string kind = st.WeaponKind[attackType] ?? string.Empty;
@@ -775,9 +932,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (victim == null || sender == null || victimTraits.RotationAtPlaceSpeed != 0) return;
             C2OriginalProduceCatalogV13.C2MdIconInfoV13 md =
                 C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(sender);
-            int rmax = AttackRadiusMaxV408LikeOriginal(md, attackType);
+            int rmax = AttackRadiusMaxV413LikeOriginal(GetTraitsV408LikeOriginal(sender), attackType);
             if (rmax <= 0 || rmax >= 200) return;
-            int rmin = AttackRadiusMinV408LikeOriginal(md, attackType);
+            int rmin = AttackRadiusMinV413LikeOriginal(GetTraitsV408LikeOriginal(sender), attackType);
             int ra = (rmax * 3 + rmin) << 2;
             int dx = Mathf.RoundToInt(CurrentRealXV408LikeOriginal(sender) - CurrentRealXV408LikeOriginal(victim));
             int dy = Mathf.RoundToInt(CurrentRealYV408LikeOriginal(sender) - CurrentRealYV408LikeOriginal(victim));
@@ -799,6 +956,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             unit.RealYFloat = realY;
             unit.RealX = Mathf.RoundToInt(realX);
             unit.RealY = Mathf.RoundToInt(realY);
+            C2LiveUnitCellIndex.PositionChanged(unit);
             C2UnitOriginalRuntimeLinkLikeOriginal link = unit.RuntimeLinkCachedLikeOriginal;
             if (link != null && link.Runtime != null)
             {
@@ -912,8 +1070,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal static MdTraits GetTraitsV408LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
+            // OneObject->newMons is a direct reference in CII. Keep that
+            // identity here instead of hashing the full MD path in target loops.
+            var rt = C2UnitOriginalRuntime.PrepareTraitsCacheV433(unit);
+            if (rt != null && rt.CombatTraitsV433 != null) return rt.CombatTraitsV433;
+            var md = C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(unit);
+            var traits = GetTraitsForMdV413LikeOriginal(md);
+            if (rt != null) rt.CombatTraitsV433 = traits;
+            return traits;
+        }
+
+        internal static MdTraits GetTraitsForBuildingV413LikeOriginal(
+            C2SettlementBuildingSelectableV1LikeOriginal building)
+        {
             C2OriginalProduceCatalogV13.C2MdIconInfoV13 md =
-                C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(unit);
+                C2OriginalProduceCatalogV13.LoadMdInfoForSelectedBuilding(building);
+            return GetTraitsForMdV413LikeOriginal(md);
+        }
+
+        internal static MdTraits GetTraitsForMdV413LikeOriginal(
+            C2OriginalProduceCatalogV13.C2MdIconInfoV13 md)
+        {
             string path = md.Path ?? string.Empty;
             MdTraits cached;
             if (TraitsByPath.TryGetValue(path, out cached) && cached != null) return cached;
@@ -952,6 +1129,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             else if (cmd == "CAPTURE") t.Capture = true;
             else if (cmd == "NO25") t.No25 = true;
             else if (cmd == "BUILDING") t.Building = true;
+            else if (cmd == "CANBEINFOCUSOFFORMATION") t.CanBeInFocusOfFormation = true;
             else if (cmd == "SLOWRECHARGE") t.SlowRecharge = true;
             else if (cmd == "MEDIA" && p.Length > 1)
             {
@@ -975,8 +1153,44 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             else if (cmd == "STRIKEFORCE" && p.Length > 1 && TryInt(p[1], out n)) t.StrikeForce = n;
             else if (cmd == "STRIKEPROBABILITY" && p.Length > 1 && TryInt(p[1], out n)) t.StrikeProbability = n;
             else if (cmd == "RPLACESPEED" && p.Length > 1 && TryInt(p[1], out n)) t.RotationAtPlaceSpeed = n;
-            else if (cmd == "DAMAGEDEC" && p.Length > 2 && TryInt(p[1], out int ai) && TryInt(p[2], out n) && ai >= 0 && ai < 4) t.DamageDecr[ai] = n;
-            else if (cmd == "WEAPONKIND" && p.Length > 2 && TryInt(p[1], out ai) && ai >= 0 && ai < 4) t.WeaponKind[ai] = p[2].ToUpperInvariant();
+            else if (cmd == "UNITRADIUS" && p.Length > 1 && TryInt(p[1], out n)) t.UnitRadius = Mathf.Max(1, n);
+            else if (cmd == "FREESHOTDIST" && p.Length > 1 && TryInt(p[1], out n)) t.FreeShotDist = Mathf.Max(0, n);
+            else if (cmd == "ADDSHOTRADIUS" && p.Length > 1 && TryInt(p[1], out n)) t.AddShotRadius = n;
+            else if (cmd == "FRIENDLYFIRE") t.FriendlyFireCapable = true;
+            else if (cmd == "ARMATTACK") t.ArmAttackDefinition = true;
+            else if (cmd == "NOPAUSEDATTACK" && p.Length > 1 && TryInt(p[1], out n) && n >= 0 && n < 8)
+                t.NoWaitMask = (byte)(t.NoWaitMask | (1 << n));
+            else if (cmd == "ATTACK_RADIUS" && p.Length > 3 &&
+                     TryInt(p[1], out int arIndex) && TryInt(p[2], out int arMin) && TryInt(p[3], out int arMax) &&
+                     arIndex >= 0 && arIndex < NAttTypesV413LikeOriginal)
+            {
+                // NewMon.cpp parser initializes DetRadius from ATTACK_RADIUS;
+                // a later DET_RADIUS command overrides it.
+                t.AttackRadius1[arIndex] = arMin;
+                t.AttackRadius2[arIndex] = arMax;
+                t.DetRadius1[arIndex] = arMin;
+                t.DetRadius2[arIndex] = arMax;
+            }
+            else if (cmd == "DET_RADIUS" && p.Length > 3 &&
+                     TryInt(p[1], out int drIndex) && TryInt(p[2], out int drMin) && TryInt(p[3], out int drMax) &&
+                     drIndex >= 0 && drIndex < NAttTypesV413LikeOriginal)
+            {
+                t.DetRadius1[drIndex] = drMin;
+                t.DetRadius2[drIndex] = drMax;
+            }
+            else if (cmd == "ATTMASK" && p.Length > 2 &&
+                     TryInt(p[1], out int amIndex) && TryInt(p[2], out int amCount) &&
+                     amIndex >= 0 && amIndex < NAttTypesV413LikeOriginal)
+            {
+                t.AttackMask[amIndex] = 0;
+                for (int k = 0; k < amCount && k + 3 < p.Length; k++)
+                    t.AttackMask[amIndex] |= MaterialMaskV408LikeOriginal(p[k + 3]);
+            }
+            else if (cmd == "DAMAGE" && p.Length > 2 && TryInt(p[1], out int ai) && TryInt(p[2], out n) && ai >= 0 && ai < NAttTypesV413LikeOriginal) t.MaxDamage[ai] = n;
+            else if (cmd == "ATTACK_PAUSE" && p.Length > 2 && TryInt(p[1], out ai) && TryInt(p[2], out n) && ai >= 0 && ai < NAttTypesV413LikeOriginal) t.AttackPause[ai] = n;
+            else if (cmd == "WEAPON" && p.Length > 2 && TryInt(p[1], out ai) && ai >= 0 && ai < NAttTypesV413LikeOriginal) t.WeaponName[ai] = p[2];
+            else if (cmd == "DAMAGEDEC" && p.Length > 2 && TryInt(p[1], out ai) && TryInt(p[2], out n) && ai >= 0 && ai < NAttTypesV413LikeOriginal) t.DamageDecr[ai] = n;
+            else if (cmd == "WEAPONKIND" && p.Length > 2 && TryInt(p[1], out ai) && ai >= 0 && ai < NAttTypesV413LikeOriginal) t.WeaponKind[ai] = p[2].ToUpperInvariant();
             else if (cmd == "PROTECTION" && p.Length > 1 && TryInt(p[1], out n))
             {
                 int at = 2;
@@ -986,6 +1200,23 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             else if (cmd == "CANKILL" && p.Length > 1 && TryInt(p[1], out n))
             {
                 for (int k = 0; k < n && k + 2 < p.Length; k++) t.KillMask |= MaterialMaskV408LikeOriginal(p[k + 2]);
+                // Exact NewMon.cpp parser side effect.
+                for (int k = 0; k < NAttTypesV413LikeOriginal; k++) t.AttackMask[k] = t.KillMask;
+            }
+            else if (cmd == "SITINFORMATIONS")
+            {
+                t.SitInFormations = true;
+                // NewMon.cpp parser creates attack slot 4 as the formation-rifle
+                // clone of slot 1, but deliberately clears AttackMask[4].
+                t.AttackRadius1[4] = t.AttackRadius1[1];
+                t.AttackRadius2[4] = t.AttackRadius2[1];
+                t.DamageDecr[4] = t.DamageDecr[1];
+                t.AttackMask[4] = 0;
+                t.AttackPause[4] = t.AttackPause[1];
+                t.MaxDamage[4] = t.MaxDamage[1];
+                t.DetRadius1[4] = t.DetRadius1[1];
+                t.DetRadius2[4] = t.DetRadius2[1];
+                t.WeaponName[4] = t.WeaponName[1]; // DamWeap[4]=DamWeap[1].
             }
             else if (cmd == "MATHERIAL" && p.Length > 1 && TryInt(p[1], out n))
             {
@@ -1100,6 +1331,50 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        internal static bool IsRifleWeaponSlotV413LikeOriginal(MdTraits traits, int slot)
+        {
+            if (traits == null || slot < 0 || slot >= traits.WeaponKind.Length) return false;
+            // AttackObjLink explicitly treats NeedState==4 as rifle even though
+            // SITINFORMATIONS does not copy WeaponKind[1] into WeaponKind[4].
+            return (slot == 4 && traits.SitInFormations) ||
+                   (WeaponFlagsV408LikeOriginal(traits.WeaponKind[slot]) & 1) != 0;
+        }
+
+        internal static bool UsesBrigadeRifleWeaponV434LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            return (WeaponFlagsV408LikeOriginal(GetTraitsV408LikeOriginal(unit).WeaponKind[1]) & 3) != 0;
+        }
+
+        // Weapon.cpp::CheckImmediateAttackAbility, used by SearchVictim before
+        // creating a volley. Keep DET_RADIUS, ATTACK_RADIUS and height tests
+        // distinct; the return value is an attack state/reason, not a boolean.
+        internal static int CheckImmediateAttackAbilityV434LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal killer, C2NeutralPeasantUnitInfoV2LikeOriginal victim)
+        {
+            if (!IsAliveV408LikeOriginal(killer) || !IsAliveV408LikeOriginal(victim)) return 3;
+            var adc = GetTraitsV408LikeOriginal(killer);
+            int r = C2OriginalMovementMathV352.Norma(
+                Mathf.RoundToInt(CurrentRealXV408LikeOriginal(killer) - CurrentRealXV408LikeOriginal(victim)),
+                Mathf.RoundToInt(CurrentRealYV408LikeOriginal(killer) - CurrentRealYV408LikeOriginal(victim))) >> 4;
+            int d = Math.Min(300, Math.Max(0, TerrainHeightV408LikeOriginal(killer) - TerrainHeightV408LikeOriginal(victim)) * 2);
+            int bestAttType = -1, nowCanHaveAttState = -1;
+            for (int i = 0; i < 2 && adc.MaxDamage[i] != 0; i++)
+            {
+                if (i != 0 && !killer.RifleAttackV396LikeOriginal) continue;
+                int dd = i != 0 ? d : 0;
+                int rc = i != 0 ? Math.Max(1, r + dd) : r;
+                if (r >= adc.DetRadius1[i] && rc < adc.DetRadius2[i]) bestAttType = i;
+                if (r >= adc.AttackRadius1[i] && r < adc.AttackRadius2[i] + dd) nowCanHaveAttState = i;
+            }
+            if (bestAttType == -1) return 3;
+            GetAttackRadiusEnvelopeV413LikeOriginal(killer, out int minR, out int maxR);
+            if (r < minR) return 1;
+            if (r > maxR + d || nowCanHaveAttState == -1) return 0;
+            if (adc.FreeShotDist >= 400 || nowCanHaveAttState <= 0) return nowCanHaveAttState;
+            int obstruction = C2CombatRuntimeV334LikeOriginal.CheckRifleSearchShotBreakV434LikeOriginal(killer, victim);
+            return obstruction == -1 ? nowCanHaveAttState : obstruction == 1 ? 4 : 2;
+        }
+
         private static int WeaponFlagsV408LikeOriginal(string kind)
         {
             string key = (kind ?? string.Empty).ToUpperInvariant();
@@ -1211,18 +1486,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return Mathf.Max(0, md.Damage0);
         }
 
-        private static int AttackRadiusMinV408LikeOriginal(C2OriginalProduceCatalogV13.C2MdIconInfoV13 md, int type)
+        internal static int AttackRadiusMinV413LikeOriginal(MdTraits traits, int type)
         {
-            if (type == 1) return md.AttackRadius1Min;
-            if (type == 2) return md.AttackRadius2Min;
-            return md.AttackRadius0Min;
+            if (traits == null || type < 0 || type >= NAttTypesV413LikeOriginal) return 0;
+            return traits.AttackRadius1[type];
         }
 
-        private static int AttackRadiusMaxV408LikeOriginal(C2OriginalProduceCatalogV13.C2MdIconInfoV13 md, int type)
+        internal static int AttackRadiusMaxV413LikeOriginal(MdTraits traits, int type)
         {
-            if (type == 1) return md.AttackRadius1;
-            if (type == 2) return md.AttackRadius2;
-            return md.AttackRadius0;
+            if (traits == null || type < 0 || type >= NAttTypesV413LikeOriginal) return 0;
+            return traits.AttackRadius2[type];
         }
 
         private static bool TryInt(string s, out int v)

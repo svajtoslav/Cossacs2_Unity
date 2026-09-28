@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -24,7 +24,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int AddShield;
             public bool InStandGround;
             public int LastOrderTime = int.MinValue;
-            public bool BrigadeOrderWasActive;
         }
 
         private sealed class UnitStandGroundStateV403LikeOriginal
@@ -32,9 +31,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public bool StandGround;
             public int AddDamage;
             public int AddShield;
-            // COSSACKS2/NewMon.cpp: NewState==5 for SitInFormations units
-            // occupying orders.lst Opt==1 ('@') slots while BR->InStandGround.
-            public bool SpecialFormationState5;
+            // V418: no parallel state-5 flag. COSSACKS2 stores this in
+            // OneObject::NewState itself; LocalNewState remains the runtime transition state.
         }
 
         // NewMon.cpp::ApplyTiring stores fatigue on individual OneObject instances,
@@ -107,8 +105,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string source)
         {
             if (group == null) return;
-            BrigadeStandGroundStateV403LikeOriginal state = GetStandGroundStateV403LikeOriginal(group, true);
-            state.BrigadeOrderWasActive = true;
+            GetStandGroundStateV403LikeOriginal(group, true);
             if (cancelStandGround)
                 CancelStandGroundAnywayV403LikeOriginal(group, source ?? "brigade_order_begin");
         }
@@ -298,7 +295,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 unitState.StandGround = true;
                 unitState.AddDamage = addDamage;
                 unitState.AddShield = addShield;
-                ClearSpecialFormationState5V403DLikeOriginal(member, unitState, "MakeStandGroundTemp");
+                // COSSACKS2/Multi.cpp::MakeStandGroundTemp does NOT change NewState=5.
+                // A soldier already sitting in the Opt==1 formation posture leaves it
+                // later through BrigadeOrder_KeepPositions::TryToStand when the next
+                // movement order requests State 0/1. Clearing it here made the rear
+                // @ row start its transition earlier than the rest of the brigade.
                 // Multi.cpp overwrites BD for every valid member; preserve that exact
                 // behavior, so the last valid member supplies StandGroundTime.
                 delayBase = ResolveStandGroundTimeV403LikeOriginal(member);
@@ -492,8 +493,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 unitState.StandGround = false;
                 unitState.AddDamage = addDamage;
                 unitState.AddShield = addShield;
-                ClearSpecialFormationState5V403DLikeOriginal(member, unitState,
-                    anyway ? "CancelStandGroundAnyway" : "CancelStandGround");
+                // COSSACKS2/Multi.cpp::CancelStandGround and CancelStandGroundAnyway
+                // do NOT change NewState/LocalNewState. In particular the @ rear row
+                // of #LINE120COS must leave state 5 later through KeepPositions ->
+                // TryToStand, synchronised with the rest of the brigade. V403E used
+                // to force that transition here and let a subset start moving early.
             }
         }
 
@@ -514,18 +518,24 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal member = group.Units[i];
                 if (!IsLiveStandGroundMemberV403LikeOriginal(member)) continue;
-                bool attackActive = C2CombatRuntimeV334LikeOriginal.IsAttackOrderActiveV403LikeOriginal(member);
                 C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
                 C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
-                bool localOrder = runtime != null && runtime.HasMoveTargetLikeOriginal;
+                C2UnitOrderRuntimeV325LikeOriginal local = C2UnitOrderRuntimeV325LikeOriginal.TryGetLikeOriginal(member);
+                bool localOrder = (runtime != null && runtime.HasMoveTargetLikeOriginal) ||
+                                  (local != null && !local.IsTerminalLikeOriginal);
+                // Groups.cpp::SetStandState uses ActivityState, not the presence of
+                // an AttackObj: aggressive=2 forces armed state 1; defensive=1
+                // forces state 0; neutral uses the requested State.
+                byte activity = member.ActivityStateV413LikeOriginal;
                 if (stateValue != 0)
                 {
-                    member.GroundStateV396LikeOriginal = attackActive ? 1 : stateValue;
+                    member.GroundStateV396LikeOriginal = activity == 2 ? (byte)1 :
+                        (activity == 1 ? (byte)0 : stateValue);
                     if (!localOrder) member.NewStateV396LikeOriginal = 1;
                 }
                 else
                 {
-                    member.GroundStateV396LikeOriginal = attackActive ? 1 : 0;
+                    member.GroundStateV396LikeOriginal = activity == 2 ? (byte)1 : (byte)0;
                 }
             }
         }
@@ -548,16 +558,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal member = group.Units[i];
                 if (!IsLiveStandGroundMemberV403LikeOriginal(member)) continue;
-                // Priest exclusion is part of the original SetAttState contract.
-                // Resolve it from the MD token rather than inventing a unit class.
-                if (!IsPriestV403LikeOriginal(member))
-                    _noSearchVictimByUnitV403LikeOriginal[member] = value;
-                if (value)
+                // Multi.cpp::SetAttState under SIMPLEMANAGE processes only units
+                // without NewMonster::ArmAttack; priests are excluded inside that branch.
+                // V413 incorrectly wrote NoSearchVictim on bayonet infantry too.
+                C2CombatRuntimeV334LikeOriginal.EnsureUnitCombatStateV396LikeOriginal(member);
+                if (!member.ArmAttackCapableV396LikeOriginal)
                 {
-                    C2CombatRuntimeV334LikeOriginal combat =
-                        member.GetComponent<C2CombatRuntimeV334LikeOriginal>();
-                    if (combat != null && combat.IsActiveOrderV350LikeOriginal)
-                        combat.CancelForExternalOrderLikeOriginal("Multi.cpp::SetAttState");
+                    if (!IsPriestV403LikeOriginal(member))
+                        _noSearchVictimByUnitV403LikeOriginal[member] = value;
+                    if (value)
+                    {
+                        C2CombatRuntimeV334LikeOriginal combat =
+                            member.GetComponent<C2CombatRuntimeV334LikeOriginal>();
+                        if (combat != null && combat.IsActiveOrderV350LikeOriginal)
+                            combat.CancelForExternalOrderLikeOriginal("Multi.cpp::SetAttState");
+                    }
                 }
             }
             state.LastOrderTime = _standGroundRealtimeV403LikeOriginal;
@@ -634,9 +649,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // LastOrderTime=0 -> MakeStandGroundTemp.
         private static void AfterReformationV403LikeOriginal(
             RuntimeFormationV172LikeOriginal group,
+            byte keepPositionsOrdTypeV418,
             string source)
         {
             if (group == null) return;
+            // Multi.cpp::MakeReformation calls Brigade::KeepPositions, including
+            // its processor binding. A bare NewBOrder node cannot assemble a brigade.
+            QueueBrigadeKeepPositionsV416LikeOriginal(
+                group, 128 + 16, keepPositionsOrdTypeV418,
+                source ?? "Multi.cpp::MakeReformation::KeepPositions");
             BrigadeStandGroundStateV403LikeOriginal state = GetStandGroundStateV403LikeOriginal(group, true);
             C2FormationCreateCatalogV165LikeOriginal.C2FormationOrderTemplateV165LikeOriginal order =
                 ResolveStandGroundOrderV403LikeOriginal(group);
@@ -647,7 +668,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             state.LastOrderTime = int.MinValue;
             MakeStandGroundTempV403LikeOriginal(group, source ?? "Multi.cpp::MakeReformation");
-            state.BrigadeOrderWasActive = true;
         }
 
         // Groups.cpp::BrigadesList::SendToPositions tail. This runs after
@@ -655,22 +675,34 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // normal player movement immediately creates the temporary stand state.
         private static void AfterHumanGlobalSendToV403LikeOriginal(
             RuntimeFormationV172LikeOriginal group,
-            string source)
+            string source,
+            bool preserveAttackState = false)
         {
             if (group == null) return;
             C2FormationCreateCatalogV165LikeOriginal.C2FormationOrderTemplateV165LikeOriginal order =
                 ResolveStandGroundOrderV403LikeOriginal(group);
             bool kare = order != null && order.Usage == 2;
             BrigadeStandGroundStateV403LikeOriginal state = GetStandGroundStateV403LikeOriginal(group, true);
+            // Groups.cpp::SendToPositions: Prio=128 ends with SetStandState(1)
+            // for ordinary brigades, and never enters MakeStandGroundTemp.
+            if (preserveAttackState)
+            {
+                if (!IsFormLikeShootersV403LikeOriginal(group))
+                {
+                    for (int i = 0; i < group.Units.Count; i++)
+                        if (group.Units[i] != null)
+                        { SetStandStateV403LikeOriginal(group.Units[i], 1); break; }
+                }
+            }
             if (!kare)
                 CancelStandGroundAnywayV403LikeOriginal(group, source ?? "Groups.cpp::SendToPositions");
+            if (preserveAttackState) return;
 
             // Original code forces LastOrderTime away from REALTIME immediately
             // before MakeStandGroundTemp so the same command can enter temp state.
             state.LastOrderTime = int.MinValue;
             if (!(state.InStandGround && kare))
                 MakeStandGroundTempV403LikeOriginal(group, source ?? "Groups.cpp::SendToPositions");
-            state.BrigadeOrderWasActive = true;
         }
 
         internal static void TickBrigadeStandGroundV403LikeOriginal()
@@ -686,7 +718,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 BrigadeStandGroundStateV403LikeOriginal state = GetStandGroundStateV403LikeOriginal(group, false);
                 if (state == null) continue;
 
-                bool anyMoveOrBrigadeOrder = group.UsesRoadMovement || group.TurnActive;
+                byte currentBrigadeOrderV418 =
+                    GetCurrentBrigadeNewOrderIdV418LikeOriginal(group);
+                // UsesRoadMovement/TurnActive are processor payload flags, not order
+                // truth. They own the brigade only while their matching NewBOrder is
+                // current; a Type-1 KeepPositions/BITVA/RIFLE above them suspends them.
+                bool anyMoveOrBrigadeOrder =
+                    (group.UsesRoadMovement &&
+                     currentBrigadeOrderV418 == BrigadeOrderGoOnRoadV418LikeOriginal) ||
+                    (group.TurnActive &&
+                     currentBrigadeOrderV418 == BrigadeOrderKeepPositionsV418LikeOriginal);
                 int activeNonAttack = 0;
                 int count = Mathf.Min(group.Units.Count, group.Slots.Count);
                 for (int i = 0; i < count; i++)
@@ -708,15 +749,25 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
 
                 if (anyMoveOrBrigadeOrder)
-                {
-                    state.BrigadeOrderWasActive = true;
                     continue;
-                }
 
-                if (state.BrigadeOrderWasActive)
+                // The live HumanGlobalSendTo processor owns this transition.
+                // A stationary brigade may be waiting for topology or a pushed order.
+                if (currentBrigadeOrderV418 == BrigadeOrderHumanGlobalSendToV418LikeOriginal)
+                    continue;
+
+                // ComRotateBrigade/MakeReformation already use Unity geometry to execute
+                // the current KeepPositions order. They do not register a second managed
+                // KeepPositions processor. Once their LocalOrders are settled, this is the
+                // native BrigadeOrder_KeepPositions::Process_done transition.
+                if (currentBrigadeOrderV418 == BrigadeOrderKeepPositionsV418LikeOriginal &&
+                    !_brigadeAttackKeepPositionsActiveV415LikeOriginal.Contains(group.GroupId))
                 {
-                    state.BrigadeOrderWasActive = false;
-                    MakeStandGroundTempV403LikeOriginal(group, "BrigadeOrder_KeepPositions::Process_done");
+                    DeleteBrigadeNewOrderV418LikeOriginal(
+                        group, BrigadeOrderKeepPositionsV418LikeOriginal,
+                        "BrigadeOrder_KeepPositions::Process_done_geometry_adapter");
+                    MakeStandGroundTempV403LikeOriginal(
+                        group, "BrigadeOrder_KeepPositions::Process_done_geometry_adapter");
                     continue;
                 }
 
@@ -759,17 +810,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         public static bool IsUnitSpecialFormationState5V403DLikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
-            UnitStandGroundStateV403LikeOriginal state =
-                GetUnitStandGroundStateV403LikeOriginal(unit, false);
-            return state != null && state.SpecialFormationState5;
+            return unit != null && unit.NewStateV396LikeOriginal == 5;
         }
 
         public static bool LeaveUnitSpecialFormationState5ForReloadV403DLikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
+            if (unit == null || unit.NewStateV396LikeOriginal != 5) return false;
             UnitStandGroundStateV403LikeOriginal state =
                 GetUnitStandGroundStateV403LikeOriginal(unit, false);
-            if (state == null || !state.SpecialFormationState5) return false;
             ClearSpecialFormationState5V403DLikeOriginal(unit, state, "slow_recharge");
             return true;
         }
@@ -795,13 +844,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             UnitStandGroundStateV403LikeOriginal unitState,
             string source)
         {
-            if (member == null || unitState == null || !unitState.SpecialFormationState5)
+            if (member == null || member.NewStateV396LikeOriginal != 5)
                 return;
-            // CII clears the conditions that allow NewState=5 and TryToStand then
-            // returns the unit through UATTACK4/neutral stand. The managed animation
-            // bridge exposes the same transition through posture type 4 -> off.
-            member.SetCombatPostureV322LikeOriginal(4, false);
-            unitState.SpecialFormationState5 = false;
+            // NewMon.cpp slow-recharge/state-5 exit:
+            //   OB->NewState=0; TryToStand(OB,0);
+            // NewState is the gameplay truth. The runtime posture is only the Unity
+            // representation of LocalNewState/TryToStand and must not issue a second
+            // managed gameplay order.
+            member.NewStateV396LikeOriginal = 0;
+            C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
+            if (link != null) link.SetCombatPostureV322LikeOriginal(4, false);
         }
 
         private static bool UnitCanEnterSpecialFormationState5V403DLikeOriginal(
@@ -868,17 +920,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     continue;
                 }
 
-                if (!unitState.SpecialFormationState5 &&
+                if (member.NewStateV396LikeOriginal != 5 &&
                     UnitCanEnterSpecialFormationState5V403DLikeOriginal(member))
                 {
-                    // NewMon.cpp exact semantic mapping:
+                    // NewMon.cpp exact state ownership:
                     //   OB->NewState=5; TryToStand(OB,false)
-                    // Zero-based managed posture 4 selects PATTACK4/PSTAND4 and
-                    // the combat adapter maps rifle ATTACK1 -> ATTACK4 while active.
-                    member.SetCombatPostureV322LikeOriginal(4, true);
-                    unitState.SpecialFormationState5 = true;
+                    // Runtime posture 4 is only the Unity representation of the same
+                    // NewState/LocalNewState transition, not an additional boolean state.
+                    member.NewStateV396LikeOriginal = 5;
+                    C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
+                    if (link != null) link.SetCombatPostureV322LikeOriginal(4, true);
                 }
-                if (unitState.SpecialFormationState5) active++;
+                if (member.NewStateV396LikeOriginal == 5) active++;
             }
             return active;
         }
@@ -1049,8 +1102,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal static void C2GameplayHudV403InvalidateStandGroundLikeOriginal()
         {
             if (_active == null) return;
+            // Request fresh values. The selected-card state key already tracks
+            // the active brigade's stand state and damage bonus; changes to a
+            // different brigade must not destroy every selected card.
             _active._nextRefresh = 0.0f;
-            _active._lastSelectedCount = -999999;
         }
     }
 }

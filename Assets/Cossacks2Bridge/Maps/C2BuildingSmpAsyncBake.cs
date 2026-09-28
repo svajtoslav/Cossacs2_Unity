@@ -28,6 +28,52 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal int SmpFailedChunksForDiagnostics { get; private set; }
         internal int SmpDiscardedStaleChunksForDiagnostics { get; private set; }
 
+        private sealed class C2SmpBakedPatchV434
+        {
+            internal Color32[] Pixels;
+            internal int Left, Bottom, Width, Height;
+        }
+
+        private static Vector2 RemapSmpPatchUvV434(Vector2 uv, int fullWidth, int fullHeight, C2SmpBakedPatchV434 patch)
+        {
+            return new Vector2((uv.x * fullWidth - patch.Left) / patch.Width,
+                (uv.y * fullHeight - patch.Bottom) / patch.Height);
+        }
+
+        private static C2SmpBakedPatchV434 CropSmpPatchV434(Color32[] pixels, int width, int height,
+            CancellationToken cancellation)
+        {
+            // The unchanged part of the chunk is transparent. Upload only its
+            // nontransparent bounding rectangle, retaining a one-texel border
+            // for exactly the same bilinear samples at the patch boundary.
+            int left = width, right = -1, bottom = height, top = -1;
+            for (int y = 0; y < height; y++)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                int row = y * width;
+                for (int x = 0; x < width; x++)
+                {
+                    if (pixels[row + x].a == 0) continue;
+                    left = Math.Min(left, x); right = Math.Max(right, x);
+                    bottom = Math.Min(bottom, y); top = Math.Max(top, y);
+                }
+            }
+            if (right < 0)
+                return new C2SmpBakedPatchV434 { Pixels = new Color32[1], Width = 1, Height = 1 };
+            left = Math.Max(0, left - 1); right = Math.Min(width - 1, right + 1);
+            bottom = Math.Max(0, bottom - 1); top = Math.Min(height - 1, top + 1);
+            int croppedWidth = right - left + 1, croppedHeight = top - bottom + 1;
+            Color32[] cropped = pixels;
+            if (croppedWidth != width || croppedHeight != height)
+            {
+                cropped = new Color32[croppedWidth * croppedHeight];
+                for (int y = 0; y < croppedHeight; y++)
+                    Array.Copy(pixels, (bottom + y) * width + left, cropped, y * croppedWidth, croppedWidth);
+            }
+            return new C2SmpBakedPatchV434 {
+                Pixels = cropped, Left = left, Bottom = bottom, Width = croppedWidth, Height = croppedHeight };
+        }
+
         private sealed partial class ParsedMap
         {
             internal ParsedMap SnapshotSmpSurface()
@@ -61,6 +107,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 bool rebuildTexture = _smpTextureDirtyChunks.Contains(key);
                 ParsedMap source = _map;
                 if (source == null || _terrainRoot == null) break;
+                var prepareClockV434 = System.Diagnostics.Stopwatch.StartNew();
                 if (rebuildTexture && _smpBakeInputs == null)
                 {
                     _smpBakeInputs = PrepareTerrainSoftwareBakeInputsLikeOriginal();
@@ -82,6 +129,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     Mathf.Min(kernel.MaxCellXExclusive, x + TerrainSoftwareChunkCellsLikeOriginal), y,
                     Mathf.Min(kernel.MaxCellYExclusive, y + TerrainSoftwareChunkCellsLikeOriginal));
                 var inputs = _smpBakeInputs;
+                double prepareMainMsV434 = prepareClockV434.Elapsed.TotalMilliseconds;
                 var clock = System.Diagnostics.Stopwatch.StartNew();
                 if (!rebuildTexture)
                 {
@@ -111,11 +159,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 foreach (Vector2Int cell in _smpChangedTextureCells)
                     if (cell.x >= region.MinCellX && cell.x < region.MaxCellXExclusive &&
                         cell.y >= region.MinCellY && cell.y < region.MaxCellYExclusive) changedCells.Add(cell);
-                Task<Color32[]> work = Task.Run(() =>
+                Task<C2SmpBakedPatchV434> work = Task.Run(() =>
                 {
                     Color32[] pixels = BakeTerrainChunkPixelsSoftwareLikeOriginal(snapshot, kernel, region, inputs, token);
                     C2SmpMaskUnchangedTexturePixels(pixels, kernel, region, changedCells, token);
-                    return pixels;
+                    return CropSmpPatchV434(pixels, region.WidthPixels, region.HeightPixels, token);
                 }, token);
                 while (!work.IsCompleted) yield return null;
                 if (work.IsFaulted || work.IsCanceled)
@@ -137,9 +185,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
                 try
                 {
+                    var publishClockV434 = System.Diagnostics.Stopwatch.StartNew();
                     C2SmpPublishChunk(snapshot, kernel, region, key, work.Result);
                     SmpPublishedChunksForDiagnostics++;
-                    Debug.Log("[C2 SMP ASYNC] published chunk=" + key + " backgroundMs=" + clock.Elapsed.TotalMilliseconds.ToString("0.0"));
+                    double publishMainMsV434 = publishClockV434.Elapsed.TotalMilliseconds;
+                    Debug.Log("[C2 SMP ASYNC] published chunk=" + key +
+                        " timeSec=" + Time.realtimeSinceStartup.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) +
+                        " prepareMainMs=" + prepareMainMsV434.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) +
+                        " publishMainMs=" + publishMainMsV434.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) +
+                        " texture=" + work.Result.Width + "x" + work.Result.Height +
+                        " fullTexture=" + region.WidthPixels + "x" + region.HeightPixels +
+                        " bakeAndWaitMs=" + (clock.Elapsed.TotalMilliseconds - publishMainMsV434).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
                 }
                 catch (Exception ex)
                 {
@@ -156,7 +212,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
         private void C2SmpPublishChunk(ParsedMap snapshot, OriginalTerrainKernelConfig kernel,
-            TerrainSoftwareChunkRegionLikeOriginal region, Vector2Int key, Color32[] pixels)
+            TerrainSoftwareChunkRegionLikeOriginal region, Vector2Int key, C2SmpBakedPatchV434 patch)
         {
             string name = "TerrainChunkSoftware_" + key.x.ToString("00") + "_" + key.y.ToString("00");
             Transform target = C2SmpFindTerrainChunkTransformV1LikeOriginal(_terrainRoot.transform, name);
@@ -168,16 +224,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Mesh mesh = null;
             try
             {
-                texture = new Texture2D(region.WidthPixels, region.HeightPixels, TextureFormat.RGBA32, false)
+                texture = new Texture2D(patch.Width, patch.Height, TextureFormat.RGBA32, false)
                 { name = name + "_SmpLocalPatch", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-                texture.SetPixelData(pixels, 0);
+                texture.SetPixelData(patch.Pixels, 0);
                 texture.Apply(false, true);
                 mesh = BuildProjectedChunkMeshSoftwareLikeOriginal(snapshot, kernel, region, out Bounds _);
                 Mesh previousMesh = mf.sharedMesh;
                 if (previousMesh == null || mesh == null || previousMesh.vertexCount != mesh.vertexCount)
                     throw new InvalidOperationException("Terrain patch topology changed: " + name);
                 // UV0 continues sampling the original atlas; UV1 samples the local patch.
-                mesh.uv2 = mesh.uv;
+                Vector2[] patchUv = mesh.uv;
+                for (int i = 0; i < patchUv.Length; i++)
+                    patchUv[i] = RemapSmpPatchUvV434(patchUv[i], region.WidthPixels, region.HeightPixels, patch);
+                mesh.uv2 = patchUv;
                 mesh.uv = previousMesh.uv;
                 var block = new MaterialPropertyBlock();
                 mr.GetPropertyBlock(block); // Preserve _MainTex/_BaseMap and their existing atlas.

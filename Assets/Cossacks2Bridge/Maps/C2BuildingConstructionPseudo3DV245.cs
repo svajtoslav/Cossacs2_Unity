@@ -824,6 +824,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private void RebuildVisualLikeOriginal(string reason)
         {
             if (OwnerMode == null || _visualRoot == null) return;
+            var rebuildClockV434 = global::System.Diagnostics.Stopwatch.StartNew();
 
             // V247: old V245 appended every #BUILDLO phase under visual_pseudo3d.
             // Original OneObject::NextStage replaces LoLayer; it does not stack phases.
@@ -862,6 +863,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             SyncProxyLikeOriginal();
 
+            double visualMsV434 = rebuildClockV434.Elapsed.TotalMilliseconds;
             string zoneAudit;
             bool zonesOk = OwnerMode.C2BuildingRuntimeV303AttachConstructionSiteZonesLikeOriginal(
                 gameObject,
@@ -884,6 +886,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                           "' reason='" + (reason ?? string.Empty) +
                           "' " + zoneAudit);
             }
+            Debug.Log("[C2 BUILD STAGE TIMING V434] timeSec=" + Time.realtimeSinceStartup.ToString("0.000", CultureInfo.InvariantCulture) +
+                " md=" + MdName + " stage=" + Stage + " ready=" + Ready +
+                " visualMs=" + visualMsV434.ToString("0.000", CultureInfo.InvariantCulture) +
+                " zonesMs=" + (rebuildClockV434.Elapsed.TotalMilliseconds - visualMsV434).ToString("0.000", CultureInfo.InvariantCulture));
         }
     }
 
@@ -1000,12 +1006,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             try
             {
                 C2BuildWorkerOrderInternalMoveV258LikeOriginal = true;
-                _unit.SetMoveDestinationRealLikeOriginal(
-                    _targetRealX,
-                    _targetRealY,
-                    C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                    false,
-                    0);
+                C2OriginalOrderChainV352.SubmitBuildApproachV434LikeOriginal(_unit, _targetRealX >> 8, _targetRealY >> 8, C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal);
             }
             finally
             {
@@ -1040,9 +1041,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float dy = uy - _targetRealY;
             float distReal = Mathf.Sqrt(dx * dx + dy * dy);
 
-            // Original BuildObjLink starts building at dst<=1 map cell.
-            // Our Real coordinates are original-pixel*16, so one 16px map cell = 256 real units.
-            bool near = distReal <= 256.0f;
+            // NewMon.cpp::BuildObjLink compares Norma(OBJ->x-ObjX,OBJ->y-ObjY),
+            // where x/y are the TOP-LEFT cells of the unit's Lx footprint.
+            // This is not a 256-real Euclidean circle around its center. That
+            // circle rejects valid stopped workers, causing endless reassignment.
+            int lx = C2OriginalMovementSystemV425LikeOriginal.ResolveLxLikeOriginal(_unit);
+            int cellX = (Mathf.RoundToInt(ux) - (lx << 7)) >> 8;
+            int cellY = (Mathf.RoundToInt(uy) - (lx << 7)) >> 8;
+            bool near = C2OriginalMovementMathV352.Norma(
+                cellX - (_targetRealX >> 8), cellY - (_targetRealY >> 8)) <= 1;
             if (!near)
             {
                 _arrived = false;
@@ -1106,12 +1113,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     try
                     {
                         C2BuildWorkerOrderInternalMoveV258LikeOriginal = true;
-                        _unit.SetMoveDestinationRealLikeOriginal(
-                            _targetRealX,
-                            _targetRealY,
-                            C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                            false,
-                            0);
+                        C2OriginalOrderChainV352.SubmitBuildApproachV434LikeOriginal(_unit, _targetRealX >> 8, _targetRealY >> 8, C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal);
                     }
                     finally
                     {
@@ -1123,8 +1125,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (!_hasLockedWorkDir)
             {
-                // Original locks direction toward the building, then plays anm_Work in that bank.
-                _lockedWorkDir = _site.DirectionFromPointToBuildingLikeOriginal(_targetRealX, _targetRealY);
+                // COSSACKS2/NewMon.cpp::BuildObjLink:
+                //   GetDir(OB->RealX-OBJ->RealX, OB->RealY-OBJ->RealY)
+                // Use the worker's actual current RealX/RealY, not the nominal BUILDPOINT
+                // and not the old Atan2/work-bank compatibility transform.
+                int workerRealX = Mathf.RoundToInt(_unit.RealXFloat != 0.0f ? _unit.RealXFloat : _unit.RealX);
+                int workerRealY = Mathf.RoundToInt(_unit.RealYFloat != 0.0f ? _unit.RealYFloat : _unit.RealY);
+                _lockedWorkDir = C2OriginalMovementMathV352.GetDir(
+                    _site.RealX - workerRealX,
+                    _site.RealY - workerRealY);
                 _hasLockedWorkDir = true;
             }
 
@@ -1136,6 +1145,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _working = false;
                 _workPhase = 0.0f;
                 _lastWorkFrameIndex = -1;
+                // BuildObjLink: DestX=-1; DeletePath(). Merely clearing the
+                // visual Moving flag leaves the approach order alive underneath
+                // WORK and allows it to resume/repath on the next simulation tick.
+                C2OriginalOrderChainV352.ClearMoveChainForExternalOrder(_unit);
                 C2UnitOriginalRuntimeLinkLikeOriginal arrivedLink =
                     _unit.RuntimeLinkCachedLikeOriginal;
                 if (arrivedLink != null)
@@ -1169,7 +1182,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 C2UnitOriginalRuntimeLinkLikeOriginal readyLink =
                     _unit.RuntimeLinkCachedLikeOriginal;
-                if (readyLink == null || !readyLink.IsFrameFinishedLikeOriginal)
+                // BuildObjLink waits for OneObject::FrameFinished. In retail this flag
+                // remains set until SetZeroFrame(); the old Unity visual loop turned it
+                // into a one-quantum pulse, so this Update() could miss it forever.
+                if (readyLink == null ||
+                    (!readyLink.IsFrameFinishedLikeOriginal &&
+                     !readyLink.IsFrameFinishedLatchedForOrdersLikeOriginal))
                     return;
 
                 _unit.SetFacingDirectionLikeOriginal(dir);
@@ -1275,3 +1293,4 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
     }
 }
+

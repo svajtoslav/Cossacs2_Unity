@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -53,6 +53,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int ReliefY0;
             public int ReliefY1 = 256;
             public int RWidth = 96;
+            // Factures3D.cpp::RoadsSystem::Init defaults, copied by $EX.
+            public int Speed = 320;
+            public int Tiring = -64;
+            public int Priory = 656;
             public int RScaleX = 100;
             public int AlphaFrequency = 1;
             public int AFactor = 160;
@@ -93,6 +97,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     ReliefY0 = ReliefY0,
                     ReliefY1 = ReliefY1,
                     RWidth = RWidth,
+                    Speed = Speed, Tiring = Tiring, Priory = Priory,
                     RScaleX = RScaleX,
                     AlphaFrequency = AlphaFrequency,
                     AFactor = AFactor,
@@ -905,7 +910,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (string.Equals(t[0], "$PREVIEW", StringComparison.OrdinalIgnoreCase))
                     continue;
                 if (string.Equals(t[0], "$PHYS", StringComparison.OrdinalIgnoreCase))
-                    continue;
+                    break; // Factures3D.cpp: NRoadsDesc unchanged, z=3 ends input.
 
                 // name texture texSizeX texSizeY ColorY0 ColorY1 ReliefY0 ReliefY1 RWidth RScaleX AlphaFrequency AFactor AFactorMin RFactor GFactor BFactor
                 if (t.Length < 16)

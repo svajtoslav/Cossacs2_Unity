@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -248,6 +248,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Update()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Hud);
             using (HudUpdateMarker.Auto()) UpdateHudLikeOriginal();
         }
 
@@ -255,6 +256,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (Time.realtimeSinceStartup < _nextRefresh) return;
             _nextRefresh = Time.realtimeSinceStartup + 0.20f;
+            RefreshStandGroundLineBindingsV420LikeOriginal();
+            RefreshMetersV422();
 
             List<C2SelectedUnitSelPointV137LikeOriginal> unitSelPoints = BuildSelectedUnitSelPointsV137LikeOriginal();
             int activeUnitSelPointIndex = ResolveActiveUnitSelPointIndexV137LikeOriginal(unitSelPoints);
@@ -851,6 +854,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void LateUpdate()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.HudLate);
             PollWeaponCardHoverV391LikeOriginal();
 
             if (_weaponRangeHideAtV390LikeOriginal >= 0.0f &&
@@ -1117,20 +1121,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (activeIndex >= 0 && activeIndex < groups.Count && groups[activeIndex] != null)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal active = groups[activeIndex].Unit;
-                // Tiring changes continuously while a unit walks/fights. Putting it in
-                // the structural HUD key rebuilt/destroyed the weapon buttons every
-                // 0.2 s, which is exactly why the rifle range flickered on hover.
-                // Morale remains in the state key; weapon hover/reload are refreshed
-                // independently in LateUpdate.
-                sb.Append("morale=")
-                  .Append(ResolveMoraleCurrentLikeOriginal(active).ToString(CultureInfo.InvariantCulture))
-                  .Append('/')
-                  .Append(ResolveMoraleMaxLikeOriginal(active).ToString(CultureInfo.InvariantCulture));
-                int avgLifeV404, maxLifeV404;
-                if (C2FormationRuntimeV167LikeOriginal.TryGetFormationAverageLifeV404LikeOriginal(
-                        active, out avgLifeV404, out maxLifeV404))
-                    sb.Append(";life=").Append(avgLifeV404.ToString(CultureInfo.InvariantCulture))
-                      .Append('/').Append(maxLifeV404.ToString(CultureInfo.InvariantCulture));
+                // Only mode changes invalidate weapon-frame sprites. Life/morale
+                // values still update on their existing objects.
+                sb.Append(";weapon=").Append(IsMeleeWeaponActiveV423LikeOriginal(active) ? '1' : '0')
+                  .Append(C2CombatRuntimeV334LikeOriginal.GetFormationRifleAttackStateV398LikeOriginal(active) ? '1' : '0');
+                // Live life/morale bars and text update in place. A change in
+                // their values does not change the selected-card structure.
                 int standDelayV403LikeOriginal;
                 int standMaxV403LikeOriginal;
                 bool inStandV403LikeOriginal;
@@ -1141,11 +1137,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         out inStandV403LikeOriginal, out standAddDamageV403LikeOriginal, out standAddShieldV403LikeOriginal))
                 {
                     sb.Append(";sg=")
-                      .Append(standDelayV403LikeOriginal.ToString(CultureInfo.InvariantCulture))
-                      .Append('/')
                       .Append(standMaxV403LikeOriginal.ToString(CultureInfo.InvariantCulture))
                       .Append('/')
-                      .Append(inStandV403LikeOriginal ? '1' : '0');
+                      .Append(inStandV403LikeOriginal ? '1' : '0')
+                      .Append(':').Append(C2FormationRuntimeV167LikeOriginal.GetBrigadeStandGroundDamageBonusV403LikeOriginal(active, null));
                 }
             }
             return sb.ToString();
@@ -1486,7 +1481,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 int avgLifeV404, maxLifeV404;
                 if (C2FormationRuntimeV167LikeOriginal.TryGetFormationAverageLifeV404LikeOriginal(
                         unit, out avgLifeV404, out maxLifeV404))
-                    AddOriginalLifeLineLikeOriginal(baseX + 9, baseY + 58, 2, 200, avgLifeV404, maxLifeV404);
+                    AddOriginalLifeLineLikeOriginal(baseX + 9, baseY + 58, 2, 200, avgLifeV404, maxLifeV404, unit);
                 AddOriginalTiredLineLikeOriginal(baseX + 169, baseY + 58, 3, 200,
                     C2CombatRuntimeV334LikeOriginal.GetFormationTiringRemainingLikeOriginal(unit), unit);
             }
@@ -1517,7 +1512,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             AddG16Image("sp_morale_gptext_back_original", "Interf3\\cropped", 22, baseX + 55, baseY + 272, 71, 15, 255, false);
 
             // Original va_SP_MoraleLine Canvas: x=18 y=291 w=144 h=6.
-            AddOriginalMoraleLineLikeOriginal(baseX + 18, baseY + 291, 144, 6, moraleCurrent, moraleMax);
+            AddOriginalMoraleLineLikeOriginal(baseX + 18, baseY + 291, 144, 6, moraleCurrent, moraleMax, unit);
 
             // Unit title text is the CHILD TextButton inside the green filler picture.
             AddCrispLabelV140LikeOriginal("sp_unit_title", title, baseX + 53, baseY + 21, 75, 11, 11, TextAnchor.MiddleCenter, OriginalHudTitleTextColorV141LikeOriginal());
@@ -1563,7 +1558,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             // Bottom shield is decorative; protect/defence value is on the lower FormInterface 24 plate.
             AddCrispLabelV140LikeOriginal("sp_defence_zero", "0", baseX + 143, baseY + 259, 7, 10, 9, TextAnchor.MiddleCenter, Color.white);
-            AddCrispLabelV140LikeOriginal("sp_morale_text", moraleText, baseX + 55, baseY + 272, 71, 15, 9, TextAnchor.MiddleCenter, Color.white);
+            BindMoraleTextV422(unit, AddCrispLabelV140LikeOriginal("sp_morale_text", moraleText, baseX + 55, baseY + 272, 71, 15, 9, TextAnchor.MiddleCenter, Color.white));
             // Do not inject a debug-style "КОЛОННА/ЛИНИЯ/КАРЕ 120/120"
             // caption into the original selected-unit portrait.
         }
@@ -1693,6 +1688,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 x, y, 68, 220, unit, key, 2, attackRadius);
         }
 
+        // VUI_Actions.cpp::va_WeapPortBack: brigade uses I->AttEnm;
+        // UnitsInterface.cpp sets the loose-unit I->GroundState from state==1.
+        internal static bool IsMeleeWeaponActiveV423LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            if (unit == null) return false;
+            int groupId;
+            if (C2FormationRuntimeV167LikeOriginal.TryGetFormationGroupIdV321LikeOriginal(unit, out groupId))
+                return C2FormationRuntimeV167LikeOriginal.HasBrigadeAttackEnemyIntentV414LikeOriginal(unit);
+            return unit.GroundStateV396LikeOriginal == 1;
+        }
+
         private void BuildSelectedUnitWeaponCardV154LikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal unit,
             C2OriginalProduceCatalogV13.C2MdIconInfoV13 info,
@@ -1707,7 +1713,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             bool active = weaponType == 1
                 ? C2CombatRuntimeV334LikeOriginal.GetFormationRifleAttackStateV398LikeOriginal(unit)
-                : _activeWeaponUiStatesV157LikeOriginal.Contains(WeaponUiStateKeyV157LikeOriginal(key, weaponType));
+                : IsMeleeWeaponActiveV423LikeOriginal(unit);
             string suffix = slotIndex.ToString(CultureInfo.InvariantCulture) + "_" + weaponType.ToString(CultureInfo.InvariantCulture);
 
             if (weaponType == 0)
@@ -1722,32 +1728,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 // COSSACKS2 Data1/Dialogs/v/Weapons.DialogsDesk.Dialogs.xml:
                 // Bayonet children are ordered as weapon picture -> va_BR_StandGroundLine -> damage text.
                 // Keep that draw order so the red stand-ground stripe sits BEHIND the damage number.
-                int standDelayV403LikeOriginal;
-                int standMaxV403LikeOriginal;
-                bool inStandV403LikeOriginal;
-                int standAddDamageV403LikeOriginal;
-                int standAddShieldV403LikeOriginal;
-                if (C2FormationRuntimeV167LikeOriginal.TryGetStandGroundSnapshotV403LikeOriginal(
-                        unit, out standDelayV403LikeOriginal, out standMaxV403LikeOriginal,
-                        out inStandV403LikeOriginal, out standAddDamageV403LikeOriginal, out standAddShieldV403LikeOriginal) &&
-                    standMaxV403LikeOriginal > 0)
-                {
-                    int displayDelayV403LikeOriginal = standDelayV403LikeOriginal;
-                    // UnitsInterface.cpp: when not in full stand-ground and delay is zero,
-                    // the UI substitutes BrigDelayMax so the stripe is empty.
-                    if (!inStandV403LikeOriginal && displayDelayV403LikeOriginal == 0)
-                        displayDelayV403LikeOriginal = standMaxV403LikeOriginal;
-                    int standWidthV403LikeOriginal = Mathf.Clamp(
-                        41 * (standMaxV403LikeOriginal - displayDelayV403LikeOriginal) / standMaxV403LikeOriginal,
-                        0, 41);
-                    if (standWidthV403LikeOriginal > 0)
-                    {
-                        AddSolid(
-                            "weapon_standground_line_v403",
-                            new Color32(255, 0, 0, 223),
-                            x + 7, y + 199, standWidthV403LikeOriginal, 13, false);
-                    }
-                }
+                BindStandGroundLineV420LikeOriginal(unit, x + 7, y + 199);
 
                 AddCrispLabelV140LikeOriginal("weapon_melee_damage_v154_" + suffix, displayDamage.ToString(CultureInfo.InvariantCulture), x + 12, y + 200, 31, 10, 9, TextAnchor.MiddleCenter, Color.white);
                 AddSelectedUnitWeaponClickAreaV154LikeOriginal("weapon_melee_click_v154_" + suffix, x, y, 55, 219, unit, key, weaponType, attackRadius);
@@ -1761,9 +1742,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 AddG16ImageOverpaintV140LikeOriginal("weapon_rifle_frame_v154_" + suffix, "Interf3\\FormInterface", frameSprite, x, y, 68, 220, 255, false, 56, false, false);
                 AddG16ImageOverpaintV140LikeOriginal("weapon_rifle_icon_v154_" + suffix, weapFile, weapSprite, x + 6, y + 21, 54, 176, 255, false, 110, false, false);
 
+                int initialReadyV409;
+                int initialTotalV409;
+                float initialReady01V409;
+                GetWeaponReadyAggregateV390LikeOriginal(
+                    unit, key, weaponType,
+                    out initialReadyV409, out initialTotalV409, out initialReady01V409);
+
                 Text chargeText = AddCrispLabelV140LikeOriginal(
                     "weapon_rifle_charge_v154_" + suffix,
-                    Mathf.Max(1, activeGroupCount).ToString(CultureInfo.InvariantCulture),
+                    Mathf.Max(0, initialReadyV409).ToString(CultureInfo.InvariantCulture),
                     x + 27, y + 6, 17, 9, 8, TextAnchor.MiddleCenter, Color.white);
                 AddCrispLabelV140LikeOriginal("weapon_rifle_damage_v154_" + suffix, displayDamage.ToString(CultureInfo.InvariantCulture), x + 17, y + 200, 31, 10, 9, TextAnchor.MiddleCenter, Color.white);
 
@@ -1772,10 +1760,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 // full-size brightness pass. RefreshWeaponReloadUi only resizes the
                 // returned first Image, so that unbound duplicate stayed at 190 px and
                 // made the reload bar look 100% full even when NShots == 0.
+                int initialLineHV409 = Mathf.Clamp(
+                    Mathf.FloorToInt(190.0f * initialReady01V409), 0, 190);
                 Image reloadLine = AddSolidSinglePassV140ALikeOriginal(
                     "weapon_rifle_charge_line_v154_" + suffix,
                     new Color(0.0f, 1.0f, 0.0f, 1.0f),
-                    x + 62, y + 22, 2, 190, false);
+                    x + 62,
+                    y + 22 + (190 - Mathf.Max(1, initialLineHV409)),
+                    2,
+                    Mathf.Max(1, initialLineHV409),
+                    false);
+                if (initialLineHV409 <= 0)
+                    reloadLine.enabled = false;
                 _weaponReloadUiV390LikeOriginal.Add(new C2WeaponReloadUiBindingV390LikeOriginal
                 {
                     Unit = unit,
@@ -2773,6 +2769,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     out sx, out sy, out ex, out ey, out distanceOriginal, out findAudit) ||
                 enemyRepresentative == null)
             {
+                C2FormationRuntimeV167LikeOriginal.PrepareMeleeStandWithoutEnemyV423LikeOriginal(source);
                 Debug.Log("[C2:MELEE BUTTON V399] source='Multi.cpp::SetArmAttackState->MoveBrigadeForwardToAttack' result=no_enemy " + findAudit);
                 return 0;
             }
@@ -2855,7 +2852,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 GameObject proxy = combat == null ? attacker.EnsureUnityProxyLikeOriginal() : null;
                 if (combat == null && proxy != null) combat = proxy.AddComponent<C2CombatRuntimeV334LikeOriginal>();
                 if (combat == null) continue;
-                combat.BeginAttackForcedModeV395LikeOriginal(attacker, victim, null, victim.WorldPositionLikeOriginal, 0);
+                combat.BeginAttackLikeOriginal(attacker, victim, null, victim.WorldPositionLikeOriginal);
                 C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
                     attacker, C2UnitOrderKindV325LikeOriginal.MeleeAttack,
                     "Multi.cpp_MoveBrigadeForwardToAttack", "attack_slot_0");
@@ -3214,67 +3211,43 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (weaponType == 2)
             {
                 C2BuildingProductionCardsRuntimeV114.SuppressMapSelectionFromHudClickV126LikeOriginal();
-                List<C2NeutralPeasantUnitInfoV2LikeOriginal> grenadeUnits;
+
                 int grenadeGroupId;
-                string grenadeShape;
-                if (!C2FormationRuntimeV167LikeOriginal.TryGetGroupUnitsV172LikeOriginal(
-                        unit, out grenadeUnits, out grenadeGroupId, out grenadeShape))
-                {
-                    grenadeUnits = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>();
-                    if (unit != null) grenadeUnits.Add(unit);
-                }
+                C2FormationRuntimeV167LikeOriginal.TryGetFormationGroupIdV321LikeOriginal(
+                    unit, out grenadeGroupId);
 
                 C2OriginalProduceCatalogV13.C2MdIconInfoV13 grenadeInfo =
                     C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(unit);
-                int grenadeCurrent;
+                int grenadeBefore;
                 int grenadeMaximum;
                 C2FormationRuntimeV167LikeOriginal.TryGetGrenadeStateV326LikeOriginal(
                     unit,
                     grenadeInfo.MaxGrenadesInFormation,
                     grenadeInfo.GrenadeRechargeTime,
-                    out grenadeCurrent,
+                    out grenadeBefore,
                     out grenadeMaximum);
-                int allowed = Mathf.Min(grenadeCurrent, grenadeUnits != null ? grenadeUnits.Count : 0);
-                int issued = 0;
-                C2NeutralPeasantUnitInfoV2LikeOriginal[] enemies =
-                    C2NeutralPeasantUnitInfoV2LikeOriginal.C2GetActiveUnitsSnapshotV359LikeOriginal();
-                for (int i = 0; grenadeUnits != null && i < grenadeUnits.Count; i++)
-                {
-                    C2NeutralPeasantUnitInfoV2LikeOriginal grenadeUnit = grenadeUnits[i];
-                    if (grenadeUnit == null || !grenadeUnit.CanReceivePlayerOrdersLikeOriginal()) continue;
-                    if (issued >= allowed) continue;
-                    C2NeutralPeasantUnitInfoV2LikeOriginal enemy =
-                        FindNearestEnemyForWeaponV337LikeOriginal(
-                            grenadeUnit, enemies,
-                            Mathf.Max(1, grenadeInfo.AttackRadius2Min),
-                            Mathf.Max(1, grenadeInfo.AttackRadius2));
-                    if (enemy == null) continue;
-                    // Multi.cpp::ComThrowGrenade searches victims immediately
-                    // on the button click and starts anm_Attack+2. It does not
-                    // enter a second "choose target" cursor mode.
-                    if (C2CombatRuntimeV334LikeOriginal.ArmGrenadeLikeOriginal(grenadeUnit))
-                    {
-                        C2CombatRuntimeV334LikeOriginal combat = grenadeUnit.GetComponent<C2CombatRuntimeV334LikeOriginal>();
-                        GameObject unitProxy = combat == null ? grenadeUnit.EnsureUnityProxyLikeOriginal() : null;
-                        if (combat == null && unitProxy != null) combat = unitProxy.AddComponent<C2CombatRuntimeV334LikeOriginal>();
-                        if (combat == null) continue;
-                        combat.BeginAttackLikeOriginal(grenadeUnit, enemy, null, enemy.transform.position);
-                        C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
-                            grenadeUnit,
-                            C2UnitOrderKindV325LikeOriginal.GrenadeAttack,
-                            "grenade_button_auto_target",
-                            "attack_slot_2");
-                        issued++;
-                    }
-                }
+
+                int issued = ExecuteComThrowGrenadeV409LikeOriginal(
+                    unit, grenadeInfo, grenadeBefore);
+
+                int grenadeAfter;
+                int grenadeMaximumAfter;
+                C2FormationRuntimeV167LikeOriginal.TryGetGrenadeStateV326LikeOriginal(
+                    unit,
+                    grenadeInfo.MaxGrenadesInFormation,
+                    grenadeInfo.GrenadeRechargeTime,
+                    out grenadeAfter,
+                    out grenadeMaximumAfter);
+
                 _lastUnitSelPointStateKeyV137LikeOriginal = string.Empty;
                 _lastSelectedCount = -999999;
                 _nextRefresh = 0.0f;
-                Debug.Log("[C2:GRENADE UI V325] group=" + grenadeGroupId.ToString(CultureInfo.InvariantCulture) +
-                          " units=" + issued.ToString(CultureInfo.InvariantCulture) +
-                          " stock=" + grenadeCurrent.ToString(CultureInfo.InvariantCulture) +
-                          "/" + grenadeMaximum.ToString(CultureInfo.InvariantCulture) +
-                          " mdAttack=#ATTACK2 state=auto_target_from_ComThrowGrenade stock_consumed_on_active_frame");
+                Debug.Log("[C2:GRENADE UI V409] group=" + grenadeGroupId.ToString(CultureInfo.InvariantCulture) +
+                          " issued=" + issued.ToString(CultureInfo.InvariantCulture) +
+                          " stock=" + grenadeBefore.ToString(CultureInfo.InvariantCulture) +
+                          "->" + grenadeAfter.ToString(CultureInfo.InvariantCulture) +
+                          "/" + grenadeMaximumAfter.ToString(CultureInfo.InvariantCulture) +
+                          " source=COSSACKS2/Multi.cpp::ComThrowGrenade pointOrder=NewAttackPoint");
                 return;
             }
 
@@ -3404,6 +3377,211 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                       " active=" + nowActive.ToString() +
                       " raw=" + (weaponType == 1 ? (rifleWasActiveV398 ? "128" : "129") : (weaponType == 0 ? "1" : "-")) +
                       " originalCommandModeApplied=" + applied.ToString(CultureInfo.InvariantCulture));
+        }
+
+        // COSSACKS2/Multi.cpp::ComThrowGrenade.
+        // Keep this separate from AttackObj: retail builds a 64x64 density field,
+        // chooses up to 64 positive cells through Rarr, then gives one soldier per
+        // cell a NewAttackPoint(vx,vy,128+16,1,1) order.
+        private static int ExecuteComThrowGrenadeV409LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal representative,
+            C2OriginalProduceCatalogV13.C2MdIconInfoV13 grenadeInfo,
+            int grenadeStock)
+        {
+            if (representative == null ||
+                grenadeInfo.MaxGrenadesInFormation <= 0 ||
+                grenadeStock <= 0)
+                return 0;
+
+            List<C2NeutralPeasantUnitInfoV2LikeOriginal> soldiers;
+            if (!C2FormationRuntimeV167LikeOriginal.TryGetFormationSoldierMembersV395LikeOriginal(
+                    representative, out soldiers) ||
+                soldiers == null || soldiers.Count == 0)
+                return 0;
+
+            float centerRealX;
+            float centerRealY;
+            if (!C2FormationRuntimeV167LikeOriginal.TryGetFormationCenterRealV406LikeOriginal(
+                    representative, out centerRealX, out centerRealY))
+                return 0;
+
+            const int FSIZE = 32;
+            const int FSIZE2 = 64;
+            const int FSSHIFT = 6;
+            const int FCLSHIFT = 5;
+
+            int centerX = Mathf.RoundToInt(centerRealX) >> 4;
+            int centerY = Mathf.RoundToInt(centerRealY) >> 4;
+            sbyte[] field = new sbyte[FSIZE2 * FSIZE2];
+            byte nationMask = C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(representative);
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] snapshot =
+                C2NeutralPeasantUnitInfoV2LikeOriginal.C2GetActiveUnitsSnapshotV359LikeOriginal();
+            if (snapshot == null) return 0;
+            C2NeutralPeasantUnitInfoV2LikeOriginal[] all =
+                new C2NeutralPeasantUnitInfoV2LikeOriginal[snapshot.Length];
+            Array.Copy(snapshot, all, snapshot.Length);
+
+            // Group[] is scanned by OneObject::Index in retail. Keep the adapter
+            // deterministic in that same order without mutating the shared snapshot.
+            Array.Sort(
+                all,
+                delegate(C2NeutralPeasantUnitInfoV2LikeOriginal a,
+                         C2NeutralPeasantUnitInfoV2LikeOriginal b)
+                {
+                    int ai = a != null ? a.C2ObjectIndexV408LikeOriginal : int.MaxValue;
+                    int bi = b != null ? b.C2ObjectIndexV408LikeOriginal : int.MaxValue;
+                    return ai.CompareTo(bi);
+                });
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal ob = all[i];
+                if (ob == null || !ob.isActiveAndEnabled || ob.IsDeadLikeOriginal) continue;
+                if ((C2CombatCoreV408LikeOriginal.GetMathMaskV409LikeOriginal(ob) & 1) == 0) continue;
+
+                int ox = Mathf.RoundToInt(
+                    ob.RealXFloat != 0.0f ? ob.RealXFloat : ob.RealX) >> 4;
+                int oy = Mathf.RoundToInt(
+                    ob.RealYFloat != 0.0f ? ob.RealYFloat : ob.RealY) >> 4;
+                int cx = ((ox - centerX) >> FCLSHIFT) + FSIZE;
+                int cy = ((oy - centerY) >> FCLSHIFT) + FSIZE;
+                if (cx <= 0 || cy <= 0 || cx >= FSIZE2 - 1 || cy >= FSIZE2 - 1)
+                    continue;
+
+                int ofs = cx + (cy << FSSHIFT);
+                if ((C2CombatCoreV408LikeOriginal.GetNMaskV408LikeOriginal(ob) & nationMask) != 0)
+                {
+                    GrenadeFieldDecV409LikeOriginal(field, ofs, 2);
+                    GrenadeFieldDecV409LikeOriginal(field, ofs - 1, 1);
+                    GrenadeFieldDecV409LikeOriginal(field, ofs + 1, 1);
+                    GrenadeFieldDecV409LikeOriginal(field, ofs - FSIZE2, 1);
+                    GrenadeFieldDecV409LikeOriginal(field, ofs + FSIZE2, 1);
+                }
+                else
+                {
+                    GrenadeFieldIncV409LikeOriginal(field, ofs, 1);
+                }
+            }
+
+            List<KeyValuePair<int, int>> candidates =
+                new List<KeyValuePair<int, int>>(64);
+            for (int radius = 0; radius < FSIZE - 2 && candidates.Count < 64; radius++)
+            {
+                int n = C2TopologyCoreV401LikeOriginal.GetRadioCountV407LikeOriginal(radius);
+                for (int j = 0; j < n && candidates.Count < 64; j++)
+                {
+                    int rx;
+                    int ry;
+                    if (!C2TopologyCoreV401LikeOriginal.TryGetRadioOffsetV407LikeOriginal(
+                            radius, j, out rx, out ry))
+                        continue;
+                    int sx = FSIZE + rx;
+                    int sy = FSIZE + ry;
+                    if (sx < 0 || sy < 0 || sx >= FSIZE2 || sy >= FSIZE2)
+                        continue;
+                    int ofs = sx + (sy << FSSHIFT);
+                    int value = field[ofs];
+                    if (value > 0)
+                        candidates.Add(new KeyValuePair<int, int>(value, ofs));
+                }
+            }
+
+            // DIntCmpFunc compares only the density value, descending.
+            candidates.Sort(
+                delegate(KeyValuePair<int, int> a, KeyValuePair<int, int> b)
+                {
+                    return b.Key.CompareTo(a.Key);
+                });
+
+            bool[] unitUsed = new bool[soldiers.Count];
+            int issued = 0;
+            int stock = grenadeStock;
+            int r0 = Mathf.Max(0, grenadeInfo.AttackRadius2 - 32);
+            int r00 = Mathf.Max(0, grenadeInfo.AttackRadius2Min);
+
+            for (int i = 0; i < candidates.Count && stock > 0; i++)
+            {
+                int ofs = candidates[i].Value;
+                int vx = centerX + (((ofs % FSIZE2) - FSIZE) << 5) + 16;
+                int vy = centerY + (((ofs / FSIZE2) - FSIZE) << 5) + 16;
+
+                int rMin = 10000;
+                int best = -1;
+                for (int j = 0; j < soldiers.Count; j++)
+                {
+                    if (unitUsed[j]) continue;
+                    C2NeutralPeasantUnitInfoV2LikeOriginal ob = soldiers[j];
+                    if (ob == null || !ob.isActiveAndEnabled || ob.IsDeadLikeOriginal ||
+                        !ob.CanReceivePlayerOrdersLikeOriginal())
+                        continue;
+
+                    C2UnitOrderRuntimeV325LikeOriginal current =
+                        C2UnitOrderRuntimeV325LikeOriginal.TryGetLikeOriginal(ob);
+                    if (current != null &&
+                        current.CurrentLikeOriginal == C2UnitOrderKindV325LikeOriginal.PreciseAttack)
+                        continue; // CheckIfPossibleToBreakOrder(NewAttackPointLink).
+
+                    int ox = Mathf.RoundToInt(
+                        ob.RealXFloat != 0.0f ? ob.RealXFloat : ob.RealX) >> 4;
+                    int oy = Mathf.RoundToInt(
+                        ob.RealYFloat != 0.0f ? ob.RealYFloat : ob.RealY) >> 4;
+                    int r = C2OriginalMovementMathV352.Norma(ox - vx, oy - vy);
+                    if (r < rMin && r > r00 && r < r0)
+                    {
+                        rMin = r;
+                        best = j;
+                    }
+                }
+
+                if (best < 0) continue;
+
+                // Retail marks BIDX used before asking NewAttackPoint; a rejected
+                // point order does not let the same soldier service another cell.
+                unitUsed[best] = true;
+                C2NeutralPeasantUnitInfoV2LikeOriginal grenadeUnit = soldiers[best];
+                C2CombatRuntimeV334LikeOriginal combat =
+                    grenadeUnit.GetComponent<C2CombatRuntimeV334LikeOriginal>();
+                if (combat == null)
+                {
+                    GameObject proxy = grenadeUnit.EnsureUnityProxyLikeOriginal();
+                    if (proxy != null)
+                        combat = proxy.AddComponent<C2CombatRuntimeV334LikeOriginal>();
+                }
+                if (combat == null) continue;
+
+                if (combat.BeginGrenadePointAttackV409LikeOriginal(grenadeUnit, vx, vy))
+                {
+                    int consumed =
+                        C2FormationRuntimeV167LikeOriginal.ConsumeGrenadesV326LikeOriginal(
+                            representative, 1);
+                    if (consumed > 0)
+                    {
+                        stock -= consumed;
+                        issued += consumed;
+                    }
+                }
+            }
+
+            return issued;
+        }
+
+        private static void GrenadeFieldDecV409LikeOriginal(
+            sbyte[] field, int index, int value)
+        {
+            if (field == null || index < 0 || index >= field.Length) return;
+            int current = field[index];
+            if (current > -120)
+                field[index] = unchecked((sbyte)(current - value));
+        }
+
+        private static void GrenadeFieldIncV409LikeOriginal(
+            sbyte[] field, int index, int value)
+        {
+            if (field == null || index < 0 || index >= field.Length) return;
+            int current = field[index];
+            if (current < 120)
+                field[index] = unchecked((sbyte)(current + value));
         }
 
         // V405 intentionally has no UI-side rifle target assignment here.
@@ -3932,8 +4110,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
 
-        private void AddOriginalMoraleLineLikeOriginal(int x, int y, int w, int h, int morale, int moraleMax)
+        private void AddOriginalMoraleLineLikeOriginal(int x, int y, int w, int h, int morale, int moraleMax, C2NeutralPeasantUnitInfoV2LikeOriginal sourceUnit = null)
         {
+            if(sourceUnit != null){BindMeterV422(sourceUnit,false,x,y,w,h);return;}
             // Exact COSSACKS2/VUI_Actions.cpp::SetMorale colour contract.
             // Important V404A fix: retail Canvas has NO opaque custom background here.
             // V404 added one, which visually flattened the 0x8F "max morale" yellow
@@ -3981,8 +4160,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
         private void AddOriginalLifeLineLikeOriginal(
-            int x, int y, int w, int h, int life, int maxLife)
+            int x, int y, int w, int h, int life, int maxLife, C2NeutralPeasantUnitInfoV2LikeOriginal sourceUnit = null)
         {
+            if(sourceUnit != null){BindMeterV422(sourceUnit,true,x,y,w,h);return;}
             // COSSACKS2/VUI_Actions.cpp::va_SP_LifeLine::SetFrameState.
             if (maxLife <= 0 || life <= 0) return;
             int fill = Mathf.Clamp(h * life / maxLife, 0, h);
@@ -4504,6 +4684,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void ClearSpawned()
         {
+            _standGroundLineBindingsV420.Clear();
+            _metersV422.Clear();
+            _moraleTextsV422.Clear();
             // V391: do not hide the persistent world-range root during a structural
             // HUD rebuild. New card rects are registered synchronously and the
             // LateUpdate pointer poll decides whether the cursor is still over them.
@@ -4997,6 +5180,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _upgradeDefsV29.Clear();
             _upgradePlacesV29.Clear();
             _mdCache.Clear();
+            _unitMdIdentityCache.Clear();
+            C2MoraleRuntimeV404LikeOriginal.InvalidateUnitConfigBindings();
             _mdPathCache.Clear();
             _mdListNamesV141.Clear();
             _mdListHintNamesV141.Clear();
@@ -5116,13 +5301,22 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return true;
         }
 
+        // OneObject/NewMonster already identify parsed unit data in CII. Resolve
+        // this adapter identity once, not through BuildSelectedKeys each tick.
+        private static readonly Dictionary<(string Source, string Md, byte Nation), C2MdIconInfoV13>
+            _unitMdIdentityCache = new Dictionary<(string, string, byte), C2MdIconInfoV13>();
+
         public static C2MdIconInfoV13 LoadMdInfoForSelectedUnit(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
             EnsureLoaded();
             if (unit == null) return new C2MdIconInfoV13();
+            var identity = (unit.SourceMonsterId, unit.ResolvedMd, unit.Nation);
+            if (_unitMdIdentityCache.TryGetValue(identity, out C2MdIconInfoV13 cached)) return cached;
             string md = ResolveMdForMemberOrRaw(ResolveMemberIdForSelectedUnit(unit));
             if (string.IsNullOrEmpty(md)) md = unit.ResolvedMd;
-            return LoadMdIcon(md);
+            C2MdIconInfoV13 info = LoadMdIcon(md);
+            _unitMdIdentityCache[identity] = info;
+            return info;
         }
 
         public static C2MdIconInfoV13 LoadMdInfoForSelectedBuilding(C2SettlementBuildingSelectableV1LikeOriginal building)
@@ -6248,7 +6442,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                             if (idx == 0) { info.AttackRadius0Min = Mathf.Max(0, r1); info.AttackRadius0 = Mathf.Max(0, r2); }
                             else if (idx == 1) { info.AttackRadius1Min = Mathf.Max(0, r1); info.AttackRadius1 = Mathf.Max(0, r2); }
                             else if (idx == 2) { info.AttackRadius2Min = Mathf.Max(0, r1); info.AttackRadius2 = Mathf.Max(0, r2); }
+                            else if (idx == 3) { info.AttackRadius3Min = Mathf.Max(0, r1); info.AttackRadius3 = Mathf.Max(0, r2); }
                         }
+                    }
+                    else if (cmd == "MOTIONSTYLE" && t.Length >= 2)
+                    {
+                        info.MotionStyle = (t[1] ?? string.Empty).Trim().ToUpperInvariant();
                     }
                     else if (cmd == "ATTACK_PAUSE" && t.Length >= 3)
                     {
@@ -6656,6 +6855,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int AttackRadius1;
             public int AttackRadius2Min;
             public int AttackRadius2;
+            public int AttackRadius3Min;
+            public int AttackRadius3;
+            public string MotionStyle;
             public int AttackPause0;
             public int AttackPause1;
             public int AttackPause2;

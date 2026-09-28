@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
@@ -397,6 +397,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return false;
 
             CancelBrigadeGoOnRoadV385ALikeOriginal(group.GroupId, "formation_stop", false);
+            ClearBrigadeNewOrdersV418LikeOriginal(group, "formation_stop");
             int stopped = 0;
             for (int i = 0; i < group.Units.Count; i++)
             {
@@ -466,6 +467,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             int groupId = group.GroupId;
             CancelBrigadeGoOnRoadV385ALikeOriginal(groupId, "formation_disband", false);
+            ClearBrigadeNewOrdersV418LikeOriginal(group, "formation_disband");
             ForgetBrigadeStandGroundV403LikeOriginal(group);
             int released = 0;
             for (int i = 0; i < group.Units.Count; i++)
@@ -657,8 +659,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (group == null || option == null || units == null || units.Count == 0)
                 return false;
 
-            CancelBrigadeGoOnRoadV385ALikeOriginal(
-                group.GroupId, source ?? "formation_rebuild", false);
+            // Multi.cpp::MakeReformation has two distinct paths. Spacing-only
+            // FormType 0xFD/0xFE/0xFF always uses KeepPositions(Type=1). A normal
+            // manual reformation uses Type=0 when current NewBOrder is GoOnRoad
+            // (the !AutoChangeFormationType retail branch). Do not cancel the road
+            // payload here: CreateNewBOrder(Type=0) owns replacement/destruction,
+            // while Type=1 must preserve GoOnRoad in Next.
+            bool spacingOnlyReformationV418 = string.Equals(
+                source, "formation_spacing", StringComparison.OrdinalIgnoreCase);
+            bool reformationReplacesRoadV418 = !spacingOnlyReformationV418 &&
+                string.Equals(source, "manual_reformation", StringComparison.OrdinalIgnoreCase) &&
+                IsCurrentBrigadeNewOrderV418LikeOriginal(
+                    group, BrigadeOrderGoOnRoadV418LikeOriginal);
 
             List<Vector2> slots = BuildTemplateSlotsDirectedV352LikeOriginal(
                 option, units.Count, commandCount, units,
@@ -666,20 +678,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ReorderSoldiersForNearestSlotsV172LikeOriginal(units, slots, commandCount);
 
             int groupId = group.GroupId;
-            int nation = group.Nation;
-            string soldierMemberId = !string.IsNullOrEmpty(group.SoldierMemberId)
-                ? group.SoldierMemberId
-                : string.Empty;
-            byte direction = group.Direction;
-            RegisterFormationInternalV172LikeOriginal(
-                units, slots, option.Shape, soldierMemberId, groupId);
-            RuntimeFormationV172LikeOriginal updated;
-            if (_groupsByIdV172LikeOriginal.TryGetValue(groupId, out updated) && updated != null)
-            {
-                updated.Nation = nation;
-                updated.Direction = direction;
-                updated.SpacingPercent = Mathf.Clamp(spacingPercent, 50, 200);
-            }
+            // MakeReformation changes the existing Brigade's places/membership
+            // permutation. Recreating it loses the current order's payload/state.
+            UpdateFormationLayoutPreserveMembershipV417LikeOriginal(
+                group, units, slots, option.Shape, commandCount,
+                source ?? "Multi.cpp::MakeReformation");
+            group.SpacingPercent = Mathf.Clamp(spacingPercent, 50, 200);
 
             int issued = 0;
             bool kareOrder =
@@ -692,28 +696,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(
                     unit, source ?? "formation_rebuild");
 
-                // V403D / exact CII ordering rule:
-                // ORDUSAGE==2 (KARE) is NOT rotated outward while the formation is
-                // merely created or reformed. Multi.cpp::MakeStandGround performs
-                // that radial rotation only when BrigDelay reaches zero and the
-                // brigade enters full InStandGround. Likewise orders.lst '@'
-                // positions do not enter NewState=5 here; NewMon.cpp does that only
-                // after BR->InStandGround becomes true.
-                unit.SetFormationAssemblyDestinationRealLikeOriginal(
-                    slots[i].x,
-                    slots[i].y,
-                    C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                    direction);
+                // KeepPositions below owns precise movement, collision recovery
+                // and facing. An ordinary per-member move stops too far from its
+                // place and does not run the brigade's completion checks.
                 issued++;
             }
 
-            RuntimeFormationV172LikeOriginal standGroundUpdatedV403LikeOriginal;
-            if (_groupsByIdV172LikeOriginal.TryGetValue(groupId, out standGroundUpdatedV403LikeOriginal) &&
-                standGroundUpdatedV403LikeOriginal != null)
-            {
-                AfterReformationV403LikeOriginal(
-                    standGroundUpdatedV403LikeOriginal, source ?? "Multi.cpp::MakeReformation");
-            }
+            AfterReformationV403LikeOriginal(
+                group,
+                reformationReplacesRoadV418 ? (byte)0 : (byte)1,
+                source ?? "Multi.cpp::MakeReformation");
 
             audit = "ok group=" + groupId.ToString(CultureInfo.InvariantCulture) +
                     " shape='" + (option.Shape ?? string.Empty) + "'" +
@@ -1178,261 +1170,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
     public sealed partial class C2BattleTerrainMode
     {
-        public static bool C2FormationTryBuildRoadPathRealV320LikeOriginal(
-            float startRealX,
-            float startRealY,
-            float destinationRealX,
-            float destinationRealY,
-            out Vector2[] path,
-            out string audit)
-        {
-            path = null;
-            audit = "no_road_network";
-            C2BattleTerrainMode mode = UnityEngine.Object.FindObjectOfType<C2BattleTerrainMode>();
-            if (mode == null || mode._map == null || !mode._map.HasRoadNet ||
-                mode._map.RoadKnots == null || mode._map.RoadKnots.Length == 0)
-                return false;
 
-            ParsedRoadNetKnotLikeOriginal[] knots = mode._map.RoadKnots;
-            int start = FindNearestRoadKnotV320LikeOriginal(knots, startRealX / 16.0f, startRealY / 16.0f);
-            int finish = FindNearestRoadKnotV320LikeOriginal(knots, destinationRealX / 16.0f, destinationRealY / 16.0f);
-            if (start < 0 || finish < 0)
-            {
-                audit = "no_visible_road_endpoint";
-                return false;
-            }
+// V432 integration probe: declaration supplied by consolidated file.
 
-            float[] distance = new float[knots.Length];
-            int[] previous = new int[knots.Length];
-            bool[] visited = new bool[knots.Length];
-            for (int i = 0; i < knots.Length; i++)
-            {
-                distance[i] = float.MaxValue;
-                previous[i] = -1;
-            }
-            distance[start] = 0.0f;
-
-            for (int pass = 0; pass < knots.Length; pass++)
-            {
-                int current = -1;
-                float best = float.MaxValue;
-                for (int i = 0; i < knots.Length; i++)
-                {
-                    if (!visited[i] && distance[i] < best)
-                    {
-                        best = distance[i];
-                        current = i;
-                    }
-                }
-                if (current < 0)
-                    break;
-                if (current == finish)
-                    break;
-                visited[current] = true;
-
-                ParsedRoadNetKnotLikeOriginal knot = knots[current];
-                for (int linkIndex = 0; linkIndex < knot.NLinks && linkIndex < C2RoadMaxLinksLikeOriginal; linkIndex++)
-                {
-                    int next = knot.Links[linkIndex];
-                    if (next < 0 || next >= knots.Length || visited[next])
-                        continue;
-                    float dx = knots[next].X - knot.X;
-                    float dy = knots[next].Y - knot.Y;
-                    float candidate = distance[current] + Mathf.Sqrt(dx * dx + dy * dy);
-                    if (candidate < distance[next])
-                    {
-                        distance[next] = candidate;
-                        previous[next] = current;
-                    }
-                }
-            }
-
-            if (start != finish && previous[finish] < 0)
-            {
-                audit = "road_nodes_disconnected";
-                return false;
-            }
-
-            List<int> reversed = new List<int>();
-            int cursor = finish;
-            reversed.Add(cursor);
-            while (cursor != start)
-            {
-                cursor = previous[cursor];
-                if (cursor < 0)
-                {
-                    audit = "road_reconstruction_failed";
-                    return false;
-                }
-                reversed.Add(cursor);
-            }
-            reversed.Reverse();
-
-            List<Vector2> result = new List<Vector2>(Mathf.Max(8, reversed.Count * 8));
-            result.Add(new Vector2(startRealX, startRealY));
-            if (reversed.Count == 1)
-            {
-                ParsedRoadNetKnotLikeOriginal only = knots[reversed[0]];
-                result.Add(new Vector2(RoadXOnRoadV352LikeOriginal(knots, reversed[0]) * 16.0f,
-                                       RoadYOnRoadV352LikeOriginal(knots, reversed[0]) * 16.0f));
-            }
-            else
-            {
-                for (int i = 1; i < reversed.Count; i++)
-                    AppendRoadEdgeWaypointsV352LikeOriginal(knots, reversed[i - 1], reversed[i], result);
-            }
-            result.Add(new Vector2(destinationRealX, destinationRealY));
-            path = result.ToArray();
-            audit = "ok knots=" + reversed.Count.ToString(CultureInfo.InvariantCulture) +
-                    " start=" + start.ToString(CultureInfo.InvariantCulture) +
-                    " finish=" + finish.ToString(CultureInfo.InvariantCulture);
-            return true;
-        }
-
-        private static int RoadXOnRoadV352LikeOriginal(ParsedRoadNetKnotLikeOriginal[] knots, int index)
-        {
-            if (knots == null || index < 0 || index >= knots.Length) return 0;
-            ParsedRoadNetKnotLikeOriginal k = knots[index];
-            if (k.NLinks == 2 && k.Links != null && k.Links.Length >= 2 &&
-                k.Links[0] < knots.Length && k.Links[1] < knots.Length)
-                return (k.X * 6 + knots[k.Links[0]].X + knots[k.Links[1]].X) / 8;
-            return k.X;
-        }
-
-        private static int RoadYOnRoadV352LikeOriginal(ParsedRoadNetKnotLikeOriginal[] knots, int index)
-        {
-            if (knots == null || index < 0 || index >= knots.Length) return 0;
-            ParsedRoadNetKnotLikeOriginal k = knots[index];
-            if (k.NLinks == 2 && k.Links != null && k.Links.Length >= 2 &&
-                k.Links[0] < knots.Length && k.Links[1] < knots.Length)
-                return (k.Y * 6 + knots[k.Links[0]].Y + knots[k.Links[1]].Y) / 8;
-            return k.Y;
-        }
-
-        private static void AppendRoadPointV352LikeOriginal(List<Vector2> points, int x, int y)
-        {
-            if (points == null) return;
-            Vector2 p = new Vector2(x * 16.0f, y * 16.0f);
-            if (points.Count > 0 && Vector2.SqrMagnitude(points[points.Count - 1] - p) < 1.0f) return;
-            points.Add(p);
-        }
-
-        private static void Calk2PV352LikeOriginal(int x1, int y1, int x2, int y2, int n, int p, out int nx, out int ny)
-        {
-            if (n <= 0) { nx = x2; ny = y2; return; }
-            nx = (x1 * (n - p) + x2 * p) / n;
-            ny = (y1 * (n - p) + y2 * p) / n;
-        }
-
-        private static void Calk3PV352LikeOriginal(int x1, int y1, int x2, int y2, int x3, int y3, int n, int p, out int nx, out int ny)
-        {
-            if (n <= 0) { nx = x3; ny = y3; return; }
-            nx = (x1 * (n - p) + x3 * p) / n + ((4 * x2 - 2 * (x1 + x3)) * p * (n - p)) / (n * n);
-            ny = (y1 * (n - p) + y3 * p) / n + ((4 * y2 - 2 * (y1 + y3)) * p * (n - p)) / (n * n);
-        }
-
-        private static void AppendRoadEdgeWaypointsV352LikeOriginal(
-            ParsedRoadNetKnotLikeOriginal[] knots, int startK, int endK, List<Vector2> output)
-        {
-            // Factures3D.cpp::OneNetWayPointToPoint::FillWay, Step=26.
-            if (knots == null || startK < 0 || endK < 0 || startK >= knots.Length || endK >= knots.Length) return;
-            ParsedRoadNetKnotLikeOriginal st = knots[startK];
-            ParsedRoadNetKnotLikeOriginal en = knots[endK];
-            int sxr = RoadXOnRoadV352LikeOriginal(knots, startK);
-            int syr = RoadYOnRoadV352LikeOriginal(knots, startK);
-            int exr = RoadXOnRoadV352LikeOriginal(knots, endK);
-            int eyr = RoadYOnRoadV352LikeOriginal(knots, endK);
-            int mpx = (st.X + en.X) / 2;
-            int mpy = (st.Y + en.Y) / 2;
-            int dst1 = C2OriginalMovementMathV352.Norma(sxr - mpx, syr - mpy);
-            int dst2 = C2OriginalMovementMathV352.Norma(exr - mpx, eyr - mpy);
-            const int step = 26;
-            int xx, yy;
-
-            if (st.NLinks == 2 && st.Links != null && st.Links.Length >= 2)
-            {
-                int other = st.Links[0] == endK ? st.Links[1] : st.Links[0];
-                if (other >= 0 && other < knots.Length)
-                {
-                    int mpprx = (st.X + knots[other].X) / 2;
-                    int mppry = (st.Y + knots[other].Y) / 2;
-                    int dst1pr = Math.Max(1, C2OriginalMovementMathV352.Norma(mpx - mpprx, mpy - mppry));
-                    int npp = dst1pr / step;
-                    if (npp > 0)
-                    {
-                        int sp = (npp * dst1) / dst1pr;
-                        for (int pp = sp; pp < npp; pp++)
-                        {
-                            Calk3PV352LikeOriginal(mpprx, mppry, sxr, syr, mpx, mpy, npp, pp, out xx, out yy);
-                            AppendRoadPointV352LikeOriginal(output, xx, yy);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                int npp = dst1 / step;
-                for (int pp = 0; pp < npp; pp++)
-                {
-                    Calk2PV352LikeOriginal(sxr, syr, mpx, mpy, npp, pp, out xx, out yy);
-                    AppendRoadPointV352LikeOriginal(output, xx, yy);
-                }
-            }
-
-            AppendRoadPointV352LikeOriginal(output, mpx, mpy);
-
-            if (en.NLinks == 2 && en.Links != null && en.Links.Length >= 2)
-            {
-                int other = en.Links[0] == startK ? en.Links[1] : en.Links[0];
-                if (other >= 0 && other < knots.Length)
-                {
-                    int mpprx = (en.X + knots[other].X) / 2;
-                    int mppry = (en.Y + knots[other].Y) / 2;
-                    int dst2pr = Math.Max(1, C2OriginalMovementMathV352.Norma(mpx - mpprx, mpy - mppry));
-                    int npp = dst2pr / step;
-                    if (npp > 0)
-                    {
-                        int sp = (npp * dst2) / dst2pr;
-                        for (int pp = 1; pp < sp + 1; pp++)
-                        {
-                            Calk3PV352LikeOriginal(mpx, mpy, exr, eyr, mpprx, mppry, npp, pp, out xx, out yy);
-                            AppendRoadPointV352LikeOriginal(output, xx, yy);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                int npp = dst2 / step;
-                for (int pp = 1; pp < npp + 1; pp++)
-                {
-                    Calk2PV352LikeOriginal(mpx, mpy, exr, eyr, npp, pp, out xx, out yy);
-                    AppendRoadPointV352LikeOriginal(output, xx, yy);
-                }
-            }
-        }
-
-        private static int FindNearestRoadKnotV320LikeOriginal(
-            ParsedRoadNetKnotLikeOriginal[] knots,
-            float x,
-            float y)
-        {
-            int bestIndex = -1;
-            float bestDistance = float.MaxValue;
-            for (int i = 0; knots != null && i < knots.Length; i++)
-            {
-                if (knots[i].Hidden != 0)
-                    continue;
-                float dx = knots[i].X - x;
-                float dy = knots[i].Y - y;
-                float distance = dx * dx + dy * dy;
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    bestIndex = i;
-                }
-            }
-            return bestIndex;
-        }
     }
 }

@@ -202,6 +202,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 // Retail EraseBrigade semantics: the formation-level orders and
                 // cached brigade state must disappear together with the brigade.
                 CancelBrigadeGoOnRoadV385ALikeOriginal(group.GroupId, "panic_erase_brigade", false);
+                ClearBrigadeNewOrdersV418LikeOriginal(group, "panic_erase_brigade");
                 _standGroundByGroupV403LikeOriginal.Remove(group.GroupId);
                 _tiringByGroupV403ELikeOriginal.Remove(group.GroupId);
                 for (int i = 0; i < group.Units.Count; i++)

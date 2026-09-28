@@ -280,6 +280,13 @@ namespace Cossacks2Bridge.UnityAdapters
                     return;
                 }
 
+                // V396A7R5_UIA3_2: direct BigMap entry can bypass OptionsRenderer/ShowCampaignModal
+                // when the campaign rules were already seen. Menu14ActionStateRuntime is static, so
+                // without an explicit source bind it may still carry a stale logical DataRoot from
+                // an earlier editor/play-session path. Prime it from the canonical Single XML plus
+                // THIS MenuBootstrap's active CoreFileSystem before BigMap asks for nation/GP data.
+                PrimeBigMapSourceRuntimeUIA3_2(screenId);
+
                 Debug.Log($"[C2:BIGMAP V395B] route '{screenId}' -> C2BigMapRenderer14 profile='{C2ProfileRuntime14.Current.m_chName}'");
                 _bigMap14.Render(_fs, _renderOptions, _loc);
                 return;
@@ -350,6 +357,40 @@ namespace Cossacks2Bridge.UnityAdapters
         private bool HasAnyProfile()
         {
             return _hasAnyProfile || C2ProfileRuntime14.HasProfiles;
+        }
+
+        private void PrimeBigMapSourceRuntimeUIA3_2(string route)
+        {
+            try
+            {
+                UiDesk sourceDesk = _menuXmlLoader != null ? _menuXmlLoader.LoadScreen("Single") : null;
+                Menu14ActionStateRuntime.BeginScreen(sourceDesk, _fs, _loc);
+
+                // Force the lazy GlobalAI load now, before C2BigMapData14 and Help request GP frames.
+                bool nation0Ready = Menu14ActionStateRuntime.TryGetNationRecord(0, out var nation0);
+                int rosterCount = Menu14ActionStateRuntime.Nations != null
+                    ? Menu14ActionStateRuntime.Nations.Count
+                    : 0;
+                string logicalRoot = Menu14ActionStateRuntime.CurrentLogicalDataRoot ?? string.Empty;
+                string fsRoot = _fs != null ? (_fs.DataRoot ?? string.Empty) : string.Empty;
+                string sourceBundle = Menu14ActionStateRuntime.CurrentSourceBundleId ?? string.Empty;
+                string sourceRoot = Menu14ActionStateRuntime.CurrentSourceDataRoot ?? string.Empty;
+                string status = nation0Ready && rosterCount == C2Bfe14ContractV396A.CountryCount
+                    ? "READY_FINAL14"
+                    : "NOT_FINAL14";
+
+                Debug.Log(
+                    $"[C2:BFE14 GPBOOT V396A7R5_UIA3_2] route='{route}' " +
+                    $"fsRoot='{fsRoot}' sourceBundle='{sourceBundle}' sourceRoot='{sourceRoot}' " +
+                    $"logicalRoot='{logicalRoot}' roster={rosterCount} " +
+                    $"nation0='{(nation0Ready && nation0 != null ? nation0.Id : "<none>")}' status={status}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError(
+                    $"[C2:BFE14 GPBOOT V396A7R5_UIA3_2] route='{route}' FAIL " +
+                    $"{ex.GetType().Name}: {ex.Message}");
+            }
         }
 
         public bool ShowCampaignModalOriginalV396A3(IUiActionSink sink)

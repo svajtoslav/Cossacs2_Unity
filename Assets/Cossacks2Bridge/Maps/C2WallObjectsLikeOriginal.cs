@@ -550,6 +550,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
 
         private void LateUpdate()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.BuildingProjection);
             // DrawSpriteBuilding in Cossacks II rebuilds its sprite-to-screen cache whenever
             // the gameplay camera changes. Keep the same ordering before later wall calibrators.
             UpdateBuildingPseudoProjectionMeshesLikeOriginal();

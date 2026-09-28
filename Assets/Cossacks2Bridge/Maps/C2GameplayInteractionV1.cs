@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -107,7 +107,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private const float StoreReachDistanceOriginalPixelsV222 = 120.0f;
         private const float StorehouseApproachRadiusOriginalPixelsV223 = 180.0f;
         private const float StoreEnterReachDistanceOriginalPixelsV225 = 40.0f;
-        private const float StoreEnterTimeoutSecondsV225 = 5.50f;
         private const float StoreDepositSecondsV222 = 1.00f;
         private const float ResourceWorkFpsV222 = 12.0f;
 
@@ -287,6 +286,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void Update()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.WorkerTasks);
             if (!_active || Unit == null)
                 return;
 
@@ -356,8 +356,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     break;
 
                 case ResourcePhaseV222.MoveIntoStore:
-                    if (DistanceToRealPointOriginalPixelsV222(_storeDepositRealXV225, _storeDepositRealYV225) <= StoreEnterReachDistanceOriginalPixelsV225 ||
-                        Time.realtimeSinceStartup - _phaseStartedV222 >= StoreEnterTimeoutSecondsV225)
+                    // Mine.cpp resumes GoToMineLink only after its PreciseSend
+                    // children finish. A wall-clock timeout must not deposit a
+                    // load while the worker is still outside the CONCENTRATOR.
+                    if (StoreMovementFinishedV433LikeOriginal() &&
+                        DistanceToRealPointOriginalPixelsV222(_storeDepositRealXV225, _storeDepositRealYV225) <= StoreEnterReachDistanceOriginalPixelsV225)
                     {
                         StartStoreDepositV225LikeOriginal();
                     }
@@ -372,8 +375,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     break;
 
                 case ResourcePhaseV222.MoveOutOfStore:
-                    if (DistanceToRealPointOriginalPixelsV222(_storeRealXV222, _storeRealYV222) <= StoreReachDistanceOriginalPixelsV222 ||
-                        Time.realtimeSinceStartup - _phaseStartedV222 >= StoreEnterTimeoutSecondsV225)
+                    if (StoreMovementFinishedV433LikeOriginal())
                     {
                         SetHiddenInsideStoreV345LikeOriginal(false);
                         if (_pendingTakeResourceV227)
@@ -409,6 +411,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
         }
 
+        private bool StoreMovementFinishedV433LikeOriginal()
+        {
+            var rt=Unit?.RuntimeLinkCachedLikeOriginal?.Runtime;
+            return rt!=null && !C2OriginalOrderChainV352.HasLocalMoveOrderLikeOriginal(Unit) &&
+                !rt.HasMoveTargetLikeOriginal && !rt.MoveDeferredUntilNeutralStandLikeOriginal &&
+                !rt.OriginalPathRequestPendingV425LikeOriginal && !rt.PreciseBornPathLikeOriginal;
+        }
+
         private int ResourceRealXV222 { get { return _resourceOriginalXV222 << 4; } }
         private int ResourceRealYV222 { get { return _resourceOriginalYV222 << 4; } }
         private int ResourceWorkRealXV222 { get { return _resourceWorkOriginalXV222 << 4; } }
@@ -435,13 +445,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (Unit == null || path == null || path.Length == 0) return false;
             C2UnitOriginalRuntimeLinkLikeOriginal link = Unit.RuntimeLinkCachedLikeOriginal;
             if (link == null) return false;
-            link.SetMovePathRealLikeOriginal(
-                path,
-                C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                false,
-                0,
-                true,
-                source);
+            C2OriginalOrderChainV352.SubmitBornExitV433LikeOriginal(
+                Unit,path,path.Length,true,_resourcePhaseV222 == ResourcePhaseV222.MoveOutOfStore);
             return true;
         }
 
@@ -591,10 +596,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _phaseStartedV222 = Time.realtimeSinceStartup;
             StopResourceWorkV222LikeOriginal();
             SetCarryResourceMotionV223LikeOriginal(false);
+            // Mine.cpp::GoOutOfMineLink calls ShowMe before queuing BORNPOINTS.
+            SetHiddenInsideStoreV345LikeOriginal(false);
 
             if (Unit != null && _hasStoreV222)
             {
-                Vector2[] exitPath = TailRealPathV228LikeOriginal(_storeBornPathV228);
+                Vector2[] exitPath = CloneRealPathV228LikeOriginal(_storeBornPathV228);
                 if (exitPath == null || exitPath.Length == 0)
                     exitPath = new Vector2[] { new Vector2(_storeRealXV222, _storeRealYV222) };
 
@@ -1416,14 +1423,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (_active == this) _active = null;
         }
 
-        private static readonly ProfilerMarker SelectionProfileV377 = new ProfilerMarker("C2.Interaction.SelectionV377");
-        private static readonly ProfilerMarker HoverCacheProfileV377 = new ProfilerMarker("C2.Interaction.HoverCacheV377");
-        private static readonly ProfilerMarker HoverProfileV377 = new ProfilerMarker("C2.Interaction.HoverV377");
-        private static readonly ProfilerMarker UnitPickProfileV377 = new ProfilerMarker("C2.Interaction.UnitPickV377");
-        private static readonly ProfilerMarker CommandsProfileV377 = new ProfilerMarker("C2.Interaction.CommandsV377");
+        private static readonly Unity.Profiling.ProfilerMarker SelectionProfileV377 = new Unity.Profiling.ProfilerMarker("C2.Interaction.SelectionV377");
+        private static readonly Unity.Profiling.ProfilerMarker HoverCacheProfileV377 = new Unity.Profiling.ProfilerMarker("C2.Interaction.HoverCacheV377");
+        private static readonly Unity.Profiling.ProfilerMarker HoverProfileV377 = new Unity.Profiling.ProfilerMarker("C2.Interaction.HoverV377");
+        private static readonly Unity.Profiling.ProfilerMarker UnitPickProfileV377 = new Unity.Profiling.ProfilerMarker("C2.Interaction.UnitPickV377");
+        private static readonly Unity.Profiling.ProfilerMarker CommandsProfileV377 = new Unity.Profiling.ProfilerMarker("C2.Interaction.CommandsV377");
 
         private void Update()
         {
+            using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.Interaction);
             using (SelectionProfileV377.Auto()) RefreshSelectedCached();
             using (HoverCacheProfileV377.Auto()) RefreshHoverPickCachesLikeOriginal();
             HandleResourceDebugPathHotkeyV227LikeOriginal();
@@ -2976,21 +2984,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                             byte meleeFacing =
                                 C2FormationRuntimeV167LikeOriginal.GetMeleeAttackDestinationDirectionV406LikeOriginal(
                                     sourceRepresentative, enemyRepresentative);
-                            string meleeMoveAudit;
-                            int meleeMoveIssued = C2GameplayLooseGroupMoveLikeOriginal.IssueMoveLikeOriginal(
-                                _selected, meleeDestX, meleeDestY, true, meleeFacing,
-                                "Multi.cpp_AttackSelected_melee_v394", out meleeMoveAudit);
-                            Debug.Log("[C2:MELEE ORDER V394] source='Multi.cpp::AttackSelected'" +
-                                      " sourceGroup=" + sourceGroupId.ToString(CultureInfo.InvariantCulture) +
-                                      " enemyGroup=" + enemyGroupId.ToString(CultureInfo.InvariantCulture) +
-                                      " issued=" + meleeMoveIssued.ToString(CultureInfo.InvariantCulture) +
-                                      " destReal=(" + meleeDestX.ToString("0", CultureInfo.InvariantCulture) +
-                                      "," + meleeDestY.ToString("0", CultureInfo.InvariantCulture) + ") " +
-                                      meleeMoveAudit);
-                            brigadeMeleeOrderV406LikeOriginal =
-                                C2FormationRuntimeV167LikeOriginal.BeginBrigadeMeleeAttackV406LikeOriginal(
+                            bool preparedMeleeV414 =
+                                C2FormationRuntimeV167LikeOriginal.PrepareBrigadeMeleeAttackMoveV414LikeOriginal(
                                     sourceRepresentative, enemyRepresentative, true,
-                                    "Multi.cpp::AttackSelected_SetEnemyForBrigade");
+                                    "Multi.cpp::AttackSelected_SetEnemyForBrigade_before_HumanLocalSendTo");
+                            if (preparedMeleeV414)
+                            {
+                                string meleeMoveAudit;
+                                int meleeMoveIssued;
+                                bool localSendAccepted =
+                                    C2FormationRuntimeV167LikeOriginal.IssueBrigadeAttackHumanLocalSendToV414LikeOriginal(
+                                        sourceRepresentative, meleeDestX, meleeDestY, meleeFacing,
+                                        out meleeMoveIssued, out meleeMoveAudit);
+                                // AttackSelected has no success return from HumanLocalSendTo: even its
+                                // native NMemb/OrdUsage/near-position early return is followed by the
+                                // SetAttState/SetStandState/CancelStandGround tail.
+                                brigadeMeleeOrderV406LikeOriginal = localSendAccepted &&
+                                    C2FormationRuntimeV167LikeOriginal.FinishBrigadeMeleeAttackMoveV414LikeOriginal(
+                                        sourceRepresentative, enemyRepresentative, true,
+                                        "Multi.cpp::AttackSelected_after_HumanLocalSendTo");
+                                if (!localSendAccepted)
+                                    C2FormationRuntimeV167LikeOriginal.AbortBrigadeMeleeAttackMoveV414LikeOriginal(
+                                        sourceRepresentative);
+                                Debug.Log("[C2:MELEE ORDER V414] source='Multi.cpp::AttackSelected'" +
+                                          " sourceGroup=" + sourceGroupId.ToString(CultureInfo.InvariantCulture) +
+                                          " enemyGroup=" + enemyGroupId.ToString(CultureInfo.InvariantCulture) +
+                                          " issued=" + meleeMoveIssued.ToString(CultureInfo.InvariantCulture) +
+                                          " destReal=(" + meleeDestX.ToString("0", CultureInfo.InvariantCulture) +
+                                          "," + meleeDestY.ToString("0", CultureInfo.InvariantCulture) + ") " +
+                                          meleeMoveAudit +
+                                          " tail=" + (brigadeMeleeOrderV406LikeOriginal ? "1" : "0"));
+                            }
                         }
                     }
                 }
@@ -3013,7 +3037,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = _selected[i];
                 if (u == null) continue;
-                C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(u, "new_task_interaction_v222");
+                // V409 / Multi.cpp::AttackSelected: the formation move has already
+                // replaced the PREVIOUS LocalOrder before SetEnemyForBrigade/Bitva
+                // installs the new melee AttackObj chain.  Do not run the generic
+                // new-task canceller again afterwards: it was deleting the freshly
+                // created combat order for every brigade member (the observed
+                // new_task_interaction_v222 cascade).
+                if (!brigadeMeleeOrderV406LikeOriginal)
+                    C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(
+                        u, "new_task_interaction_v222");
 
                 C2GameplayUnitTaskV1 task = u.GetComponent<C2GameplayUnitTaskV1>();
                 GameObject unitProxy = task == null ? u.EnsureUnityProxyLikeOriginal() : null;
@@ -3108,8 +3140,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         if (combat == null && proxy != null) combat = proxy.AddComponent<C2CombatRuntimeV334LikeOriginal>();
                         if (combat != null)
                         {
-                            combat.BeginAttackForcedModeV395LikeOriginal(
-                                u, targetUnitForOrder, null, targetWorldForOrder, 0);
+                            combat.BeginAttackLikeOriginal(
+                                u, targetUnitForOrder, null, targetWorldForOrder);
                             C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
                                 u, C2UnitOrderKindV325LikeOriginal.MeleeAttack,
                                 "Multi.cpp_AttackSelected_melee", "attack_slot_0");
@@ -3698,7 +3730,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return 1;
 
             // V222: original resource cursors are allowed only for selected peasants.
-            if (CanSelectedTakeResourcesLikeOriginal())
+            if ((kind == C2GameplayTargetKindV1.Stone || kind == C2GameplayTargetKindV1.Tree ||
+                 kind == C2GameplayTargetKindV1.Field) && CanSelectedTakeResourcesLikeOriginal())
             {
                 if (kind == C2GameplayTargetKindV1.Stone) return 5; // Cursors/Hard/stoun.cur
                 if (kind == C2GameplayTargetKindV1.Tree) return 6;  // Cursors/Hard/wood.cur

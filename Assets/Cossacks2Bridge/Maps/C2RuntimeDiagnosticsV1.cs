@@ -598,7 +598,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private readonly string[] _counterNames = {
             "Main Thread", "Render Thread", "Gfx.WaitForPresentOnGfxThread", "C2.Hud.Update",
-            "GC Allocated In Frame", "Draw Calls Count"
+            "GC Allocated In Frame", "Draw Calls Count",
+            "PlayerLoop", "EditorLoop", "Update.ScriptRunBehaviourUpdate",
+            "PreLateUpdate.ScriptRunBehaviourLateUpdate", "GC.Collect", "GC.IncrementalCollect"
         };
         private Unity.Profiling.ProfilerRecorder[] _frameCounters;
         private double[] _counterSums;
@@ -646,7 +648,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             if (now < _nextFrameCountersAt) return;
             _nextFrameCountersAt = now + 5.0f;
-            var message = new StringBuilder("[C2:FRAME COST] cameraMovingPercent=");
+            var message = new StringBuilder("[C2:FRAME COST] timeSec=");
+            message.Append(now.ToString("0.000", CultureInfo.InvariantCulture));
+            message.Append(" focused=").Append(Application.isFocused);
+            message.Append(" cameraMovingPercent=");
             message.Append((100.0 * _cameraMovingFrames / Math.Max(1, _counterFrames)).ToString("0", CultureInfo.InvariantCulture));
             for (int index = 0; index < _frameCounters.Length; index++)
             {
@@ -654,10 +659,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (!_frameCounters[index].Valid) message.Append("unavailable");
                 else
                 {
-                    double scale = index < 4 ? 0.000001 : 1.0;
+                    bool timeCounter = index != 4 && index != 5;
+                    double scale = timeCounter ? 0.000001 : 1.0;
                     message.Append((_counterSums[index] * scale / Math.Max(1, _counterFrames)).ToString("0.00", CultureInfo.InvariantCulture));
                     message.Append(" peak=").Append((_counterPeaks[index] * scale).ToString("0.00", CultureInfo.InvariantCulture));
-                    message.Append(index < 4 ? "ms" : index == 4 ? "bytes" : "calls");
+                    message.Append(timeCounter ? "ms" : index == 4 ? "bytes" : "calls");
                 }
                 _counterSums[index] = 0;
                 _counterPeaks[index] = 0;
@@ -692,6 +698,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _lastGc2 = SafeGcCollectionCount(2);
             _lastManagedBytes = SafeManagedBytes();
             StartFrameCounters();
+            C2FrameCostProbe.Start();
 
             Debug.LogWarning("[C2:FPS V220 START] map='" + _mapPath + "'" +
                              " selected='" + _selectedId + "'" +
@@ -710,6 +717,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             float now = Time.realtimeSinceStartup;
             SampleFrameCounters(now);
+            C2FrameCostProbe.Report(now);
             float dt = Time.unscaledDeltaTime;
             if (C2RuntimeDiagnosticsV1.DetailedPerfEventsEnabled && dt > 0f && dt <= 2.0f)
                 MaybeLogSlowFrame(dt, now);
@@ -907,6 +915,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void OnDisable()
         {
+            C2FrameCostProbe.Stop();
             StopFrameCounters();
             if (_configured && _samplingStarted)
                 LogSummary();

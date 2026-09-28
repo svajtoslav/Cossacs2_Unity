@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -181,7 +181,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             if (isCanvas && NodeHasActionV125LikeOriginal(node, "va_SP_MoraleLine"))
             {
-                AddOriginalMoraleLineLikeOriginal(x, y, Mathf.Max(1, w), Mathf.Max(1, h), ResolveMoraleCurrentLikeOriginal(ctx.Unit), ResolveMoraleMaxLikeOriginal(ctx.Unit));
+                AddOriginalMoraleLineLikeOriginal(x, y, Mathf.Max(1, w), Mathf.Max(1, h), ResolveMoraleCurrentLikeOriginal(ctx.Unit), ResolveMoraleMaxLikeOriginal(ctx.Unit), ctx.Unit);
                 return;
             }
             if (isCanvas && NodeHasActionV125LikeOriginal(node, "va_SP_LifeLine"))
@@ -189,7 +189,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 int lifeV404, maxLifeV404;
                 if (C2FormationRuntimeV167LikeOriginal.TryGetFormationAverageLifeV404LikeOriginal(
                         ctx.Unit, out lifeV404, out maxLifeV404))
-                    AddOriginalLifeLineLikeOriginal(x, y, Mathf.Max(1, w), Mathf.Max(1, h), lifeV404, maxLifeV404);
+                    AddOriginalLifeLineLikeOriginal(x, y, Mathf.Max(1, w), Mathf.Max(1, h), lifeV404, maxLifeV404, ctx.Unit);
                 return;
             }
             if (isCanvas && NodeHasActionV125LikeOriginal(node, "va_SP_TiredLine"))
@@ -236,6 +236,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (NodeHasActionV125LikeOriginal(node, "va_SP_UnitNameSide"))
                     textColor = OriginalHudTitleTextColorV141LikeOriginal();
                 Text label = AddCrispLabelV140LikeOriginal("xml_sp_text_" + San(resolvedText), resolvedText, x, y, w, h, ResolveXmlFontSizeV125LikeOriginal(node), ResolveXmlTextAnchorV125LikeOriginal(node), textColor);
+                if (NodeHasActionV125LikeOriginal(node, "va_SP_Morale")) BindMoraleTextV422(ctx.Unit, label);
                 if (ctx.IsBuilding && NodeHasActionV125LikeOriginal(node, "va_SP_B_Stage"))
                     AttachBuildingConstructionProgressUpdaterV136LikeOriginal(null, label, ctx.Building);
                 if (ctx.IsBuilding && NodeHasActionV125LikeOriginal(node, "va_SP_B_Life"))

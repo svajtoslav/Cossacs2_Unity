@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -37,10 +37,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public string Source = string.Empty;
         }
 
-        private sealed class MeleeMdTraitsV407LikeOriginal
+        internal sealed class MeleeMdTraitsV407LikeOriginal
         {
             public int MaxAttackers = 12; // NewMonster constructor default.
             public int ArmRadius = 100;    // NewMonster constructor default.
+            // NewMonster::VisRange is SEARCH_ENEMY_RADIUS << 4. Keep the MD value
+            // in original pixels here and convert to Real units at SearchVictim.
+            public int SearchEnemyRadiusPixels;
+            public int BrigadeWaitingCycles; // 0 => EngSettings.BrigadeWaitingCycles (40).
             public byte KillMask;
             public byte MathMask;
             public byte LockType;
@@ -55,6 +59,30 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             new Dictionary<int, BrigadeBattleStateV407LikeOriginal>();
         private static readonly Dictionary<int, int> _onlyThisBrigadeToKillV407LikeOriginal =
             new Dictionary<int, int>();
+        // Brigade::AttEnm. This is formation intent, separate from an active BITVA order.
+        // AttackSelected sets it before HumanLocalSendTo; BITVA is created later by
+        // OneObject::AttackObj/SearchVictim/contact, not at command issue time.
+        private static readonly HashSet<int> _brigadeAttackEnemyIntentV414LikeOriginal =
+            new HashSet<int>();
+        // AttackSelected sets BR->AttEnm BEFORE HumanLocalSendTo(...,Prio=128).
+        // Keep this transient marker only while the managed HumanLocalSendTo adapter
+        // is issuing that one charge move, so ordinary later RMB moves still clear AttEnm.
+        private static readonly HashSet<int> _brigadeAttackMoveIssuanceV414LikeOriginal =
+            new HashSet<int>();
+        // BR->AttEnm and BR->NewBOrder are independent in C2. Track the concrete
+        // KeepPositions order separately so BITVA can replace it without the stale
+        // AttEnm flag resurrecting KeepPositions after battle ends.
+        private static readonly HashSet<int> _brigadeAttackKeepPositionsActiveV415LikeOriginal =
+            new HashSet<int>();
+        private static readonly Dictionary<int, int> _brigadeAttackKeepPositionsStartTickV415LikeOriginal =
+            new Dictionary<int, int>();
+        // V416: the same managed NewBOrder now represents ordinary HumanLocalSendTo
+        // as well as AttackSelected's charge. CII stores the priority on the
+        // BrigadeOrder_KeepPositions object; keep it per brigade instead of assuming 128.
+        private static readonly Dictionary<int, byte> _brigadeKeepPositionsPriorityV416LikeOriginal =
+            new Dictionary<int, byte>();
+        private static readonly Dictionary<int, byte> _brigadeKeepPositionsOrdTypeV416LikeOriginal =
+            new Dictionary<int, byte>();
         private static readonly Dictionary<string, MeleeMdTraitsV407LikeOriginal> _meleeMdTraitsV407LikeOriginal =
             new Dictionary<string, MeleeMdTraitsV407LikeOriginal>(StringComparer.OrdinalIgnoreCase);
 
@@ -113,7 +141,40 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return order != null && order.SymInv != null && order.Sym4i == null;
         }
 
-        public static bool BeginBrigadeMeleeAttackV406LikeOriginal(
+        // COSSACKS2/Brigade.cpp::Brigade::HumanLocalSendTo used by
+        // Multi.cpp::AttackSelected.  This deliberately does NOT use the generic
+        // HumanGlobalSendTo/shared-center path: retail creates fresh ordered places
+        // and immediately installs BrigadeOrder_KeepPositions over those places.
+        public static bool IssueBrigadeAttackHumanLocalSendToV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal sourceRepresentative,
+            float destRealX,
+            float destRealY,
+            byte requestedDirection,
+            out int issued,
+            out string audit)
+        {
+            issued = 0;
+            audit = "invalid_group";
+            RuntimeFormationV172LikeOriginal group;
+            if (!TryGetRuntimeGroupByUnitV172LikeOriginal(sourceRepresentative, out group) || group == null)
+                return false;
+
+            // Multi.cpp::AttackSelected reaches the same Brigade::HumanLocalSendTo
+            // as ComRotateBrigade and the RR<R0 HumanGlobalSendTo branch.  Do not
+            // maintain a second managed copy of its turn/membership algorithm.
+            return IssueBrigadeHumanLocalSendToV4183LikeOriginal(
+                group,
+                destRealX,
+                destRealY,
+                requestedDirection,
+                128,
+                0,
+                "Brigade.cpp::HumanLocalSendTo_AttackSelected_V4183",
+                out issued,
+                out audit);
+        }
+
+        public static bool PrepareBrigadeMeleeAttackMoveV414LikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal sourceRepresentative,
             C2NeutralPeasantUnitInfoV2LikeOriginal enemyRepresentative,
             bool onlyThisEnemyBrigade,
@@ -126,13 +187,34 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 sourceGroup.GroupId == enemyGroup.GroupId || sourceGroup.Nation == enemyGroup.Nation)
                 return false;
 
-            // Multi.cpp::SetEnemyForBrigade.  The command adapter invokes it here;
-            // the function itself is preserved below, including per-unit state and
-            // deletion of an incompatible live BITVA order.
+            // Multi.cpp::AttackSelected exact order:
+            //   SetEnemyForBrigade(...); ... BR->AttEnm=1; HumanLocalSendTo(...,128,0)
+            // State/stand-ground changes happen only AFTER HumanLocalSendTo.
             SetEnemyForBrigadeV407LikeOriginal(
                 sourceGroup, onlyThisEnemyBrigade ? enemyGroup.GroupId : -1,
                 enemyRepresentative.CombatNationLikeOriginal);
+            _brigadeAttackEnemyIntentV414LikeOriginal.Add(sourceGroup.GroupId);
+            _brigadeAttackMoveIssuanceV414LikeOriginal.Add(sourceGroup.GroupId);
+            return true;
+        }
 
+        public static bool FinishBrigadeMeleeAttackMoveV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal sourceRepresentative,
+            C2NeutralPeasantUnitInfoV2LikeOriginal enemyRepresentative,
+            bool onlyThisEnemyBrigade,
+            string source)
+        {
+            RuntimeFormationV172LikeOriginal sourceGroup;
+            RuntimeFormationV172LikeOriginal enemyGroup;
+            if (!TryGetRuntimeGroupByUnitV172LikeOriginal(sourceRepresentative, out sourceGroup) || sourceGroup == null ||
+                !TryGetRuntimeGroupByUnitV172LikeOriginal(enemyRepresentative, out enemyGroup) || enemyGroup == null ||
+                sourceGroup.GroupId == enemyGroup.GroupId || sourceGroup.Nation == enemyGroup.Nation)
+                return false;
+
+            _brigadeAttackMoveIssuanceV414LikeOriginal.Remove(sourceGroup.GroupId);
+            _brigadeAttackEnemyIntentV414LikeOriginal.Add(sourceGroup.GroupId);
+
+            // Exact tail after HumanLocalSendTo in Multi.cpp::AttackSelected.
             BrigadeStandGroundStateV403LikeOriginal attackStateBridge =
                 GetStandGroundStateV403LikeOriginal(sourceGroup, true);
             if (attackStateBridge != null) attackStateBridge.LastOrderTime = int.MinValue;
@@ -140,22 +222,53 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             SetStandStateV403LikeOriginal(sourceRepresentative, 1);
             if (attackStateBridge != null) attackStateBridge.LastOrderTime = int.MinValue;
             CancelStandGroundV403LikeOriginal(sourceRepresentative, "Multi.cpp::AttackSelected_CancelStandGround");
-            List<C2NeutralPeasantUnitInfoV2LikeOriginal> orderedMembers = GetFormationOrderMembersV360LikeOriginal(sourceGroup);
+
+            // AttackSelected writes GroundState=NewState=1 only for ArmAttack soldiers
+            // (NBPERSONAL..NMemb). The managed helper performs exactly that subset and
+            // also selects the equivalent armed-motion posture in the animation bridge.
+            List<C2NeutralPeasantUnitInfoV2LikeOriginal> orderedMembers =
+                GetFormationOrderMembersV360LikeOriginal(sourceGroup);
             int commandPrefix = ResolveOrderCommandCountV360LikeOriginal(sourceGroup, orderedMembers);
             ApplyAttackStateMoveToFormationV405BLikeOriginal(orderedMembers, commandPrefix, true);
 
-            // Current Unity command integration has no native C++ NewBOrder object;
-            // creating the managed order here is the adapter seam.  Its constructor,
-            // initial full scan and Process body below retain retail semantics.
-            BrigadeBattleStateV407LikeOriginal state;
-            if (!_brigadeBattlesV407LikeOriginal.TryGetValue(sourceGroup.GroupId, out state) || state == null || !state.Active)
-            {
-                state = CreateBrigadeBitvaV407LikeOriginal(sourceGroup, source ?? "Brigade::Bitva");
-                if (state == null) return false;
-            }
-            state.NextProcessAt = 0.0f;
-            ProcessBrigadeBitvaV407LikeOriginal(sourceGroup, state);
+            // The source repeats SetEnemyForBrigade after CancelStandGround.
+            SetEnemyForBrigadeV407LikeOriginal(
+                sourceGroup, onlyThisEnemyBrigade ? enemyGroup.GroupId : -1,
+                enemyRepresentative.CombatNationLikeOriginal);
             return true;
+        }
+
+        public static void AbortBrigadeMeleeAttackMoveV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal sourceRepresentative)
+        {
+            RuntimeFormationV172LikeOriginal sourceGroup;
+            if (!TryGetRuntimeGroupByUnitV172LikeOriginal(sourceRepresentative, out sourceGroup) || sourceGroup == null)
+                return;
+            _brigadeAttackMoveIssuanceV414LikeOriginal.Remove(sourceGroup.GroupId);
+            ClearBrigadeAttackEnemyIntentV414LikeOriginal(sourceGroup);
+        }
+
+        // Compatibility entry point. New V414 command code calls Prepare ->
+        // HumanLocalSendTo adapter -> Finish so ordering remains C2 1.1 exact.
+        public static bool BeginBrigadeMeleeAttackV406LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal sourceRepresentative,
+            C2NeutralPeasantUnitInfoV2LikeOriginal enemyRepresentative,
+            bool onlyThisEnemyBrigade,
+            string source)
+        {
+            if (!PrepareBrigadeMeleeAttackMoveV414LikeOriginal(
+                    sourceRepresentative, enemyRepresentative, onlyThisEnemyBrigade, source))
+                return false;
+            return FinishBrigadeMeleeAttackMoveV414LikeOriginal(
+                sourceRepresentative, enemyRepresentative, onlyThisEnemyBrigade, source);
+        }
+
+        internal static bool IsBrigadeAttackMoveIssuanceV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            RuntimeFormationV172LikeOriginal group;
+            return TryGetRuntimeGroupByUnitV172LikeOriginal(unit, out group) && group != null &&
+                   _brigadeAttackMoveIssuanceV414LikeOriginal.Contains(group.GroupId);
         }
 
         // NewMon.cpp::AttackObjLink: living melee victim answers attacker.  A loose
@@ -181,14 +294,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             BrigadeBattleStateV407LikeOriginal state;
             if (!_brigadeBattlesV407LikeOriginal.TryGetValue(victimGroup.GroupId, out state) || state == null || !state.Active)
                 state = CreateBrigadeBitvaV407LikeOriginal(victimGroup, "NewMon.cpp::AttackObj_InArmy_Bitva");
-            if (state != null)
-                ProcessBrigadeBitvaV407LikeOriginal(victimGroup, state);
+            // Brigade::Bitva only installs the brigade order. Its Process executes
+            // on the normal brigade tick, not recursively from AttackObjLink.
         }
 
         public static void TickBrigadeBattleV406LikeOriginal()
         {
-            if (_brigadeBattlesV407LikeOriginal.Count == 0) return;
             float now = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal;
+            TickPendingBrigadeAttackKeepPositionsV414LikeOriginal();
+            TickPendingBrigadeAttackSearchV414LikeOriginal();
+            if (_brigadeBattlesV407LikeOriginal.Count == 0) return;
             List<int> stale = null;
             foreach (KeyValuePair<int, BrigadeBattleStateV407LikeOriginal> pair in _brigadeBattlesV407LikeOriginal)
             {
@@ -208,6 +323,754 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 for (int i = 0; i < stale.Count; i++) _brigadeBattlesV407LikeOriginal.Remove(stale[i]);
         }
 
+        internal static bool HasActiveBrigadeBitvaV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            RuntimeFormationV172LikeOriginal group;
+            BrigadeBattleStateV407LikeOriginal state;
+            return TryGetRuntimeGroupByUnitV172LikeOriginal(unit, out group) && group != null &&
+                   IsCurrentBrigadeNewOrderV418LikeOriginal(group, BrigadeOrderBitvaV418LikeOriginal) &&
+                   _brigadeBattlesV407LikeOriginal.TryGetValue(group.GroupId, out state) &&
+                   state != null && state.Active;
+        }
+
+        // NewMon.cpp::AttackObj asks the real current BR->NewBOrder. V418 must not
+        // infer this from historical stand-ground flags, TurnActive, road flags or
+        // implementation dictionaries. Those are processor storage, not NewBOrder.
+        internal static bool HasManagedNonBitvaBrigadeOrderV415LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            RuntimeFormationV172LikeOriginal group;
+            if (!TryGetRuntimeGroupByUnitV172LikeOriginal(unit, out group) || group == null)
+                return false;
+            byte id = GetCurrentBrigadeNewOrderIdV418LikeOriginal(group);
+            return id != BrigadeOrderNoneV418LikeOriginal && id != BrigadeOrderBitvaV418LikeOriginal;
+        }
+
+        private static bool CanBreakLocalOrderV415LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            if (unit == null) return false;
+            C2UnitOrderRuntimeV325LikeOriginal order =
+                C2UnitOrderRuntimeV325LikeOriginal.TryGetLikeOriginal(unit);
+            // Brigade.cpp::CheckIfPossibleToBreakOrder returns false only for
+            // NewAttackPointLink. V408 maps that native order to PreciseAttack.
+            return order == null ||
+                   order.CurrentLikeOriginal != C2UnitOrderKindV325LikeOriginal.PreciseAttack;
+        }
+
+// V432 integration probe: declaration supplied by consolidated file.
+
+
+        internal static bool HasBrigadeAttackEnemyIntentV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            RuntimeFormationV172LikeOriginal group;
+            return TryGetRuntimeGroupByUnitV172LikeOriginal(unit, out group) && group != null &&
+                   _brigadeAttackEnemyIntentV414LikeOriginal.Contains(group.GroupId);
+        }
+
+        internal static bool ActivateBrigadeBitvaFromAttackObjV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit,
+            string source)
+        {
+            RuntimeFormationV172LikeOriginal group;
+            if (!TryGetRuntimeGroupByUnitV172LikeOriginal(unit, out group) || group == null)
+                return false;
+            BrigadeBattleStateV407LikeOriginal state;
+            if (_brigadeBattlesV407LikeOriginal.TryGetValue(group.GroupId, out state) &&
+                state != null && state.Active)
+                return true;
+            state = CreateBrigadeBitvaV407LikeOriginal(group, source ?? "Brigade::Bitva");
+            if (state == null) return false;
+            // COSSACKS2 Brigade::Bitva -> CreateNewBOrder(1,Bt): BITVA is pushed
+            // above the previous order. KeepPositions/Road/Rifle may remain in Next
+            // and resume after DeleteNewBOrder(). Do not destroy the underlying state.
+            state.NextProcessAt = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal + 0.04f;
+            return true;
+        }
+
+        // Multi.cpp::MoveBrigadeForwardToAttack, no enemy branch:
+        // AttEnm=true; ArmAttack members GroundState=NewState=1;
+        // KeepPositions(0,129). KARE returns before setting brigade intent.
+        internal static void PrepareMeleeStandWithoutEnemyV423LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal representative)
+        {
+            RuntimeFormationV172LikeOriginal group;
+            if (!TryGetRuntimeGroupByUnitV172LikeOriginal(representative, out group) || group == null) return;
+            var order = ResolveStandGroundOrderV403LikeOriginal(group);
+            if (order == null || order.Usage == 2) return;
+            _brigadeAttackEnemyIntentV414LikeOriginal.Add(group.GroupId);
+            var members = GetFormationOrderMembersV360LikeOriginal(group);
+            int prefix = ResolveOrderCommandCountV360LikeOriginal(group, members);
+            for (int i = prefix; i < members.Count; i++)
+            {
+                var u = members[i]; if (!IsAliveBattleUnitV407LikeOriginal(u)) continue;
+                C2CombatRuntimeV334LikeOriginal.EnsureUnitCombatStateV396LikeOriginal(u);
+                if (!u.ArmAttackCapableV396LikeOriginal) continue;
+                u.GroundStateV396LikeOriginal = u.NewStateV396LikeOriginal = 1;
+            }
+            QueueBrigadeKeepPositionsV416LikeOriginal(group, 129, 0, "MoveBrigadeForwardToAttack_no_enemy");
+            GetStandGroundStateV403LikeOriginal(group, true).LastOrderTime = _standGroundRealtimeV403LikeOriginal;
+        }
+
+        private static void ClearBrigadeAttackEnemyIntentV414LikeOriginal(
+            RuntimeFormationV172LikeOriginal group)
+        {
+            if (group == null) return;
+            _brigadeAttackEnemyIntentV414LikeOriginal.Remove(group.GroupId);
+            _brigadeAttackMoveIssuanceV414LikeOriginal.Remove(group.GroupId);
+            _onlyThisBrigadeToKillV407LikeOriginal.Remove(group.GroupId);
+            // AttEnm is independent from BR->NewBOrder in CII. Clearing attack intent
+            // must never erase the brigade-order chain. A replacing order performs its
+            // own CreateNewBOrder(Type=0) destruction.
+            // Do not deactivate BITVA here. AttEnm and NewBOrder are independent in
+            // the original. A subsequent Type-0 brigade order will destroy the old
+            // order through CreateNewBOrder; a pure AttEnm clear must not create a
+            // dead BITVA head.
+            for (int i = 0; i < group.Units.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal u = group.Units[i];
+                if (u != null) u.SearchOnlyThisBrigadeToKillV407LikeOriginal = -1;
+            }
+        }
+
+        internal static void SetRifleAttackIntentV434LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
+            // Multi.cpp::SetArmAttackState(129): setting RifleAttack also sets
+            // BR->AttEnm. Switching the rifle off does not clear brigade intent.
+            RuntimeFormationV172LikeOriginal group;
+            if (TryGetRuntimeGroupByUnitV172LikeOriginal(unit, out group) && group != null)
+                _brigadeAttackEnemyIntentV414LikeOriginal.Add(group.GroupId);
+        }
+
+        // Brigade.cpp::Brigade::KeepPositions creates one brigade NewBOrder and
+        // lets that order issue member NewMonsterPreciseSendTo commands. HumanLocalSendTo
+        // itself never fans out 120 independent Unity paths. This queue is shared by
+        // ordinary local movement and AttackSelected charge movement.
+        private static int QueueBrigadeKeepPositionsV416LikeOriginal(
+            RuntimeFormationV172LikeOriginal group,
+            byte priority,
+            byte ordType,
+            string source)
+        {
+            if (group == null) return 0;
+
+            // Brigade::KeepPositions -> CreateNewBOrder(OrdType,KP). Preserve the
+            // exact head/Next semantics: type 1 pushes, type 2 appends, type 0 replaces.
+            int keepOrderSerialV418 = CreateBrigadeNewOrderV418LikeOriginal(
+                group, BrigadeOrderKeepPositionsV418LikeOriginal, ordType, priority,
+                source ?? "Brigade::KeepPositions");
+
+            List<C2NeutralPeasantUnitInfoV2LikeOriginal> members =
+                GetFormationOrderMembersV360LikeOriginal(group);
+            int accepted = 0;
+            for (int i = 0; i < members.Count; i++)
+            {
+                C2NeutralPeasantUnitInfoV2LikeOriginal member = members[i];
+                if (!IsAliveBattleUnitV407LikeOriginal(member)) continue;
+                accepted++;
+
+                // Brigade::KeepPositions: clear breakable LocalOrder unless this is an
+                // aggressive soldier already executing AttackObj. Do not pre-submit a
+                // replacement move here; Process() owns the exact timing.
+                C2NeutralPeasantUnitInfoV2LikeOriginal attackTarget;
+                bool attackingAggressive = member.ActivityStateV413LikeOriginal == 2 &&
+                    C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(
+                        member, out attackTarget) && attackTarget != null;
+                if (!attackingAggressive && CanBreakLocalOrderV415LikeOriginal(member))
+                {
+                    C2OriginalOrderChainV352.ClearMoveChainForExternalOrder(member);
+                    C2CombatRuntimeV334LikeOriginal combat =
+                        member.GetComponent<C2CombatRuntimeV334LikeOriginal>();
+                    if (combat != null && combat.IsActiveOrderV350LikeOriginal)
+                        combat.CancelForExternalOrderLikeOriginal(source ?? "Brigade::KeepPositions");
+                }
+
+                // Brigade::KeepPositions applies NewMonster::BRandomPos here,
+                // after CreateNewBOrder and after breakable LocalOrder cleanup,
+                // exactly once for this KeepPositions object.  Keeping this inside
+                // KeepPositions prevents RMB/rotate/AttackSelected from each having
+                // their own divergent random-position copy.
+                if (!member.IsDeadLikeOriginal && i < group.Slots.Count)
+                {
+                    C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
+                    C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
+                    int brp = runtime != null && runtime.Md != null
+                        ? runtime.Md.BRandomPosLikeOriginal
+                        : 0;
+                    if (brp > 0)
+                    {
+                        int ox = brp / 2 - (C2RetailRandomV407LikeOriginal.Rando(member) % brp);
+                        int oy = brp / 2 - (C2RetailRandomV407LikeOriginal.Rando(member) % brp);
+                        Vector2 slot = group.Slots[i];
+                        group.Slots[i] = new Vector2(
+                            slot.x + ox * 16,
+                            slot.y + oy * 16);
+                    }
+                }
+            }
+
+            BindKeepPositionsProcessorToOrderV418LikeOriginal(
+                group, keepOrderSerialV418, CurrentSimulationTickV403ELikeOriginal,
+                priority, ordType);
+            return accepted;
+        }
+
+        private static void ProcessQueuedBrigadeKeepPositionsNowV416LikeOriginal(
+            RuntimeFormationV172LikeOriginal group)
+        {
+            if (group == null) return;
+            TickPendingBrigadeAttackKeepPositionsV414LikeOriginal(group.GroupId);
+        }
+
+        // BrigadeOrders.cpp::BrigadeOrder_KeepPositions::Process, attack-charge path.
+        // This order is BR->NewBOrder and is deliberately tracked separately from
+        // BR->AttEnm. A pushed BITVA suspends it in NewBOrder->Next; AttEnm never recreates it.
+        private static void TickPendingBrigadeAttackKeepPositionsV414LikeOriginal(int onlyGroupIdV416 = -1)
+        {
+            using (C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.KeepPositions))
+            {
+            if (_brigadeAttackKeepPositionsActiveV415LikeOriginal.Count == 0) return;
+            List<int> ids;
+            if (onlyGroupIdV416 >= 0)
+            {
+                if (!_brigadeAttackKeepPositionsActiveV415LikeOriginal.Contains(onlyGroupIdV416)) return;
+                ids = new List<int>(1) { onlyGroupIdV416 };
+            }
+            else ids = new List<int>(_brigadeAttackKeepPositionsActiveV415LikeOriginal);
+            for (int gi = 0; gi < ids.Count; gi++)
+            {
+                RuntimeFormationV172LikeOriginal group;
+                if (!_groupsByIdV172LikeOriginal.TryGetValue(ids[gi], out group) || group == null)
+                {
+                    _brigadeAttackKeepPositionsActiveV415LikeOriginal.Remove(ids[gi]);
+                    _brigadeAttackKeepPositionsStartTickV415LikeOriginal.Remove(ids[gi]);
+                    _brigadeKeepPositionsPriorityV416LikeOriginal.Remove(ids[gi]);
+                    _brigadeKeepPositionsOrdTypeV416LikeOriginal.Remove(ids[gi]);
+                    continue;
+                }
+
+                // Only BR->NewBOrder is processed. A pushed BITVA/Rifle/Road order
+                // suspends KeepPositions without deleting it; DeleteNewBOrder resumes it.
+                if (!IsCurrentBrigadeNewOrderV418LikeOriginal(
+                        group, BrigadeOrderKeepPositionsV418LikeOriginal))
+                    continue;
+
+                // BR->Memb and posX/posY are parallel persistent arrays. All passes
+                // below already reject dead/null slots; do not clone the roster or
+                // search it again for each member on every simulation tick.
+                List<C2NeutralPeasantUnitInfoV2LikeOriginal> ordered = group.Units;
+                int count = Mathf.Min(ordered.Count, group.Slots.Count);
+                int commandPrefix = ResolveOrderCommandCountV360LikeOriginal(group, ordered);
+                byte keepPriorityV416;
+                if (!_brigadeKeepPositionsPriorityV416LikeOriginal.TryGetValue(group.GroupId, out keepPriorityV416))
+                    keepPriorityV416 = 128;
+                byte keepOrdTypeV416;
+                if (!_brigadeKeepPositionsOrdTypeV416LikeOriginal.TryGetValue(group.GroupId, out keepOrdTypeV416))
+                    keepOrdTypeV416 = 0;
+
+                // BrigadeOrders.cpp::BrigadeOrder_KeepPositions::Process, pri==128.
+                // HumanLocalSendTo from AttackSelected creates this exact-priority order.
+                // Retail returns from Process immediately while any live member has a
+                // personal AttackObj with ActivityState==0; a ready rifle member diverts
+                // the brigade through BrigadeRifleAttack instead.  Do this BEFORE the
+                // posture/slot pass so KeepPositions cannot fight a soldier's attack.
+                bool deferPriority128 = false;
+                if (keepPriorityV416 == 128)
+                for (int p = 0; p < count; p++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal member = ordered[p];
+                    if (!IsAliveBattleUnitV407LikeOriginal(member)) continue;
+
+                    C2NeutralPeasantUnitInfoV2LikeOriginal personalTarget;
+                    if (member.ActivityStateV413LikeOriginal == 0 &&
+                        C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(
+                            member, out personalTarget) && personalTarget != null)
+                    {
+                        deferPriority128 = true;
+                        break;
+                    }
+
+                    C2CombatRuntimeV334LikeOriginal.EnsureUnitCombatStateV396LikeOriginal(member);
+                    if (member.RifleAttackV396LikeOriginal)
+                    {
+                        int delay, maxDelay;
+                        C2CombatRuntimeV334LikeOriginal.TryGetWeaponDelayTicksV395LikeOriginal(
+                            member, 1, out delay, out maxDelay);
+                        if (delay == 0)
+                        {
+                            // BrigadeRifleAttack -> CreateNewBOrder(1,RA): push the
+                            // rifle order over KeepPositions and preserve KP in Next.
+                            C2BrigadeRifleAttackV405LikeOriginal.StartBrigadeRifleAttackV418LikeOriginal(
+                                member, "BrigadeOrder_KeepPositions::BrigadeRifleAttack");
+                            deferPriority128 = true;
+                            break;
+                        }
+                    }
+                }
+                if (deferPriority128) continue;
+
+                // BrigadeOrder_KeepPositions::Process pre-pass. State starts from
+                // BR->AttEnm and can be overridden by member ActivityState. When
+                // fewer than six soldiers are still moving, retail waits for the
+                // remaining posture transitions (TryToStand) before the position pass.
+                int keepState = _brigadeAttackEnemyIntentV414LikeOriginal.Contains(group.GroupId) ? 1 : 0;
+                int immediate = 0;
+                for (int p = commandPrefix; p < count; p++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal member = ordered[p];
+                    if (!IsAliveBattleUnitV407LikeOriginal(member)) continue;
+                    C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
+                    C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
+                    if (runtime != null &&
+                        (runtime.HasMoveTargetLikeOriginal || runtime.State == C2UnitOriginalState.Motion))
+                        immediate++;
+                    if (member.ActivityStateV413LikeOriginal == 2) keepState = 1;
+                    if (member.ActivityStateV413LikeOriginal == 1) keepState = 0;
+                }
+
+                int startTick;
+                if (!_brigadeAttackKeepPositionsStartTickV415LikeOriginal.TryGetValue(group.GroupId, out startTick))
+                    startTick = CurrentSimulationTickV403ELikeOriginal;
+                int dt = Math.Max(0, CurrentSimulationTickV403ELikeOriginal - startTick);
+
+                if (immediate < 6)
+                {
+                    bool ready = true;
+                    int cycles = 0;
+                    for (int p = commandPrefix; p < count; p++)
+                    {
+                        C2NeutralPeasantUnitInfoV2LikeOriginal member = ordered[p];
+                        if (!IsAliveBattleUnitV407LikeOriginal(member)) continue;
+                        MeleeMdTraitsV407LikeOriginal traits = GetMeleeMdTraitsV407LikeOriginal(member);
+                        cycles = traits.BrigadeWaitingCycles;
+
+                        C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
+                        C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
+                        bool inMotion = runtime != null &&
+                            (runtime.HasMoveTargetLikeOriginal || runtime.State == C2UnitOriginalState.Motion);
+                        C2NeutralPeasantUnitInfoV2LikeOriginal attackTarget;
+                        bool activityAttack = member.ActivityStateV413LikeOriginal == 2 &&
+                            C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(member, out attackTarget) &&
+                            attackTarget != null;
+                        if (activityAttack || inMotion || !CanBreakLocalOrderV415LikeOriginal(member))
+                            continue;
+
+                        int slotIndex = p;
+                        if (slotIndex < 0 || slotIndex >= group.Slots.Count) continue;
+                        Vector2 slot = group.Slots[slotIndex];
+                        int distance = C2OriginalMovementMathV352.Norma(
+                            (Mathf.RoundToInt(RealXV407LikeOriginal(member)) >> 4) - (Mathf.RoundToInt(slot.x) >> 4),
+                            (Mathf.RoundToInt(RealYV407LikeOriginal(member)) >> 4) - (Mathf.RoundToInt(slot.y) >> 4));
+                        if (distance <= 5) continue;
+
+                        if (link != null)
+                        {
+                            link.ApplyKeepPositionsGroundStateV415LikeOriginal(
+                                keepState, "BrigadeOrder_KeepPositions_wait_v415");
+                            if (!link.IsKeepPositionsPostureReadyV415LikeOriginal(keepState))
+                                ready = false;
+                        }
+                        // BrigadeOrders.cpp only posture readiness changes Ready.
+                        // The inline MinRotator turn below must NOT hold the whole
+                        // brigade until every soldier faces Direction first.
+                        AdvanceKeepPositionsFacingV415LikeOriginal(member, group.Direction);
+                    }
+                    if (cycles == 0) cycles = 40; // EngineSettings.h default.
+                    if (dt < cycles && !ready)
+                        continue;
+                }
+
+                bool done = true;
+                int nfail = 0;
+                int maxD = 0;
+
+                for (int i = 0; i < count; i++)
+                {
+                    bool wasDone = done; // source PD=Done before processing the member.
+                    C2NeutralPeasantUnitInfoV2LikeOriginal member = ordered[i];
+                    if (!IsAliveBattleUnitV407LikeOriginal(member)) continue;
+
+                    int slotIndex = i;
+                    if (slotIndex < 0 || slotIndex >= group.Slots.Count) continue;
+                    Vector2 slot = group.Slots[slotIndex];
+                    int dd = C2OriginalMovementMathV352.Norma(
+                        Mathf.RoundToInt(slot.x - RealXV407LikeOriginal(member)),
+                        Mathf.RoundToInt(slot.y - RealYV407LikeOriginal(member)));
+                    if (i >= commandPrefix && dd > maxD) maxD = dd;
+
+                    if (!CanBreakLocalOrderV415LikeOriginal(member))
+                        continue; // source skips NewAttackPointLink members entirely.
+
+                    C2NeutralPeasantUnitInfoV2LikeOriginal enemy;
+                    bool hasEnemyOrder =
+                        C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(member, out enemy) &&
+                        enemy != null;
+                    C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
+                    C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
+                    bool hasMoveOrder = C2OriginalOrderChainV352.HasLocalMoveOrderLikeOriginal(member) ||
+                        (runtime != null && (runtime.HasMoveTargetLikeOriginal ||
+                         runtime.MoveDeferredUntilNeutralStandLikeOriginal ||
+                         runtime.SingleStepRotateAtPlaceActiveV352LikeOriginal));
+
+                    // pri==128 for AttackSelected/HumanLocalSendTo, so (pri&127)==0.
+                    // Native KeepPositions enters its positioning branch only when
+                    // OB->LocalOrder is absent. Movement and personal AttackObj are
+                    // the two represented native LocalOrder families on this path.
+                    // BrigadeOrders.cpp exact gate:
+                    //   (!OB->LocalOrder) || (OB->EnemyID!=0xFFFF && (pri&127))
+                    // For ordinary movement (priority 142) an existing AttackObj does
+                    // not block KeepPositions from servicing the formation place. For
+                    // AttackSelected priority 128, (pri&127)==0 and the personal
+                    // AttackObj remains authoritative.
+                    bool localOrderBlocksPositioning = hasMoveOrder ||
+                        (hasEnemyOrder && (keepPriorityV416 & 127) == 0);
+                    if (localOrderBlocksPositioning)
+                    {
+                        done = false;
+                        nfail++;
+                    }
+                    else
+                    {
+                        // BrigadeOrders.cpp calls CheckMotionThroughEnemyAbility at the
+                        // CURRENT position before deciding whether to walk back to slot.
+                        // This may create AttackObj/Brigade::Bitva; if so ENMID!=FFFF and
+                        // KeepPositions does not issue another movement order.
+                        C2NeutralPeasantUnitInfoV2LikeOriginal contact =
+                            CheckMotionThroughEnemyAbilityV414LikeOriginal(
+                                member,
+                                Mathf.RoundToInt(RealXV407LikeOriginal(member)),
+                                Mathf.RoundToInt(RealYV407LikeOriginal(member)));
+                        if (member.ActivityStateV413LikeOriginal == 2)
+                        {
+                            C2NeutralPeasantUnitInfoV2LikeOriginal activityTarget;
+                            if (C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(
+                                    member, out activityTarget) && activityTarget != null)
+                                contact = activityTarget;
+                        }
+                        if (contact != null)
+                        {
+                            // Exact ENMID!=FFFF branch: leave Done/NFAIL unchanged.
+                        }
+                        else if (dd > 100)
+                        {
+                            bool doneBeforeDistanceFail = done;
+                            done = false;
+                            nfail++;
+                            if (dd < 768)
+                            {
+                                if (!IsKeepPositionsSlotOccupiedV415LikeOriginal(member, slot))
+                                {
+                                    C2OriginalOrderChainV352.SubmitMove(
+                                        member, slot.x, slot.y, false, group.Direction, 0,
+                                        "BrigadeOrder_KeepPositions::NewMonsterPreciseSendTo_v416", true, keepPriorityV416);
+                                }
+                                else
+                                {
+                                    bool rotating = AdvanceKeepPositionsFacingV415LikeOriginal(member, group.Direction);
+                                    if (!rotating)
+                                    {
+                                        // Exact PDN restore in the occupied-slot branch.
+                                        done = doneBeforeDistanceFail;
+                                        nfail--;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                C2OriginalOrderChainV352.SubmitMove(
+                                    member, slot.x, slot.y, false, group.Direction, 0,
+                                    "BrigadeOrder_KeepPositions::NewMonsterPreciseSendTo_v416", true, keepPriorityV416);
+                            }
+                        }
+                        else if (AdvanceKeepPositionsFacingV415LikeOriginal(member, group.Direction))
+                        {
+                            done = false;
+                            nfail++;
+                        }
+                    }
+
+                    // Preserve the retail KeepPositions random Done perturbation.
+                    if (wasDone && !done && C2RetailRandomV407LikeOriginal.Rando(member) < 18000)
+                        done = true;
+                }
+
+                // BR->DontWait is false for this player HumanLocalSendTo path.
+                if (nfail < 4 || (maxD < 1600 && dt > 1200)) done = true;
+
+                if (done)
+                {
+                    _brigadeAttackKeepPositionsActiveV415LikeOriginal.Remove(group.GroupId);
+                    _brigadeAttackKeepPositionsStartTickV415LikeOriginal.Remove(group.GroupId);
+                    _brigadeKeepPositionsPriorityV416LikeOriginal.Remove(group.GroupId);
+                    _brigadeKeepPositionsOrdTypeV416LikeOriginal.Remove(group.GroupId);
+                    // BrigadeOrder_KeepPositions::Process tail: DeleteNewBOrder();
+                    // MakeStandGroundTemp(BR). AttEnm remains a separate brigade flag.
+                    DeleteBrigadeNewOrderV418LikeOriginal(
+                        group, BrigadeOrderKeepPositionsV418LikeOriginal,
+                        "BrigadeOrder_KeepPositions::Process_done");
+                    MakeStandGroundTempV403LikeOriginal(
+                        group, "BrigadeOrder_KeepPositions::Process_done_attack_v415");
+                }
+            }
+            }
+        }
+
+// V432 integration probe: declaration supplied by consolidated file.
+
+
+        private static bool HasLiveUnitFootprintV420LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal excluded, int x, int y, int radius)
+        {
+            // The existing Lx=1 UnitsField adapter checks a small footprint, not
+            // the whole Group[] table. Convert its EXACT integer bounds back to
+            // Real coordinates, then visit only intersecting >>11 spatial cells.
+            int x0 = (((x - radius) << 8) + 128) >> 11;
+            int y0 = (((y - radius) << 8) + 128) >> 11;
+            int x1 = (((x + radius + 1) << 8) + 127) >> 11;
+            int y1 = (((y + radius + 1) << 8) + 127) >> 11;
+            for (int cy = y0; cy <= y1; cy++)
+            for (int cx = x0; cx <= x1; cx++)
+            {
+                var cell = C2LiveUnitCellIndex.GetCell(cx, cy);
+                for (int i = 0; cell != null && i < cell.Count; i++)
+                {
+                    var unit = cell[i];
+                    if (unit == null || unit == excluded) continue;
+                    int ux = (Mathf.RoundToInt(RealXV407LikeOriginal(unit)) - 128) >> 8;
+                    int uy = (Mathf.RoundToInt(RealYV407LikeOriginal(unit)) - 128) >> 8;
+                    if (Mathf.Abs(ux - x) > radius || Mathf.Abs(uy - y) > radius) continue;
+                    if (IsAliveBattleUnitV407LikeOriginal(unit) && !IsUnlimitedMotionV415LikeOriginal(unit)) return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool AdvanceKeepPositionsFacingV415LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal member, byte targetDirection)
+        {
+            if (member == null) return false;
+            C2UnitOriginalRuntimeLinkLikeOriginal link = member.RuntimeLinkCachedLikeOriginal;
+            C2UnitOriginalRuntime runtime = link != null ? link.Runtime : null;
+            if (link == null || runtime == null || runtime.Md == null) return false;
+            byte current = member.RealDir;
+            sbyte dd = unchecked((sbyte)(targetDirection - current));
+            int ad = Math.Abs((int)dd);
+            if (ad == 0) return false;
+            int md = Math.Max(1, runtime.Md.MinRotator);
+            if (ad < md)
+            {
+                link.SetFacingDirectionLikeOriginal(targetDirection);
+                return false;
+            }
+            byte next = dd > 0
+                ? unchecked((byte)(current + md))
+                : unchecked((byte)(current - md));
+            link.SetFacingDirectionLikeOriginal(next);
+            return true;
+        }
+
+        // NewMon.cpp::SearchVictim, the melee-relevant explicit-formation branch.
+        // An ARMATTACK brigade with BR->AttEnm may search while KeepPositions is still
+        // the active brigade order. The native scan eventually calls AttackObj(...,1)
+        // when an arm target is within 100 original pixels; AttackObj then replaces
+        // KeepPositions with Brigade::Bitva. Preserve that ordering here instead of
+        // pre-creating BITVA at mouse-click time (the V413 regression).
+        private static void TickPendingBrigadeAttackSearchV414LikeOriginal()
+        {
+            if (_brigadeAttackEnemyIntentV414LikeOriginal.Count == 0) return;
+
+            // NewMon.cpp LongProcesses dispatch for player-controlled formation members:
+            //   d=tmtmt&7;
+            //   ... else if(((i&15)==d)) OB->SearchVictim();
+            // `i` is the OneObject index, NOT nation or brigade id.
+            int d = CurrentSimulationTickV403ELikeOriginal & 7;
+            List<int> groups = new List<int>(_brigadeAttackEnemyIntentV414LikeOriginal);
+            for (int gi = 0; gi < groups.Count; gi++)
+            {
+                RuntimeFormationV172LikeOriginal group;
+                if (!_groupsByIdV172LikeOriginal.TryGetValue(groups[gi], out group) || group == null)
+                    continue;
+
+                BrigadeBattleStateV407LikeOriginal active;
+                if (_brigadeBattlesV407LikeOriginal.TryGetValue(group.GroupId, out active) &&
+                    active != null && active.Active)
+                    continue; // SearchVictim returns for ARMATTACK + BRIGADEORDER_BITVA.
+
+                int onlyGroup;
+                if (!_onlyThisBrigadeToKillV407LikeOriginal.TryGetValue(group.GroupId, out onlyGroup))
+                    onlyGroup = -1;
+                List<C2NeutralPeasantUnitInfoV2LikeOriginal> members =
+                    GetFormationOrderMembersV360LikeOriginal(group);
+
+                for (int mi = 0; mi < members.Count; mi++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal member = members[mi];
+                    if (!IsAliveBattleUnitV407LikeOriginal(member)) continue;
+                    if ((member.C2ObjectIndexV408LikeOriginal & 15) != d) continue;
+
+                    C2CombatRuntimeV334LikeOriginal.EnsureUnitCombatStateV396LikeOriginal(member);
+                    if (!member.ArmAttackCapableV396LikeOriginal) continue;
+                    if (GetNoSearchVictimV403LikeOriginal(member)) continue;
+
+                    // LongProcesses calls SearchVictim only when !OB->Attack.
+                    C2NeutralPeasantUnitInfoV2LikeOriginal existing;
+                    if (C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(member, out existing) &&
+                        existing != null)
+                        continue;
+
+                    MeleeMdTraitsV407LikeOriginal mt = GetMeleeMdTraitsV407LikeOriginal(member);
+                    if (mt.SearchEnemyRadiusPixels <= 0) continue;
+
+                    int searchReal = mt.SearchEnemyRadiusPixels << 4; // NewMonster::VisRange.
+                    // NewMon.cpp::SearchVictim: StandGround ARMATTACK infantry uses
+                    // a hard 120-pixel victim-search radius. AttackSelected cancels
+                    // StandGround before a player attack, but retain the native rule
+                    // for every other path into this routine as well.
+                    if (IsUnitStandGroundV403LikeOriginal(member) &&
+                        !member.RifleAttackV396LikeOriginal)
+                        searchReal = 120 * 16;
+                    int rx1 = (searchReal >> 11) + 1;
+                    // CONQUEST build in CII 1.1: short-range scan is throttled at rx1<=10.
+                    if (rx1 <= 10 && C2RetailRandomV407LikeOriginal.Rando(member) > 8192) continue;
+
+                    int minAttackPx, ignoredMaxAttackPx;
+                    C2CombatCoreV408LikeOriginal.GetAttackRadiusEnvelopeV413LikeOriginal(
+                        member, out minAttackPx, out ignoredMaxAttackPx);
+
+                    C2NeutralPeasantUnitInfoV2LikeOriginal target =
+                        SearchVictimShortRangeV414LikeOriginal(
+                            member, onlyGroup, minAttackPx << 4, searchReal);
+                    if (target == null) continue;
+
+                    int distanceReal = C2OriginalMovementMathV352.Norma(
+                        Mathf.RoundToInt(RealXV407LikeOriginal(target) - RealXV407LikeOriginal(member)),
+                        Mathf.RoundToInt(RealYV407LikeOriginal(target) - RealYV407LikeOriginal(member)));
+
+                    // NewMon.cpp::SearchVictim's rifle branch must run even when
+                    // the brigade has no BITVA/KeepPositions order (e.g. an idle
+                    // line with the rifle button enabled). The melee-only port
+                    // skipped these soldiers, leaving a ready volley armed forever.
+                    int delayV434, maxDelayV434;
+                    C2CombatRuntimeV334LikeOriginal.TryGetWeaponDelayTicksV395LikeOriginal(
+                        member, 1, out delayV434, out maxDelayV434);
+                    if (member.RifleAttackV396LikeOriginal && delayV434 == 0)
+                    {
+                        if (C2OriginalOrderChainV352.GetLocalPriorityV434LikeOriginal(member) > 1)
+                            continue;
+                        if (C2CombatCoreV408LikeOriginal.UsesBrigadeRifleWeaponV434LikeOriginal(member))
+                        {
+                            if (C2CombatCoreV408LikeOriginal.CheckImmediateAttackAbilityV434LikeOriginal(member, target) == 1)
+                                C2BrigadeRifleAttackV405LikeOriginal.StartBrigadeRifleAttackV418LikeOriginal(
+                                    member, "NewMon.cpp::SearchVictim");
+                        }
+                        else
+                            BeginOrKeepMeleeAttackObjV407LikeOriginal(member, target, true, "NewMon.cpp::SearchVictim");
+                        // SearchVictim is dispatched per object. A blocked shot
+                        // for this soldier must not suppress the other members.
+                        continue;
+                    }
+
+                    // Only the unarmed-rifle branch has the 100-pixel melee gate.
+                    if (member.RifleAttackV396LikeOriginal)
+                    {
+                        BeginOrKeepMeleeAttackObjV407LikeOriginal(member, target, true, "NewMon.cpp::SearchVictim_delayed_rifle");
+                        continue;
+                    }
+                    if (distanceReal >= 100 * 16) continue;
+
+                    bool precise;
+                    C2CombatCoreV408LikeOriginal.TryAttackObjV408LikeOriginal(member, target, 1, out precise);
+                    // InArmy AttackObj creates Brigade::Bitva and returns before a private
+                    // AttackObj order. Once active, remaining members are serviced by BITVA.
+                    if (HasActiveBrigadeBitvaV414LikeOriginal(member)) break;
+                }
+            }
+        }
+
+        // Exact decision semantics of the CONQUEST short-range branch used by ordinary
+        // formation infantry in OneObject::SearchVictim / SearchEnemyInCell:
+        // cells are exhaustive, each cell contributes the eligible enemy with the
+        // smallest current attacker pressure, then the globally nearest cell winner wins.
+        private static C2NeutralPeasantUnitInfoV2LikeOriginal SearchVictimShortRangeV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal attacker,
+            int onlyGroup,
+            int minDistanceReal,
+            int searchRadiusReal)
+        {
+            if (attacker == null || searchRadiusReal <= 0) return null;
+            int ax = Mathf.RoundToInt(RealXV407LikeOriginal(attacker));
+            int ay = Mathf.RoundToInt(RealYV407LikeOriginal(attacker));
+            int centerX = ax >> 11;
+            int centerY = ay >> 11;
+            int rx1 = (searchRadiusReal >> 11) + 1;
+
+            MeleeMdTraitsV407LikeOriginal at = GetMeleeMdTraitsV407LikeOriginal(attacker);
+
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal best = null;
+            int bestDistance = int.MaxValue;
+            for (int cy = centerY - rx1; cy <= centerY + rx1; cy++)
+            {
+                for (int cx = centerX - rx1; cx <= centerX + rx1; cx++)
+                {
+                    C2NeutralPeasantUnitInfoV2LikeOriginal cellBest = null;
+                    int cellMinAttackers = int.MaxValue;
+                    var all = C2LiveUnitCellIndex.GetCell(cx, cy);
+
+                    for (int i = 0; all != null && i < all.Count; i++)
+                    {
+                        C2NeutralPeasantUnitInfoV2LikeOriginal e = all[i];
+                        if (!IsAliveBattleUnitV407LikeOriginal(e) || e == attacker ||
+                            e.CombatNationLikeOriginal == attacker.CombatNationLikeOriginal)
+                            continue;
+                        if ((Mathf.RoundToInt(RealXV407LikeOriginal(e)) >> 11) != cx ||
+                            (Mathf.RoundToInt(RealYV407LikeOriginal(e)) >> 11) != cy)
+                            continue;
+
+                        MeleeMdTraitsV407LikeOriginal et = GetMeleeMdTraitsV407LikeOriginal(e);
+                        if ((et.MathMask & at.KillMask) == 0) continue;
+
+                        int dist = C2OriginalMovementMathV352.Norma(
+                            Mathf.RoundToInt(RealXV407LikeOriginal(e)) - ax,
+                            Mathf.RoundToInt(RealYV407LikeOriginal(e)) - ay);
+                        if (dist <= minDistanceReal) continue;
+
+                        // SearchEnemyInCell(...,Brig): target brigade is preferred/restricted
+                        // only beyond 100 px; any physically close enemy remains legal.
+                        if (onlyGroup >= 0)
+                        {
+                            int eg;
+                            bool inRequested = TryGetFormationGroupIdV321LikeOriginal(e, out eg) && eg == onlyGroup;
+                            if (!inRequested && dist >= 100 * 16) continue;
+                        }
+
+                        int na = C2CombatCoreV408LikeOriginal.GetNAttackersV408LikeOriginal(e);
+                        if (na < cellMinAttackers)
+                        {
+                            cellMinAttackers = na;
+                            cellBest = e;
+                        }
+                    }
+
+                    if (cellBest == null) continue;
+                    int cellDistance = C2OriginalMovementMathV352.Norma(
+                        Mathf.RoundToInt(RealXV407LikeOriginal(cellBest)) - ax,
+                        Mathf.RoundToInt(RealYV407LikeOriginal(cellBest)) - ay);
+                    if (cellDistance < bestDistance)
+                    {
+                        bestDistance = cellDistance;
+                        best = cellBest;
+                    }
+                }
+            }
+
+            return bestDistance < searchRadiusReal ? best : null;
+        }
+
+// V432 integration probe: declaration supplied by consolidated file.
+
+
         private static void SetEnemyForBrigadeV407LikeOriginal(
             RuntimeFormationV172LikeOriginal group, int enemyGroupId, int enemyNation)
         {
@@ -219,17 +1082,24 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2NeutralPeasantUnitInfoV2LikeOriginal member = group.Units[i];
                 if (!IsAliveBattleUnitV407LikeOriginal(member)) continue;
                 member.SearchOnlyThisBrigadeToKillV407LikeOriginal = enemyGroupId;
-                C2CombatRuntimeV334LikeOriginal combat = member.GetComponent<C2CombatRuntimeV334LikeOriginal>();
                 C2NeutralPeasantUnitInfoV2LikeOriginal target;
-                if (combat != null && combat.TryGetLiveMeleeTargetV406LikeOriginal(out target) && target != null)
+                if (C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(member, out target) && target != null)
                 {
                     int gid;
                     if (TryGetFormationGroupIdV321LikeOriginal(target, out gid)) old = gid;
                 }
             }
-            BrigadeBattleStateV407LikeOriginal state;
-            if (old != enemyGroupId && _brigadeBattlesV407LikeOriginal.TryGetValue(group.GroupId, out state) && state != null)
-                state.Active = false; // BR->DeleteBOrder();
+            // Multi.cpp::SetEnemyForBrigade checks BR->NewBOrder==BITVA but calls
+            // the LEGACY BR->DeleteBOrder(), not DeleteNewBOrder(). V418 must not
+            // reinterpret that line as permission to remove/deactivate NewBOrder.
+            // The managed port has no parallel legacy BOrder payload here, so this is
+            // intentionally a no-op for the NewBOrder chain.
+            if (old != enemyGroupId && IsCurrentBrigadeNewOrderV418LikeOriginal(
+                    group, BrigadeOrderBitvaV418LikeOriginal))
+            {
+                // ORIGINAL SEMANTICS PRESERVED: legacy DeleteBOrder has no managed
+                // counterpart on this path; BR->NewBOrder remains untouched.
+            }
         }
 
         private static BrigadeBattleStateV407LikeOriginal CreateBrigadeBitvaV407LikeOriginal(
@@ -237,7 +1107,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (group == null) return null;
 
-            // Brigade::Bitva rifle escape hatch.
+            // Brigade::Bitva first line is authoritative: if the CURRENT
+            // NewBOrder already is BITVA, return before checking ready rifles.
+            if (IsCurrentBrigadeNewOrderV418LikeOriginal(
+                    group, BrigadeOrderBitvaV418LikeOriginal))
+            {
+                BrigadeBattleStateV407LikeOriginal currentV418;
+                _brigadeBattlesV407LikeOriginal.TryGetValue(group.GroupId, out currentV418);
+                return currentV418;
+            }
+
+            // Only after that guard retail scans for a ready RifleAttack member.
             for (int i = 0; i < group.Units.Count; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal member = group.Units[i];
@@ -248,10 +1128,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2CombatRuntimeV334LikeOriginal.TryGetWeaponDelayTicksV395LikeOriginal(member, 1, out delay, out maxDelay);
                 if (delay == 0)
                 {
-                    C2BrigadeRifleAttackV405LikeOriginal.OnRifleStateEnabledLikeOriginal(member);
+                    // Brigade::Bitva calls BrigadeRifleAttack before installing BITVA.
+                    // BrigadeRifleAttack itself pushes RA with CreateNewBOrder(1,RA).
+                    C2BrigadeRifleAttackV405LikeOriginal.StartBrigadeRifleAttackV418LikeOriginal(
+                        member, "Brigade::Bitva::BrigadeRifleAttack");
                     return null;
                 }
             }
+
+            // Brigade::Bitva -> CreateNewBOrder(1,Bt). This is a PUSH, not replacement.
+            CreateBrigadeNewOrderV418LikeOriginal(
+                group, BrigadeOrderBitvaV418LikeOriginal, 1, 0,
+                source ?? "Brigade::Bitva");
 
             BrigadeBattleStateV407LikeOriginal state = new BrigadeBattleStateV407LikeOriginal();
             state.GroupId = group.GroupId;
@@ -264,10 +1152,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (!ComputeBattleBoundsV407LikeOriginal(group, out top, out minX, out minY, out maxX, out maxY))
             {
                 state.Active = false;
+                DeleteBrigadeNewOrderV418LikeOriginal(
+                    group, BrigadeOrderBitvaV418LikeOriginal, "Brigade::Bitva_init_failed");
                 return null;
             }
 
-            state.StartTop = top;
+            // Brigade::Bitva initializes Bt->StartTop=0xFFFF and uses a LOCAL
+            // Top only for the eager AddEnemXY fill. Therefore the first Process()
+            // is forced through its range-rebuild branch even if rando()>=1024.
+            state.StartTop = 0xFFFF;
             state.MinX = minX;
             state.MaxX = maxX;
             state.MinY = minY;
@@ -284,6 +1177,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             BrigadeBattleStateV407LikeOriginal state)
         {
             if (group == null || state == null || !state.Active) return false;
+            if (!IsCurrentBrigadeNewOrderV418LikeOriginal(
+                    group, BrigadeOrderBitvaV418LikeOriginal))
+                return true; // order is preserved in Next but is not the current BR->NewBOrder.
             C2RetailRandomV407LikeOriginal.AddRand(group.GroupId); // release addrand is intentionally NO-OP.
 
             // BrigadeOrder_Bitva::Process rifle escape hatch.
@@ -297,8 +1193,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2CombatRuntimeV334LikeOriginal.TryGetWeaponDelayTicksV395LikeOriginal(member, 1, out delay, out maxDelay);
                 if (delay == 0)
                 {
+                    // Exact BrigadeOrder_Bitva::Process: DeleteNewBOrder();
+                    // BrigadeRifleAttack(OB); therefore the underlying order resumes
+                    // before RA is pushed at the head.
                     state.Active = false;
-                    C2BrigadeRifleAttackV405LikeOriginal.OnRifleStateEnabledLikeOriginal(member);
+                    DeleteBrigadeNewOrderV418LikeOriginal(
+                        group, BrigadeOrderBitvaV418LikeOriginal,
+                        "BrigadeOrder_Bitva::Process_rifle_escape");
+                    C2BrigadeRifleAttackV405LikeOriginal.StartBrigadeRifleAttackV418LikeOriginal(
+                        member, "BrigadeOrder_Bitva::Process::BrigadeRifleAttack");
                     return true;
                 }
             }
@@ -316,6 +1219,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (!ComputeBattleBoundsV407LikeOriginal(group, out top, out minX, out minY, out maxX, out maxY))
                 {
                     state.Active = false;
+                    DeleteBrigadeNewOrderV418LikeOriginal(
+                        group, BrigadeOrderBitvaV418LikeOriginal,
+                        "BrigadeOrder_Bitva::Process_invalid_bounds");
                     return true;
                 }
                 state.StartTop = top;
@@ -346,6 +1252,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (dxCells <= 0 || dyCells <= 0)
             {
                 state.Active = false;
+                DeleteBrigadeNewOrderV418LikeOriginal(
+                    group, BrigadeOrderBitvaV418LikeOriginal,
+                    "BrigadeOrder_Bitva::Process_empty_bounds");
                 return true;
             }
             for (int p = 0; p < 64; p++)
@@ -370,11 +1279,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 C2CombatRuntimeV334LikeOriginal combat = member.GetComponent<C2CombatRuntimeV334LikeOriginal>();
                 C2NeutralPeasantUnitInfoV2LikeOriginal existing;
-                if (combat != null && combat.TryGetLiveMeleeTargetV406LikeOriginal(out existing) && existing != null)
+                if (C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(member, out existing) && existing != null)
                 {
                     if (!(CheckAttDistV407LikeOriginal(centerX, centerY, existing) || member.RifleAttackV396LikeOriginal))
                     {
-                        combat.CancelForExternalOrderLikeOriginal("BrigadeOrder_Bitva::Process ClearOrders");
+                        if (combat != null) combat.CancelForExternalOrderLikeOriginal("BrigadeOrder_Bitva::Process ClearOrders");
                         C2CombatCoreV408LikeOriginal.DeleteAttackObjV408LikeOriginal(member);
                         C2OriginalOrderChainV352.ClearMoveChainForExternalOrder(member);
                     }
@@ -388,8 +1297,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2OriginalProduceCatalogV13.C2MdIconInfoV13 md =
                     C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(member);
                 byte killMask = mt.KillMask;
-                int minR = Mathf.Max(0, md.AttackRadius0Min);
-                int maxR = Mathf.Max(0, md.AttackRadius0);
+                int minR, maxR;
+                C2CombatCoreV408LikeOriginal.GetAttackRadiusEnvelopeV413LikeOriginal(member, out minR, out maxR);
                 int armRadius = mt.ArmRadius;
                 if (!member.RifleAttackV396LikeOriginal)
                 {
@@ -468,8 +1377,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     {
                         if (someoneAtt && brigadeOnly >= 0)
                             member.SearchOnlyThisBrigadeToKillV407LikeOriginal = brigadeOnly;
+                        // Once BrigadeOrder_Bitva owns the brigade, native AttackObj
+                        // creates the member's personal LocalOrder immediately. It does
+                        // not wait for the old KeepPositions paths to finish.
                         bool attacked = BeginOrKeepMeleeAttackObjV407LikeOriginal(
-                            member, ready, !IsFormationMovingV407LikeOriginal(group), "BrigadeOrder_Bitva::Process");
+                            member, ready, true, "BrigadeOrder_Bitva::Process");
                         if (attacked)
                         {
                             inBattle = true;
@@ -485,7 +1397,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
-            if (!inBattle) state.Active = false;
+            if (!inBattle)
+            {
+                state.Active = false;
+                DeleteBrigadeNewOrderV418LikeOriginal(
+                    group, BrigadeOrderBitvaV418LikeOriginal,
+                    "BrigadeOrder_Bitva::Process_done");
+            }
             return true;
         }
 
@@ -544,10 +1462,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             // MCount/GetNMSL data-access adapter: the managed Group[] snapshot is
             // indexed by the same logical 128-pixel cell (RealX/RealY >> 11).
-            C2NeutralPeasantUnitInfoV2LikeOriginal[] all =
-                C2NeutralPeasantUnitInfoV2LikeOriginal.C2GetActiveUnitsSnapshotV359LikeOriginal();
-            SortBattleUnitsByObjectIndexV408LikeOriginal(all);
-            for (int i = 0; all != null && i < all.Length; i++)
+            var all = C2LiveUnitCellIndex.GetCell(x, y);
+            for (int i = 0; all != null && i < all.Count; i++)
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal enemy = all[i];
                 if (enemy == null || enemy.IsDeadLikeOriginal || !enemy.isActiveAndEnabled) continue;
@@ -600,15 +1516,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 C2NeutralPeasantUnitInfoV2LikeOriginal u = group.Units[i];
                 if (!IsAliveBattleUnitV407LikeOriginal(u)) continue;
-                C2CombatRuntimeV334LikeOriginal combat = u.GetComponent<C2CombatRuntimeV334LikeOriginal>();
                 C2NeutralPeasantUnitInfoV2LikeOriginal e;
-                if (combat == null || !combat.TryGetLiveMeleeTargetV406LikeOriginal(out e) || e == null) continue;
+                if (!C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(u, out e) || e == null) continue;
                 int gid;
                 if (!TryGetFormationGroupIdV321LikeOriginal(e, out gid)) continue;
-                int d = C2OriginalMovementMathV352.Norma(
+                // COSSACKS2/BrigadeOrders.cpp::BrigadeOrder_Bitva::Process:
+                // EOB must belong to a brigade AND be within 120 original pixels.
+                int distanceReal = C2OriginalMovementMathV352.Norma(
                     Mathf.RoundToInt(RealXV407LikeOriginal(e) - RealXV407LikeOriginal(u)),
                     Mathf.RoundToInt(RealYV407LikeOriginal(e) - RealYV407LikeOriginal(u)));
-                if (d < 120 * 16) return true;
+                if (distanceReal < 120 * 16) return true;
             }
             return false;
         }
@@ -632,29 +1549,50 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             bool allowLocalApproach,
             string source)
         {
+            return BeginOrKeepMeleeAttackObjWithPriorityV414LikeOriginal(
+                attacker, victim, allowLocalApproach, 128 + 8, source);
+        }
+
+        private static bool BeginOrKeepMeleeAttackObjWithPriorityV414LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal attacker,
+            C2NeutralPeasantUnitInfoV2LikeOriginal victim,
+            bool allowLocalApproach,
+            int priority,
+            string source)
+        {
             if (!IsAliveBattleUnitV407LikeOriginal(attacker) || !IsAliveBattleUnitV407LikeOriginal(victim)) return false;
+
+            // Distinguish the native AttackObj state from the managed execution object.
+            // V413 checked EnemyID AFTER TryAttackObj and, because every unit already
+            // owns a C2CombatRuntime component, mistook a newly-created AttackObj for an
+            // already-running one. That skipped BeginAttackLikeOriginal entirely: damage
+            // could be serviced by other paths while the visible melee animation/order
+            // never started.
+            C2CombatRuntimeV334LikeOriginal combat = attacker.GetComponent<C2CombatRuntimeV334LikeOriginal>();
+            C2NeutralPeasantUnitInfoV2LikeOriginal runtimeTarget;
+            bool runtimeAlreadyOwnsTarget = combat != null &&
+                combat.TryGetLiveMeleeTargetV406LikeOriginal(out runtimeTarget) && runtimeTarget == victim;
+
             bool preciseAttack;
             if (!C2CombatCoreV408LikeOriginal.TryAttackObjV408LikeOriginal(
-                    attacker, victim, 128 + 15, out preciseAttack)) return false;
+                    attacker, victim, priority, out preciseAttack)) return false;
             if (preciseAttack) return true;
 
             C2NeutralPeasantUnitInfoV2LikeOriginal authoritativeTarget;
             if (!C2CombatCoreV408LikeOriginal.TryGetAttackObjTargetV408LikeOriginal(attacker, out authoritativeTarget))
-                return true; // NoSearchVictim early-success keeps the pre-existing order.
+                return true; // Native early-success path (NoSearchVictim/in-army BR->Bitva).
             if (authoritativeTarget != victim)
             {
-                C2CombatRuntimeV334LikeOriginal held = attacker.GetComponent<C2CombatRuntimeV334LikeOriginal>();
-                if (held != null) held.SetMeleeLocalApproachV406LikeOriginal(allowLocalApproach);
+                if (combat != null) combat.SetMeleeLocalApproachV406LikeOriginal(allowLocalApproach);
                 return true;
             }
 
-            C2CombatRuntimeV334LikeOriginal combat = attacker.GetComponent<C2CombatRuntimeV334LikeOriginal>();
-            C2NeutralPeasantUnitInfoV2LikeOriginal existing;
-            if (combat != null && combat.TryGetLiveMeleeTargetV406LikeOriginal(out existing) && existing == victim)
+            if (runtimeAlreadyOwnsTarget)
             {
                 combat.SetMeleeLocalApproachV406LikeOriginal(allowLocalApproach);
                 return true;
             }
+
             GameObject proxy = combat == null ? attacker.EnsureUnityProxyLikeOriginal() : null;
             if (combat == null && proxy != null) combat = proxy.AddComponent<C2CombatRuntimeV334LikeOriginal>();
             if (combat == null)
@@ -662,12 +1600,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 C2CombatCoreV408LikeOriginal.DeleteAttackObjV408LikeOriginal(attacker);
                 return false;
             }
-            C2CombatRuntimeV334LikeOriginal.SetCommandWeaponModeLikeOriginal(attacker, 0);
+
+            // OneObject::AttackObj -> CreateOrder(OrdType=0) replaces the previous local
+            // movement order, sets DestX=-1 and DeletePath(). Do the same before the
+            // managed AttackObjLink starts its SetDestUnit chase.
+            C2OriginalOrderChainV352.ClearMoveChainForExternalOrder(attacker);
             combat.BeginMeleeAttackObjFromBrigadeBitvaV406LikeOriginal(attacker, victim, allowLocalApproach);
             C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
                 attacker, C2UnitOrderKindV325LikeOriginal.MeleeAttack,
-                source ?? "BrigadeOrder_Bitva", "AttackObj_slot_0");
-            return combat.TryGetLiveMeleeTargetV406LikeOriginal(out existing) && existing == victim;
+                source ?? "BrigadeOrder_Bitva", "AttackObj_native_local_order");
+
+            C2NeutralPeasantUnitInfoV2LikeOriginal check;
+            return combat.TryGetLiveMeleeTargetV406LikeOriginal(out check) && check == victim;
         }
 
         private static void ReturnMemberToFormationSlotV407LikeOriginal(
@@ -685,10 +1629,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 Mathf.RoundToInt(slot.x - RealXV407LikeOriginal(member)),
                 Mathf.RoundToInt(slot.y - RealYV407LikeOriginal(member)));
             if (d <= 16 * 16) return;
-            member.SetPreciseMoveDestinationRealLikeOriginal(
-                slot.x, slot.y,
-                C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                false, 0);
+            // COSSACKS2/BrigadeOrders.cpp::BrigadeOrder_Bitva calls
+            // NewMonsterPreciseSendTo(..., 128+1, 0) here.  Despite the word
+            // "Precise", that is a NORMAL LocalOrder in NewMon.cpp and does NOT
+            // set OneObject::UnlimitedMotion.  V416/V417 Stage1 incorrectly
+            // routed this through SetPreciseMoveDestinationRealLikeOriginal(),
+            // whose flag is reserved for the BORN/OrderedUnlimitedMotion exit
+            // chain.  That made every surviving brigade member temporarily
+            // non-orderable/non-selectable while returning to its slot.
+            C2OriginalOrderChainV352.SubmitMove(
+                member, slot.x, slot.y, false, group.Direction, 0,
+                "BrigadeOrder_Bitva::NewMonsterPreciseSendTo_return_v4172", true);
         }
 
         private static bool CanBitvaReplaceCurrentOrderV407LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal member)
@@ -698,7 +1649,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (order == null) return true; // OB->LocalOrder == NULL.
             // NewMon.cpp::CheckIfPossibleToBreakOrder cannot break NewAttackPointLink.
             // V408 maps that native order to PreciseAttack.
-            return !order.IsTerminalLikeOriginal &&
+            return member.ActivityStateV413LikeOriginal < 2 &&
+                   !order.IsTerminalLikeOriginal &&
                    order.CurrentLikeOriginal != C2UnitOrderKindV325LikeOriginal.PreciseAttack;
         }
 
@@ -751,6 +1703,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static MeleeMdTraitsV407LikeOriginal GetMeleeMdTraitsV407LikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
+            var rt = C2UnitOriginalRuntime.PrepareTraitsCacheV433(unit);
+            if (rt != null && rt.MeleeTraitsV433 != null) return rt.MeleeTraitsV433;
+            var traits = LoadMeleeMdTraitsV433LikeOriginal(unit);
+            if (rt != null) rt.MeleeTraitsV433 = traits;
+            return traits;
+        }
+
+        private static MeleeMdTraitsV407LikeOriginal LoadMeleeMdTraitsV433LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        {
             C2OriginalProduceCatalogV13.C2MdIconInfoV13 md =
                 C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(unit);
             string path = md.Path ?? string.Empty;
@@ -778,6 +1740,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         else if (string.Equals(cmd, "ARMRADIUS", StringComparison.OrdinalIgnoreCase) && p.Length > 1 &&
                                  int.TryParse(p[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out n))
                             r.ArmRadius = Mathf.Max(0, n);
+                        else if (string.Equals(cmd, "SEARCH_ENEMY_RADIUS", StringComparison.OrdinalIgnoreCase) && p.Length > 1 &&
+                                 int.TryParse(p[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out n))
+                            r.SearchEnemyRadiusPixels = Mathf.Max(0, n);
+                        else if (string.Equals(cmd, "BRIGADEWAITINGCYCLES", StringComparison.OrdinalIgnoreCase) && p.Length > 1 &&
+                                 int.TryParse(p[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out n))
+                            r.BrigadeWaitingCycles = Mathf.Max(0, n);
                         else if (string.Equals(cmd, "CANKILL", StringComparison.OrdinalIgnoreCase) && p.Length > 2)
                         {
                             int count = ParseIntV407LikeOriginal(p[1]);

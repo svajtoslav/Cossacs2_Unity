@@ -1,9 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using Cossacks2Bridge.Core;
+using Cossacks2Bridge.Core.Loaders;
+using RawNode = Cossacks2Bridge.Core.Loaders.Menu14UnifiedLoader.LiteNode;
 using TemnyLessViewer;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -12,7 +14,7 @@ using UnityEngine.UI;
 namespace Cossacks2Bridge.UnityAdapters
 {
     /// <summary>
-    /// V396A6 — source-driven renderer for the original first-entry Campaign modal
+    /// V396A7R5_UIA3_2 — source-driven renderer for the original first-entry Campaign modal
     /// from Dialogs/v/M_Single.DialogsSystem.xml.
     ///
     /// Visual contract:
@@ -36,8 +38,8 @@ namespace Cossacks2Bridge.UnityAdapters
         private const string FontsXml = @"Dialogs\fonts.xml";
         private const string TextIconsXml = @"Dialogs\TextIcons.xml";
         private const string CampaignDeskName = "Campaign";
-        private const string CanvasName = "C2_BFE14_CampaignModal_XML_V396A6";
-        private const string HelpCanvasName = "C2_BFE14_BigMapHelp_XML_V396A6";
+        private const string CanvasName = "C2_BFE14_CampaignModal_XML_V396A7R5_UIA1";
+        private const string HelpCanvasName = "C2_BFE14_BigMapHelp_XML_V396A7R5_UIA1";
 
         private GameObject _canvas;
         private CoreFileSystem _fs;
@@ -53,6 +55,9 @@ namespace Cossacks2Bridge.UnityAdapters
         // direct bank contains the full 256 CP1251 frames used by the original RLCFont path.
         private readonly Dictionary<string, C2DirectSpriteBank> _fontBanks = new Dictionary<string, C2DirectSpriteBank>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _fontBankAudit = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // UIA3.2 diagnostic only: unique source FileID/frame misses for the current modal.
+        // Rendering decisions still use the exact same UIA3.1 source path.
+        private readonly HashSet<string> _missingAssetKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private int _renderedControls;
         private int _missingAssets;
         private bool _helpMode;
@@ -69,13 +74,14 @@ namespace Cossacks2Bridge.UnityAdapters
             _sink = sink;
             _renderedControls = 0;
             _missingAssets = 0;
+            _missingAssetKeys.Clear();
             BuildFontTable();
 
             string singleRaw = ReadGameMenuText(SingleXml);
             if (string.IsNullOrWhiteSpace(singleRaw))
                 return Fail("M_Single.DialogsSystem.xml is missing/empty");
 
-            RawNode document = ParseLooseXml(singleRaw);
+            RawNode document = ParseSharedXml(singleRaw);
             RawNode campaign = FindDialogsDeskByName(document, CampaignDeskName);
             if (campaign == null)
                 return Fail("DialogsDesk Name=Campaign not found in M_Single.DialogsSystem.xml");
@@ -83,7 +89,7 @@ namespace Cossacks2Bridge.UnityAdapters
             string bordersRaw = ReadGameMenuText(BordersXml);
             if (string.IsNullOrWhiteSpace(bordersRaw))
                 return Fail("Dialogs/borders.xml is missing/empty");
-            ParseBorders(ParseLooseXml(bordersRaw));
+            ParseBorders(ParseSharedXml(bordersRaw));
 
             int refW = Math.Max(1, campaign.Int("Width", 1024));
             int refH = Math.Max(1, campaign.Int("Height", 768));
@@ -95,14 +101,7 @@ namespace Cossacks2Bridge.UnityAdapters
             canvas.pixelPerfect = true;
 
             CanvasScaler scaler = _canvas.GetComponent<CanvasScaler>();
-            // V396A6: source UI is authored in an exact 1024x768 integer pixel grid.
-            // MatchWidthOrHeight at a Free-Aspect GameView (for example 1044x768)
-            // produces a fractional scale (~1.0097), which creates seams between
-            // separately rendered GP tiles and distorts bitmap glyphs. Expand keeps
-            // the scale exactly 1.0 whenever the viewport is at least 1024x768.
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1024, 768);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+            int seamScale = ConfigureIntegerPixelCanvasUIA3(canvas, scaler);
 
             RectTransform screen = (RectTransform)_canvas.transform;
             screen.anchorMin = Vector2.zero;
@@ -127,10 +126,14 @@ namespace Cossacks2Bridge.UnityAdapters
             RenderChildDialogs(childDialogs, root, true);
 
             Debug.Log(
-                $"[C2:BFE14 CAMPAIGN XML V396A6] shown source='{SingleXml}' desk='{CampaignDeskName}' " +
+                $"[C2:BFE14 CAMPAIGN XML V396A7R5_UIA1] shown source='{SingleXml}' desk='{CampaignDeskName}' " +
                 $"controls={_renderedControls} borders={_borders.Count} missingAssets={_missingAssets} " +
-                "visuals=SOURCE_ONLY syntheticFallback=NO cp1251=manual metrics=fonts.xml pixelStage=1024x768 align=ProcessAligning pointFilter=YES " +
-                $"screen={Screen.width}x{Screen.height} canvasScale={canvas.scaleFactor:0.###}");
+                "visuals=SOURCE_ONLY syntheticFallback=NO parser=Menu14UnifiedLoader.LiteDocument rawNodeParser=NO " +
+                "cp1251=manual metrics=fonts.xml textBaseline=lineTop+metricHeight-Bottom textHeight=Bottom-Top lineAdvance=Height+YShift " +
+                "pixelStage=1024x768 align=ProcessAligning+ROUND14 gpPictureSize=native_GP seamFix=UIA3_1_integerCanvas+screenDerivedStage+R7HeaderGuard pointFilter=YES " +
+                $"screen={Screen.width}x{Screen.height} canvasScale={canvas.scaleFactor:0.###} integerScale={seamScale}");
+            LogSeamExperimentUIA3("Campaign", root, canvas, seamScale);
+            LogGpSourceAuditUIA3_2("Campaign");
             return true;
         }
 
@@ -144,6 +147,7 @@ namespace Cossacks2Bridge.UnityAdapters
             _helpClosed = onClosed;
             _renderedControls = 0;
             _missingAssets = 0;
+            _missingAssetKeys.Clear();
             BuildFontTable();
 
             string helpRaw = ReadGameMenuText(HelpXml);
@@ -153,10 +157,10 @@ namespace Cossacks2Bridge.UnityAdapters
             string bordersRaw = ReadGameMenuText(BordersXml);
             if (string.IsNullOrWhiteSpace(bordersRaw))
                 return Fail("Dialogs/borders.xml is missing/empty");
-            ParseBorders(ParseLooseXml(bordersRaw));
+            ParseBorders(ParseSharedXml(bordersRaw));
             ParseTextIcons();
 
-            RawNode document = ParseLooseXml(helpRaw);
+            RawNode document = ParseSharedXml(helpRaw);
             int helpW = Math.Max(1, document.Int("Width", 880));
             int helpH = Math.Max(1, document.Int("Height", 680));
 
@@ -167,9 +171,7 @@ namespace Cossacks2Bridge.UnityAdapters
             canvas.pixelPerfect = true;
 
             CanvasScaler scaler = _canvas.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1024, 768);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+            int seamScale = ConfigureIntegerPixelCanvasUIA3(canvas, scaler);
 
             RectTransform screen = (RectTransform)_canvas.transform;
             screen.anchorMin = Vector2.zero;
@@ -203,10 +205,14 @@ namespace Cossacks2Bridge.UnityAdapters
             RenderChildDialogs(childDialogs, helpRoot, true);
             RenderBigMapHelpText(helpRoot, page, helpW, helpH);
 
-            Debug.Log($"[C2:BFE14 HELP V396A6] shown page={page} source='{HelpXml}' text='#BigMapHelp{page}' " +
+            Debug.Log($"[C2:BFE14 HELP V396A7R5_UIA1] shown page={page} source='{HelpXml}' text='#BigMapHelp{page}' " +
                       $"controls={_renderedControls} borders={_borders.Count} icons={_textIcons.Count} missingAssets={_missingAssets} " +
-                      "visuals=SOURCE_ONLY text=DrawMultilineSubset scroll=EmptyBorder pixelStage=1024x768 align=ProcessAligning pointFilter=YES " +
-                      $"screen={Screen.width}x{Screen.height} canvasScale={canvas.scaleFactor:0.###}");
+                      "visuals=SOURCE_ONLY parser=Menu14UnifiedLoader.LiteDocument rawNodeParser=NO " +
+                      "text=DrawMultilineSubset verticalMetrics=SOURCE_EXACT baseline=Height-Bottom lineAdvance=Height+YShift wrap=PARTIAL " +
+                      "scroll=UnityScrollRect_content+original_GP_fixed_thumb_UIA2 pixelStage=1024x768 align=ProcessAligning_ROUND14 pointFilter=YES " +
+                      $"screen={Screen.width}x{Screen.height} canvasScale={canvas.scaleFactor:0.###} integerScale={seamScale} seamFix=UIA3_1_integerCanvas+screenDerivedStage+R7HeaderGuard");
+            LogSeamExperimentUIA3("Help", stage, canvas, seamScale);
+            LogGpSourceAuditUIA3_2("Help");
             return true;
         }
 
@@ -223,7 +229,7 @@ namespace Cossacks2Bridge.UnityAdapters
 
         private bool Fail(string reason)
         {
-            Debug.LogError($"[C2:BFE14 SOURCE UI V396A6] FAIL {reason}; syntheticFallback=NO");
+            Debug.LogError($"[C2:BFE14 SOURCE UI V396A7R5_UIA1] FAIL {reason}; syntheticFallback=NO");
             return false;
         }
 
@@ -246,7 +252,7 @@ namespace Cossacks2Bridge.UnityAdapters
             for (int i = 0; i < childDialogs.Children.Count; i++)
             {
                 RawNode n = childDialogs.Children[i];
-                if (!LooksLikeControl(n.Name)) continue;
+                if (!LooksLikeControl(n.Tag)) continue;
                 RenderControl(n, parent, inheritedVisible);
             }
         }
@@ -258,7 +264,7 @@ namespace Cossacks2Bridge.UnityAdapters
             bool visible = inheritedVisible && localVisible;
             if (!visible) return;
 
-            string tag = node.Name ?? string.Empty;
+            string tag = node.Tag ?? string.Empty;
             if (tag.Equals("DialogsDesk", StringComparison.OrdinalIgnoreCase))
                 RenderDialogsDesk(node, parent);
             else if (tag.Equals("GPPicture", StringComparison.OrdinalIgnoreCase))
@@ -282,7 +288,7 @@ namespace Cossacks2Bridge.UnityAdapters
                 if (_borders.TryGetValue(border, out BorderSpec spec))
                     DrawFilledBorder(rt, Mathf.Max(1f, rt.sizeDelta.x), Mathf.Max(1f, rt.sizeDelta.y), spec);
                 else
-                    Debug.LogError($"[C2:BFE14 CAMPAIGN XML V396A6] source border '{border}' not found in {BordersXml}");
+                    Debug.LogError($"[C2:BFE14 CAMPAIGN XML V396A7R5_UIA1] source border '{border}' not found in {BordersXml}");
             }
 
             RenderChildDialogs(node.Child("ChildDialogs"), rt, true);
@@ -290,7 +296,7 @@ namespace Cossacks2Bridge.UnityAdapters
 
         private void RenderGenericContainer(RawNode node, RectTransform parent)
         {
-            RectTransform rt = CreateRect(parent, (node.Name ?? "Control") + "_" + Safe(node.Value("Name", string.Empty)), node);
+            RectTransform rt = CreateRect(parent, (node.Tag ?? "Control") + "_" + Safe(node.Value("Name", string.Empty)), node);
             _renderedControls++;
             RenderChildDialogs(node.Child("ChildDialogs"), rt, true);
         }
@@ -303,6 +309,12 @@ namespace Cossacks2Bridge.UnityAdapters
             string fileId = node.Value("FileID", string.Empty);
             int spriteId = node.Int("SpriteID", -1);
             Sprite sp = LoadGp(fileId, spriteId);
+
+            // Original GPPicture does not stretch a GP frame to XML Width/Height.
+            // GPPicture_OnDraw / SetFileID reset x1/y1 from native GP dimensions.
+            // Keep the aligned source position, but use the actual source frame size.
+            if (sp != null)
+                rt.sizeDelta = new Vector2(sp.rect.width, sp.rect.height);
 
             Image img = rt.gameObject.AddComponent<Image>();
             img.sprite = sp;
@@ -350,7 +362,7 @@ namespace Cossacks2Bridge.UnityAdapters
             }
 
             RawNode messageNode = node.Child("Message");
-            string messageKey = messageNode != null ? (messageNode.Text ?? string.Empty).Trim() : string.Empty;
+            string messageKey = messageNode != null ? messageNode.DirectText() : string.Empty;
             GameObject label = null;
             if (!string.IsNullOrEmpty(messageKey))
             {
@@ -585,7 +597,7 @@ namespace Cossacks2Bridge.UnityAdapters
         {
             string raw = ReadGameMenuText(FontsXml);
             if (string.IsNullOrWhiteSpace(raw)) return;
-            RawNode root = ParseLooseXml(raw);
+            RawNode root = ParseSharedXml(raw);
             var nodes = new List<RawNode>();
             Collect(root, "OneFontParam", nodes);
             for (int i = 0; i < nodes.Count; i++)
@@ -630,7 +642,7 @@ namespace Cossacks2Bridge.UnityAdapters
             if (!string.IsNullOrWhiteSpace(alias) && _fonts.TryGetValue(alias.Trim(), out FontSpec f))
                 return f;
 
-            Debug.LogError($"[C2:BFE14 CAMPAIGN XML V396A6] source font alias '{alias}' has no original mapping; no synthetic font substituted");
+            Debug.LogError($"[C2:BFE14 CAMPAIGN XML V396A7R5_UIA1] source font alias '{alias}' has no original mapping; no synthetic font substituted");
             return new FontSpec { Alias = alias ?? string.Empty, GPFile = string.Empty, Color = new Color32(255,255,255,255), Top = 0, Bottom = 14 };
         }
 
@@ -666,7 +678,7 @@ namespace Cossacks2Bridge.UnityAdapters
             _textIcons.Clear();
             string raw = ReadGameMenuText(TextIconsXml);
             if (string.IsNullOrWhiteSpace(raw)) return;
-            RawNode root = ParseLooseXml(raw);
+            RawNode root = ParseSharedXml(raw);
             var nodes = new List<RawNode>();
             Collect(root, "OneTextIcon", nodes);
             for (int i = 0; i < nodes.Count; i++)
@@ -697,6 +709,7 @@ namespace Cossacks2Bridge.UnityAdapters
             public string Align = "Left";
             public float Width;
             public float Height;
+            public float DownShift;
         }
 
         private sealed class RichLine
@@ -705,6 +718,7 @@ namespace Cossacks2Bridge.UnityAdapters
             public string Align = "Left";
             public float Width;
             public float Height;
+            public float DownShift;
         }
 
         private void RenderBigMapHelpText(RectTransform helpRoot, int page, int helpW, int helpH)
@@ -716,18 +730,26 @@ namespace Cossacks2Bridge.UnityAdapters
             // Exact CBigMapHelp::CreateElements geometry from BigMapDataStr.h.
             const int dx = 75;
             const int dy = 78;
-            int deskW = helpW - 2 * dx + 10;
-            int deskH = helpH - 2 * dy - 4;
+            // CBigMapHelp::CreateElements passes widths derived from x1-x / y1-y,
+            // not inclusive GetWidth/GetHeight.  A source Width=880 therefore produces
+            // tw=(879)-150+10=739 and th=(679)-156-4=519.
+            int deskW = Math.Max(1, (helpW - 1) - 2 * dx + 10);
+            int deskH = Math.Max(1, (helpH - 1) - 2 * dy - 4);
             BorderSpec empty = null;
             _borders.TryGetValue("EmptyBorder", out empty);
             int rightMargin = empty != null ? empty.RightMargin : 26;
             int viewW = Math.Max(1, deskW - rightMargin);
-            int maxWidth = Math.Max(1, deskW - 30); // original ptbHelpText->MaxWidth
+            // Original: ptbHelpText->MaxWidth = m_pTextDesk->x1 - m_pTextDesk->x - 30.
+            int maxWidth = Math.Max(1, (deskW - 1) - 30);
 
             List<RichUnit> units = ParseLegacyRichText(text, defaultFont);
             List<RichLine> lines = LayoutRichText(units, maxWidth, defaultFont);
             float contentH = 2f;
-            for (int i = 0; i < lines.Count; i++) contentH += Mathf.Max(1f, lines[i].Height);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                contentH += Mathf.Max(1f, lines[i].Height);
+                if (i + 1 < lines.Count) contentH += Mathf.Max(0f, lines[i].DownShift);
+            }
             contentH = Mathf.Max(contentH, deskH);
 
             RectTransform scrollHost = CreateAbsoluteRect(helpRoot, "BigMapHelp_TextDesk", dx, dy, deskW, deskH);
@@ -759,6 +781,7 @@ namespace Cossacks2Bridge.UnityAdapters
                 else if (line.Align.Equals("Right", StringComparison.OrdinalIgnoreCase)) x = maxWidth - line.Width;
                 RenderRichLine(content, line, Mathf.Max(0f, x), yy);
                 yy += Mathf.Max(1f, line.Height);
+                if (i + 1 < lines.Count) yy += Mathf.Max(0f, line.DownShift);
             }
 
             scroll.viewport = viewport;
@@ -784,7 +807,12 @@ namespace Cossacks2Bridge.UnityAdapters
                 string s = word.ToString();
                 float h;
                 float w = MeasureString(s, font, out h);
-                units.Add(new RichUnit { Kind = 0, Text = s, Font = font, Color = color, Align = align, Width = w, Height = Mathf.Max(FontLineHeight(font), h) });
+                units.Add(new RichUnit
+                {
+                    Kind = 0, Text = s, Font = font, Color = color, Align = align,
+                    Width = w, Height = Mathf.Max(FontLineHeight(font), h),
+                    DownShift = font != null ? Mathf.Max(0, font.YShift) : 0f
+                });
                 word.Length = 0;
             };
 
@@ -849,7 +877,7 @@ namespace Cossacks2Bridge.UnityAdapters
                             }
                             else
                             {
-                                Debug.LogWarning($"[C2:BFE14 HELP V396A6] text icon not found name='{iconName}' source='{TextIconsXml}'");
+                                Debug.LogWarning($"[C2:BFE14 HELP V396A7R5_UIA1] text icon not found name='{iconName}' source='{TextIconsXml}'");
                             }
                         }
                         // {R ...}, {P ...}, {G ...} are not used by BigMapHelp0..4.
@@ -861,7 +889,11 @@ namespace Cossacks2Bridge.UnityAdapters
                 {
                     flushWord();
                     if (ch == '\r' && i + 1 < src.Length && src[i + 1] == '\n') i++;
-                    units.Add(new RichUnit { Kind = 3, Align = align, Height = FontLineHeight(font) });
+                    units.Add(new RichUnit
+                    {
+                        Kind = 3, Align = align, Height = FontLineHeight(font),
+                        DownShift = font != null ? Mathf.Max(0, font.YShift) : 0f
+                    });
                     continue;
                 }
 
@@ -869,7 +901,12 @@ namespace Cossacks2Bridge.UnityAdapters
                 {
                     flushWord();
                     float sw = MeasureSpace(font) * (ch == '\t' ? 4f : 1f);
-                    units.Add(new RichUnit { Kind = 1, Text = " ", Font = font, Color = color, Align = align, Width = sw, Height = FontLineHeight(font) });
+                    units.Add(new RichUnit
+                    {
+                        Kind = 1, Text = " ", Font = font, Color = color, Align = align,
+                        Width = sw, Height = FontLineHeight(font),
+                        DownShift = font != null ? Mathf.Max(0, font.YShift) : 0f
+                    });
                     continue;
                 }
 
@@ -910,6 +947,8 @@ namespace Cossacks2Bridge.UnityAdapters
                 }
                 if (u.Kind == 3)
                 {
+                    line.Height = Mathf.Max(line.Height, Mathf.Max(1f, u.Height));
+                    line.DownShift = Mathf.Max(line.DownShift, Mathf.Max(0f, u.DownShift));
                     finish();
                     continue;
                 }
@@ -924,6 +963,7 @@ namespace Cossacks2Bridge.UnityAdapters
                 line.Units.Add(u);
                 line.Width += u.Width;
                 line.Height = Mathf.Max(line.Height, Mathf.Max(1f, u.Height));
+                line.DownShift = Mathf.Max(line.DownShift, Mathf.Max(0f, u.DownShift));
             }
             if (line.Units.Count > 0 || lines.Count == 0) finish();
             return lines;
@@ -975,7 +1015,7 @@ namespace Cossacks2Bridge.UnityAdapters
                 RectTransform rt = (RectTransform)go.transform;
                 rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
                 rt.pivot = new Vector2(0f, 1f);
-                float gy = Mathf.Floor(y - (font != null ? font.Bottom : Mathf.RoundToInt(lineHeight)));
+                float gy = Mathf.Floor(y + lineHeight - (font != null ? font.Bottom : Mathf.RoundToInt(lineHeight)));
                 rt.anchoredPosition = new Vector2(xx, -gy);
                 rt.sizeDelta = new Vector2(sp.rect.width, sp.rect.height);
                 Image img = go.GetComponent<Image>();
@@ -1021,56 +1061,114 @@ namespace Cossacks2Bridge.UnityAdapters
             Sprite thumb = LoadGp(gp, 4);
             if (up == null || down == null || thumb == null) return;
 
-            float x = deskW - border.VScrollerDxRight;
-            float upH = up.rect.height;
-            float downH = down.rect.height;
+            // Source pipeline (Dialogs.cpp / DrawForms.cpp):
+            //   VS.x      = DD->x1 - VScroller_DX_right
+            //   VS.y      = DD->y  + VScroller_DY_top
+            //   VS.Ly     = deskH - DY_top - DY_bottom
+            //   btnly     = GPHeight(frame 0)
+            //   LineLy    = Ly - 2*btnly
+            //   ScrLy     = GPHeight(frame 4)  <-- FIXED native thumb height
+            // DrawVScroller separately tiles frames 5/6/7 through an IntersectWindows clip.
+            // It never resizes frame 4 according to viewport/content ratio.
+            float x = (deskW - 1f) - border.VScrollerDxRight;
+            float top = border.VScrollerDyTop;
+            float fullLy = Mathf.Max(1f, deskH - border.VScrollerDyTop - border.VScrolledDyBottom);
+            float upH = Mathf.Max(1f, up.rect.height);
+            float downH = Mathf.Max(1f, down.rect.height);
+            float thumbH = Mathf.Max(1f, thumb.rect.height);
             float barW = Mathf.Max(up.rect.width, Mathf.Max(down.rect.width, thumb.rect.width));
-            float trackY = upH;
-            float trackH = Mathf.Max(1f, deskH - border.VScrollerDyTop - border.VScrolledDyBottom - upH - downH);
+            float btnLy = upH;
+            float lineLy = Mathf.Max(1f, fullLy - 2f * btnLy);
 
-            RectTransform upRt = CreateAbsoluteRect(host, "VScroll_Up", x, border.VScrollerDyTop, barW, upH);
-            AddSourceSprite(upRt, up);
-            Button upButton = AddTransparentButton(upRt);
-            upButton.onClick.AddListener(() => scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition + 0.08f));
+            // Original DrawVScroller:
+            // ULY=GPHeight(Up)/2; IntersectWindows(... y+ULY ... y+Ly-1-ULY);
+            // center frames 5/6/7 are tiled from y+ULY and CLIPPED at the lower edge.
+            float halfUp = Mathf.Floor(upH * 0.5f);
+            float centerClipY = top + halfUp;
+            float centerClipBottomInclusive = top + fullLy - 1f - halfUp;
+            float centerClipH = Mathf.Max(1f, centerClipBottomInclusive - centerClipY + 1f);
+            RectTransform centerClip = CreateAbsoluteRect(host, "VScroll_CenterClip", x, centerClipY, barW, centerClipH);
+            centerClip.gameObject.AddComponent<RectMask2D>();
 
-            RectTransform downRt = CreateAbsoluteRect(host, "VScroll_Down", x, deskH - border.VScrolledDyBottom - downH, barW, downH);
-            AddSourceSprite(downRt, down);
-            Button downButton = AddTransparentButton(downRt);
-            downButton.onClick.AddListener(() => scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition - 0.08f));
-
-            RectTransform track = CreateAbsoluteRect(host, "VScroll_Track", x, trackY, barW, trackH);
-            float ty = 0f;
+            float cy = 0f;
             int tile = 0;
-            while (ty < trackH && tile < 512)
+            while (cy < centerClipH && tile < 512)
             {
                 int frame = 5 + (tile % 3);
                 Sprite sp = LoadGp(gp, frame);
                 if (sp == null || sp.rect.height <= 0f) break;
-                CreateSpriteAt(track, "Track_" + tile, sp, 0f, ty);
-                ty += sp.rect.height;
+                CreateSpriteAt(centerClip, "Center_" + tile, sp, 0f, cy);
+                cy += sp.rect.height;
                 tile++;
             }
 
-            Image trackHit = track.gameObject.AddComponent<Image>();
+            RectTransform upRt = CreateAbsoluteRect(host, "VScroll_Up", x, top, barW, upH);
+            AddSourceSprite(upRt, up);
+            Button upButton = AddTransparentButton(upRt);
+
+            RectTransform downRt = CreateAbsoluteRect(host, "VScroll_Down", x, top + fullLy - downH, barW, downH);
+            AddSourceSprite(downRt, down);
+            Button downButton = AddTransparentButton(downRt);
+
+            // Keep ScrollRect for clipping/content motion, but DO NOT bind its verticalScrollbar.
+            // ScrollRect would overwrite Scrollbar.size every layout pass with viewport/content ratio,
+            // stretching the 45px original GP thumb into the giant handle seen in the screenshot.
+            // Instead this Scrollbar is an independent input/sync adapter whose handle size is
+            // permanently GPHeight(frame 4), exactly like VScrollBar::ScrLy in the original.
+            RectTransform interaction = CreateAbsoluteRect(host, "VScroll_Interaction", x, top + btnLy, barW, lineLy);
+            Image trackHit = interaction.gameObject.AddComponent<Image>();
             trackHit.color = new Color(1f, 1f, 1f, 0.001f);
             trackHit.raycastTarget = true;
-            Scrollbar sb = track.gameObject.AddComponent<Scrollbar>();
+
+            Scrollbar sb = interaction.gameObject.AddComponent<Scrollbar>();
             sb.transition = Selectable.Transition.None;
             sb.direction = Scrollbar.Direction.BottomToTop;
             sb.targetGraphic = trackHit;
 
-            RectTransform sliding = CreateAbsoluteRect(track, "SlidingArea", 0f, 0f, barW, trackH);
-            RectTransform handle = CreateAbsoluteRect(sliding, "Handle", 0f, 0f, thumb.rect.width, thumb.rect.height);
-            Image handleImage = handle.gameObject.AddComponent<Image>();
+            RectTransform sliding = CreateAbsoluteRect(interaction, "SlidingArea", 0f, 0f, barW, lineLy);
+            var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handleGo.transform.SetParent(sliding, false);
+            RectTransform handle = (RectTransform)handleGo.transform;
+            handle.anchorMin = Vector2.zero;
+            handle.anchorMax = Vector2.one;
+            handle.offsetMin = Vector2.zero;
+            handle.offsetMax = Vector2.zero;
+            Image handleImage = handleGo.GetComponent<Image>();
             handleImage.sprite = thumb;
             handleImage.type = Image.Type.Simple;
             handleImage.preserveAspect = false;
             handleImage.raycastTarget = true;
             sb.handleRect = handle;
-            sb.size = contentH <= deskH ? 1f : Mathf.Clamp01(deskH / contentH);
+
+            float fixedHandleSize = Mathf.Clamp01(thumbH / lineLy);
+            sb.size = fixedHandleSize;
             sb.value = 1f;
-            scroll.verticalScrollbar = sb;
-            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+
+            // Original OnesDy=32.  Map that source pixel step into ScrollRect's normalized range.
+            float scrollRange = Mathf.Max(0f, contentH - deskH);
+            float oneStep = scrollRange > 0.001f ? Mathf.Clamp01(32f / scrollRange) : 0f;
+            upButton.onClick.AddListener(() =>
+                scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition + oneStep));
+            downButton.onClick.AddListener(() =>
+                scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition - oneStep));
+
+            // Two-way value synchronization without giving ScrollRect ownership of sb.size.
+            sb.onValueChanged.AddListener(v =>
+            {
+                if (scroll != null)
+                    scroll.verticalNormalizedPosition = Mathf.Clamp01(v);
+            });
+            scroll.onValueChanged.AddListener(v =>
+            {
+                if (sb != null)
+                    sb.SetValueWithoutNotify(Mathf.Clamp01(v.y));
+            });
+            sb.SetValueWithoutNotify(Mathf.Clamp01(scroll.verticalNormalizedPosition));
+
+            Debug.Log($"[C2:BFE14 HELP SCROLL V396A7R5_UIA2] gp='{gp}' desk={deskW}x{deskH} " +
+                      $"x={x:0.##} fullLy={fullLy:0.##} btnLy={btnLy:0.##} lineLy={lineLy:0.##} " +
+                      $"thumbNative={thumb.rect.width:0.##}x{thumbH:0.##} fixedSize={fixedHandleSize:0.####} " +
+                      $"contentH={contentH:0.##} binding=independent_fixed_GP_thumb centerClip=IntersectWindows_equivalent");
         }
 
         private static void AddSourceSprite(RectTransform parent, Sprite sprite)
@@ -1098,16 +1196,66 @@ namespace Cossacks2Bridge.UnityAdapters
             return b;
         }
 
+        // V396A7R5_UIA3 seam experiment.
+        // The original UI is rasterized on an integer framebuffer. OptionsRenderer R7
+        // already preserves that contract with ConstantPixelSize + an integer scale.
+        // Campaign/Help used ScaleWithScreenSize and a center-anchored 1024x768 stage;
+        // at e.g. 1031px width the stage begins at x=3.5, putting every GP edge and
+        // RectMask2D boundary on a half pixel. Retain centering, but quantize the stage
+        // origin to an integer logical pixel BEFORE child projection.
+        private static int ConfigureIntegerPixelCanvasUIA3(Canvas canvas, CanvasScaler scaler)
+        {
+            if (canvas != null) canvas.pixelPerfect = true;
+            if (scaler == null) return 1;
+
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+            int scaleX = Mathf.Max(1, Screen.width / 1024);
+            int scaleY = Mathf.Max(1, Screen.height / 768);
+            int integerScale = Mathf.Max(1, Mathf.Min(scaleX, scaleY));
+            scaler.scaleFactor = integerScale;
+            return integerScale;
+        }
+
         private static RectTransform CreatePixelStage(RectTransform parent, string name, int width, int height)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             RectTransform rt = (RectTransform)go.transform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = Vector2.zero;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+
+            // UIA3.1: immediately after creating a ScreenSpaceOverlay Canvas the
+            // Canvas RectTransform can still report rect=0x0 until Unity performs
+            // its first canvas/layout update. UIA3 used parent.rect here, so the
+            // first frame computed (-width/2,+height/2) and moved the whole 1024x768
+            // source stage into the upper-left corner. Derive the logical viewport
+            // directly from Screen / Canvas.scaleFactor instead. For a
+            // ConstantPixelSize canvas this is the actual coordinate space used by
+            // child RectTransforms and is available synchronously.
+            Canvas ownerCanvas = parent != null ? parent.GetComponentInParent<Canvas>() : null;
+            float sf = ownerCanvas != null ? Mathf.Max(0.0001f, ownerCanvas.scaleFactor) : 1f;
+            float parentW = Screen.width / sf;
+            float parentH = Screen.height / sf;
+            float stageX = Mathf.Floor((parentW - width) * 0.5f);
+            float stageY = Mathf.Floor((parentH - height) * 0.5f);
+            rt.anchoredPosition = new Vector2(stageX, -stageY);
             rt.sizeDelta = new Vector2(Mathf.Max(1, width), Mathf.Max(1, height));
             return rt;
+        }
+
+        private static void LogSeamExperimentUIA3(string screenName, RectTransform stage, Canvas canvas, int integerScale)
+        {
+            if (stage == null) return;
+            Vector2 p = stage.anchoredPosition;
+            Vector2 sz = stage.sizeDelta;
+            bool integerOrigin = Mathf.Abs(p.x - Mathf.Round(p.x)) < 0.001f &&
+                                 Mathf.Abs(p.y - Mathf.Round(p.y)) < 0.001f;
+            Debug.Log(
+                $"[C2:BFE14 SEAM EXP V396A7R5_UIA3_1] screen='{screenName}' " +
+                $"mode=ConstantPixelSize integerScale={integerScale} canvasScale={(canvas != null ? canvas.scaleFactor : 0f):0.###} " +
+                $"stagePos=({p.x:0.###},{p.y:0.###}) stageSize=({sz.x:0.###},{sz.y:0.###}) " +
+                $"integerOrigin={(integerOrigin ? 1 : 0)} headerGuard=1 sourcePhase=i_mod_3 " +
+                "DrawRect4=source_exact pointClamp=1 useSpriteMesh=0");
         }
 
         private static RectTransform CreateAbsoluteRect(RectTransform parent, string name, float x, float y, float w, float h)
@@ -1133,7 +1281,12 @@ namespace Cossacks2Bridge.UnityAdapters
         {
             lines = WrapText(text ?? string.Empty, font, Mathf.Max(1f, maxWidth));
             float h = 0f;
-            for (int i = 0; i < lines.Count; i++) h += Mathf.Max(1f, lines[i].Height);
+            float downShift = font != null ? Mathf.Max(0, font.YShift) : 0f;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                h += Mathf.Max(1f, lines[i].Height);
+                if (i + 1 < lines.Count) h += downShift;
+            }
             return h;
         }
 
@@ -1194,9 +1347,10 @@ namespace Cossacks2Bridge.UnityAdapters
             rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
             rt.pivot = new Vector2(0f, 1f);
             rt.anchoredPosition = new Vector2(x, -y);
-            rt.sizeDelta = new Vector2(Mathf.Max(1f, width), Mathf.Max(1f, SumLineHeight(lines)));
+            rt.sizeDelta = new Vector2(Mathf.Max(1f, width), Mathf.Max(1f, SumLineHeight(lines, font)));
 
             float yy = 0f;
+            float downShift = font != null ? Mathf.Max(0, font.YShift) : 0f;
             for (int li = 0; li < lines.Count; li++)
             {
                 TextLine line = lines[li];
@@ -1208,6 +1362,7 @@ namespace Cossacks2Bridge.UnityAdapters
 
                 DrawGlyphLine(rt, line.Text, font, startX, yy, line.Height);
                 yy += Mathf.Max(1f, line.Height);
+                if (li + 1 < lines.Count) yy += downShift;
             }
             return root;
         }
@@ -1244,7 +1399,7 @@ namespace Cossacks2Bridge.UnityAdapters
                 rt.pivot = new Vector2(0f, 1f);
                 // Dialogs.cpp DrawMultilineText: baseline yL = lineTop + Height,
                 // ShowChar(..., yL - FontParam.Bottom). Keep Top/Bottom source metrics.
-                float gy = Mathf.Floor(y - (font != null ? font.Bottom : Mathf.RoundToInt(lineHeight)));
+                float gy = Mathf.Floor(y + lineHeight - (font != null ? font.Bottom : Mathf.RoundToInt(lineHeight)));
                 rt.anchoredPosition = new Vector2(xx, -gy);
                 rt.sizeDelta = new Vector2(sp.rect.width, sp.rect.height);
                 Image img = go.GetComponent<Image>();
@@ -1261,7 +1416,9 @@ namespace Cossacks2Bridge.UnityAdapters
         {
             byte[] bytes = C2LegacyText14.EncodeCp1251(text ?? string.Empty);
             float width = 0f;
-            height = 0f;
+            // Dialogs.cpp DrawMultilineText uses OneFontParam.Bottom-Top for ordinary
+            // text line height; glyph bitmap height is not the line metric.
+            height = FontLineHeight(font);
             for (int i = 0; i < bytes.Length; i++)
             {
                 int code = bytes[i];
@@ -1278,9 +1435,7 @@ namespace Cossacks2Bridge.UnityAdapters
                 Sprite sp = LoadGlyph(font, code);
                 if (sp == null) continue;
                 width += sp.rect.width;
-                height = Mathf.Max(height, sp.rect.height);
             }
-            if (height <= 0f) height = FontLineHeight(font);
             return width;
         }
 
@@ -1301,10 +1456,16 @@ namespace Cossacks2Bridge.UnityAdapters
             return 14f;
         }
 
-        private static float SumLineHeight(List<TextLine> lines)
+        private static float SumLineHeight(List<TextLine> lines, FontSpec font)
         {
             float h = 0f;
-            if (lines != null) for (int i = 0; i < lines.Count; i++) h += Mathf.Max(1f, lines[i].Height);
+            if (lines == null) return h;
+            float downShift = font != null ? Mathf.Max(0, font.YShift) : 0f;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                h += Mathf.Max(1f, lines[i].Height);
+                if (i + 1 < lines.Count) h += downShift;
+            }
             return h;
         }
 
@@ -1332,7 +1493,8 @@ namespace Cossacks2Bridge.UnityAdapters
             if (sp == null)
             {
                 _missingAssets++;
-                Debug.LogWarning($"[C2:BFE14 CAMPAIGN XML V396A6] missing glyph source='{font.GPFile}' frame={code}");
+                _missingAssetKeys.Add($"GLYPH:{font.GPFile}#{code}");
+                Debug.LogWarning($"[C2:BFE14 CAMPAIGN XML V396A7R5_UIA1] missing glyph source='{font.GPFile}' frame={code}");
             }
             return sp;
         }
@@ -1352,13 +1514,13 @@ namespace Cossacks2Bridge.UnityAdapters
                 bank = new C2DirectSpriteBank();
                 if (!bank.Load(path, out string loadError))
                 {
-                    Debug.LogWarning($"[C2:BFE14 FONT V396A6] load failed source='{gpFile}' path='{path}' err='{loadError}'");
+                    Debug.LogWarning($"[C2:BFE14 FONT V396A7R5_UIA1] load failed source='{gpFile}' path='{path}' err='{loadError}'");
                     return false;
                 }
                 _fontBanks[path] = bank;
                 if (_fontBankAudit.Add(path))
                 {
-                    Debug.Log($"[C2:BFE14 FONT V396A6] source='{gpFile}' path='{path}' frames={bank.FrameCount} decoder=direct_GN16_CP1251");
+                    Debug.Log($"[C2:BFE14 FONT V396A7R5_UIA1] source='{gpFile}' path='{path}' frames={bank.FrameCount} decoder=direct_GN16_CP1251");
                 }
             }
 
@@ -1368,7 +1530,7 @@ namespace Cossacks2Bridge.UnityAdapters
             if (!bank.RenderFrame(code, out C2RenderedFrame frame, out string renderError) ||
                 frame == null || frame.Width <= 0 || frame.Height <= 0 || frame.Rgba == null)
             {
-                Debug.LogWarning($"[C2:BFE14 FONT V396A6] frame failed source='{gpFile}' frame={code} err='{renderError}'");
+                Debug.LogWarning($"[C2:BFE14 FONT V396A7R5_UIA1] frame failed source='{gpFile}' frame={code} err='{renderError}'");
                 return false;
             }
 
@@ -1452,9 +1614,32 @@ namespace Cossacks2Bridge.UnityAdapters
             if (sp == null)
             {
                 _missingAssets++;
-                Debug.LogError($"[C2:BFE14 CAMPAIGN XML V396A6] missing source GP frame file='{fileId}' sprite={spriteId}");
+                _missingAssetKeys.Add($"GP:{fileId}#{spriteId}");
+                Debug.LogError(
+                    $"[C2:BFE14 CAMPAIGN XML V396A7R5_UIA1] missing source GP frame file='{fileId}' sprite={spriteId} " +
+                    $"logicalRoot='{Menu14ActionStateRuntime.CurrentLogicalDataRoot}' fsRoot='{(_fs != null ? _fs.DataRoot : string.Empty)}' " +
+                    $"sourceBundle='{Menu14ActionStateRuntime.CurrentSourceBundleId}'");
             }
             return sp;
+        }
+
+        private void LogGpSourceAuditUIA3_2(string screen)
+        {
+            string fsRoot = _fs != null ? (_fs.DataRoot ?? string.Empty) : string.Empty;
+            string logicalRoot = Menu14ActionStateRuntime.CurrentLogicalDataRoot ?? string.Empty;
+            string sourceBundle = Menu14ActionStateRuntime.CurrentSourceBundleId ?? string.Empty;
+            string sourceRoot = Menu14ActionStateRuntime.CurrentSourceDataRoot ?? string.Empty;
+            string missing = _missingAssetKeys.Count == 0
+                ? "<none>"
+                : string.Join(";", _missingAssetKeys);
+            string status = _missingAssets == 0 ? "PASS" : "FAIL";
+            string line =
+                $"[C2:BFE14 GP SOURCE V396A7R5_UIA3_2] screen='{screen}' status={status} " +
+                $"fsRoot='{fsRoot}' logicalRoot='{logicalRoot}' sourceBundle='{sourceBundle}' sourceRoot='{sourceRoot}' " +
+                $"missingAssets={_missingAssets} uniqueMissing={_missingAssetKeys.Count} missing='{missing}'";
+
+            if (_missingAssets == 0) Debug.Log(line);
+            else Debug.LogError(line);
         }
 
         private void DrawHeaderEx2(Transform parent, float width, string gp,
@@ -1468,23 +1653,34 @@ namespace Cossacks2Bridge.UnityAdapters
             float leftW = left != null && left.rect.width <= 2048f ? left.rect.width : 0f;
             float rightW = right != null && right.rect.width <= 2048f ? right.rect.width : 0f;
 
-            float clipX = leftW;
-            float clipW = Mathf.Max(1f, width - leftW - rightW);
-            Transform clip = CreateClipRect(parent, "HeaderCenterClip", clipX, -32f, clipW, 161f);
+            // Original DrawHeaderEx2: inclusive IntersectWindows
+            // [x0+frWidthL, x0+Lx-frWidthR]. OptionsRenderer R7 adds a one-pixel
+            // RectMask2D guard UNDER the edge sprites. This compensates Unity's
+            // half-open mask/raster boundary without changing source geometry.
+            const float clipGuard = 1f;
+            float logicalClipStart = leftW;
+            float logicalEndInclusive = width - rightW;
+            float clipStart = Mathf.Max(0f, logicalClipStart - clipGuard);
+            float clipEndExclusive = Mathf.Min(width, logicalEndInclusive + 1f + clipGuard);
+            float clipW = Mathf.Max(1f, clipEndExclusive - clipStart);
+            Transform clip = CreateClipRect(parent, "HeaderCenterClip", clipStart, -32f, clipW, 161f);
 
             int n = 0;
-            float i = 0f;
-            while (i < width && n < 300)
+            float sourceX = 0f;
+            while (sourceX < width && n < 300)
             {
-                int pattern = ((int)i) % 3;
+                // Exact original phase: switch(i % 3), i = source pixel X.
+                int pattern = ((int)sourceX) % 3;
+                if (pattern < 0) pattern += 3;
                 int frame = pattern == 0 ? frameC1 : pattern == 1 ? frameC2 : frameC3;
                 Sprite sp = LoadGp(gp, frame);
                 if (sp == null || sp.rect.width <= 0f) break;
-                CreateSpriteAt(clip, "Center_" + n, sp, i - clipX, 32f);
-                i += sp.rect.width;
+                CreateSpriteAt(clip, "Center_" + n, sp, sourceX - clipStart, 32f);
+                sourceX += sp.rect.width;
                 n++;
             }
 
+            // Edge sprites render last and cover the guard band.
             if (left != null) CreateSpriteAt(parent, "HeaderLeft", left, 0f, 0f);
             if (right != null) CreateSpriteAt(parent, "HeaderRight", right, width - rightW, 0f);
         }
@@ -1625,9 +1821,9 @@ namespace Cossacks2Bridge.UnityAdapters
             float cornerMid = Mathf.Floor((y1 - ldy2 + lly2) / 2f);
             float xMid = Mathf.Floor(x1 / 2f);
             if (clu != null) DrawCorner(parent, "Corner_LT", clu, -lx2, -lly2, -lx2, -lly2, xMid - 1f, cornerMid - 1f);
-            if (cru != null) DrawCorner(parent, "Corner_RT", cru, x1 - lx2, -lly2, xMid + 1f, -lly2, x1 + lx2, cornerMid - 1f);
+            if (cru != null) DrawCorner(parent, "Corner_RT", cru, x1 - lx2, -lly2, xMid, -lly2, x1 + lx2, cornerMid - 1f);
             if (cld != null) DrawCorner(parent, "Corner_LB", cld, -lx3, y1 - ldy2, -lx3, cornerMid, xMid - 1f, y1 + lly2);
-            if (crd != null) DrawCorner(parent, "Corner_RB", crd, x1 - lx3, y1 - ldy2, xMid + 1f, cornerMid, x1 + lx3, y1 + lly2);
+            if (crd != null) DrawCorner(parent, "Corner_RB", crd, x1 - lx3, y1 - ldy2, xMid, cornerMid, x1 + lx3, y1 + lly2);
         }
 
         private static void DrawCorner(Transform parent, string name, Sprite sp, float sx, float sy,
@@ -1668,6 +1864,7 @@ namespace Cossacks2Bridge.UnityAdapters
             img.sprite = sprite;
             img.type = Image.Type.Simple;
             img.preserveAspect = false;
+            img.useSpriteMesh = false;
             img.raycastTarget = false;
         }
 
@@ -1684,7 +1881,7 @@ namespace Cossacks2Bridge.UnityAdapters
             return rt;
         }
 
-        // V396A6: port of ParentFrame::ProcessAligning() for XML-authored controls.
+        // V396A7R5_UIA1: final-1.4 port of ParentFrame::ProcessAligning() for XML-authored controls.
         // The old renderer treated x/y as final positions and ignored RelativeAlign /
         // AbsoluteRightAlign / AbsoluteBottomAlign.  That shifted the Help root, title,
         // buttons and several nested decorations away from the original coordinates.
@@ -1708,50 +1905,54 @@ namespace Cossacks2Bridge.UnityAdapters
             string vca = node != null ? node.Value("VerticalCenterAlign", "AbsoluteTopAlign") : "AbsoluteTopAlign";
 
             if (la.Equals("AbsoluteRightAlign", StringComparison.OrdinalIgnoreCase))
-                x = pw - (int)node.Float("LeftAlignParam", 0f);
+                x = pw - Round14(node.Float("LeftAlignParam", 0f));
             else if (la.Equals("RelativeAlign", StringComparison.OrdinalIgnoreCase))
-                x = (int)(pw * node.Float("LeftAlignParam", 0f));
+                x = Round14(pw * node.Float("LeftAlignParam", 0f));
 
             if (ra.Equals("AbsoluteRightAlign", StringComparison.OrdinalIgnoreCase))
-                x1 = pw - (int)node.Float("RightAlignParam", 0f) - 1;
+                x1 = pw - Round14(node.Float("RightAlignParam", 0f)) - 1;
             else if (ra.Equals("RelativeAlign", StringComparison.OrdinalIgnoreCase))
-                x1 = (int)(pw * node.Float("RightAlignParam", 0f));
+                x1 = Round14(pw * node.Float("RightAlignParam", 0f));
 
             if (hca.Equals("AbsoluteRightAlign", StringComparison.OrdinalIgnoreCase))
             {
-                int dx = pw - (int)node.Float("HCenterAlignParam", 0f) - ((x + x1) / 2);
+                int dx = pw - Round14(node.Float("HCenterAlignParam", 0f)) - ((x + x1) / 2);
                 x += dx; x1 += dx;
             }
             else if (hca.Equals("RelativeAlign", StringComparison.OrdinalIgnoreCase))
             {
-                int dx = (int)(pw * node.Float("HCenterAlignParam", 0f)) - ((x + x1) / 2);
+                int dx = Round14(pw * node.Float("HCenterAlignParam", 0f)) - ((x + x1) / 2);
                 x += dx; x1 += dx;
             }
 
             if (ta.Equals("AbsoluteBottomAlign", StringComparison.OrdinalIgnoreCase))
-                y = ph - (int)node.Float("TopAlignParam", 0f);
+                y = ph - Round14(node.Float("TopAlignParam", 0f));
             else if (ta.Equals("RelativeAlign", StringComparison.OrdinalIgnoreCase))
-                y = (int)(ph * node.Float("TopAlignParam", 0f));
+                y = Round14(ph * node.Float("TopAlignParam", 0f));
 
             if (ba.Equals("AbsoluteBottomAlign", StringComparison.OrdinalIgnoreCase))
-                y1 = ph - (int)node.Float("BottomAlignParam", 0f) - 1;
+                y1 = ph - Round14(node.Float("BottomAlignParam", 0f)) - 1;
             else if (ba.Equals("RelativeAlign", StringComparison.OrdinalIgnoreCase))
-                y1 = (int)(ph * node.Float("BottomAlignParam", 0f));
+                y1 = Round14(ph * node.Float("BottomAlignParam", 0f));
 
             if (vca.Equals("AbsoluteBottomAlign", StringComparison.OrdinalIgnoreCase))
             {
-                int dy = ph - (int)node.Float("VCenterAlignParam", 0f) - ((y + y1) / 2);
+                int dy = ph - Round14(node.Float("VCenterAlignParam", 0f)) - ((y + y1) / 2);
                 y += dy; y1 += dy;
             }
             else if (vca.Equals("RelativeAlign", StringComparison.OrdinalIgnoreCase))
             {
-                int dy = (int)(ph * node.Float("VCenterAlignParam", 0f)) - ((y + y1) / 2);
+                int dy = Round14(ph * node.Float("VCenterAlignParam", 0f)) - ((y + y1) / 2);
                 y += dy; y1 += dy;
             }
 
             width = Math.Max(0, x1 - x + 1);
             height = Math.Max(0, y1 - y + 1);
         }
+
+        // engine_1.4.exe ParentFrame::ProcessAligning uses ROUND for all
+        // alignment parameters/products.  Target final 1.4 semantics, not 1.1 truncation.
+        private static int Round14(float value) => Mathf.RoundToInt(value);
 
         private static Color ParseArgb(string value, Color fallback)
         {
@@ -1779,8 +1980,8 @@ namespace Cossacks2Bridge.UnityAdapters
             for (int i = 0; i < va.Children.Count; i++)
             {
                 RawNode a = va.Children[i];
-                if (string.IsNullOrWhiteSpace(a.Name)) continue;
-                list.Add(new SourceAction { Name = a.Name, Payload = SerializeChildren(a) });
+                if (string.IsNullOrWhiteSpace(a.Tag)) continue;
+                list.Add(new SourceAction { Name = a.Tag, Payload = SerializeChildren(a) });
             }
             return list;
         }
@@ -1803,7 +2004,7 @@ namespace Cossacks2Bridge.UnityAdapters
             RawNode va = node?.Child("v_Actions");
             if (va == null) return false;
             for (int i = 0; i < va.Children.Count; i++)
-                if (string.Equals(va.Children[i].Name, actionName, StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(va.Children[i].Tag, actionName, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
         }
 
@@ -1817,103 +2018,26 @@ namespace Cossacks2Bridge.UnityAdapters
 
         private static void SerializeNode(RawNode node, StringBuilder sb)
         {
-            if (node == null || sb == null || string.IsNullOrEmpty(node.Name)) return;
-            sb.Append('<').Append(node.Name).Append('>');
-            if (!string.IsNullOrEmpty(node.Text)) sb.Append(node.Text.Trim());
+            if (node == null || sb == null || string.IsNullOrEmpty(node.Tag)) return;
+            sb.Append('<').Append(node.Tag).Append('>');
+            string direct = node.DirectText();
+            if (!string.IsNullOrEmpty(direct)) sb.Append(direct);
             for (int i = 0; i < node.Children.Count; i++) SerializeNode(node.Children[i], sb);
-            sb.Append("</").Append(node.Name).Append('>');
+            sb.Append("</").Append(node.Tag).Append('>');
         }
 
-        private sealed class RawNode
+        // Single parser source for all menu XML-like data.  The previous local
+        // RawNode/ParseLooseXml path duplicated layout parsing and was the same
+        // architectural failure already identified in the A7 audit.
+        private static RawNode ParseSharedXml(string raw)
         {
-            public string Name = string.Empty;
-            public string Text = string.Empty;
-            public RawNode Parent;
-            public readonly List<RawNode> Children = new List<RawNode>();
-
-            public RawNode Child(string name)
-            {
-                for (int i = 0; i < Children.Count; i++)
-                    if (string.Equals(Children[i].Name, name, StringComparison.OrdinalIgnoreCase)) return Children[i];
-                return null;
-            }
-
-            public string Value(string name, string fallback = "")
-            {
-                RawNode c = Child(name);
-                if (c == null) return fallback;
-                string s = (c.Text ?? string.Empty).Trim();
-                return s.Length == 0 ? fallback : s;
-            }
-
-            public int Int(string name, int fallback = 0)
-            {
-                return int.TryParse(Value(name, string.Empty), NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : fallback;
-            }
-
-            public float Float(string name, float fallback = 0f)
-            {
-                return float.TryParse(Value(name, string.Empty), NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : fallback;
-            }
-
-            public bool Bool(string name, bool fallback = false)
-            {
-                return bool.TryParse(Value(name, string.Empty), out bool v) ? v : fallback;
-            }
-        }
-
-        private static RawNode ParseLooseXml(string raw)
-        {
-            var root = new RawNode { Name = "__ROOT__" };
-            var stack = new Stack<RawNode>();
-            stack.Push(root);
-            int p = 0;
-            while (p < (raw?.Length ?? 0))
-            {
-                int lt = raw.IndexOf('<', p);
-                if (lt < 0)
-                {
-                    if (p < raw.Length) stack.Peek().Text += raw.Substring(p);
-                    break;
-                }
-                if (lt > p) stack.Peek().Text += raw.Substring(p, lt - p);
-                if (raw.IndexOf("<!--", lt, StringComparison.Ordinal) == lt)
-                {
-                    int ce = raw.IndexOf("-->", lt + 4, StringComparison.Ordinal);
-                    p = ce >= 0 ? ce + 3 : raw.Length;
-                    continue;
-                }
-                int gt = raw.IndexOf('>', lt + 1);
-                if (gt < 0) break;
-                string token = raw.Substring(lt + 1, gt - lt - 1).Trim();
-                p = gt + 1;
-                if (token.Length == 0 || token[0] == '?' || token[0] == '!') continue;
-                if (token[0] == '/')
-                {
-                    string close = token.Substring(1).Trim();
-                    while (stack.Count > 1)
-                    {
-                        RawNode top = stack.Pop();
-                        if (string.Equals(top.Name, close, StringComparison.OrdinalIgnoreCase)) break;
-                    }
-                    continue;
-                }
-                bool self = token.EndsWith("/", StringComparison.Ordinal);
-                if (self) token = token.Substring(0, token.Length - 1).TrimEnd();
-                int ws = 0; while (ws < token.Length && !char.IsWhiteSpace(token[ws])) ws++;
-                string name = token.Substring(0, ws);
-                if (string.IsNullOrEmpty(name)) continue;
-                var n = new RawNode { Name = name, Parent = stack.Peek() };
-                stack.Peek().Children.Add(n);
-                if (!self) stack.Push(n);
-            }
-            return root;
+            return Menu14UnifiedLoader.LiteDocument.Parse(raw);
         }
 
         private static RawNode FindDialogsDeskByName(RawNode root, string name)
         {
             if (root == null) return null;
-            if (root.Name.Equals("DialogsDesk", StringComparison.OrdinalIgnoreCase) &&
+            if (root.Tag.Equals("DialogsDesk", StringComparison.OrdinalIgnoreCase) &&
                 root.Value("Name", string.Empty).Equals(name ?? string.Empty, StringComparison.OrdinalIgnoreCase))
                 return root;
             for (int i = 0; i < root.Children.Count; i++)
@@ -1927,7 +2051,7 @@ namespace Cossacks2Bridge.UnityAdapters
         private static void Collect(RawNode root, string tag, List<RawNode> output)
         {
             if (root == null || output == null) return;
-            if (root.Name.Equals(tag, StringComparison.OrdinalIgnoreCase)) output.Add(root);
+            if (root.Tag.Equals(tag, StringComparison.OrdinalIgnoreCase)) output.Add(root);
             for (int i = 0; i < root.Children.Count; i++) Collect(root.Children[i], tag, output);
         }
 
@@ -1960,7 +2084,7 @@ namespace Cossacks2Bridge.UnityAdapters
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[C2:BFE14 CAMPAIGN XML V396A6] DataRoot text read failed '{relativePath}': {ex.GetType().Name}: {ex.Message}");
+                Debug.LogWarning($"[C2:BFE14 CAMPAIGN XML V396A7R5_UIA1] DataRoot text read failed '{relativePath}': {ex.GetType().Name}: {ex.Message}");
             }
             return string.Empty;
         }
