@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
@@ -400,6 +400,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 _NationV420 = value;
                 C2LiveUnitCellIndex.AllegianceChanged(this);
             }
+        }
+        // CheckCapture changes Serial so old attack/projectile references expire.
+        // Use the registry generation instead of toggling a bit: repeated captures
+        // must not accidentally make a reference from two owners ago valid again.
+        internal void C2RenewIdentityAfterCaptureV441()
+        {
+            int slot = C2ObjectIndexV408LikeOriginal;
+            if (slot < 0 || slot >= C2ObjectSerialGenerationV408LikeOriginal.Length) return;
+            ushort serial = unchecked((ushort)(C2ObjectSerialGenerationV408LikeOriginal[slot] + 1));
+            if (serial == 0 || serial == 0xFFFF) serial = 1;
+            C2ObjectSerialGenerationV408LikeOriginal[slot] = serial;
+            C2ObjectSerialV408LikeOriginal = serial;
         }
         public ushort NIndex;
         public int RealX;

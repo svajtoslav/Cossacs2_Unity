@@ -8,7 +8,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 {
     // Data-driven Cossacks II combat test runtime. Values come from the selected
     // unit's shipped MD; morale constants mirror Data/NewMorale.dat.
-    public sealed class C2CombatRuntimeV334LikeOriginal : MonoBehaviour
+    public sealed partial class C2CombatRuntimeV334LikeOriginal : MonoBehaviour
     {
         private C2NeutralPeasantUnitInfoV2LikeOriginal _unit;
         private C2NeutralPeasantUnitInfoV2LikeOriginal _targetUnit;
@@ -174,7 +174,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (unit == null) return false;
             C2CombatRuntimeV334LikeOriginal combat = unit.GetComponent<C2CombatRuntimeV334LikeOriginal>();
-            return combat != null && combat._active;
+            return unit.RuntimeLinkCachedLikeOriginal?.Runtime?.ArtilleryPointOrderV439 != null || (combat != null && combat._active);
         }
 
         public static void ResetRifleAttackOnFormationCreateV396LikeOriginal(
@@ -524,6 +524,27 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             _forcedOrderModeV395LikeOriginal = -1;
             _targetFormationGroupIdV395LikeOriginal = -1;
             if (_unit == null) { _active = false; return; }
+            var complexLinkV441 = _unit.RuntimeLinkCachedLikeOriginal;
+            if (complexLinkV441?.Runtime?.OriginalComplexObjectV430LikeOriginal != null &&
+                C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit).Pushka)
+            {
+                // NewMon.cpp::AttackObj(PushkaID) delegates to NewAttackPoint
+                // at the enemy's current position. Complex charging/turning must
+                // not run the old managed _complexCannonStage timer as well.
+                bool allowed = targetUnit != null
+                    ? C2CombatCoreV408LikeOriginal.TryAttackObjV408LikeOriginal(_unit, targetUnit, 144, out _)
+                    : targetBuilding != null && targetBuilding.LifeLikeOriginal > 0 && targetBuilding.Nation != _unit.Nation;
+                if (allowed)
+                {
+                    int x = targetUnit != null ? (int)targetUnit.RealXFloat : (int)targetBuilding.RealX;
+                    int y = targetUnit != null ? (int)targetUnit.RealYFloat : (int)targetBuilding.RealY;
+                    complexLinkV441.Owner.AttackArtilleryPointV439(complexLinkV441.Runtime, x, y, 0);
+                }
+                _active = _attackInProgress = false;
+                _complexCannonStage = 0;
+                enabled = false;
+                return;
+            }
             if (_targetUnit != null)
                 C2FormationRuntimeV167LikeOriginal.TryGetFormationGroupIdV321LikeOriginal(
                     _targetUnit, out _targetFormationGroupIdV395LikeOriginal);
@@ -943,15 +964,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         public void CancelForExternalOrderLikeOriginal(string reason)
         {
-            // MoveBrigadeForwardToAttack submits a formation movement and then keeps
-            // the SAME melee order alive. The asynchronous movement node used to
-            // come back one frame later and cancel the just-created forcedMode=0
-            // combat order. That is why the brigade charged but never contacted.
-            if (_forcedOrderModeV395LikeOriginal == 0 &&
-                !string.IsNullOrEmpty(reason) &&
-                reason.IndexOf("MoveBrigadeForwardToAttack", StringComparison.OrdinalIgnoreCase) >= 0)
-                return;
-
             if (!_active && !_attackInProgress && _complexCannonStage == 0)
                 return;
             _active = false;
@@ -977,6 +989,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             Debug.Log("[C2:COMBAT ORDER CANCEL] unit='" +
                       (_unit != null ? _unit.SourceMonsterId : string.Empty) +
                       "' reason='" + (reason ?? string.Empty) + "'");
+        }
+
+        private void OnDisable()
+        {
+            // A finished/deleted local AttackObj must clear EnemyID as well as
+            // stopping its managed processor. Otherwise KeepPositions/Bitva see
+            // a live order which can never advance (notably after SN=1 recovery).
+            if (_unit != null) C2CombatCoreV408LikeOriginal.DeleteAttackObjV408LikeOriginal(_unit);
         }
 
         private void Update()
@@ -1260,7 +1280,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
             }
 
-            if (C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal < _nextAttackAt)
+            // NewMon.cpp::AttackObjLink sets DELAY=0 for a NoWaitMask slot.
+            // In particular NOPAUSEDATTACK 0 permits a bayonet strike while the
+            // firearm delay is still running. Do not reintroduce that delay here
+            // through the managed reload sentinel (which can be +Infinity).
+            var delayTraitsV440 = C2CombatCoreV408LikeOriginal.GetTraitsV408LikeOriginal(_unit);
+            bool noWaitV440 = (delayTraitsV440.NoWaitMask & (1 << mode)) != 0;
+            if (!noWaitV440 && C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal < _nextAttackAt)
                 return;
 
             _unit.SetCombatPostureV322LikeOriginal(mode, true);
@@ -1663,6 +1689,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     (remaining > 0 || playing))
                     return true;
             }
+            // The runtime-owned musket delay has ended. Its sentinel must not
+            // remain a second, permanent delay after RifleAttack was switched off.
+            if (float.IsPositiveInfinity(_nextAttackAt))
+                _nextAttackAt = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal;
             return C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal < _nextAttackAt;
         }
 
@@ -1726,7 +1756,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int mode,
             WeaponEffectLikeOriginal effect,
             float targetRealX,
-            float targetRealY)
+            float targetRealY, Vector3? complexMuzzleV439 = null)
         {
             if (_unit == null) return false;
             if (effect == null) effect = EffectForModeLikeOriginal(mode);
@@ -1735,11 +1765,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // weapons. SLOWRECHARGE pays when #ATTACK3/recharge actually begins.
             bool rifleAttackStateV413 = IsRifleAttackStateV413LikeOriginal(mode);
             int resourceModeV413 = rifleAttackStateV413 ? 1 : mode;
-            if (!(_slowRecharge && rifleAttackStateV413) &&
+            if (!complexMuzzleV439.HasValue && !(_slowRecharge && rifleAttackStateV413) &&
                 !C2CombatCoreV408LikeOriginal.TryConsumeShotResourcesV408LikeOriginal(_unit, resourceModeV413))
                 return false;
 
-            if (effect.HasWeapon)
+            if (effect.HasWeapon && !complexMuzzleV439.HasValue)
                 C2CombatCoreV408LikeOriginal.ApplyRazbrosV408LikeOriginal(
                     _unit, ref targetRealX, ref targetRealY);
 
@@ -1749,9 +1779,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2UnitOriginalRuntimeLinkLikeOriginal runtimeLink =
                 _unit.RuntimeLinkCachedLikeOriginal;
             Vector3 activePointStart;
+            Vector2 originalMuzzleV435 = new Vector2(_unit.RealXFloat, _unit.RealYFloat) / 16.0f;
             if (runtimeLink != null &&
-                runtimeLink.TryGetWeaponStartWorldLikeOriginal(0, out activePointStart))
+                runtimeLink.Owner != null && runtimeLink.Owner.TryGetRuntimeWeaponStartWorldV435LikeOriginal(
+                    runtimeLink.Runtime, 0, out activePointStart, out originalMuzzleV435))
                 start = activePointStart;
+            if(complexMuzzleV439.HasValue)start=complexMuzzleV439.Value;
             Vector3 end;
             C2BattleTerrainMode modeOwner = _unit.OwnerMode != null
                 ? _unit.OwnerMode : FindObjectOfType<C2BattleTerrainMode>();
@@ -1773,7 +1806,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (shotFogEffect)
                 C2CombatMuzzleSmokeV390LikeOriginal.SpawnLikeOriginal(
                     start, end, _md.Path ?? string.Empty,
-                    smokeAnimation, smokeSeed);
+                    smokeAnimation, smokeSeed, modeOwner,
+                    new Vector2(targetRealX, targetRealY) / 16.0f - originalMuzzleV435);
 
             Action<C2SettlementBuildingSelectableV1LikeOriginal, float, float> impact =
                 (interceptedBuilding, impactRealX, impactRealY) => ApplyDamageToTargetLikeOriginal(
@@ -3062,6 +3096,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             public global::TemnyLessViewer.C2DirectSpriteBank Bank;
             public readonly Dictionary<int, Sprite> Sprites = new Dictionary<int, Sprite>();
+            public readonly Dictionary<int, Vector2> Origins = new Dictionary<int, Vector2>();
         }
 
         private static readonly Dictionary<string, SmokeBankLikeOriginal> Banks =
@@ -3071,22 +3106,31 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static Material SharedSmokeMaterialLikeOriginal;
 
         private SmokeAnimationLikeOriginal _animation;
-        private SpriteRenderer _renderer;
+        private bool _nativeSpriteV442,_persistentV442;
+        private MeshRenderer _renderer;
+        private Mesh _mesh;
+        private readonly Vector3[] _vertices = new Vector3[4];
+        private Vector3 _mapX, _mapY;
+        private float _cos, _sin;
+        private int _lastFrame = -1;
+        private MaterialPropertyBlock _properties;
         private float _born;
         private const float FramesPerSecondLikeOriginal = 25.0f;
 
-        public static void SpawnLikeOriginal(
+        public static C2CombatMuzzleSmokeV390LikeOriginal SpawnLikeOriginal(
             Vector3 muzzleWorld,
             Vector3 targetWorld,
             string mdPath,
             string animationName,
-            int seed)
+            int seed,
+            C2BattleTerrainMode mode,
+            Vector2 originalShotDirection, bool nativeSpriteV442=false, bool persistentV442=false)
         {
             string dataRoot = ResolveDataRootLikeOriginal(mdPath);
-            if (string.IsNullOrEmpty(dataRoot)) return;
+            if (string.IsNullOrEmpty(dataRoot)) return null;
 
             List<SmokeAnimationLikeOriginal> animations = LoadAnimationsLikeOriginal(dataRoot);
-            if (animations == null || animations.Count == 0) return;
+            if (animations == null || animations.Count == 0) return null;
 
             string wanted = NormalizeSmokeAnimationNameLikeOriginal(animationName);
             SmokeAnimationLikeOriginal animation = null;
@@ -3104,21 +3148,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
                 }
             }
+            if (animation == null && nativeSpriteV442) return null;
             if (animation == null)
             {
+                animations=animations.FindAll(a=>a.Name.IndexOf("SHOTFOG",StringComparison.OrdinalIgnoreCase)>=0);
+                if(animations.Count==0)return null;
                 variant = (seed & 0x7fffffff) % animations.Count;
                 animation = animations[variant];
             }
-            if (animation == null || animation.Frames.Count == 0) return;
+            if (animation == null || animation.Frames.Count == 0) return null;
 
             GameObject go = new GameObject("C2_SHOTFOG_V392_" +
                 (animation.Name ?? variant.ToString(CultureInfo.InvariantCulture)));
             go.layer = 7; // same sprite-depth pass as units/buildings
             go.transform.position = muzzleWorld;
             C2CombatMuzzleSmokeV390LikeOriginal fx = go.AddComponent<C2CombatMuzzleSmokeV390LikeOriginal>();
-            fx._animation = animation;
-            fx._born = Time.realtimeSinceStartup;
-            fx._renderer = go.AddComponent<SpriteRenderer>();
+            fx._animation = animation;fx._nativeSpriteV442=nativeSpriteV442;fx._persistentV442=persistentV442;
+            fx._born = C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal;
+            fx._renderer = go.AddComponent<MeshRenderer>();
+            fx._mesh = new Mesh { name = "C2_SHOTFOG_V435" };
+            fx._mesh.MarkDynamic();
+            go.AddComponent<MeshFilter>().sharedMesh = fx._mesh;
+            fx._properties = new MaterialPropertyBlock();
+            // Convert vectors, not terrain samples at the map origin. A remote
+            // hillside must not tilt the smoke plane at the shooting soldier.
+            fx._mapX = mode != null ? mode.SettlementSkewVectorToWorldV435LikeOriginal(1, 0, 0) : Vector3.right;
+            fx._mapY = mode != null ? mode.SettlementSkewVectorToWorldV435LikeOriginal(0, 1, 0) : Vector3.back;
+            // Weapon.cpp::ShowExplosions, Rotations==255, stationary SHOTFOG:
+            // angle=atan2(yd-y,(xd-x)/0.8)+pi; GetOrientedBillboardTransform
+            // translates by USERLC, rotates in native XY, then scales Y by 1.6.
+            float angle = Mathf.Atan2(originalShotDirection.y, originalShotDirection.x / 0.8f) + 3.1415f;
+            fx._cos = Mathf.Cos(angle); fx._sin = Mathf.Sin(angle);
             fx._renderer.sortingOrder = 5200;
             if (SharedSmokeMaterialLikeOriginal == null)
             {
@@ -3132,17 +3192,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             if (SharedSmokeMaterialLikeOriginal != null)
                 fx._renderer.sharedMaterial = SharedSmokeMaterialLikeOriginal;
+            if(nativeSpriteV442){
+                var cam=Camera.main;foreach(var c in Camera.allCameras)if(c.name.Contains("C2_BattleTerrainCamera_Iso")){cam=c;break;}
+                if(cam!=null){float pixel=fx._mapX.magnitude;fx._mapX=cam.transform.right*pixel;fx._mapY=-cam.transform.up*pixel;}
+            }
             fx.ApplyFrameLikeOriginal(0);
-            fx.FaceBattleCameraLikeOriginal();
-
-            Vector3 forward = targetWorld - muzzleWorld;
-            forward.y = 0.0f;
-            if (forward.sqrMagnitude > 0.001f)
-                go.transform.position += forward.normalized * 1.5f;
 
             Debug.Log("[C2:SHOT EFFECT V392] animation='" + animation.Name +
                       "' frames=" + animation.Frames.Count.ToString(CultureInfo.InvariantCulture) +
                       " seed=" + seed.ToString(CultureInfo.InvariantCulture));
+            return fx;
         }
 
         private void Update()
@@ -3155,7 +3214,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             int frame = Mathf.FloorToInt(
-                (Time.realtimeSinceStartup - _born) * FramesPerSecondLikeOriginal);
+                (C2CombatCoreV408LikeOriginal.SimulationSecondsV408LikeOriginal - _born) * FramesPerSecondLikeOriginal);
+            if(_persistentV442)frame=frame%_animation.Frames.Count;
             if (frame >= _animation.Frames.Count)
             {
                 Destroy(gameObject);
@@ -3163,11 +3223,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             ApplyFrameLikeOriginal(Mathf.Max(0, frame));
-            FaceBattleCameraLikeOriginal();
         }
 
         private void ApplyFrameLikeOriginal(int frameIndex)
         {
+            if (frameIndex == _lastFrame) return;
             if (_renderer == null || _animation == null ||
                 frameIndex < 0 || frameIndex >= _animation.Frames.Count) return;
 
@@ -3210,23 +3270,46 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 // NewMon.cpp WEAPON.ADS: NewFrame.dx/dy are USERLC offsets.
                 // Place the package's original animation anchor at the muzzle.
-                float pivotX = rendered.Width > 0
-                    ? Mathf.Clamp01((rendered.OriginX - source.Dx) / (float)rendered.Width)
-                    : 0.5f;
-                float pivotY = rendered.Height > 0
-                    ? Mathf.Clamp01((rendered.Height - (rendered.OriginY - source.Dy)) / (float)rendered.Height)
-                    : 0.5f;
                 sprite = Sprite.Create(
                     tex,
                     new Rect(0, 0, rendered.Width, rendered.Height),
-                    new Vector2(pivotX, pivotY),
+                    new Vector2(0.5f, 0.5f),
                     1.0f,
                     0,
                     SpriteMeshType.FullRect);
                 sprite.name = tex.name + "_Sprite";
                 bank.Sprites[source.SpriteId] = sprite;
+                bank.Origins[source.SpriteId] = new Vector2(rendered.OriginX, rendered.OriginY);
             }
-            _renderer.sprite = sprite;
+            Vector2 cropOrigin = bank.Origins[source.SpriteId];
+            float x0 = source.Dx - cropOrigin.x, y0 = source.Dy - cropOrigin.y;
+            float x1 = x0 + sprite.rect.width, y1 = y0 + sprite.rect.height;
+            _vertices[0] = NativeSmokeOffsetV435(x0, y1);
+            _vertices[1] = NativeSmokeOffsetV435(x1, y1);
+            _vertices[2] = NativeSmokeOffsetV435(x1, y0);
+            _vertices[3] = NativeSmokeOffsetV435(x0, y0);
+            _mesh.vertices = _vertices;
+            if (_lastFrame < 0)
+            {
+                _mesh.uv = new[] { new Vector2(0,0), new Vector2(1,0), new Vector2(1,1), new Vector2(0,1) };
+                _mesh.triangles = new[] { 0,1,2,0,2,3 };
+                _mesh.colors32 = new[] { new Color32(255,255,255,(byte)(_nativeSpriteV442?255:160)), new Color32(255,255,255,(byte)(_nativeSpriteV442?255:160)), new Color32(255,255,255,(byte)(_nativeSpriteV442?255:160)), new Color32(255,255,255,(byte)(_nativeSpriteV442?255:160)) };
+            }
+            _mesh.RecalculateBounds();
+            _properties.SetTexture("_MainTex", sprite.texture);
+            _renderer.SetPropertyBlock(_properties);
+            _lastFrame = frameIndex;
+        }
+
+        private Vector3 NativeSmokeOffsetV435(float x, float y)
+        {
+            if(_nativeSpriteV442)return _mapX*x+_mapY*y;
+            return _mapX * (x * _cos - y * _sin) + _mapY * ((x * _sin + y * _cos) * 1.6f);
+        }
+
+        private void OnDestroy()
+        {
+            if (_mesh != null) Destroy(_mesh);
         }
 
         private static List<SmokeAnimationLikeOriginal> LoadAnimationsLikeOriginal(string dataRoot)
@@ -3265,9 +3348,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     }
 
                     string animName = t[0];
-                    if (!string.Equals(animName, "@SHOTFOG", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(animName, "@SHOTFOG1", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(animName, "#SHOTFOG3", StringComparison.OrdinalIgnoreCase))
+                    if (animName.Length<2 || (animName[0]!='@' && animName[0]!='#'))
                         continue;
 
                     SmokeAnimationLikeOriginal animation = new SmokeAnimationLikeOriginal

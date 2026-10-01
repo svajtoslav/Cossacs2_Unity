@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -289,52 +289,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int M = Mathf.Clamp(maxMorale - n * 100, 0, 100);
             if (n + M <= 0 || n >= 10) return;
 
-            float lx = m * w / 100.0f;
-            float lmax = M * w / 100.0f;
-            float lr = n == 0 ? Mathf.Min(m, 32) * w / 100.0f : 0.0f;
-
             Color old = GUI.color;
-            // Retail SetMorale pulses below 45. Preserve that behaviour, while
-            // deliberately making the missing/max segment much darker so the loss
-            // is obvious at a glance.
-            float pulse = morale < 45
-                ? Mathf.Clamp01(0.78f + 0.22f * (0.5f + 0.5f * Mathf.Sin(Time.realtimeSinceStartup * 5.0f)))
-                : 1.0f;
-
-            if (lr > 0.0f)
+            int width=Mathf.RoundToInt(w),height=Mathf.RoundToInt(h);
+            for(int i=0;i<3+9*(height+1);i++)
             {
-                Color c = new Color32(0xFF, 0x25, 0x18, 0xFF);
-                c.a *= alpha * pulse;
-                GUI.color = c;
-                GUI.DrawTexture(new Rect(x, y, lr, h), Texture2D.whiteTexture);
-            }
-
-            if (lx > lr)
-            {
-                Color c = new Color32(0xFF, 0xD4, 0x12, 0xFF);
-                c.a *= alpha * pulse;
-                GUI.color = c;
-                GUI.DrawTexture(new Rect(x + lr, y, lx - lr, h), Texture2D.whiteTexture);
-            }
-
-            if (lmax > lx)
-            {
-                Color c = new Color32(0x6E, 0x45, 0x08, 0xFF);
-                c.a *= alpha;
-                GUI.color = c;
-                GUI.DrawTexture(new Rect(x + lx, y, lmax - lx, h), Texture2D.whiteTexture);
-            }
-
-            if (n > 0)
-            {
-                float tick = Mathf.Max(1.0f, h - 1.0f);
-                float start = (w - (n + n - 1) * tick) * 0.5f;
-                Color c = new Color32(0xAF, 0x00, 0x00, 0xFF);
-                c.a *= alpha;
-                GUI.color = c;
-                for (int i = 0; i < n; i++)
-                    GUI.DrawTexture(new Rect(x + start + i * 2.0f * tick, y, tick, h),
-                        Texture2D.whiteTexture);
+                RectInt rect=C2GameplayHudV1.MoraleSegmentV422(i,width,height,morale,maxMorale);
+                if(rect.width<=0||rect.height<=0)continue;
+                Color c=C2MoralePresentationV435LikeOriginal.ColorForSegment(i,morale);
+                c.a*=alpha;GUI.color=c;
+                GUI.DrawTexture(new Rect(x+rect.x,y+rect.y,rect.width,rect.height),Texture2D.whiteTexture);
             }
 
             GUI.color = old;

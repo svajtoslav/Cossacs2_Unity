@@ -181,6 +181,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal Vector3 SettlementSkewXYVectorToWorldV350LikeOriginal(float x, float y)
         {
+            return SettlementSkewVectorToWorldV435LikeOriginal(x, y, 0.0f);
+        }
+
+        internal Vector3 SettlementSkewVectorToWorldV435LikeOriginal(float x, float y, float z)
+        {
             // akField.cpp bends the already SkewPt-transformed top vertices in
             // their X/Y plane.  This is a vector conversion, so it must not
             // sample terrain height or inherit the backing mesh's odd-column
@@ -188,10 +193,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             OriginalTerrainKernelConfig kernel = _hasLastBuiltTerrainKernel
                 ? _lastBuiltTerrainKernel
                 : CreateOriginalTerrainKernelConfigLikeOriginal(_map);
+            // Inverse of Scape3D.cpp c_SkewTM: (x, y-z/2, z*cos(pi/6)).
+            // A vertical displacement AFTER SkewPt changes both original Y and Z.
+            // Applying only height/cos(pi/6) makes the stalk lean in screen space.
+            float originalZ = z / 0.8660254037844386f;
+            float originalY = y + 0.5f * originalZ;
             return new Vector3(
                 x * kernel.BackingStepXWorld / 32.0f,
-                0.0f,
-                y * kernel.BackingStepZWorld * WorldZSign / 32.0f);
+                originalZ * kernel.HeightScale,
+                originalY * kernel.BackingStepZWorld * WorldZSign / 32.0f);
         }
     }
 
@@ -203,9 +213,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
     /// </summary>
     public sealed class C2SettlementFieldPatchV342LikeOriginal : MonoBehaviour
     {
-        // complex.rsr is advanced by TimeReq::Handle.  The active CII 1.1
-        // simulation starts with FrmDec=2 and a normal 80 ms game step.
-        private const float OriginalSimulationStepSecondsV349 = 0.080f;
+        // Ddex1.cpp advances ObjTimer next to ProcessNewMonsters. Fields use
+        // the same simulation clock as units, including pause and catch-up.
         private const int OriginalFrmDecV349 = 2;
         private const int Fg24StageV349 = 92;
         private const int Fw0StageV349 = 93;
@@ -222,7 +231,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private float _reservationExpiresV342;
         private int _stageV349;
         private int _timePassedV349;
-        private float _simulationAccumulatorV349;
+        private int _lastSimulationTickV435;
 
         public Vector2 OriginalRealPositionV342LikeOriginal { get; private set; }
 
@@ -268,7 +277,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             transform.rotation = Quaternion.Euler(0.0f, 45.0f, 0.0f);
             _stageV349 = 0; // UnitsMD/Field.md creates FG0, not a ripe field.
             _timePassedV349 = 0;
-            _simulationAccumulatorV349 = 0.0f;
+            _lastSimulationTickV435 = C2FormationRuntimeV167LikeOriginal.CurrentSimulationTickV403ELikeOriginal;
             if (_village != null) _village.MarkFieldBatchDirtyV349LikeOriginal();
         }
 
@@ -313,16 +322,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             return true;
         }
 
-        internal bool TickTimeV349LikeOriginal(float deltaSeconds)
+        internal bool TickTimeV349LikeOriginal()
         {
             if (_reservedBy != null && (_reservedBy.IsDeadLikeOriginal || Time.realtimeSinceStartup >= _reservationExpiresV342))
                 _reservedBy = null;
 
             bool changed = false;
-            _simulationAccumulatorV349 += Mathf.Max(0.0f, deltaSeconds);
-            while (_simulationAccumulatorV349 >= OriginalSimulationStepSecondsV349)
+            int now = C2FormationRuntimeV167LikeOriginal.CurrentSimulationTickV403ELikeOriginal;
+            if (now < _lastSimulationTickV435) _lastSimulationTickV435 = now;
+            while (_lastSimulationTickV435 < now)
             {
-                _simulationAccumulatorV349 -= OriginalSimulationStepSecondsV349;
+                _lastSimulationTickV435++;
                 int timeAmount = TimeAmountForStageV349LikeOriginal();
                 if (timeAmount <= 0) continue;
                 _timePassedV349 += OriginalFrmDecV349;
@@ -1456,7 +1466,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             for (int i = 0; i < _fieldPatchesV342.Count; i++)
             {
                 C2SettlementFieldPatchV342LikeOriginal patch = _fieldPatchesV342[i];
-                if (patch != null && patch.TickTimeV349LikeOriginal(deltaSeconds)) changed = true;
+                if (patch != null && patch.TickTimeV349LikeOriginal()) changed = true;
             }
             if (changed) _fieldBatchDirtyV349 = true;
             if (_fieldBatchDirtyV349) RebuildFieldBatchV349LikeOriginal();
@@ -1573,15 +1583,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         (1.0f - OriginalFieldRandomTableV349LikeOriginal[
                             ((int)Mathf.Abs(vcrEngine.y - vcrEngine.x)) % OriginalFieldRandomTableV349LikeOriginal.Length] * 0.1f) * grow;
 
-                    // AddPatch adds straw height after SkewPt, therefore its
-                    // post-skew Z amount corresponds to height/cos(pi/6) in
-                    // the Unity terrain coordinate bridge.
+                    // akField.cpp::AddPatch changes only post-skew Z. Convert
+                    // the full inverse-skew vector without resampling terrain.
                     Vector3 leftHeightWorld =
-                        _mode.SettlementMapPointToWorldV349LikeOriginal(centerX, centerY, leftStrawHeight / skewHeightLikeOriginal) -
-                        _mode.SettlementMapPointToWorldV349LikeOriginal(centerX, centerY, 0.0f);
+                        _mode.SettlementSkewVectorToWorldV435LikeOriginal(0, 0, leftStrawHeight);
                     Vector3 rightHeightWorld =
-                        _mode.SettlementMapPointToWorldV349LikeOriginal(centerX, centerY, rightStrawHeight / skewHeightLikeOriginal) -
-                        _mode.SettlementMapPointToWorldV349LikeOriginal(centerX, centerY, 0.0f);
+                        _mode.SettlementSkewVectorToWorldV435LikeOriginal(0, 0, rightStrawHeight);
                     Vector3 vltWorld = vlbWorld + leftHeightWorld;
                     Vector3 vrtWorld = vrbWorld + rightHeightWorld;
 

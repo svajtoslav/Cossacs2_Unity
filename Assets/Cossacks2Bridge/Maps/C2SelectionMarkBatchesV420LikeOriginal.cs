@@ -40,6 +40,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 var unit = UseOriginalDrawUnitsCellVisibilityLikeOriginal ? _drawUnitsCurrentLikeOriginal[i] : _units[i];
                 if (unit == null || !unit.Selected || !unit.ActiveLikeOriginal || unit.HiddenInsideBuildingLikeOriginal) continue;
+                if(unit.OriginalComplexObjectV430LikeOriginal!=null)continue; // Native SELTYPE patch is owned by its complex visual.
                 int kind = unit.Info != null && C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(unit.Info) ? 1 : 0;
                 var batch = SelectionMarkBatchV420(kind, unit.VisibleLayerLikeOriginal);
                 if (!batch.Touched) batch.WorldToLocalThisFrameV378LikeOriginal = batch.Root.transform.worldToLocalMatrix;

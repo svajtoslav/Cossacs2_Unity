@@ -80,11 +80,44 @@ namespace Cossacks2Bridge.UnityAdapters
             if (!WasQuickMapHotkeyPressed(out leftControl))
                 return;
 
-            if (leftControl)
-                DebugOpenEditorTerrainLikeOriginal();
-            else
-                DebugOpenRubiconTerrain();
+            DispatchQuickMapHotkeyV440(leftControl);
         }
+
+        private int _quickMapHotkeyFrameV440 = -1;
+
+        internal void DispatchQuickMapHotkeyV440(bool editor)
+        {
+            // The Game view and the editor shortcut can deliver the same press.
+            if (_quickMapHotkeyFrameV440 == Time.frameCount) return;
+            _quickMapHotkeyFrameV440 = Time.frameCount;
+            if (editor) DebugOpenEditorTerrainLikeOriginal();
+            else DebugOpenRubiconTerrain();
+        }
+
+#if UNITY_EDITOR
+        // Input.GetKeyDown is received only by the focused Game view. Register
+        // editor commands as well so the menu shortcut also works when Console,
+        // Hierarchy, or Scene currently has focus. Player builds use Update above.
+        [UnityEditor.MenuItem("Cossacks II/Quick load Skirmish2 _F12")]
+        private static void QuickSkirmishFromEditorV440() => DispatchEditorShortcutV440(false);
+
+        [UnityEditor.MenuItem("Cossacks II/Open map editor %F12")]
+        private static void QuickEditorFromEditorV440() => DispatchEditorShortcutV440(true);
+
+        [UnityEditor.MenuItem("Cossacks II/Quick load Skirmish2 _F12", true)]
+        [UnityEditor.MenuItem("Cossacks II/Open map editor %F12", true)]
+        private static bool CanDispatchEditorShortcutV440() => UnityEditor.EditorApplication.isPlaying;
+
+        private static void DispatchEditorShortcutV440(bool editor)
+        {
+            if (!UnityEditor.EditorApplication.isPlaying) return;
+            var bootstrap = UnityEngine.Object.FindFirstObjectByType<MenuBootstrap>();
+            if (bootstrap == null) return;
+            var gameView = Type.GetType("UnityEditor.GameView,UnityEditor");
+            if (gameView != null) UnityEditor.EditorWindow.FocusWindowIfItsOpen(gameView);
+            bootstrap.DispatchQuickMapHotkeyV440(editor);
+        }
+#endif
 
         private static bool WasQuickMapHotkeyPressed(out bool leftControl)
         {
@@ -92,14 +125,14 @@ namespace Cossacks2Bridge.UnityAdapters
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.f12Key.wasPressedThisFrame)
             {
-                leftControl = Keyboard.current.leftCtrlKey.isPressed;
+                leftControl = Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed;
                 return true;
             }
 #endif
             try
             {
                 bool pressed = Input.GetKeyDown(KeyCode.F12);
-                if (pressed) leftControl = Input.GetKey(KeyCode.LeftControl);
+                if (pressed) leftControl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
                 return pressed;
             }
             catch

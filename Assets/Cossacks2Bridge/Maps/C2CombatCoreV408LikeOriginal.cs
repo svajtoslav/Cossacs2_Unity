@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -21,6 +21,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public int ArmRadius = 100;
             public byte KillMask;
             public byte MathMask;
+            public bool DontFillCannonV441, CostlyV441;
+            public byte ComplexMathMaskV441 = 1; // NewMonster constructor: CO_MathMask=BODY.
             // NewMonster attack-state tables. CANKILL copies KillMask to all
             // AttackMask slots; ATTMASK may override individual slots later.
             public readonly byte[] AttackMask = new byte[NAttTypesV413LikeOriginal];
@@ -38,6 +40,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public bool Priest;
             public bool Shaman;
             public bool Capture;
+            public bool NeverCaptureV441, CantCaptureV441;
             public bool No25;
             public bool Building;
             public bool CanBeInFocusOfFormation;
@@ -126,6 +129,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             new Dictionary<string, MdTraits>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, int> WeaponFlagsByKind =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, int> WeaponIndicesV439 =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        internal static int WeaponIndexV439(string kind)
+        { return kind!=null && WeaponIndicesV439.TryGetValue(kind,out int index)?index:0; }
         private static readonly HashSet<string> LoadedNresPaths =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<int, AttackState> AttackStateByUnit =
@@ -150,6 +157,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             TraitsByPath.Clear();
             WeaponFlagsByKind.Clear();
+            WeaponIndicesV439.Clear();
             LoadedNresPaths.Clear();
             AttackStateByUnit.Clear();
             DamageStateByUnit.Clear();
@@ -186,7 +194,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal static byte GetMathMaskV409LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
-            return unit != null ? GetTraitsV408LikeOriginal(unit).MathMask : (byte)0;
+            if (unit == null) return 0;
+            var traits = GetTraitsV408LikeOriginal(unit);
+            var cob = unit.RuntimeLinkCachedLikeOriginal?.Runtime?.OriginalComplexObjectV430LikeOriginal;
+            return cob != null && cob.CrewMaterialActiveV441 ? traits.ComplexMathMaskV441 : traits.MathMask;
         }
 
         // COSSACKS2/MapDiscr.h defines CONQUEST in the supplied 1.1 source,
@@ -253,7 +264,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             //   if(!(OB->MathMask & AMASK)) DeleteLastOrder();
             // Slot 3 is deliberately NOT part of this early material gate in 1.1.
             byte attackMask = (byte)(a.KillMask | a.AttackMask[0] | a.AttackMask[1] | a.AttackMask[2]);
-            return (v.MathMask & attackMask) != 0;
+            return (GetMathMaskV409LikeOriginal(victim) & attackMask) != 0;
         }
 
         private static bool CheckAttAbilityV408LikeOriginal(
@@ -669,11 +680,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (victim == null || persist <= 0 || victim == sender) return 0;
             MdTraits vt = GetTraitsV408LikeOriginal(victim);
             if (vt.Immortal) return 0;
+            if (vt.UnbeatableWhenFree && C2UnitOriginalRuntimeAndRendererV1.IsComplexFreeV441(victim.RuntimeLinkCachedLikeOriginal?.Runtime) &&
+                (sender == null || (GetTraitsV408LikeOriginal(sender).KillMask & GetMathMaskV409LikeOriginal(victim)) == 0)) return 0;
             if (sender != null)
             {
                 MdTraits st = GetTraitsV408LikeOriginal(sender);
-                if (vt.UnbeatableWhenFree && st.KillMask != 0 && vt.MathMask != 0 && (st.KillMask & vt.MathMask) == 0)
-                    return 0;
+                
                 if (!CanAttackRelationV408LikeOriginal(sender, victim)) return 0;
                 if (!CanDamageMaterialV408LikeOriginal(sender, victim)) return 0;
             }
@@ -1124,9 +1136,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             else if (cmd == "ARMRADIUS" && p.Length > 1 && TryInt(p[1], out n)) t.ArmRadius = Mathf.Max(0, n);
             else if (cmd == "IMMORTAL") t.Immortal = true;
             else if (cmd == "UNBEATABLEWHENFREE") t.UnbeatableWhenFree = true;
+            else if (cmd == "DONTFILLCANNON") t.DontFillCannonV441 = true;
             else if (cmd == "PRIEST") t.Priest = true;
             else if (cmd == "SHAMAN") t.Shaman = true;
             else if (cmd == "CAPTURE") t.Capture = true;
+            else if (cmd == "NEVERCAPTURE") t.NeverCaptureV441 = true;
+            else if (cmd == "CANTCAPTURE") t.CantCaptureV441 = true;
             else if (cmd == "NO25") t.No25 = true;
             else if (cmd == "BUILDING") t.Building = true;
             else if (cmd == "CANBEINFOCUSOFFORMATION") t.CanBeInFocusOfFormation = true;
@@ -1222,9 +1237,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             {
                 for (int k = 0; k < n && k + 2 < p.Length; k++) t.MathMask |= MaterialMaskV408LikeOriginal(p[k + 2]);
             }
+            else if (cmd == "MATHERIAL0" && p.Length > 1 && TryInt(p[1], out n))
+            {
+                t.ComplexMathMaskV441 = 0;
+                for (int k = 0; k < n && k + 2 < p.Length; k++) t.ComplexMathMaskV441 |= MaterialMaskV408LikeOriginal(p[k + 2]);
+            }
             else if (cmd == "USAGE" && p.Length > 1)
             {
                 string use = p[1].ToUpperInvariant();
+                t.CostlyV441 = use == "COSTLY";
                 t.Pushka = use == "PUSHKA";
                 t.Artilery = t.Pushka || use == "MORTIRA" || use == "MULTICANNON" || use == "SUPMORT";
             }
@@ -1235,11 +1256,19 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (TryInt(p[2], out n)) t.MaxMissHeightProbability = n;
             }
             else if (cmd == "RASTRATA_NA_VISTREL" && p.Length > 2 && TryInt(p[1], out ai) && TryInt(p[2], out n))
+            {
                 AddShotResourcesV408LikeOriginal(t, ai, p, 3, n);
+                t.ShotResources.Remove(-1);
+                AddShotResourcesV408LikeOriginal(t, -1, p, 3, n);
+            }
             else if (cmd == "RASTRATA_NA_VISTREL2" && p.Length > 3 && TryInt(p[1], out int ai0) && TryInt(p[2], out int ai1) && TryInt(p[3], out n))
             {
                 AddShotResourcesV408LikeOriginal(t, ai0, p, 4, n);
                 AddShotResourcesV408LikeOriginal(t, ai1, p, 4, n);
+                // Mechanics.cpp::TestResSubtract uses NM->ShotRes regardless of
+                // ResAttType/ResAttType1 (which gate ordinary infantry attacks).
+                t.ShotResources.Remove(-1);
+                AddShotResourcesV408LikeOriginal(t, -1, p, 4, n);
             }
         }
 
@@ -1303,6 +1332,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             try { lines = File.ReadAllLines(path, Encoding.GetEncoding(1251)); }
             catch { try { lines = File.ReadAllLines(path); } catch { return; } }
             bool weapons = false;
+            int weaponIndexV439=0;
             for (int i = 0; i < lines.Length; i++)
             {
                 string raw = lines[i] ?? string.Empty;
@@ -1318,6 +1348,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (!weapons || raw.StartsWith("#", StringComparison.Ordinal)) continue;
                 string[] t = raw.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
                 if (t.Length < 4) continue;
+                WeaponIndicesV439[t[0]]=weaponIndexV439++;
                 int flags = 0;
                 string f = t[3].ToUpperInvariant();
                 if (f.IndexOf('H') >= 0) flags |= 1;

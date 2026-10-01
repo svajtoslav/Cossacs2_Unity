@@ -635,11 +635,26 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string source,
             out string audit)
         {
-            List<C2NeutralPeasantUnitInfoV2LikeOriginal> units = GetAliveGroupUnitsV320LikeOriginal(group);
-            float centerX;
-            float centerY;
-            ComputeActualUnitCenterV320LikeOriginal(units, out centerX, out centerY);
-            int commandCount = ResolveCommandPrefixCountV320LikeOriginal(group, units);
+            // MakeReformation preserves the command prefix (even dead officers)
+            // and packs surviving soldiers without filtering temporary orderability.
+            if(group==null||option==null){audit="invalid_formation";return false;}
+            bool spacingOnly=source=="formation_spacing";
+            int commandCount=Mathf.Max(0,group.CommandSlotCount);
+            var units=new List<C2NeutralPeasantUnitInfoV2LikeOriginal>();
+            float centerX=0,centerY=0;int soldiers=0;
+            bool actualCenter=!spacingOnly&&(group.Shape==option.Shape||
+                IsCurrentBrigadeNewOrderV418LikeOriginal(group,BrigadeOrderGoOnRoadV418LikeOriginal));
+            for(int i=0;i<group.Units.Count;i++)
+            {
+                var u=group.Units[i];bool alive=u!=null&&!u.IsDeadLikeOriginal;
+                if(i<commandCount||spacingOnly)units.Add(alive?u:null);
+                else if(alive)units.Add(u);
+                if(i<commandCount||!alive)continue;
+                Vector2 p=!actualCenter&&i<group.Slots.Count?group.Slots[i]:new Vector2(u.RealXFloat,u.RealYFloat);
+                centerX+=p.x;centerY+=p.y;soldiers++;
+            }
+            if(soldiers==0){audit="no_live_soldiers";return false;}
+            centerX/=soldiers;centerY/=soldiers;
             return ApplyFormationOptionV320LikeOriginal(
                 group, option, spacingPercent, source, units, commandCount, centerX, centerY, out audit);
         }
@@ -673,9 +688,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     group, BrigadeOrderGoOnRoadV418LikeOriginal);
 
             List<Vector2> slots = BuildTemplateSlotsDirectedV352LikeOriginal(
-                option, units.Count, commandCount, units,
+                option, Mathf.Max(units.Count,option.UnitCount+commandCount), commandCount, units,
                 centerX, centerY, spacingPercent, group.Direction);
             ReorderSoldiersForNearestSlotsV172LikeOriginal(units, slots, commandCount);
+            while(units.Count<slots.Count)units.Add(null);
 
             int groupId = group.GroupId;
             // MakeReformation changes the existing Brigade's places/membership

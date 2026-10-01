@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -856,6 +856,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             using var costProbe = C2FrameCostProbe.Measure(C2FrameCostProbe.Phase.HudLate);
             PollWeaponCardHoverV391LikeOriginal();
+            RefreshArtilleryPanelV439();
 
             if (_weaponRangeHideAtV390LikeOriginal >= 0.0f &&
                 Time.realtimeSinceStartup >= _weaponRangeHideAtV390LikeOriginal)
@@ -1568,6 +1569,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (unit == null) return false;
 
             C2OriginalProduceCatalogV13.C2MdIconInfoV13 info = C2OriginalProduceCatalogV13.LoadMdInfoForSelectedUnit(unit);
+            if(info.CannonInterfaceV439)return BuildArtilleryPanelV439(unit,info,selPointCount);
             if (info.Peasant) return false;
             if (unit.CanBuildOrRepairLikeOriginal()) return false;
 
@@ -2513,10 +2515,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
 
 
-        // mapa.cpp::DrawSmartArrow exact geometry path used by DrawFeatures.cpp for
-        // brigade melee previews. This arrow is PROCEDURAL in retail Cossacks II;
-        // it is not a G16 picture. EngineSettings defaults are 80->32 px and
-        // ARGB 0x400000FF -> 0x80FF0000 (transparent blue -> transparent red).
+        // mapa.cpp::DrawSmartArrow geometry with the active EngineSettings.xml values.
+        // Retail overrides the C++ constructor defaults (width, colour and alpha).
         internal static void AddMeleeAttackArrowV393LikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal source,
             Vector3 fromWorld,
@@ -2545,6 +2545,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     source, out groupId, out live, out total, out shape, out groupDirection))
                 startDirection = groupDirection;
 
+            var arrowSettings = mode.GetBrigadeArrowSettingsV435LikeOriginal();
             float ddx = x1 - x0;
             float ddy = y1 - y0;
             float r = Mathf.Sqrt(ddx * ddx + ddy * ddy);
@@ -2570,7 +2571,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 float t = i / (float)np;
                 wx[i] = x0 + dx * t * (1.0f - t) + ddx * t * t;
                 wy[i] = y0 + dy * t * (1.0f - t) + ddy * t * t;
-                wt[i] = 80.0f + (32.0f - 80.0f) * t;
+                wt[i] = arrowSettings.StartWidth + (arrowSettings.FinalWidth - arrowSettings.StartWidth) * t;
             }
 
             float ax = 2.0f * (ddx - dx);
@@ -2580,8 +2581,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float[] xr = new float[nw];
             float[] yr = new float[nw];
             Color[] pathColor = new Color[nw];
-            Color startColor = new Color(0.0f, 0.0f, 1.0f, 64.0f / 255.0f);
-            Color finalColor = new Color(1.0f, 0.0f, 0.0f, 128.0f / 255.0f);
+            Color startColor = arrowSettings.StartColor;
+            Color finalColor = arrowSettings.FinalColor;
 
             for (int i = 0; i < nw - 1; i++)
             {
@@ -2622,7 +2623,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             pathColor[nw - 1] = finalColor;
 
-            int headSegments = Mathf.Min(nw, Mathf.FloorToInt((32.0f / Mathf.Max(0.01f, st)) * 2.0f + 1.0f));
+            int headSegments = Mathf.Min(nw, Mathf.FloorToInt((arrowSettings.FinalWidth / Mathf.Max(0.01f, st)) * 2.0f + 1.0f));
             int bodyEnd = Mathf.Clamp(nw - headSegments, 1, nw - 2);
 
             var vertices = new List<Vector3>((bodyEnd + 1) * 2 + 3);
@@ -2774,17 +2775,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return 0;
             }
 
-            List<C2NeutralPeasantUnitInfoV2LikeOriginal> victims;
-            int resolvedEnemyGroup;
-            string enemyShape;
-            if (!C2FormationRuntimeV167LikeOriginal.TryGetGroupUnitsV172LikeOriginal(
-                    enemyRepresentative, out victims, out resolvedEnemyGroup, out enemyShape) ||
-                victims == null || victims.Count == 0)
-                return 0;
-
             float dxOriginal = ex - sx;
             float dyOriginal = ey - sy;
-            float dOriginal = Mathf.Max(0.001f, Mathf.Sqrt(dxOriginal * dxOriginal + dyOriginal * dyOriginal));
+            int dOriginal = Math.Max(1, C2OriginalMovementMathV352.Norma((int)dxOriginal, (int)dyOriginal));
 
             byte sourceDirection = source.RealDir;
             int sg, live, total; string resolvedSourceShape; byte resolvedSourceDirection;
@@ -2794,107 +2787,37 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 sourceDirection = resolvedSourceDirection;
                 if (string.IsNullOrEmpty(sourceShape)) sourceShape = resolvedSourceShape;
             }
-            byte enemyDirection = enemyRepresentative.RealDir;
-            int eg, elive, etotal; string resolvedEnemyShape; byte resolvedEnemyDirection;
-            if (C2FormationRuntimeV167LikeOriginal.TryGetFormationSummaryV321LikeOriginal(
-                    enemyRepresentative, out eg, out elive, out etotal, out resolvedEnemyShape, out resolvedEnemyDirection))
-            {
-                enemyDirection = resolvedEnemyDirection;
-                if (string.IsNullOrEmpty(enemyShape)) enemyShape = resolvedEnemyShape;
-            }
-
             byte attackDirection = C2OriginalMovementMathV352.GetDir(Mathf.RoundToInt(dxOriginal), Mathf.RoundToInt(dyOriginal));
             byte destDirection = sourceDirection;
-            if (Mathf.Abs((sbyte)(attackDirection - sourceDirection)) < 36) destDirection = attackDirection;
-            bool sourceLine = !string.IsNullOrEmpty(sourceShape) && sourceShape.IndexOf("LINE", StringComparison.OrdinalIgnoreCase) >= 0;
-            bool enemyLine = !string.IsNullOrEmpty(enemyShape) && enemyShape.IndexOf("LINE", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (sourceLine && enemyLine)
-            {
-                int parallel = Mathf.Abs((sbyte)(enemyDirection - sourceDirection));
-                int opposite = Mathf.Abs((sbyte)(enemyDirection - sourceDirection - 128));
-                if (parallel < 38) destDirection = enemyDirection;
-                else if (opposite < 38) destDirection = (byte)(enemyDirection + 128);
-            }
+            if (Math.Abs((int)unchecked((sbyte)attackDirection) - (int)unchecked((sbyte)sourceDirection)) < 36) destDirection = attackDirection;
+            destDirection = C2FormationRuntimeV167LikeOriginal.GetMeleeAttackDestinationDirectionV406LikeOriginal(
+                source, enemyRepresentative, destDirection);
 
             // Multi.cpp::ShiftDestPoint(xx,yy,xe,ye,80). Brigade centres are Real>>4.
-            float destOriginalX = ex + dxOriginal * 80.0f / dOriginal;
-            float destOriginalY = ey + dyOriginal * 80.0f / dOriginal;
+            float destOriginalX = (int)ex + (int)dxOriginal * 80 / dOriginal;
+            float destOriginalY = (int)ey + (int)dyOriginal * 80 / dOriginal;
             float destRealX = destOriginalX * 16.0f;
             float destRealY = destOriginalY * 16.0f;
             string moveAudit;
-            int moved = C2GameplayLooseGroupMoveLikeOriginal.IssueMoveLikeOriginal(
-                attackers, destRealX, destRealY, true, destDirection,
-                "Multi.cpp_MoveBrigadeForwardToAttack_V399", out moveAudit);
-
-            var liveVictims = new List<C2NeutralPeasantUnitInfoV2LikeOriginal>();
-            for (int i = 0; i < victims.Count; i++)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal v = victims[i];
-                if (v != null && v.isActiveAndEnabled && !v.IsDeadLikeOriginal) liveVictims.Add(v);
-            }
-            if (liveVictims.Count == 0) return 0;
-
-            List<C2NeutralPeasantUnitInfoV2LikeOriginal> combatAttackersV396;
-            if (!C2FormationRuntimeV167LikeOriginal.TryGetFormationSoldierMembersV395LikeOriginal(
-                    source, out combatAttackersV396) || combatAttackersV396 == null)
-                combatAttackersV396 = attackers;
-
-            int armed = 0;
-            for (int i = 0; i < combatAttackersV396.Count; i++)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal attacker = combatAttackersV396[i];
-                if (attacker == null || !attacker.CanReceivePlayerOrdersLikeOriginal() || attacker.IsDeadLikeOriginal) continue;
-                C2CombatRuntimeV334LikeOriginal.SetCommandWeaponModeLikeOriginal(attacker, 0);
-                C2NeutralPeasantUnitInfoV2LikeOriginal victim =
-                    FindNearestEnemyForMeleeGroupV399LikeOriginal(attacker, liveVictims);
-                if (victim == null) continue;
-                C2CombatRuntimeV334LikeOriginal combat = attacker.GetComponent<C2CombatRuntimeV334LikeOriginal>();
-                GameObject proxy = combat == null ? attacker.EnsureUnityProxyLikeOriginal() : null;
-                if (combat == null && proxy != null) combat = proxy.AddComponent<C2CombatRuntimeV334LikeOriginal>();
-                if (combat == null) continue;
-                combat.BeginAttackLikeOriginal(attacker, victim, null, victim.WorldPositionLikeOriginal);
-                C2UnitOrderRuntimeV325LikeOriginal.IssueLikeOriginal(
-                    attacker, C2UnitOrderKindV325LikeOriginal.MeleeAttack,
-                    "Multi.cpp_MoveBrigadeForwardToAttack", "attack_slot_0");
-                armed++;
-            }
+            int moved;
+            bool accepted = C2FormationRuntimeV167LikeOriginal.IssueMeleeButtonMoveV438LikeOriginal(
+                source, enemyRepresentative, destRealX, destRealY, destDirection,
+                out moved, out moveAudit);
+            // Native MoveBrigadeForwardToAttack installs one brigade order.
+            // SearchVictim/Bitva create personal AttackObj orders at contact.
+            int acceptedMembers = accepted ? moved : 0;
 
             Debug.Log("[C2:MELEE BUTTON V399] source='Multi.cpp:4804 SetArmAttackState -> 4599 MoveBrigadeForwardToAttack'" +
                       " sourceGroup=" + sourceGroupId.ToString(CultureInfo.InvariantCulture) +
                       " enemyGroup=" + enemyGroupId.ToString(CultureInfo.InvariantCulture) +
                       " distOriginal=" + distanceOriginal.ToString("0.0", CultureInfo.InvariantCulture) +
                       " moved=" + moved.ToString(CultureInfo.InvariantCulture) +
-                      " armed=" + armed.ToString(CultureInfo.InvariantCulture) +
-                      " forcedMode=0 destOriginal=(" + destOriginalX.ToString("0", CultureInfo.InvariantCulture) +
+                      " accepted=" + accepted.ToString() + " acceptedMembers=" + acceptedMembers.ToString(CultureInfo.InvariantCulture) +
+                      " destOriginal=(" + destOriginalX.ToString("0", CultureInfo.InvariantCulture) +
                       "," + destOriginalY.ToString("0", CultureInfo.InvariantCulture) + ") " + moveAudit);
-            return armed;
+            return acceptedMembers;
         }
 
-
-        private static C2NeutralPeasantUnitInfoV2LikeOriginal FindNearestEnemyForMeleeGroupV399LikeOriginal(
-            C2NeutralPeasantUnitInfoV2LikeOriginal attacker,
-            List<C2NeutralPeasantUnitInfoV2LikeOriginal> victims)
-        {
-            if (attacker == null || victims == null || victims.Count == 0) return null;
-            float ax = attacker.RealXFloat != 0.0f ? attacker.RealXFloat : attacker.RealX;
-            float ay = attacker.RealYFloat != 0.0f ? attacker.RealYFloat : attacker.RealY;
-            C2NeutralPeasantUnitInfoV2LikeOriginal best = null;
-            float best2 = float.MaxValue;
-            for (int i = 0; i < victims.Count; i++)
-            {
-                C2NeutralPeasantUnitInfoV2LikeOriginal candidate = victims[i];
-                if (candidate == null || candidate.IsDeadLikeOriginal || !candidate.isActiveAndEnabled) continue;
-                float cx = candidate.RealXFloat != 0.0f ? candidate.RealXFloat : candidate.RealX;
-                float cy = candidate.RealYFloat != 0.0f ? candidate.RealYFloat : candidate.RealY;
-                float dx = cx - ax;
-                float dy = cy - ay;
-                float d2 = dx * dx + dy * dy;
-                if (d2 >= best2) continue;
-                best2 = d2;
-                best = candidate;
-            }
-            return best;
-        }
 
         private static Vector3[] BuildSelectedUnitsRangeEnvelopeV159LikeOriginal(List<C2NeutralPeasantUnitInfoV2LikeOriginal> units, Vector3 center, float radiusWorld, int segments)
         {
@@ -4113,49 +4036,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private void AddOriginalMoraleLineLikeOriginal(int x, int y, int w, int h, int morale, int moraleMax, C2NeutralPeasantUnitInfoV2LikeOriginal sourceUnit = null)
         {
             if(sourceUnit != null){BindMeterV422(sourceUnit,false,x,y,w,h);return;}
-            // Exact COSSACKS2/VUI_Actions.cpp::SetMorale colour contract.
-            // Important V404A fix: retail Canvas has NO opaque custom background here.
-            // V404 added one, which visually flattened the 0x8F "max morale" yellow
-            // against the current 0xFF yellow and made the two-part bar hard to read.
-            if (w <= 0 || h <= 0 || moraleMax <= 0) return;
-
-            int n = Mathf.Max(0, morale / 100);
-            int m = Mathf.Clamp(morale % 100, 0, 100);
-            int M = Mathf.Clamp(moraleMax - n * 100, 0, 100);
-            if (n + M <= 0 || n >= 10) return;
-
-            int lx = Mathf.Clamp(m * w / 100, 0, w);
-            int lMax = Mathf.Clamp(M * w / 100, 0, w);
-            int lr = 0;
-            if (n == 0)
-                lr = Mathf.Clamp(Mathf.Min(m, 32) * w / 100, 0, w);
-
-            // SetMorale geometry is kept 1:1.  V404A also kept the retail
-            // semi-transparent yellow for the unused part, but on Unity's HUD it
-            // visually merged with the current segment.  The user explicitly wants
-            // the original shape/logic with stronger readable colours.
-            Color red = new Color32(0xFF, 0x25, 0x18, 0xFF);
-            Color yellow = new Color32(0xFF, 0xD4, 0x12, 0xFF);
-            Color yellowMax = new Color32(0x62, 0x3C, 0x08, 0xFF);
-            Color ticks = new Color32(0xAF, 0x00, 0x00, 0xFF);
-
-            if (lr > 0)
-                AddSolid("sp_morale_line_red_original_v404c", red, x, y, lr, h, false);
-            if (lx > lr)
-                AddSolid("sp_morale_line_yellow_original_v404c", yellow, x + lr, y, lx - lr, h, false);
-            if (lMax > lx)
-                AddSolid("sp_morale_line_yellow_max_original_v404c", yellowMax, x + lx, y, lMax - lx, h, false);
-
-            if (n > 0)
+            for(int i=0;i<3+9*(h+1);i++)
             {
-                int tickW = Mathf.Max(1, h - 1);
-                int start = (w - (n + n - 1) * tickW) / 2;
-                for (int i = 0; i < n; i++)
-                {
-                    int xx = x + start + i * 2 * tickW;
-                    AddSolid("sp_morale_line_tick_v404c_" + i.ToString(CultureInfo.InvariantCulture),
-                        ticks, xx, y, tickW, h, false);
-                }
+                RectInt rect=MoraleSegmentV422(i,w,h,morale,moraleMax);
+                if(rect.width<=0||rect.height<=0)continue;
+                AddSolidSinglePassV140ALikeOriginal("sp_morale_v435_"+i,
+                    C2MoralePresentationV435LikeOriginal.ColorForSegment(i,morale),
+                    x+rect.x,y+rect.y,rect.width,rect.height,false);
             }
         }
 
@@ -4684,6 +4571,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         private void ClearSpawned()
         {
+            _artilleryUiV439.Clear();
             _standGroundLineBindingsV420.Clear();
             _metersV422.Clear();
             _moraleTextsV422.Clear();
@@ -5810,7 +5698,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (textStart > line.Length) continue;
 
                 string rest = line.Substring(textStart).Trim();
-                string title = isHint ? ExtractHintTitleV141LikeOriginal(rest) : CleanMdListTitleV141LikeOriginal(rest);
+                // Some retail artillery names embed a formatted description in
+                // the .MD entry itself, without a separate .HINT key. The name
+                // ends at the same {FS}/line-break boundary in either form.
+                string title = ExtractHintTitleV141LikeOriginal(rest);
                 if (!IsUsefulMdListNameV141LikeOriginal(title))
                     continue;
 
@@ -6481,6 +6372,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         info.BigColdWeaponFile = t[1];
                         info.BigColdWeaponSprite = int.TryParse(t[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out spr) ? spr : 0;
                     }
+                    else if (cmd == "VIT_UNIT_INTERFACE" && t.Length >= 2) info.CannonInterfaceV439=t[1]=="PUSHKA";
                     else if (cmd == "BIGFIREWEAP" && t.Length >= 3)
                     {
                         int spr;
@@ -6869,6 +6761,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             public string BigWeaponFile;
             public string BigColdWeaponFile;
             public int BigColdWeaponSprite;
+            public bool CannonInterfaceV439;
             public string BigFireWeaponFile;
             public int BigFireWeaponSprite;
             public int UnitAbsorber;

@@ -1,4 +1,4 @@
-﻿// C2MovementSystemV425LikeOriginal.cs
+// C2MovementSystemV425LikeOriginal.cs
 // Unified Cossacks II 1.1 movement implementation.
 // Physical ownership rule: movement/path/topology/brigade-road implementation lives here.
 // Unity-facing compatibility files may keep thin entry points only; they must not own a second algorithm.
@@ -2339,6 +2339,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2OriginalMovementSystemV425LikeOriginal.DisablePathRequestV425LikeOriginal(unit);
             if (runtime != null)
             {
+                runtime.FillCrewV441 = null;
+                runtime.ArtilleryChargeOrderV439 = -1;
+                runtime.ArtilleryPointOrderV439 = null;
+                runtime.ArtilleryAutoFireV442 = false;
                 runtime.OriginalPathRequestPendingV425LikeOriginal = false;
                 runtime.HasMoveTargetLikeOriginal = false;
                 runtime.MoveDeferredUntilNeutralStandLikeOriginal = false;
@@ -2429,6 +2433,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             var chain=GetOrCreate(unit);
             if(chain==null)return;
+            // SetOrderedStateForComplexObjectLink is a stationary local order,
+            // never the parent of a movement child. A new destination replaces it
+            // even when it arrives through the task/direct-move entry point.
+            if(unit.RuntimeLinkCachedLikeOriginal?.Runtime != null)
+                {
+                var rt = unit.RuntimeLinkCachedLikeOriginal.Runtime;
+                rt.ArtilleryChargeOrderV439 = -1;
+                if(source != "AttackPointByComplexObject::CreatePath"){rt.ArtilleryPointOrderV439 = null;rt.ArtilleryAutoFireV442=false;}
+            }
             // These requests originate inside the active attack/work/panic task.
             // Replacing its movement child must not cancel that parent task.
             var order=chain._localOrder;
@@ -2522,11 +2535,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 int cellX = (destRealX - (lx << 7)) >> 8;
                 int cellY = (destRealY - (lx << 7)) >> 8;
                 int originalCellX = cellX, originalCellY = cellY;
-                // Retail temporarily UnlockComplexObject() around FindBestPositionOLD.
-                // Our MFIELDS snapshot keeps this unit's dynamic occupancy in UnitsField,
-                // not in the static field queried here, so no extra self-unlock is needed.
-                if (C2OriginalMovementSystemV425LikeOriginal.FindBestPositionOldV425LikeOriginal(
-                        unit, ref cellX, ref cellY, 40, lockType) &&
+                // NewMon.cpp::NewMonsterSmartSendTo excludes its own articulated
+                // footprint. Complex occupancy now lives in MFIELDS, too.
+                bool locked = smartRt?.OriginalComplexObjectV430LikeOriginal?.Lockpoints == true;
+                bool found;
+                if(locked)C2OriginalMovementSystemV425LikeOriginal.UnlockComplexObjectV430LikeOriginal(smartRt);
+                try { found=C2OriginalMovementSystemV425LikeOriginal.FindBestPositionOldV425LikeOriginal(unit,ref cellX,ref cellY,40,lockType); }
+                finally { if(locked)C2OriginalMovementSystemV425LikeOriginal.LockComplexObjectV430LikeOriginal(smartRt); }
+                if (found &&
                     (cellX != originalCellX || cellY != originalCellY))
                 {
                     destRealX = (cellX << 8) + (lx << 7);
@@ -2844,6 +2860,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private void CancelForeignOrdersForReplacement(string source)
         {
             if (_unit == null) return;
+            if (_unit.RuntimeLinkCachedLikeOriginal?.Runtime != null)
+                {
+                _unit.RuntimeLinkCachedLikeOriginal.Runtime.ArtilleryChargeOrderV439 = -1;
+                _unit.RuntimeLinkCachedLikeOriginal.Runtime.ArtilleryPointOrderV439 = null;
+            }
             C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(
                 _unit, source ?? "c2_order_replace");
             C2GameplayUnitTaskV1 task = _unit.GetComponent<C2GameplayUnitTaskV1>();
@@ -3549,13 +3570,6 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             byte lockType = C2OriginalMovementSystemV425LikeOriginal.ResolveLockTypeV425LikeOriginal(topologyReference);
             int currentTop = C2TopologyCoreV401LikeOriginal.GetTopologyV401LikeOriginal(cx, cy, lockType);
             int finalTop = C2TopologyCoreV401LikeOriginal.GetTopologyV401LikeOriginal(ref x, ref y, lockType);
-            if (order.NextTop == 0xFFFF) order.NextTop = currentTop;
-            if (order.NextTop == 0xFFFF || finalTop == 0xFFFF)
-            {
-                DeleteBrigadeNewOrderV418LikeOriginal(group, node.OrderId, "HumanGlobalSendTo_invalid_topology");
-                return;
-            }
-            order.X = x; order.Y = y;
 
             // BrigadeOrders.cpp::BrigadeOrder_HumanGlobalSendTo::Process checks the
             // road topology before CheckBDirectWay.  This is where CII decides whether
@@ -3571,6 +3585,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     order.Direction, node.Priority, 1, "HumanGlobalSendTo_CheckBDirectWay", out _, out _);
                 return;
             }
+
+            // BrigadeOrders.cpp initializes NextTop only AFTER the road and direct
+            // branches. GoOnRoad suspends this same HGST node: caching the start
+            // topology before that suspension sends the brigade back toward its
+            // old location when the road processor finishes.
+            if (order.NextTop == 0xFFFF) order.NextTop = currentTop;
+            if (order.NextTop == 0xFFFF || finalTop == 0xFFFF)
+            {
+                DeleteBrigadeNewOrderV418LikeOriginal(group, node.OrderId, "HumanGlobalSendTo_invalid_topology");
+                return;
+            }
+            order.X = x; order.Y = y;
 
             int areas = C2TopologyCoreV401LikeOriginal.GetNAreasV401LikeOriginal(lockType);
             byte nation = 0;
@@ -5820,6 +5846,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal static int ResolveLxLikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
+            var cob = unit?.RuntimeLinkCachedLikeOriginal?.Runtime?.OriginalComplexObjectV430LikeOriginal;
+            if (cob != null && cob.LxOverrideV441 > 0) return cob.LxOverrideV441;
             ResolveUnitGeometryV433(unit, out int lx, out byte lockType);
             return lx;
         }
@@ -6463,12 +6491,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal int Dy;
         internal int Dfi;
         internal int AddHeight;
+        internal byte AnmDirV437;
+        internal bool ReverseClockV437;
     }
 
     internal sealed class C2ComplexTransformElementV432LikeOriginal
     {
         internal int StartTime;
         internal int TimeAmount;
+        internal string AnimationIdV437;
+        internal int StartFrameV437, EndFrameV437, Fi0V437, Fi1V437;
         internal int X0;
         internal int Y0;
         internal int X1;
@@ -6500,6 +6532,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal string Id = string.Empty;
         internal int X1;
         internal int X2;
+        internal int AttackXV437, AttackYV437, AttackZV437;
+        internal readonly List<int> DeathStagesV441 = new List<int>();
         internal readonly int[] StateParts = new int[24];
         internal readonly C2ComplexStateElementV432LikeOriginal[][] StatesV432LikeOriginal =
             new C2ComplexStateElementV432LikeOriginal[24][];
@@ -6513,6 +6547,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
     {
         internal string Id = string.Empty;
         internal C2ComplexQuantDescV430LikeOriginal[] Chain = Array.Empty<C2ComplexQuantDescV430LikeOriginal>();
+        internal Dictionary<string, C2ComplexAnimationV437LikeOriginal> AnimationsV437;
     }
 
     internal sealed class C2ComplexQuantRuntimeV430LikeOriginal
@@ -6557,7 +6592,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal C2ComplexHelperDescV431LikeOriginal Desc;
         internal int QuantIndex;
         internal int QuantPos;
-        // null == native HelpersSNS==0xFFFF / no live helper bound to this slot.
+        // Native IDS=0, SNS=FFFF is an embedded visual crew member, distinct
+        // from IDS=FFFF (missing/killed). A null OneObject reference alone is
+        // therefore not a reason to hide the part or require replenishment.
+        internal bool MissingV437;
         internal C2UnitOriginalRuntime Runtime;
     }
 
@@ -6579,6 +6617,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal bool Charged = true;
         internal bool ResSubtracted = true;
         internal bool NoMove;
+        internal bool NoAttackV441;
+        internal bool CrewMaterialActiveV441 = true;
+        internal int LxOverrideV441;
+        internal bool DeathProcessedV441;
         internal bool BackMotion;
         internal bool Lockpoints;
         // Mechanics.cpp stores LeaderID/TaleID on OneComplexObject.  The Unity
@@ -6591,6 +6633,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         // the native Group[] index+serial pair only at the integration boundary.
         internal readonly List<C2ComplexHelperSlotV432LikeOriginal> HelpersV432LikeOriginal =
             new List<C2ComplexHelperSlotV432LikeOriginal>();
+        internal readonly float[] ForwardDistanceV437 = new float[4];
+        internal readonly float[] ForwardDxV437 = new float[4];
+        internal readonly float[] ForwardDyV437 = new float[4];
         internal bool Initialized;
     }
 
@@ -6879,6 +6924,16 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             AnimModel anim = CurrentAnim(u);
             if (anim == null || anim.Frames.Count == 0)
             {
+                // NewMon.cpp::SetZeroFrame: NFrames<=1 is already finished.
+                // A complex object's articulation advances in Mechanics.cpp,
+                // independently of this empty ordinary sprite animation. Without
+                // its finished flag NewMonsterSendToLink never retires the order.
+                if (u.OriginalComplexObjectV430LikeOriginal != null)
+                {
+                    u.CurrentFrameLong = 0;
+                    u.FrameFinishedLikeOriginal = true;
+                    u.FrameFinishedLatchedForOrdersLikeOriginal = true;
+                }
                 if (ProfileUnitRuntimePhasesLikeOriginal)
                     _profileAnimationTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - animationStarted;
                 return;
@@ -7080,7 +7135,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static bool HasAnyLocalOrderV431LikeOriginal(C2UnitOriginalRuntime u)
         {
             if (u == null || u.Info == null) return false;
-            return C2OriginalOrderChainV352.HasLocalMoveOrderLikeOriginal(u.Info) ||
+            return u.ArtilleryChargeOrderV439 >= 0 || C2OriginalOrderChainV352.HasLocalMoveOrderLikeOriginal(u.Info) ||
                    C2CombatRuntimeV334LikeOriginal.IsAttackOrderActiveV403LikeOriginal(u.Info);
         }
 
@@ -7106,14 +7161,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (u.OriginalOverEarthV430LikeOriginal != 0)
                         u.OriginalOverEarthV430LikeOriginal -= 4;
                 }
-                if (anim != null && u.FrameFinishedLikeOriginal &&
-                    !anim.Name.StartsWith("#DEATHLIE", StringComparison.OrdinalIgnoreCase))
-                {
-                    int lie = ResolveAnimationIndexLikeOriginal(u.Md, "#DEATHLIE1");
-                    if (lie < 0) lie = ResolveAnimationIndexLikeOriginal(u.Md, "#DEATHLIE2");
-                    if (lie >= 0)
-                        SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Death, lie, true, "death_finished_lie_pose");
-                }
+                // LongProcesses retains DEATH's final frame while Sdoxlo ages.
+                // Switching early to DEATHLIE1 skipped that counter forever.
+                TickOriginalDeathV435LikeOriginal(u);
                 return;
             }
 
@@ -7711,7 +7761,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             float dy = destRealY - u.RuntimeRealYLikeOriginal;
             if ((dx * dx + dy * dy) > 0.0001f)
             {
-                if (u.State == C2UnitOriginalState.Transition)
+                if (u.OriginalComplexObjectV430LikeOriginal != null)
+                {
+                    u.MoveDeferredUntilNeutralStandLikeOriginal = false;
+                    u.HasMoveTargetLikeOriginal = true;
+                }
+                else if (u.State == C2UnitOriginalState.Transition)
                 {
                     u.HasMoveTargetLikeOriginal = false;
                     u.MoveDeferredUntilNeutralStandLikeOriginal = true;
@@ -8269,33 +8324,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             string[] lines = System.IO.File.ReadAllLines(objectsPath, System.Text.Encoding.Default);
             var quants = new Dictionary<string, C2ComplexQuantDescV430LikeOriginal>(StringComparer.OrdinalIgnoreCase);
 
-            // Mechanics.cpp ObjectPartAnimation::ReadFromString / #3DANIM stores
-            // NewAnimation::AddHeight.  SetHelpersPositions later reads State[0].Elm[qp].ANM->NA.AddHeight.
-            var animationAddHeightV432 = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            for (int aiV432 = 0; aiV432 + 1 < lines.Length; aiV432++)
-            {
-                string ahV432 = CleanComplexDataLineV430LikeOriginal(lines[aiV432]);
-                string[] atV432 = SplitTokens(ahV432);
-                if (atV432.Length < 2) continue;
-                bool stdV432 = string.Equals(atV432[0], "#ANIM", StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(atV432[0], "#OBJECT", StringComparison.OrdinalIgnoreCase);
-                bool d3V432 = string.Equals(atV432[0], "#3DANIM", StringComparison.OrdinalIgnoreCase);
-                if (!stdV432 && !d3V432) continue;
-                int nextV432 = aiV432 + 1;
-                string dataV432 = NextComplexDataLineV430LikeOriginal(lines, ref nextV432);
-                string[] adV432 = SplitTokens(dataV432);
-                int addHeightV432 = 0;
-                if (stdV432)
-                {
-                    if (adV432.Length >= 10)
-                        int.TryParse(adV432[9], NumberStyles.Integer, CultureInfo.InvariantCulture, out addHeightV432);
-                }
-                else if (adV432.Length >= 6)
-                {
-                    int.TryParse(adV432[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out addHeightV432);
-                }
-                animationAddHeightV432[atV432[1]] = addHeightV432;
-            }
+            // Keep the complete source animation descriptor: the movement parser
+            // previously retained AddHeight alone, losing wheels, crew and recoil.
+            var animationsV437 = ParseComplexAnimationsV437LikeOriginal(lines);
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -8361,7 +8392,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                                         elemsV432.Add(new C2ComplexTransformElementV432LikeOriginal
                                         {
                                             StartTime = sum, TimeAmount = amountV432,
-                                            X0 = x0V432, Y0 = y0V432, X1 = x1V432, Y1 = y1V432
+                                            X0 = x0V432, Y0 = y0V432, X1 = x1V432, Y1 = y1V432,
+                                            AnimationIdV437 = et[1], StartFrameV437 = ComplexIntV437(et[2]),
+                                            EndFrameV437 = ComplexIntV437(et[3]), Fi0V437 = ComplexIntV437(et[6]), Fi1V437 = ComplexIntV437(et[9])
                                         });
                                         sum += amountV432;
                                     }
@@ -8403,9 +8436,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                                     int.TryParse(stV432[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out dyV432);
                                     if (stV432.Length >= 5)
                                         int.TryParse(stV432[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out dfiV432);
-                                    animationAddHeightV432.TryGetValue(stV432[0], out ahV432);
+                                    C2ComplexAnimationV437LikeOriginal animationV437;
+                                    if (animationsV437.TryGetValue(stV432[0], out animationV437)) ahV432 = animationV437.AddHeight;
                                     stateElemsV432[e] = new C2ComplexStateElementV432LikeOriginal
-                                    { AnimationId = stV432[0], Dx = dxV432, Dy = dyV432, Dfi = dfiV432, AddHeight = ahV432 };
+                                    { AnimationId = stV432[0], Dx = dxV432, Dy = dyV432, Dfi = dfiV432, AddHeight = ahV432,
+                                      AnmDirV437 = (byte)(stV432[3][0] == 'L' ? 0 : stV432[3][0] == 'R' ? 2 : stV432[3][0] == 'F' ? 3 : 1),
+                                      ReverseClockV437 = stV432[3].Length > 1 && stV432[3][1] == 'B' };
                                 }
                                 q.StatesV432LikeOriginal[state] = stateElemsV432;
                             }
@@ -8427,6 +8463,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 for (int hiV431 = 0; hiV431 < helperLinesV431.Length; hiV431++)
                 {
                     string helperLineV431 = CleanComplexDataLineV430LikeOriginal(helperLinesV431[hiV431]);
+                    if (helperLineV431.StartsWith("$EXPLODE ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var explosion = SplitTokens(helperLineV431);
+                        if (explosion.Length >= 6 && quants.TryGetValue(explosion[1], out var quant) &&
+                            int.TryParse(explosion[5], out int stage)) quant.DeathStagesV441.Add(stage);
+                        continue;
+                    }
                     if (helperLineV431.Length == 0 || helperLineV431[0] == '$') continue;
                     string[] htV431 = SplitTokens(helperLineV431);
                     if (htV431.Length < 3) continue;
@@ -8467,7 +8510,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     if (quants.TryGetValue(t[k], out q) && q != null) chain.Add(q);
                 }
                 if (chain.Count == 0) continue;
-                result[t[1]] = new C2ComplexUnitDescV430LikeOriginal { Id = t[1], Chain = chain.ToArray() };
+                result[t[1]] = new C2ComplexUnitDescV430LikeOriginal { Id = t[1], Chain = chain.ToArray(), AnimationsV437 = animationsV437 };
+            }
+            foreach (string raw in lines)
+            {
+                string[] t = SplitTokens(CleanComplexDataLineV430LikeOriginal(raw));
+                C2ComplexUnitDescV430LikeOriginal unit;
+                if (t.Length < 4 || t[0] != "#ATTACK" || !result.TryGetValue(t[1], out unit)) continue;
+                // Mechanics.cpp: #ATTACK unit x z [y]. The y component is optional.
+                unit.Chain[0].AttackXV437 = ComplexIntV437(t[2]);
+                unit.Chain[0].AttackZV437 = ComplexIntV437(t[3]);
+                unit.Chain[0].AttackYV437 = t.Length > 4 ? ComplexIntV437(t[4]) : 0;
             }
             return result;
         }
@@ -8866,14 +8919,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (u == null || u.Info == null) return false;
             // OneObject::LocalOrder includes both movement and AttackObj orders.  They
             // live in two bridge owners, so combine them only at this integration edge.
-            return C2OriginalOrderChainV352.HasLocalMoveOrderLikeOriginal(u.Info) ||
+            return u.ArtilleryChargeOrderV439 >= 0 || u.ArtilleryPointOrderV439 != null || C2OriginalOrderChainV352.HasLocalMoveOrderLikeOriginal(u.Info) ||
                    C2CombatRuntimeV334LikeOriginal.IsAttackOrderActiveV403LikeOriginal(u.Info);
         }
 
         private static int ComplexLocalNewStateV430LikeOriginal(C2UnitOriginalRuntime u)
         {
             // Runtime field stores LocalNewState-1.  Neutral is -1 -> native 0.
-            return u == null ? 0 : Math.Max(0, u.LocalPostureWeaponTypeV411LikeOriginal + 1);
+            return u == null ? 0 : u.OriginalComplexObjectV430LikeOriginal != null
+                ? u.ArtilleryAmmoV442 : Math.Max(0, u.LocalPostureWeaponTypeV411LikeOriginal + 1);
         }
 
         // V432: Mechanics.cpp::OneComplexObject::TestResSubtract.
@@ -8885,7 +8939,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if (cob == null) return false;
             if (cob.ResSubtracted) return true;
             if (u == null || u.Info == null) return false;
-            if (!C2CombatCoreV408LikeOriginal.TryConsumeShotResourcesV408LikeOriginal(u.Info, 1))
+            if (!C2CombatCoreV408LikeOriginal.TryConsumeShotResourcesV408LikeOriginal(u.Info, -1))
                 return false;
             cob.ResSubtracted = true;
             return true;
@@ -9188,6 +9242,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 u.HasMoveTargetLikeOriginal = false;
                 return;
             }
+            StepArtilleryCaptureV441(u);
+            StepFillComplexCrewV441(u);
             if (cob.NoMove)
             {
                 // Mechanics.cpp: COB->NoMove -> DestX=-1; SetHelpersPositions(COB); return.
@@ -9218,6 +9274,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (cob.ResSubtracted) cob.Charged = true;
             }
 
+            StepArtilleryAutoFireV442(u);
+            StepArtilleryChargeOrderV439(u);
+            StepArtilleryPointOrderV439(u);
+            hasDestination=u.HasMoveTargetLikeOriginal;
             bool hasLocalOrderV430 = ComplexHasLocalOrderV430LikeOriginal(u);
             int localNewStateV430 = ComplexLocalNewStateV430LikeOriginal(u);
 
@@ -9273,7 +9333,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     {
                         if (localNewStateV430 == 0)
                         {
-                            cob.StartState = 16;
+                            cob.StartState = ComplexRechargeStartV439(cob,16,12);
                             cob.FinalState = 12;
                             cob.GroundStandState = 12;
                             cob.TransTime = 0;

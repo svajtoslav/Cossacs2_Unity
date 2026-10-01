@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -92,13 +92,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         public static byte GetMeleeAttackDestinationDirectionV406LikeOriginal(
             C2NeutralPeasantUnitInfoV2LikeOriginal sourceRepresentative,
-            C2NeutralPeasantUnitInfoV2LikeOriginal enemyRepresentative)
+            C2NeutralPeasantUnitInfoV2LikeOriginal enemyRepresentative,
+            byte? initialDirection = null)
         {
             RuntimeFormationV172LikeOriginal sourceGroup;
             RuntimeFormationV172LikeOriginal enemyGroup;
             if (!TryGetRuntimeGroupByUnitV172LikeOriginal(sourceRepresentative, out sourceGroup) || sourceGroup == null)
                 return 0;
-            byte dest = sourceGroup.Direction;
+            byte dest = initialDirection ?? sourceGroup.Direction;
             if (!TryGetRuntimeGroupByUnitV172LikeOriginal(enemyRepresentative, out enemyGroup) || enemyGroup == null)
                 return dest;
 
@@ -172,6 +173,47 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 "Brigade.cpp::HumanLocalSendTo_AttackSelected_V4183",
                 out issued,
                 out audit);
+        }
+
+        // Multi.cpp::MoveBrigadeForwardToAttack, EB branch. The bayonet HUD
+        // command does not go through SendSelectedToXY's retreat-distance rule.
+        internal static bool IssueMeleeButtonMoveV438LikeOriginal(
+            C2NeutralPeasantUnitInfoV2LikeOriginal source,
+            C2NeutralPeasantUnitInfoV2LikeOriginal enemy,
+            float x, float y, byte direction, out int issued, out string audit)
+        {
+            issued = 0;
+            audit = "invalid_group";
+            RuntimeFormationV172LikeOriginal group, enemyGroup;
+            if (!TryGetRuntimeGroupByUnitV172LikeOriginal(source, out group) || group == null ||
+                !TryGetRuntimeGroupByUnitV172LikeOriginal(enemy, out enemyGroup) || enemyGroup == null ||
+                group.Nation == enemyGroup.Nation) return false;
+            const string caller = "Multi.cpp::MoveBrigadeForwardToAttack_v438";
+            // OrdUsage==2 returns before enemy selection/movement in Multi.cpp.
+            // The HUD has already written the selected soldiers' armed posture.
+            var order = ResolveStandGroundOrderV403LikeOriginal(group);
+            if (order != null && order.Usage == 2)
+            {
+                audit = "stationary_kare";
+                return true;
+            }
+            CancelStandGroundAnywayV403LikeOriginal(group, caller);
+            SetEnemyForBrigadeV407LikeOriginal(group, enemyGroup.GroupId, enemy.CombatNationLikeOriginal);
+            _brigadeAttackEnemyIntentV414LikeOriginal.Add(group.GroupId);
+            _brigadeAttackMoveIssuanceV414LikeOriginal.Add(group.GroupId);
+            bool accepted;
+            try
+            {
+                accepted = IssueBrigadeHumanLocalSendToV4183LikeOriginal(
+                    group, x, y, direction, 128, 0, caller, out issued, out audit);
+            }
+            finally { _brigadeAttackMoveIssuanceV414LikeOriginal.Remove(group.GroupId); }
+            // Native writes this tail even when HumanLocalSendTo returns early.
+            _brigadeAttackEnemyIntentV414LikeOriginal.Add(group.GroupId);
+            var members = GetFormationOrderMembersV360LikeOriginal(group);
+            ApplyAttackStateMoveToFormationV405BLikeOriginal(
+                members, ResolveOrderCommandCountV360LikeOriginal(group, members), true);
+            return accepted;
         }
 
         public static bool PrepareBrigadeMeleeAttackMoveV414LikeOriginal(

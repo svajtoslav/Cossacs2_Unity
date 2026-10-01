@@ -1,4 +1,4 @@
-﻿// C2UnitPortStage1MissingGameplayCompatV237.cs
+// C2UnitPortStage1MissingGameplayCompatV237.cs
 // Stage-1 unit port compile bridge.
 // Keeps current V234/V232 map/building renderer intact; provides only the missing old gameplay symbols
 // referenced by the copied unit runtime. Real passability/resources/formation/build runtime can replace this later.
@@ -2557,16 +2557,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ReorderSoldiersForNearestSlotsV172LikeOriginal(groupUnits, slots, commandUnitCount);
             groupId = RegisterFormationInternalV172LikeOriginal(groupUnits, slots, option.Shape, soldierMember, -1, commandUnitCount);
             _groupsByIdV172LikeOriginal[groupId].Direction = formationDirectionV375;
+            // Brigade::CreateFromGroup calls CreateOrderedPositions followed by
+            // KeepPositions(0,128+16). A set of independent move orders leaves no
+            // brigade processor to complete/retry assembly around blocking objects.
+            var born = _groupsByIdV172LikeOriginal[groupId];
+            OptimizeFormationSlotsForMotionFieldV347LikeOriginal(born.Slots, born.Units,
+                centerRealX, centerRealY);
             for (int i = 0; i < groupUnits.Count; i++)
-            {
-                Vector2 s = slots[Mathf.Min(i, slots.Count - 1)];
-                C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(groupUnits[i], "create_brig_in_zone_v172");
-                groupUnits[i].SetFormationAssemblyDestinationRealLikeOriginal(
-                    s.x,
-                    s.y,
-                    C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                    formationDirectionV375);
-            }
+                C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(
+                    groupUnits[i], "Brigade::CreateFromGroup");
+            QueueBrigadeKeepPositionsV416LikeOriginal(born, 128 + 16, 0, "Brigade::CreateFromGroup");
+            ProcessQueuedBrigadeKeepPositionsNowV416LikeOriginal(born);
 
             audit = "ok groupId=" + groupId.ToString(CultureInfo.InvariantCulture) +
                     " shape='" + (option.Shape ?? string.Empty) + "'" +
@@ -2704,16 +2705,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             ReorderSoldiersForNearestSlotsV172LikeOriginal(groupUnits, slots, commandUnitCount);
             groupId = RegisterFormationInternalV172LikeOriginal(groupUnits, slots, option.Shape, soldierMember, -1, commandUnitCount);
             _groupsByIdV172LikeOriginal[groupId].Direction = formationDirectionV375;
+            // Brigade::CreateFromGroup calls CreateOrderedPositions followed by
+            // KeepPositions(0,128+16). A set of independent move orders leaves no
+            // brigade processor to complete/retry assembly around blocking objects.
+            var born = _groupsByIdV172LikeOriginal[groupId];
+            OptimizeFormationSlotsForMotionFieldV347LikeOriginal(born.Slots, born.Units,
+                formationCenterX, formationCenterY);
             for (int i = 0; i < groupUnits.Count; i++)
-            {
-                Vector2 s = slots[Mathf.Min(i, slots.Count - 1)];
-                C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(groupUnits[i], "create_global_brig_commandcenter_v172");
-                groupUnits[i].SetFormationAssemblyDestinationRealLikeOriginal(
-                    s.x,
-                    s.y,
-                    C2BattleTerrainMode.C2NeutralPeasantUnitsV2MoveSpeedOriginalPixelsPerSecondLikeOriginal,
-                    formationDirectionV375);
-            }
+                C2BattleTerrainMode.C2BuildRuntimeCancelWorkerOrderForUnitLikeOriginal(
+                    groupUnits[i], "Brigade::CreateFromGroup");
+            QueueBrigadeKeepPositionsV416LikeOriginal(born, 128 + 16, 0, "Brigade::CreateFromGroup");
+            ProcessQueuedBrigadeKeepPositionsNowV416LikeOriginal(born);
 
             audit = "ok groupId=" + groupId.ToString(CultureInfo.InvariantCulture) +
                     " shape='" + (option.Shape ?? string.Empty) + "'" +
@@ -2924,8 +2926,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             int firstSoldier = Mathf.Clamp(commandUnitCount, 0, units.Count);
             if (firstSoldier >= units.Count || firstSoldier >= slots.Count) return;
 
-            int count = Mathf.Min(units.Count, slots.Count) - firstSoldier;
-            if (count <= 1) return;
+            // Brigade::ResortMembByPos only submits occupied destinations to
+            // FindShotWayPoint. Empty members must not act as soldiers at (0,0).
+            var occupied=new List<int>();
+            for(int i=firstSoldier;i<units.Count&&i<slots.Count;i++)
+                if(units[i]!=null&&!units[i].IsDeadLikeOriginal)occupied.Add(i);
+            int count=occupied.Count;
+            if(count<=1)return;
 
             // Exact port of the original ResortMembByPos -> FindShotWayPoint -> ShotWay
             // assignment policy. It deliberately resolves the most constrained/farthest
@@ -2934,7 +2941,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             var distance = new float[count, count];
             for (int source = 0; source < count; source++)
             {
-                C2NeutralPeasantUnitInfoV2LikeOriginal unit = units[firstSoldier + source];
+                C2NeutralPeasantUnitInfoV2LikeOriginal unit = units[occupied[source]];
                 sourceUnits[source] = unit;
                 float ux = unit != null && unit.RealXFloat != 0.0f
                     ? unit.RealXFloat
@@ -2944,7 +2951,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     : (unit != null ? unit.RealY : 0.0f);
                 for (int destination = 0; destination < count; destination++)
                 {
-                    Vector2 slot = slots[firstSoldier + destination];
+                    Vector2 slot = slots[occupied[destination]];
                     float dx = Mathf.Abs(ux - slot.x);
                     float dy = Mathf.Abs(uy - slot.y);
                     distance[source, destination] =
@@ -3011,7 +3018,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             for (int source = 0; source < count; source++)
-                units[firstSoldier + destinationOfSource[source]] = sourceUnits[source];
+                units[occupied[destinationOfSource[source]]] = sourceUnits[source];
         }
 
 

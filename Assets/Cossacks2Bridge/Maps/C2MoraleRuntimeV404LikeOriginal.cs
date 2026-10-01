@@ -716,7 +716,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 StartPanicV404LikeOriginal(unit);
         }
 
-        private static void StartPanicV404LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
+        internal static void StartPanicV404LikeOriginal(C2NeutralPeasantUnitInfoV2LikeOriginal unit)
         {
             if (unit == null || PanicByUnit.ContainsKey(unit)) return;
             unit.SetSelected(false);
@@ -1300,8 +1300,14 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     {
                         try
                         {
-                            XElement settings = XElement.Load(settingsPath);
-                            XElement tiring = settings.Element("AllowTiring");
+                            // ClassEngine files have an anonymous <> root.
+                            // The named setting itself is standard XML.
+                            string source = File.ReadAllText(settingsPath);
+                            const string open = "<AllowTiring>", close = "</AllowTiring>";
+                            int begin = source.IndexOf(open, StringComparison.Ordinal);
+                            int end = source.IndexOf(close, StringComparison.Ordinal);
+                            XElement tiring = begin >= 0 && end >= begin
+                                ? XElement.Parse(source.Substring(begin, end + close.Length - begin)) : null;
                             if (tiring != null)
                                 cfg.AllowTiring = tiring.Value.Trim() == "1" || string.Equals(tiring.Value.Trim(), "true", StringComparison.OrdinalIgnoreCase);
                         }

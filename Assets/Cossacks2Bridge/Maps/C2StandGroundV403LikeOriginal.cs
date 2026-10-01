@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -611,7 +611,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     Mathf.RoundToInt(CurrentRealXV403LikeOriginal(victim) - CurrentRealXV403LikeOriginal(attacker)),
                     Mathf.RoundToInt(CurrentRealYV403LikeOriginal(victim) - CurrentRealYV403LikeOriginal(attacker)),
                     group.Direction);
-                int delta = Math.Abs((sbyte)(attackDir - group.Direction));
+                int delta = Math.Abs((int)unchecked((sbyte)(attackDir - group.Direction)));
                 if (delta > 40 && delta < 70) bonus >>= 1;
                 if (delta >= 70) bonus = 0;
             }
@@ -638,7 +638,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     Mathf.RoundToInt(CurrentRealXV403LikeOriginal(killer) - CurrentRealXV403LikeOriginal(victim)),
                     Mathf.RoundToInt(CurrentRealYV403LikeOriginal(killer) - CurrentRealYV403LikeOriginal(victim)),
                     group.Direction);
-                int delta = Math.Abs((sbyte)(hitDir - group.Direction));
+                int delta = Math.Abs((int)unchecked((sbyte)(hitDir - group.Direction)));
                 if (delta > 40 && delta < 70) bonus >>= 1;
                 if (delta >= 70) bonus = 0;
             }
@@ -658,6 +658,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             QueueBrigadeKeepPositionsV416LikeOriginal(
                 group, 128 + 16, keepPositionsOrdTypeV418,
                 source ?? "Multi.cpp::MakeReformation::KeepPositions");
+            // Brigade::KeepPositions executes KP->Process before cancelling stand ground.
+            ProcessQueuedBrigadeKeepPositionsNowV416LikeOriginal(group);
             BrigadeStandGroundStateV403LikeOriginal state = GetStandGroundStateV403LikeOriginal(group, true);
             C2FormationCreateCatalogV165LikeOriginal.C2FormationOrderTemplateV165LikeOriginal order =
                 ResolveStandGroundOrderV403LikeOriginal(group);
@@ -961,7 +963,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
             byte physical = C2FormationSymmetryLikeOriginal.DirectionByPositions(
                 order, positions, commands);
-            int delta = Math.Abs((sbyte)(physical - group.Direction));
+            int delta = Math.Abs((int)unchecked((sbyte)(physical - group.Direction)));
             if (delta >= 96)
             {
                 byte old = group.Direction;

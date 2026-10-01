@@ -157,6 +157,24 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 return TryLoadBmpLikeOriginal(bytes, path);
             if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase))
                 return TryLoadTgaLikeOriginal(bytes, path);
+            if (ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                // D3DX accepted these formats too. In particular env.jpg is
+                // referenced by the native artillery environment-map stage.
+                var decoded = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                try
+                {
+                    if (!ImageConversion.LoadImage(decoded, bytes, false)) return null;
+                    return new C2OriginalImageData(decoded.width, decoded.height, decoded.GetPixels32(), path);
+                }
+                finally
+                {
+                    if (Application.isPlaying) UnityEngine.Object.Destroy(decoded);
+                    else UnityEngine.Object.DestroyImmediate(decoded);
+                }
+            }
 
             return null;
         }

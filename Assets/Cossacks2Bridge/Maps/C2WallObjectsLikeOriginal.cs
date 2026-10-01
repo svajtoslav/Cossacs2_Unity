@@ -726,6 +726,8 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             public string ModelPath = string.Empty;
             public int ModelRsrOrderV161 = -1;
             public float FixHeight;
+            public bool HasFixHeightV436;
+            public bool EditableModelV436;
             // V160: real OneWallElement data from Dialogs\Walls.WallsList.xml / walls.rsr.
             public float ElementScaleV160 = 1.0f;
             public int ElementRotationV160;
@@ -1076,7 +1078,10 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
                     }
                 }
                 else if (section == "FIXH" && p.Length >= 2)
+                {
                     desc.FixHeight = ParseFloatV1LikeOriginal(p[1]);
+                    desc.HasFixHeightV436 = true;
+                }
             }
         }
 
@@ -1209,6 +1214,7 @@ private sealed class WallUniversalAnchorLineCalibrationV73LikeOriginal
             if (desc == null || p == null || p.Length < 2)
                 return;
             desc.ModelPath = p[1];
+            desc.EditableModelV436 = p.Length > 2 && ParseIntV1LikeOriginal(p[2]) != 0;
 
             // V160: tolerate extended walls.rsr MODEL rows if present.
             // Known shipped files usually store only the model path here; real Scale/Rotation/dz are primarily in Walls.WallsList.xml.
@@ -6207,49 +6213,6 @@ private static float GetWallDescAlignSpanV118LikeOriginal(WallSpriteDescV1LikeOr
                 chainInfo.Audit.Add("V20_SAVED_WL_ROUTE_no_ReCreate_no_connector_resnap");
             }
 
-            WallConnectorChainInfoV14LikeOriginal modelChainInfoV53 = null;
-            Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2> modelChainAnchorsV53 =
-                C2WallObjectsV53UseWhiteModelConnectorChainLikeOriginal &&
-                !C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal
-                    ? BuildModelBackedConnectorChainAnchorsV53LikeOriginal(sprites, catalog, out modelChainInfoV53)
-                    : new Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2>();
-            int modelChainAdjustedV53 = 0;
-
-            WallConnectorChainInfoV14LikeOriginal modelRunAnchorInfoV61 = null;
-            Dictionary<WallSavedMapSpriteV6LikeOriginal, Matrix4x4> modelRunSharedBasisV81 = null;
-            Dictionary<WallSavedMapSpriteV6LikeOriginal, float> modelRunStage2FullPoseHeightsV89 = null;
-            Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2> modelRunAnchorsV61 =
-                (C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal ||
-                 C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal ||
-                 C2WallObjectsV91UseRsrConnectorRigidDambaPlacementLikeOriginal ||
-                 C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal ||
-                 C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal)
-                    ? BuildModelBackedDambaSectionRowAnchorsV68LikeOriginal(sprites, catalog, out modelRunAnchorInfoV61, out modelRunSharedBasisV81, out modelRunStage2FullPoseHeightsV89)
-                    : (C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal ||
-                 C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal)
-                    ? BuildModelBackedBridgeRunAnchorsV61LikeOriginal(sprites, catalog, out modelRunAnchorInfoV61)
-                    : new Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2>();
-            if (modelRunSharedBasisV81 == null)
-                modelRunSharedBasisV81 = new Dictionary<WallSavedMapSpriteV6LikeOriginal, Matrix4x4>();
-            int modelRunAnchorAdjustedV61 = 0;
-
-            WallConnectorChainInfoV14LikeOriginal modelRunHeightInfoV59 = null;
-            Dictionary<WallSavedMapSpriteV6LikeOriginal, float> modelRunHeightsV59 =
-                C2WallObjectsV59LevelModelBackedBridgeRunsLikeOriginal
-                    ? BuildModelBackedBridgeRunHeightsV59LikeOriginal(sprites, catalog, out modelRunHeightInfoV59)
-                    : new Dictionary<WallSavedMapSpriteV6LikeOriginal, float>();
-
-            if (modelRunStage2FullPoseHeightsV89 != null && modelRunStage2FullPoseHeightsV89.Count > 0)
-            {
-                foreach (var kvHeightV89 in modelRunStage2FullPoseHeightsV89)
-                {
-                    if (kvHeightV89.Key != null)
-                        modelRunHeightsV59[kvHeightV89.Key] = kvHeightV89.Value;
-                }
-            }
-
-            int modelRunHeightAdjustedV59 = 0;
-
             WallConnectorChainInfoV14LikeOriginal fenceLineInfoV132 = null;
             Dictionary<WallSavedMapSpriteV6LikeOriginal, Matrix4x4> fenceLineSharedBasisV132 = null;
             Dictionary<WallSavedMapSpriteV6LikeOriginal, Vector2> fenceLineAnchorsV132 =
@@ -6273,12 +6236,12 @@ private static float GetWallDescAlignSpanV118LikeOriginal(WallSpriteDescV1LikeOr
                 fenceLineSuppressedV144 = new HashSet<WallSavedMapSpriteV6LikeOriginal>();
             drawn += fenceLineRootsCreatedV144;
 
-            int syntheticDambaRowsV93 = BuildSyntheticDambaMapRowsV93LikeOriginal(
-                sprites,
-                catalog,
-                parent,
-                modelRunHeightsV59,
-                out HashSet<WallSavedMapSpriteV6LikeOriginal> syntheticDambaSuppressedV93);
+            // TRE2 model objects already carry their authored Matrix4D.
+            // Render each source object before any historical row calibration.
+            int savedModelsV436 = BuildSavedMapModelsV436LikeOriginal(
+                sprites, catalog, parent,
+                out HashSet<WallSavedMapSpriteV6LikeOriginal> modelSpritesV436);
+            drawn += savedModelsV436;
 
             int legacyDambaPieceFallbackSkippedV94 = 0;
             int legacyWals2DFenceIndividualCardsDeletedV165 = 0;
@@ -6290,6 +6253,7 @@ private static float GetWallDescAlignSpanV118LikeOriginal(WallSpriteDescV1LikeOr
                     continue;
 
                 WallSavedMapSpriteV6LikeOriginal sourceSpriteForLog = s;
+                if (modelSpritesV436.Contains(s)) continue;
                 if (C2WallObjectsV144BuildIdenticalWL2DFenceLineRootsLikeOriginal &&
                     fenceLineSuppressedV144 != null &&
                     fenceLineSuppressedV144.Contains(sourceSpriteForLog))
@@ -6327,8 +6291,8 @@ private static float GetWallDescAlignSpanV118LikeOriginal(WallSpriteDescV1LikeOr
                     continue;
                 }
 
-                if (syntheticDambaSuppressedV93 != null &&
-                    syntheticDambaSuppressedV93.Contains(sourceSpriteForLog))
+                if (modelSpritesV436 != null &&
+                    modelSpritesV436.Contains(sourceSpriteForLog))
                 {
                     continue;
                 }
@@ -6346,33 +6310,6 @@ private static float GetWallDescAlignSpanV118LikeOriginal(WallSpriteDescV1LikeOr
                     fenceLineAdjustedV132++;
                 }
 
-                if ((C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal ||
-                     C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal ||
-                     C2WallObjectsV91UseRsrConnectorRigidDambaPlacementLikeOriginal ||
-                     C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal ||
-                     C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal ||
-                     C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal ||
-                     C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal) &&
-                    IsWallDambaC2MModelV33LikeOriginal(desc) &&
-                    modelRunAnchorsV61.TryGetValue(sourceSpriteForLog, out Vector2 modelRunAnchorV61))
-                {
-                    if (modelRunSharedBasisV81 != null &&
-                        modelRunSharedBasisV81.TryGetValue(sourceSpriteForLog, out Matrix4x4 sharedBasisV81))
-                        s = CopySavedWallSpriteWithAnchorAndMatrixBasisV81LikeOriginal(sourceSpriteForLog, modelRunAnchorV61, sharedBasisV81);
-                    else
-                        s = CopySavedWallSpriteWithAnchorV14LikeOriginal(sourceSpriteForLog, modelRunAnchorV61);
-                    modelRunAnchorAdjustedV61++;
-                }
-
-                if (C2WallObjectsV53UseWhiteModelConnectorChainLikeOriginal &&
-                    !C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal &&
-                    !string.IsNullOrWhiteSpace(desc.ModelPath) &&
-                    modelChainAnchorsV53.TryGetValue(sourceSpriteForLog, out Vector2 modelChainAnchorV53))
-                {
-                    s = CopySavedWallSpriteWithAnchorV14LikeOriginal(sourceSpriteForLog, modelChainAnchorV53);
-                    modelChainAdjustedV53++;
-                }
-
                 if (!indexAudit.ContainsKey(desc.SpriteIndex))
                     indexAudit[desc.SpriteIndex] = 0;
                 indexAudit[desc.SpriteIndex]++;
@@ -6381,103 +6318,6 @@ private static float GetWallDescAlignSpanV118LikeOriginal(WallSpriteDescV1LikeOr
                     savedM4Seen++;
 
                 WallSavedWLRouteDecisionV20LikeOriginal route = SelectSavedWallRouteV20LikeOriginal(s, desc);
-                if (C2WallObjectsV53UseWhiteModelConnectorChainLikeOriginal &&
-                    route.Route == WallDrawRouteV20LikeOriginal.SavedModelC2M)
-                {
-                    bool universalAnchorLineOwnsDambaPlacementV75 =
-                        C2WallObjectsV75DisableSavedMatrix4DForUniversalDambaAnchorsLikeOriginal &&
-                        C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal &&
-                        IsWallDambaC2MModelV33LikeOriginal(desc);
-
-                    bool useOriginalDambaSavedM4V66 =
-                        (C2WallObjectsV66UseRigidSavedMatrixForDambaC2MLikeOriginal ||
-                         C2WallObjectsV65UseSavedMatrixForDambaC2MLikeOriginal) &&
-                        IsWallDambaC2MModelV33LikeOriginal(desc) &&
-                        s.HasMatrix &&
-                        route.MatrixVerified &&
-                        !universalAnchorLineOwnsDambaPlacementV75;
-
-                    if (useOriginalDambaSavedM4V66)
-                    {
-                        route.UseSavedM4 = true;
-                        route.Variant = "MODEL_DAMBA_C2M_SAVED_M4_RIGID_V66";
-                        route.Path = "MODEL_C2M_V66_original_saved_Matrix4D_existingM4_rigid_textured";
-                        route.Reason = (route.Reason ?? string.Empty) +
-                                       "; V66: original trace renders DAMBA through RenderModels.Add existingM4; keep saved Matrix4D but convert it as one rigid world-space model, not per-vertex terrain warp" +
-                                       (C2WallObjectsV70AnchorDambaC2MPivotToSavedWLPointLikeOriginal ? "; V70: anchor C2M local XY pivot to saved WL point, matching walls.lst center semantics instead of local zero" : string.Empty) +
-                                       (C2WallObjectsV71UseDambaSavedWLAnchorNudgeLikeOriginal ? "; V71: small DAMBA saved-WL anchor nudge hook, no C2M pivot rewrite" : string.Empty) +
-                                       (C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal ? "; V88: W60 DAMBA row uses map only for order; runtime placement uses authored Stage2 full relative pose, V14 scene anchors remain visible" : string.Empty) +
-                                       (C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal ? "; V72: W60 pair calibrated connector chain, first map section then previous+delta" : string.Empty) +
-                                       (C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal ? "; V68: assemble DAMBA as separate section rows, resampled between first and last section anchors" : string.Empty) +
-                                       (C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal ? "; V69: project DAMBA rows to connector line, preserving native along-row spacing" : string.Empty) +
-                                       (C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal ? "; V67: use straightened run anchor as rigid world origin while preserving Matrix4D local deltas" : string.Empty);
-                        route.MatrixAudit = (route.MatrixAudit ?? string.Empty) + " V66_DAMBA_saved_M4_existingM4_rigid_delta" +
-                                            (C2WallObjectsV70AnchorDambaC2MPivotToSavedWLPointLikeOriginal ? " V70_local_C2M_XY_pivot_to_saved_WL" : string.Empty) +
-                                            (C2WallObjectsV71UseDambaSavedWLAnchorNudgeLikeOriginal ? " V71_small_anchor_nudge" : string.Empty) +
-                                            (C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal ? " V88_stage2_full_pose_relative_transform_FIRST_MAP_OBJECT_V14_scene_anchors" : string.Empty) +
-                                            (C2WallObjectsV72UseDambaPairCalibrationChainLikeOriginal ? " V72_pair_calibrated_chain" : string.Empty) +
-                                            (C2WallObjectsV68AssembleDambaRowsBySectionEndpointsLikeOriginal ? " V68_section_row_endpoints" : string.Empty) +
-                                            (C2WallObjectsV69ProjectDambaRowsToConnectorLineKeepNativeSpacingLikeOriginal ? " V69_connector_line_project_perp" : string.Empty) +
-                                            (C2WallObjectsV67StraightenRigidSavedM4DambaRunsLikeOriginal ? " V67_straightened_world_origin" : string.Empty);
-                    }
-                    else
-                    {
-                        route.UseSavedM4 = false;
-                        route.MatrixVerified = false;
-                        route.Variant = universalAnchorLineOwnsDambaPlacementV75
-                            ? "MODEL_UNIVERSAL_ANCHOR_LINE_NO_SAVED_M4_V75"
-                            : (C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal ? "MODEL_MAP_ANCHOR_RIGID_TEXTURED" : "MODEL_CHAIN_CENTER_WHITE");
-                        route.Path = universalAnchorLineOwnsDambaPlacementV75
-                            ? "MODEL_C2M_V75_universal_anchor_line_no_saved_Matrix4D_anchor_driven_textured"
-                            : (C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal
-                                ? "MODEL_C2M_V58_map_saved_anchor_rigid_textured_bottom_plus5"
-                                : "MODEL_C2M_V53_connector_chain_centered_bottom_plus5_white");
-                        route.Reason = (route.Reason ?? string.Empty) + (universalAnchorLineOwnsDambaPlacementV75
-                            ? "; V77: universal anchor points own DAMBA placement; use authored Stage2 point pose, not nearest-pair auto matching; disable saved Matrix4D"
-                            : (C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal
-                                ? "; V58: use original map TRE2/WL saved anchor X/Y again; keep rigid no-grid-warp C2M mesh and TemnyLess DrawWChunk texture"
-                                : "; V53 diagnostic: ignore saved Matrix4D, place model by connector-chain anchor, center bounds, bottom +5, no texture white fill"));
-                        route.MatrixAudit = (route.MatrixAudit ?? string.Empty) + (universalAnchorLineOwnsDambaPlacementV75
-                            ? " V75_universal_anchor_line_no_saved_Matrix4D"
-                            : (C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal ? " V58_map_saved_anchor_no_connector_resnap" : " V53_force_no_savedM4"));
-                    }
-
-                    bool forceFlatSavedM4DambaV82 =
-                        C2WallObjectsV82ForceFlatSharedHeightForUniversalSavedM4DambaRowsLikeOriginal &&
-                        C2WallObjectsV73UseUniversalAnchorLineCalibrationForDambaLikeOriginal &&
-                        route != null &&
-                        route.UseSavedM4 &&
-                        IsWallDambaC2MModelV33LikeOriginal(desc) &&
-                        IsWallDambaW60CalibrationTargetV90LikeOriginal(desc);
-
-                    if (C2WallObjectsV59LevelModelBackedBridgeRunsLikeOriginal &&
-                        C2WallObjectsV58UseMapSavedAnchorForModelBackedC2MLikeOriginal &&
-                        IsWallDambaC2MModelV33LikeOriginal(desc) &&
-                        (!route.UseSavedM4 || forceFlatSavedM4DambaV82) &&
-                        modelRunHeightsV59.TryGetValue(sourceSpriteForLog, out float sharedHeightV59))
-                    {
-                        route.HasSharedRunHeightV59 = true;
-                        route.SharedRunHeightV59 = sharedHeightV59;
-                        route.Variant = forceFlatSavedM4DambaV82
-                            ? "MODEL_SAVED_M4_UNIVERSAL_ANCHOR_FLAT_DECK_V82"
-                            : (universalAnchorLineOwnsDambaPlacementV75
-                                ? "MODEL_UNIVERSAL_ANCHOR_LINE_NO_SAVED_M4_FLAT_DECK_V75"
-                                : (C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal ? "MODEL_MAP_ANCHOR_RIGID_TEXTURED_FLAT_DECK_STRAIGHT_ROW_V61" : "MODEL_MAP_ANCHOR_RIGID_TEXTURED_FLAT_DECK_V60"));
-                        route.Path = forceFlatSavedM4DambaV82
-                            ? "MODEL_C2M_V89_stage2_full_3D_relative_transform_shared_Matrix4D_basis_AND_height_DrawWChunk"
-                            : (universalAnchorLineOwnsDambaPlacementV75
-                                ? "MODEL_C2M_V77_stage2_point_pose_no_saved_Matrix4D_flat_group_height_deck_anchor_textured"
-                                : (C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal ? "MODEL_C2M_V61_map_saved_XY_straight_row_flat_group_height_deck_anchor_textured" : "MODEL_C2M_V60_map_saved_XY_flat_group_height_deck_anchor_textured"));
-                        route.Reason = (route.Reason ?? string.Empty) + "; V60: shared flat DAMBA group height, align C2M deck-anchor (not absolute top) to bridge/deck line, no per-piece terrain stepping" +
-                                       (forceFlatSavedM4DambaV82 ? "; V83: saved Matrix4D basis is shared from the first map object; row spacing comes from model connector anchors; per-piece height is one flat deck level" : string.Empty) +
-                                       (universalAnchorLineOwnsDambaPlacementV75 ? "; V77: flat group height now rides on authored Stage2 point-pose CENTER_MAIN anchor chain, not on saved Matrix4D" : string.Empty) +
-                                       (C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal ? "; V61: row anchors are straightened in map XY, no forward/back jitter and no gaps" : string.Empty);
-                        route.MatrixAudit = (route.MatrixAudit ?? string.Empty) + " V60_flat_group_height=" + sharedHeightV59.ToString("0.###", CultureInfo.InvariantCulture) +
-                                            (forceFlatSavedM4DambaV82 ? " V89_stage2_full_3D_height_delta" : string.Empty) +
-                                            (C2WallObjectsV61StraightenDambaRunAnchorsLikeOriginal ? " V61_straight_row_anchor" : string.Empty);
-                        modelRunHeightAdjustedV59++;
-                    }
-                }
                 switch (route.ClassV118)
                 {
                     // V168: legacy WALS2D fence classes are physically removed from enum/runtime routing.

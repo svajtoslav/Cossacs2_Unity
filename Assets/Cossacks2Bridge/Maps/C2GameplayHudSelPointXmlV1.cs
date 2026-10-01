@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -381,7 +381,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 visible = ctx.SelectedCount > 1 ||
                           C2FormationRuntimeV167LikeOriginal.IsUnitInRuntimeFormationV168LikeOriginal(ctx.Unit);
             if (NodeHasActionV125LikeOriginal(node, "va_SP_Morale") || NodeHasActionV125LikeOriginal(node, "va_SP_MoraleLine"))
-                visible = !ctx.IsBuilding;
+                visible = !ctx.IsBuilding && !ctx.Icon.CannonInterfaceV439;
             if (NodeHasActionV125LikeOriginal(node, "va_SP_LifeLine") ||
                 NodeHasActionV125LikeOriginal(node, "va_SP_TiredLine"))
                 visible = !ctx.IsBuilding && ctx.Unit != null &&

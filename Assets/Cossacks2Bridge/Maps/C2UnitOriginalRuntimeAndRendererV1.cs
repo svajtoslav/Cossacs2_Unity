@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -698,7 +698,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                     for (int i = 0; i < _units.Count; i++)
                     {
                         C2UnitOriginalRuntime u = _units[i];
-                        if (u == null || u.Md == null || (u.Info != null ? u.Info.Nation : 0) != nationV433) continue;
+                        if (u == null || !u.ActiveLikeOriginal || u.Md == null || (u.Info != null ? u.Info.Nation : 0) != nationV433) continue;
                         long orderStartV433 = ProfileUnitRuntimePhasesLikeOriginal ? global::System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
                         C2OriginalOrderChainV352.TickUnitOrderV433LikeOriginal(u.Info);
                         if (ProfileUnitRuntimePhasesLikeOriginal)
@@ -708,6 +708,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 }
                 if (ProfileUnitRuntimePhasesLikeOriginal)
                     _profileStepTicksLikeOriginal += global::System.Diagnostics.Stopwatch.GetTimestamp() - phaseStarted;
+
+                RemoveExpiredDeathsV435LikeOriginal();
 
                 // NewMon.cpp::LongProcesses calls PerformPathFiding AFTER all
                 // object motion. A queued CreatePath prepares next tick's DestX.
@@ -785,6 +787,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         : _units[i];
                     if (u == null || u.Md == null) continue;
                     bool renderRelevant = u.Selected || ShouldMaterializeUnitFrameLikeOriginal(u);
+                    if (u.OriginalComplexObjectV430LikeOriginal != null)
+                    {
+                        RenderComplexRuntimeV437(u, renderRelevant);
+                        if (u.Selected || (u.SelectionRingObject != null && u.SelectionRingObject.activeSelf))
+                            UpdateSelectionRingLikeOriginal(u);
+                        continue;
+                    }
                     if (renderRelevant)
                     {
                         _visualRenderRelevantV373LikeOriginal++;
@@ -937,12 +946,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (u == null || u.Md == null) return false;
             if (u.State == C2UnitOriginalState.Death) return false;
+            // Nation.cpp::OneObject::Die returns here when only the complex crew is lost.
+            if (u.OriginalComplexObjectV430LikeOriginal != null && !DieComplexObjectV441(u)) return false;
 
             int death = ResolveAnimationIndexLikeOriginal(u.Md, DeathAnimationName);
             if (death < 0) death = ResolveAnimationIndexLikeOriginal(u.Md, "#DEATH");
             if (death < 0 && DeathFallbackToDeathLie1LikeOriginal) death = ResolveAnimationIndexLikeOriginal(u.Md, "#DEATHLIE1");
             if (death < 0 && DeathFallbackToDeathLie1LikeOriginal) death = ResolveAnimationIndexLikeOriginal(u.Md, "#DEATHLIE2");
-            if (death < 0 || death >= u.Md.Animations.Count) return false;
+            if (death < 0 || death >= u.Md.Animations.Count)
+            {
+                // LongProcesses removes a dead non-building with no DEATH clip.
+                // A missing visual must never leave a live selectable zero-HP unit.
+                u.State = C2UnitOriginalState.Death;
+                ExpireOriginalDeathV435LikeOriginal(u);
+                return true;
+            }
 
             if (DeathStopsMovementLikeOriginal)
             {
@@ -968,6 +986,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             }
 
             SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Death, death, true, reason ?? "death");
+            u.OriginalDeathCounterV435LikeOriginal = 1;
             if (u.AnimState != null) u.AnimState.Reason = reason ?? "death";
             u.FrameFinishedLikeOriginal = false;
             u.LastFrameKey = string.Empty;
@@ -1131,7 +1150,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
                 int standAnim = ResolveAnimationIndexLikeOriginal(md, StandAnimationName);
                 if (standAnim < 0) standAnim = ResolveAnimationIndexLikeOriginal(md, RestAnimationName);
-                if (standAnim < 0 || md.Animations[standAnim].Frames.Count == 0) { skippedAnim++; continue; }
+                if (!HasRuntimeVisualV437(md, mdPath, standAnim)) { skippedAnim++; continue; }
 
                 C2UnitOriginalRuntime u = CreateRuntimeUnitLikeOriginal(probe, md, mdPath, world, standAnim, units);
                 if (u == null) { skippedAnim++; continue; }
@@ -1150,8 +1169,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                               " real=(" + probe.RealX.ToString(CultureInfo.InvariantCulture) + "," + probe.RealY.ToString(CultureInfo.InvariantCulture) + ")" +
                               " world=" + world.ToString("F3") +
                               " realDir=" + probe.RealDir.ToString(CultureInfo.InvariantCulture) +
-                              " anim='" + md.Animations[standAnim].Name + "' frames=" + md.Animations[standAnim].Frames.Count.ToString(CultureInfo.InvariantCulture) +
-                              " rotations=" + md.Animations[standAnim].Rotations.ToString(CultureInfo.InvariantCulture) +
+                              " anim='" + (standAnim >= 0 ? md.Animations[standAnim].Name : md.ComplexObjectIdLikeOriginal) + "' frames=" + (standAnim >= 0 ? md.Animations[standAnim].Frames.Count : 0).ToString(CultureInfo.InvariantCulture) +
+                              " rotations=" + (standAnim >= 0 ? md.Animations[standAnim].Rotations : 0).ToString(CultureInfo.InvariantCulture) +
                               " mdCache=" + (mdCacheHits > 0 ? "shared" : "new") +
                               " mdAudit=" + mdAudit);
                 }
@@ -1208,8 +1227,13 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             u.TotalPathLikeOriginal = 0f;
             u.AnimFps = DefaultAnimFps;
             u.LastFrameKey = string.Empty;
+            // Corpse removal compacts _units, but live OneObject identities must
+            // never reuse the index of another still-live unit after production.
+            unitOrder = Math.Max(unitOrder, _nextRuntimeUnitOrderV435LikeOriginal);
+            _nextRuntimeUnitOrderV435LikeOriginal = checked(unitOrder + 1);
             u.UnitOrder = unitOrder;
             u.NextRestCheckTime = Time.unscaledTime + StableUnitRandomRangeLikeOriginal(probe, 11, RestMinDelaySeconds, RestMaxDelaySeconds);
+            u.CurrentAnimIndex = -1;
             SelectAnimationStateLikeOriginal(u, C2UnitOriginalState.Stand, idleAnim, true, "create");
 
             Camera cam = FindBattleCameraLikeOriginal();
@@ -1234,6 +1258,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 if (u.Info != null) u.Info.BindRuntimeLinkV364LikeOriginal(link);
             }
             link.BindLikeOriginal(this, u);
+            if (!string.IsNullOrEmpty(md.ComplexObjectIdLikeOriginal))
+            {
+                EnsureComplexObjectRuntimeV430LikeOriginal(u);
+                UpdateRuntimeWorldAndRealLikeOriginal(u);
+            }
             if (!u.RenderedByOriginalGpsBatchLikeOriginal)
                 EnsureRuntimeUnityProxyLikeOriginal(u);
             UpdateUnitSortingOrderLikeOriginal(u, cam);
@@ -1241,7 +1270,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             // Selection visuals are rare.  Creating a GameObject, Mesh and
             // Renderer for every one of several hundred unselected units doubled
             // the renderer count and added needless culling/update work.
-            if (ShouldMaterializeUnitFrameLikeOriginal(u))
+            if (u.OriginalComplexObjectV430LikeOriginal != null)
+                u.FrameUploadPendingLikeOriginal = false;
+            else if (ShouldMaterializeUnitFrameLikeOriginal(u))
                 u.FrameUploadPendingLikeOriginal = !ApplyUnitFrameLikeOriginal(u, "initial");
             else
                 u.FrameUploadPendingLikeOriginal = true;
@@ -1289,12 +1320,18 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 u.Mesh.MarkDynamic();
             }
             if (u.MeshFilter == null)
-                u.MeshFilter = u.Root.GetComponent<MeshFilter>() ?? u.Root.AddComponent<MeshFilter>();
+            {
+                u.MeshFilter = u.Root.GetComponent<MeshFilter>();
+                // Unity can return a managed missing-component wrapper; ?? does
+                // not use Unity's destroyed/missing object equality operator.
+                if (u.MeshFilter == null) u.MeshFilter = u.Root.AddComponent<MeshFilter>();
+            }
             u.MeshFilter.sharedMesh = u.Mesh;
 
             if (u.MeshRenderer == null)
             {
-                u.MeshRenderer = u.Root.GetComponent<MeshRenderer>() ?? u.Root.AddComponent<MeshRenderer>();
+                u.MeshRenderer = u.Root.GetComponent<MeshRenderer>();
+                if (u.MeshRenderer == null) u.MeshRenderer = u.Root.AddComponent<MeshRenderer>();
                 u.MeshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 u.MeshRenderer.receiveShadows = false;
             }
@@ -1880,7 +1917,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             int idleAnim = ResolveAnimationIndexLikeOriginal(md, StandAnimationName);
             if (idleAnim < 0) idleAnim = ResolveAnimationIndexLikeOriginal(md, RestAnimationName);
-            if (idleAnim < 0 || md.Animations[idleAnim].Frames.Count == 0)
+            if (!HasRuntimeVisualV437(md, mdPath, idleAnim))
             {
                 audit = "idle_anim_missing unit='" + unitId + "' md='" + mdName + "'";
                 return false;
@@ -2014,8 +2051,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             audit = "spawned_viewer_gp_cache unit='" + unitId + "' md='" + md.Name + "' real=(" +
                     spawnRealX.ToString(CultureInfo.InvariantCulture) + "," + spawnRealY.ToString(CultureInfo.InvariantCulture) + ")" +
                     " world=" + world.ToString("F3") +
-                    " anim='" + md.Animations[idleAnim].Name + "'" +
-                    " frames=" + md.Animations[idleAnim].Frames.Count.ToString(CultureInfo.InvariantCulture) +
+                    " anim='" + (idleAnim >= 0 ? md.Animations[idleAnim].Name : md.ComplexObjectIdLikeOriginal) + "'" +
+                    " frames=" + (idleAnim >= 0 ? md.Animations[idleAnim].Frames.Count : 0).ToString(CultureInfo.InvariantCulture) +
                     " mdCache=" + (_mdCache.ContainsKey(mdPath) ? "1" : "0") +
                     " exit='" + (bornExitAuditLikeOriginal ?? "") + "'" +
                     " preciseExit=" + hasBornExitPathLikeOriginal;
@@ -2658,6 +2695,8 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             if (u == null) return;
             off = off || u.HiddenInsideBuildingLikeOriginal;
+            if (u.ComplexVisualV437 != null && u.ComplexVisualV437.Root != null)
+                u.ComplexVisualV437.Root.SetActive(!off && u.ActiveLikeOriginal);
             bool individualOff = off || u.RenderedByOriginalGpsBatchLikeOriginal;
             if (u.MeshRenderer != null) u.MeshRenderer.forceRenderingOff = individualOff;
             if (u.DepthMeshRenderer != null) u.DepthMeshRenderer.forceRenderingOff = individualOff;
@@ -3865,6 +3904,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
             // NewMon.cpp SETATTSTATE writes NewState immediately. LocalNewState is
             // separate and is changed only by TryToStand's actual transition path.
+            if (u.OriginalComplexObjectV430LikeOriginal != null) return;
             int requestedPosture = active ? Mathf.Max(0, weaponType) : -1;
             int oldDesiredV411 = u.PostureWeaponTypeLikeOriginal;
             u.PostureWeaponTypeLikeOriginal = requestedPosture;
@@ -4329,7 +4369,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         internal bool TryGetRuntimeWeaponStartWorldLikeOriginal(
             C2UnitOriginalRuntime u, int muzzleIndex, out Vector3 world)
         {
+            Vector2 originalPoint;
+            return TryGetRuntimeWeaponStartWorldV435LikeOriginal(u, muzzleIndex, out world, out originalPoint);
+        }
+
+        internal bool TryGetRuntimeWeaponStartWorldV435LikeOriginal(
+            C2UnitOriginalRuntime u, int muzzleIndex, out Vector3 world, out Vector2 originalPoint)
+        {
             world = u != null ? u.WorldPosition : Vector3.zero;
+            originalPoint = u != null ? new Vector2(u.RuntimeRealXLikeOriginal, u.RuntimeRealYLikeOriginal) / 16.0f : Vector2.zero;
             AnimModel anim = CurrentAnim(u);
             if (u == null || !u.ActiveLikeOriginal || anim == null || anim.Frames.Count == 0)
                 return false;
@@ -4353,6 +4401,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 ? -(pointX + frame.Dx) * VisualScale
                 : (pointX + frame.Dx) * VisualScale;
             float localY = -(pointY + frame.Dy) * VisualScale;
+            originalPoint.x += draw.MirrorGeometry ? -(pointX + frame.Dx) : pointX + frame.Dx;
             world = GetUnitLocalToWorldMatrixLikeOriginal(u).MultiplyPoint3x4(new Vector3(localX, localY, 0.0f));
             return true;
         }
@@ -6074,6 +6123,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             rect = default(Rect);
             anchor = Vector2.zero;
             if (u == null || !u.ActiveLikeOriginal) return false;
+            if (u.OriginalComplexObjectV430LikeOriginal != null) return TryComplexScreenRectV437(u,in projection,out rect,out anchor);
             Vector3[] verts = u.BodyQuadVerticesLikeOriginal;
             if (verts == null || verts.Length == 0) return false;
             Matrix4x4 unitToWorld = GetUnitLocalToWorldMatrixLikeOriginal(u);
@@ -6085,6 +6135,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             rect = default(Rect);
             anchor = Vector2.zero;
             if (cam == null || u == null || !u.ActiveLikeOriginal) return false;
+            if (u.OriginalComplexObjectV430LikeOriginal != null)
+            {
+                var projection = new UnitScreenProjectionV376LikeOriginal(cam);
+                return TryComplexScreenRectV437(u,in projection,out rect,out anchor);
+            }
             Vector3[] verts = u.BodyQuadVerticesLikeOriginal;
             if (verts == null || verts.Length == 0) return false;
             Matrix4x4 unitToWorld = GetUnitLocalToWorldMatrixLikeOriginal(u);
@@ -6506,6 +6561,12 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private void UpdateSelectionRingLikeOriginal(C2UnitOriginalRuntime u)
         {
             if (u == null) return;
+            if (u.OriginalComplexObjectV430LikeOriginal != null)
+            {
+                if (u.SelectionRingObject != null) u.SelectionRingObject.SetActive(false);
+                if (u.ComplexVisualV437 != null) UpdateComplexSelectionV437(u);
+                return;
+            }
             if (UseOriginalGpsUnitBatchRendererLikeOriginal && UseBatchedSelectionMarksV420)
             {
                 if (u.SelectionRingObject != null && u.SelectionRingObject.activeSelf)
@@ -6863,9 +6924,11 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             for (int i = 0; i < _units.Count; i++)
             {
                 C2UnitOriginalRuntime unit = _units[i];
+                if (unit != null) { unit.ComplexVisualV437?.Dispose(); unit.ComplexVisualV437 = null; }
                 if (unit != null && unit.Info != null)
                     unit.Info.C2ReleaseV365LikeOriginal();
             }
+            if (_battle != null) _battle.ClearArtilleryGraphicsV437();
             _units.Clear();
             _unitDrawCellsLikeOriginal.Clear();
             _drawUnitsCurrentLikeOriginal.Clear();
@@ -7201,6 +7264,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                         md.ComplexObjectIdLikeOriginal = t[1];
                         continue;
                     }
+                    if (string.Equals(t[0], "SELTYPE", StringComparison.OrdinalIgnoreCase) && t.Length >= 4)
+                    {
+                        md.SelectionTypeV437=t[1];
+                        md.SelectionScaleXV437=float.Parse(t[2],CultureInfo.InvariantCulture);
+                        md.SelectionScaleYV437=float.Parse(t[3],CultureInfo.InvariantCulture);
+                        continue;
+                    }
+                    if (string.Equals(t[0], "SELSHIFT", StringComparison.OrdinalIgnoreCase) && t.Length >= 2)
+                    {md.SelectionShiftV437=int.Parse(t[1],CultureInfo.InvariantCulture);continue;}
                     if (string.Equals(t[0], "ARTPODGOTOVKA", StringComparison.OrdinalIgnoreCase))
                     {
                         md.Artpodgotovka = true;
@@ -7474,7 +7546,7 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
                 FinalizeOriginalAnimationTableLikeOriginal(md);
                 ApplyAnimationTiringTableLikeOriginal(md);
                 audit = "ok lines=" + lines.Length.ToString(CultureInfo.InvariantCulture) + " userlc=" + md.UserLc.Count.ToString(CultureInfo.InvariantCulture) + " animations=" + md.Animations.Count.ToString(CultureInfo.InvariantCulture) + " frames=" + CountTotalFrames(md).ToString(CultureInfo.InvariantCulture) + " motionDist=" + md.MotionDist.ToString(CultureInfo.InvariantCulture) + " motionStyle=" + md.MotionStyle + " boids=" + md.BoidsMoving + " canBuild=" + md.CanBuild + " pioneer=" + md.Pioneer + " tiring=" + md.TiringAuditLikeOriginal + " malformed=" + malformed.ToString(CultureInfo.InvariantCulture);
-                return md.UserLc.Count > 0 && md.Animations.Count > 0;
+                return !string.IsNullOrEmpty(md.ComplexObjectIdLikeOriginal) || (md.UserLc.Count > 0 && md.Animations.Count > 0);
             }
             catch (Exception ex) { audit = ex.GetType().Name + ":" + ex.Message; return false; }
         }
@@ -7922,6 +7994,9 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
 
         internal sealed class MdModel
         {
+            internal string SelectionTypeV437;
+            internal float SelectionScaleXV437=1, SelectionScaleYV437=1;
+            internal int SelectionShiftV437;
             public string Name;
             public string Path;
             public int GeometryRadius1 = 1;
@@ -8252,8 +8327,10 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         {
             alpha = 0.0f;
             uv = Vector2.zero;
-            if (Owner == null || Runtime == null || Runtime.LastTexture == null)
-                return false;
+            if (Owner == null || Runtime == null) return false;
+            if (Runtime.OriginalComplexObjectV430LikeOriginal != null)
+                return Owner.TryComplexPixelHitV437(Runtime,cam,screenPosition,out alpha,out uv);
+            if (Runtime.LastTexture == null) return false;
 
             Rect rect;
             Vector2 anchor;

@@ -1,4 +1,4 @@
-﻿// C2UnitHudInteractionCompatV239.cs
+// C2UnitHudInteractionCompatV239.cs
 // V245: compatibility bridge for unit HUD/interaction + runtime construction.
 // IMPORTANT: the old C2BuildingPlacementPreviewV27 stub is removed here;
 // the real preview lives in C2BuildingPlacementPreviewV27.cs.
@@ -962,13 +962,21 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         private static List<string> FindNdsFilesLikeOriginal()
         {
             var result = new List<string>();
-            var dirs = BuildDataDirsLikeOriginal();
-            for (int i = 0; i < dirs.Count; i++)
+            // Nations.lst is the engine's load manifest. Scanning *.NDS also loads
+            // obsolete FranceB/EnglandB files and merges their 30/60-man formations
+            // into the current nation's 45-man cavalry records.
+            string manifest = FindFirstDataFileLikeOriginal("Nations.lst");
+            string[] lines = ReadAllLines1251LikeOriginal(manifest);
+            if (lines == null) return result;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string raw in lines)
             {
-                string dir = dirs[i];
-                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
-                AddFilesFromDirLikeOriginal(result, dir, "*.NDS");
-                AddFilesFromDirLikeOriginal(result, dir, "*.nds");
+                string line = C2OriginalProduceCatalogV13.CleanLineForSiblingLoadersLikeOriginal(raw);
+                if (line.Length == 0 || line.StartsWith("/", StringComparison.Ordinal)) continue;
+                string[] tokens = C2OriginalProduceCatalogV13.SplitTokensForSiblingLoadersLikeOriginal(line);
+                if (tokens.Length < 3 || !tokens[2].EndsWith(".nds", StringComparison.OrdinalIgnoreCase)) continue;
+                string path = FindFirstDataFileLikeOriginal(tokens[2]);
+                if (!string.IsNullOrEmpty(path) && seen.Add(path)) result.Add(path);
             }
             return result;
         }
@@ -1431,15 +1439,15 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             C2FormationCreateCatalogV165LikeOriginal.C2FormationRecordV165LikeOriginal record)
         {
             if (record == null || record.Options == null) return null;
-            C2FormationCreateCatalogV165LikeOriginal.C2FormationOptionV165LikeOriginal best = null;
+            // GlobalBrigDialog/CreateBrigInZone use SDES[0].Amount[0], not
+            // the smallest formation found anywhere in the officer's descriptions.
             for (int i = 0; i < record.Options.Count; i++)
             {
-                C2FormationCreateCatalogV165LikeOriginal.C2FormationOptionV165LikeOriginal option = record.Options[i];
-                if (option == null || option.UnitCount <= 0) continue;
-                if (best == null || option.UnitCount < best.UnitCount)
-                    best = option;
+                var option = record.Options[i];
+                if (option != null && option.AmountIndex == 0 && option.UnitCount > 0)
+                    return option;
             }
-            return best;
+            return null;
         }
 
         private static readonly Unity.Profiling.ProfilerMarker GlobalBrigProposalMarkerLikeOriginal =

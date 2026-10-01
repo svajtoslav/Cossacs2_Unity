@@ -28,18 +28,17 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
         }
         private void BindMeterV422(C2NeutralPeasantUnitInfoV2LikeOriginal unit, bool life, int x, int y, int w, int h)
         {
-            var b = new MeterBindingV422 {Unit=unit,Life=life,X=x,Y=y,W=w,H=h,Images=new Image[life?1:24]};
+            var b = new MeterBindingV422 {Unit=unit,Life=life,X=x,Y=y,W=w,H=h,Images=new Image[life?1:3+9*(h+1)]};
             for(int i=0;i<b.Images.Length;i++)
             {
-                Color32 color = life ? new Color32(0,255,0,255) : i<2 ? new Color32(255,37,24,255) :
-                    i<4 ? new Color32(255,212,18,255) : i<6 ? new Color32(98,60,8,255) : new Color32(175,0,0,255);
+                Color32 color = life ? new Color32(0,255,0,255) : C2MoralePresentationV435LikeOriginal.ColorForSegment(i,100);
                 b.Images[i]=AddSolidSinglePassV140ALikeOriginal("sp_meter_v422_"+i,color,x,y,0,h,false);
             }
             _metersV422.Add(b);
             RefreshMeterV422(b);
         }
-        // Same integer geometry as VUI_Actions.cpp::SetMorale and the existing
-        // HUD colour/overpaint presentation. Only the existing images are moved.
+        // VUI_Actions.cpp::SetMorale: three fill segments and diagonal marks for
+        // each full hundred of morale. These are not experience awards.
         internal static RectInt MoraleSegmentV422(int index,int w,int h,int morale,int maximum)
         {
             int n=Mathf.Max(0,morale/100),m=Mathf.Clamp(morale%100,0,100),M=Mathf.Clamp(maximum-n*100,0,100);
@@ -49,23 +48,24 @@ namespace Cossacks2Bridge.UnityAdapters.Maps
             if(index==0)return new RectInt(0,0,lr,h);
             if(index==1)return new RectInt(lr,0,Mathf.Max(0,lx-lr),h);
             if(index==2)return new RectInt(lx,0,Mathf.Max(0,lm-lx),h);
-            int tick=index-3,tw=Mathf.Max(1,h-1),start=(w-(n+n-1)*tw)/2;
-            return tick<n?new RectInt(start+tick*2*tw,0,tw,h):default(RectInt);
+            int row=(index-3)%(h+1),tick=(index-3)/(h+1),tw=Mathf.Max(0,h-1),start=(w-(n+n-1)*tw)/2;
+            return tick<n?new RectInt(start+tick*2*tw+h-row,row,tw,1):default(RectInt);
         }
         private void RefreshMeterV422(MeterBindingV422 b)
         {
             int value=0,maximum=0;
             if(b.Life) C2FormationRuntimeV167LikeOriginal.TryGetFormationAverageLifeV404LikeOriginal(b.Unit,out value,out maximum);
             else {value=ResolveMoraleCurrentLikeOriginal(b.Unit);maximum=ResolveMoraleMaxLikeOriginal(b.Unit);}
-            if(b.Value==value&&b.Maximum==maximum)return;
+            if(b.Value==value&&b.Maximum==maximum&&(b.Life||value>=45))return;
             b.Value=value;b.Maximum=maximum;
             for(int i=0;i<b.Images.Length;i++)
             {
                 var image=b.Images[i];if(image==null)continue;
                 int fill=maximum>0&&value>0?Mathf.Clamp(b.H*value/maximum,0,b.H):0;
-                RectInt rect=b.Life?new RectInt(0,b.H-fill,Mathf.Max(1,b.W),fill):MoraleSegmentV422(i/2,b.W,b.H,value,maximum);
+                RectInt rect=b.Life?new RectInt(0,b.H-fill,Mathf.Max(1,b.W),fill):MoraleSegmentV422(i,b.W,b.H,value,maximum);
                 Place(image.rectTransform,b.X+rect.x,b.Y+rect.y,rect.width,rect.height);
                 image.enabled=rect.width>0&&rect.height>0;
+                if(!b.Life)image.color=C2MoralePresentationV435LikeOriginal.ColorForSegment(i,value);
             }
         }
         private void RefreshMetersV422()
