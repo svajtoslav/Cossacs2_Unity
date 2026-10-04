@@ -1,3 +1,0 @@
-﻿3 2 36 35
-# originX originY width height
-# global bounds: minX=-2 minY=-1 maxX=32 maxY=32

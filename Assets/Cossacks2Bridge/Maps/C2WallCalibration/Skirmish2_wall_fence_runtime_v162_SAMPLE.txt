@@ -1,8 +1,0 @@
-# Cossacks2Bridge WALLS fence runtime settings V162
-# Map: Missions/Skirmish/Skirmish2.m3d
-mirrorSprites=true
-swapPairs=true
-panel.x=16
-panel.y=320
-panel.w=285
-panel.h=118
