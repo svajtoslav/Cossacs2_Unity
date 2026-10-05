@@ -1,0 +1,10 @@
+# Title (если нужно)
+MAIN_MENU_TITLE=ГЛАВНОЕ МЕНЮ
+
+# Buttons / keys (как у тебя сейчас в XML / MessageKey)
+EW2_InternetGame=ИНТЕРНЕТ ИГРА
+EW2_Exit=ВЫХОД
+EW2_Credits=АВТОРЫ
+
+# Можно и так (если в ключах уже есть #)
+#EW2_Exit=ВЫХОД

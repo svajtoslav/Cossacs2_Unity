@@ -1,0 +1,28 @@
+<>
+ <Groups>
+  <TypeGroup>
+   <Name>Пезанты</Name>
+   <Hero>false</Hero>
+   <UnitList>
+    <BaseClassUnitType>
+     <UnitType>UnitKri(FR)</UnitType>
+    </BaseClassUnitType>
+    <BaseClassUnitType>
+     <UnitType>UnitKri(PR)</UnitType>
+    </BaseClassUnitType>
+    <BaseClassUnitType>
+     <UnitType>UnitKri(RU)</UnitType>
+    </BaseClassUnitType>
+    <BaseClassUnitType>
+     <UnitType>UnitKri(AU)</UnitType>
+    </BaseClassUnitType>
+    <BaseClassUnitType>
+     <UnitType>UnitKri(EG)</UnitType>
+    </BaseClassUnitType>
+    <BaseClassUnitType>
+     <UnitType>UnitKri(EN)</UnitType>
+    </BaseClassUnitType>
+   </UnitList>
+  </TypeGroup>
+ </Groups>
+</>

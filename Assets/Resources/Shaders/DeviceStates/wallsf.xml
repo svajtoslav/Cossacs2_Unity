@@ -1,0 +1,52 @@
+<wallsf>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<SrcBlend>SrcAlpha</SrcBlend>
+				<DestBlend>InvSrcAlpha</DestBlend>
+				<ColorVertex>True</ColorVertex>
+				<NormalizeNormals>True</NormalizeNormals>
+				<CullMode>None</CullMode>
+				<Lighting>True</Lighting>
+				<FillMode>Solid</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>False</DitherEnable>
+				<Ambient>ambColor</Ambient>
+				<MaterialDiffuse>difColor</MaterialDiffuse>
+				<MaterialAmbient>ambColor</MaterialAmbient>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<TextureFactor>0xFFFFFFFF</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<LightType>Directional</LightType>
+				<LightDiffuse>difColor</LightDiffuse>
+				<LightAmbient>ambColor</LightAmbient>
+				<LightDirection>lightDir</LightDirection>
+				<LightRange>10000</LightRange>
+				<LightEnable>True</LightEnable>
+				<TextureTransformFlags>Count2</TextureTransformFlags>
+				<TexCoordIndex>0</TexCoordIndex>
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<TexCoordIndex>0</TexCoordIndex>
+				<ColorOp>BlendDiffuseAlpha</ColorOp>
+				<ColorArg1>Current</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Tfactor</AlphaArg1>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+</wallsf>

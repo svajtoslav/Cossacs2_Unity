@@ -1,0 +1,20 @@
+#HBattle1_TXT Асперн - Эсслинг
+#HBattle2_TXT Аустерлиц 
+#HBattle3_TXT Битва при пирамидах
+#HBattle4_TXT Пройсиш-Эйлау
+#HBattle5_TXT Ульм
+#HBattle6_TXT Вааграм
+#Battle7_TXT Зимний бой
+#Battle8_TXT Рассредоточенное расположение 
+#Battle9_TXT Амбразуры 
+#Battle10_TXT Полная мобилизация
+#Skirmish1_TXT Противостояние
+#Skirmish2_TXT Пересечь Рубикон!
+#Skirmish3_TXT Опасные соседи
+#Skirmish4_TXT Осада
+#Skirmish5_TXT Битва на побережье
+#Skirmish6_TXT Маневры
+#Skirmish7_TXT Сжигая мосты!
+#Skirmish8_TXT Царь Горы
+#Skirmish9_TXT Болотная лихорадка
+#Skirmish10_TXT Ключ к победе

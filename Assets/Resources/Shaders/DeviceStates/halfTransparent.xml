@@ -1,0 +1,32 @@
+<halfTransparent>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<ColorVertex>False</ColorVertex>
+				<CullMode>CW</CullMode>
+				<FillMode>Solid</FillMode>
+				<TextureTransformFlags>Count2</TextureTransformFlags>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<ColorWriteEnable>0x0000000F</ColorWriteEnable>
+				<TextureFactor>0xFFFFFFFF</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate2x</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Tfactor</AlphaArg1>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<TexCoordIndex>PassThru</TexCoordIndex>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Current</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+			</TextureStageState>
+</halfTransparent>

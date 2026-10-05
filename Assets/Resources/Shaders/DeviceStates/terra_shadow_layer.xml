@@ -1,0 +1,17 @@
+<terra_shadow_layer DefaultBase="False" >
+			<TextureStageState Stage="1">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Current</ColorArg2>
+				<AlphaOp>Modulate</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Current</AlphaArg2>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<MipFilter>None</MipFilter>
+				<AddressU>Clamp</AddressU>
+				<AddressV>Clamp</AddressV>
+				<TexCoordIndex>CameraSpacePosition</TexCoordIndex>
+				<TextureTransformFlags>Count2</TextureTransformFlags>
+			</TextureStageState>
+</terra_shadow_layer>

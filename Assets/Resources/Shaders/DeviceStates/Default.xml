@@ -1,0 +1,67 @@
+<Default>
+	<RenderState>
+		<AlphaBlendEnable>True</AlphaBlendEnable>
+		<SrcBlend>SrcAlpha</SrcBlend>
+		<DestBlend>InvSrcAlpha</DestBlend>
+		<AlphaTestEnable>False</AlphaTestEnable>
+		<ColorVertex>True</ColorVertex>
+		<SpecularEnable>False</SpecularEnable>
+		<NormalizeNormals>False</NormalizeNormals>
+		<CullMode>None</CullMode>
+		<Lighting>True</Lighting>
+		<FillMode>Solid</FillMode>
+		<ShadeMode>Gouraud</ShadeMode>
+		<DitherEnable>False</DitherEnable>
+		<DiffuseMaterialSource>Color1</DiffuseMaterialSource>
+		<AmbientMaterialSource>Material</AmbientMaterialSource>
+		<SpecularMaterialSource>Color2</SpecularMaterialSource>
+		<Ambient>0xFF000000</Ambient>
+		<TextureTransformFlags>Count2</TextureTransformFlags>
+		<ZEnable>True</ZEnable>
+		<ZWriteEnable>True</ZWriteEnable>
+		<ZFunc>LessEqual</ZFunc>
+		<StencilEnable>False</StencilEnable>
+		<ColorWriteEnable>15</ColorWriteEnable>
+	</RenderState>
+	<TextureStageState Stage="0">
+		<ColorOp>SelectArg1</ColorOp>
+		<ColorArg1>Texture</ColorArg1>
+		<ColorArg2>Diffuse</ColorArg2>
+		<AlphaOp>Modulate</AlphaOp>
+		<AlphaArg1>Texture</AlphaArg1>
+		<AlphaArg2>Diffuse</AlphaArg2>
+		<MinFilter>Linear</MinFilter>
+		<MagFilter>Linear</MagFilter>
+		<MipFilter>Point</MipFilter>
+		<TexCoordIndex>PassThru</TexCoordIndex>
+		<TextureTransformFlags>Disable</TextureTransformFlags>
+	</TextureStageState>
+	<TextureStageState Stage="1">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+	<TextureStageState Stage="2">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+	<TextureStageState Stage="3">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+	<TextureStageState Stage="4">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+	<TextureStageState Stage="5">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+	<TextureStageState Stage="6">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+	<TextureStageState Stage="7">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+</Default>

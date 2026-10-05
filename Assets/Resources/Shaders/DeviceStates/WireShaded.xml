@@ -1,0 +1,27 @@
+<WireShaded>
+			<RenderState>
+				<AlphaBlendEnable>False</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<FillMode>Wireframe</FillMode>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<ZBias>16</ZBias>
+				<TextureFactor>0xFF0000AA</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<ColorArg2>Diffuse</ColorArg2>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+				<MinFilter>None</MinFilter>
+				<MagFilter>None</MagFilter>
+			</TextureStageState>
+</WireShaded>

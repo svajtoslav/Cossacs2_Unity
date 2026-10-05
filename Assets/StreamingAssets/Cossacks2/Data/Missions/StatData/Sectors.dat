@@ -1,0 +1,338 @@
+#SECTORN#           24
+#MAPSIZE#           990 825
+#SECTOR#
+ID                  0
+Center		    111 12
+SityXY		    169 111
+FortXY		    153 52
+DefOwner	    0
+Defence		    0
+Population	    0
+SectorName          Sector00
+Neighbors           1	 1  
+Arrow		    152 133 0
+Villages            5
+Ressource           4
+Owner		    0
+#SECTOR#
+ID                  1
+Center		    55 166
+SityXY		    184 252
+FortXY		    157 200
+DefOwner	    0
+Defence		    3
+Population	    2
+SectorName          Sector01
+Neighbors           3 	 0 5 2
+Arrow               144 129 0   191 232 0   133 256 0
+Villages            4
+Ressource           2
+Owner		    0
+#SECTOR#            
+ID                  2
+Center		    53 304
+SityXY		    97 377
+FortXY		    149 348
+DefOwner	    1
+Defence		    0
+Population	    0
+SectorName          Sector02
+Neighbors           3 	 1 6 3
+Arrow               119 261 0   180 366 0   146 405 0
+Villages            5
+Ressource           4
+Owner		    1
+#SECTOR#
+ID                  3
+Center		    84 422
+SityXY		    168 496
+FortXY		    174 465
+DefOwner	    1
+Defence		    0
+Population	    0
+SectorName          Sector03
+Neighbors           4 	 2 6 7 4 
+Arrow               149 401 0   176 439 0   193 479 0   97 492 0
+Villages            4
+Ressource           1
+Owner		    1
+#SECTOR#
+ID                  4
+Center		    24 491
+SityXY		    155 570
+FortXY		    74 525
+DefOwner	    0
+Defence		    0
+Population	    0
+SectorName          Sector04
+Neighbors           1 	 3   
+Arrow               87 506 0
+Villages            7
+Ressource           1
+Owner		    0
+#SECTOR#
+ID                  5
+Center		    198 233
+SityXY		    251 297
+FortXY		    288 300
+DefOwner	    1
+Defence		    0
+Population	    0
+SectorName          Sector05
+Neighbors           4 	 1 8 9 6
+Arrow               184 247 0   283 259 0   282 307 0   245 300 0
+Villages            3
+Ressource           3
+Owner		    1
+#SECTOR#
+ID                  6
+Center		    190 308
+SityXY		    204 352
+FortXY		    254 382
+DefOwner	    1
+Defence		    3
+Population	    2
+SectorName          Sector06
+Neighbors           5 	 5 9 7 3 2
+Arrow               241 290 0   276 363 0   248 400 0   201 413 0   171 366 0
+Villages            4
+Ressource           2
+Owner		    1
+#SECTOR#
+ID                  7
+Center		    221 414
+SityXY		    242 534
+FortXY		    297 444
+DefOwner	    1
+Defence		    0
+Population	    0
+SectorName          Sector07
+Neighbors           5 	 3 6 9 10 11
+Arrow               190 478 0   240 401 0   308 380 0   308 437 0   263 467 0  	
+Villages            5
+Ressource           4
+Owner		    1
+#SECTOR#
+ID                  8
+Center		    288 199
+SityXY		    455 270
+FortXY		    365 258
+DefOwner	    3
+Defence		    3
+Population	    2
+SectorName          Sector08
+Neighbors           4 	 5 9 14 13
+Arrow               274 257 0   353 282 0   418 275 0   434 242 0
+Villages            5
+Ressource           2
+Owner		    3
+#SECTOR#
+ID                  9
+Center		    295 313
+SityXY		    390 405
+FortXY		    355 353
+DefOwner	    3
+Defence		    0
+Population	    0
+SectorName          Sector09
+Neighbors           6 	 8 14 10 7 6 5
+Arrow               353 281 0   380 348 0   364 383 0   303 381 0   267 356 0   280 308 0
+Villages            3
+Ressource           1
+Owner		    3
+#SECTOR#
+ID                  10
+Center		    339 397
+SityXY		    490 418
+FortXY		    414 451
+DefOwner	    2
+Defence		    0
+Population	    0
+SectorName          Sector10
+Neighbors           5 	 14 15 11 7 9
+Arrow               447 366  0   438 442 0   354 454 0   302 433 0   365 382 0
+Villages            5
+Ressource           3
+Owner		    2
+#SECTOR#
+ID                  11
+Center		    279 469
+SityXY		    396 592
+FortXY		    391 552
+DefOwner	    2
+Defence		    0
+Population	    0
+SectorName          Sector11
+Neighbors           3 	 7 10 12 
+Arrow               256 471 0   340 459 0   404 579 0
+Villages            5
+Ressource           4
+Owner		    2
+#SECTOR#
+ID                  12
+Center		    389 600
+SityXY		    440 638
+FortXY		    495 635
+DefOwner	    2
+Defence		    0
+Population	    0
+SectorName          Sector12
+Neighbors           2 	 11 22
+Arrow               406 584 0   477 646 0
+Villages            3
+Ressource           3
+Owner		    2
+#SECTOR#
+ID                  13
+Center		    461 196
+SityXY		    500 225
+FortXY		    530 260
+DefOwner	    3
+Defence		    0
+Population	    0
+SectorName          Sector13
+Neighbors           4 	 8 14 16 18
+Arrow               424 243 0   477 274 0   554 244 0   600 189 0
+Villages            5
+Ressource           3
+Owner		    3
+#SECTOR#
+ID                  14
+Center		    394 284
+SityXY		    470 330
+FortXY		    465 365
+DefOwner	    2
+Defence		    0
+Population	    0
+SectorName          Sector14
+Neighbors           6 	 8 13 16 15 10 9
+Arrow               412 277 0   478 268 0  498 348 0   511 385 0   441 371 0   368 352 0
+Villages            2
+Ressource           4
+Owner		    2
+#SECTOR#
+ID                  15
+Center		    451 397
+SityXY		    535 440
+FortXY		    547 489
+DefOwner	    2
+Defence		    3
+Population	    2
+SectorName          Sector15
+Neighbors           4 	 10 14 16 17
+Arrow               444 448 0   517 389 0   577 369 0   584 443 0
+Villages            5
+Ressource           2
+Owner		    2
+#SECTOR#
+ID                  16
+Center		    519 264
+SityXY		    617 278
+FortXY		    598 338
+DefOwner	    4
+Defence		    0
+Population	    0
+SectorName          Sector16
+Neighbors           6 	 13 18 20 17 15 14
+Arrow               542 246 0   611 262 0   626 313 0   603 344 0   576 369 0   493 347 0 
+Villages            5
+Ressource           3
+Owner		    4
+#SECTOR#
+ID                  17
+Center		    606 363
+SityXY		    707 490
+FortXY		    675 410
+DefOwner	    2
+Defence		    0
+Population	    0
+SectorName          Sector17
+Neighbors           3 	 15 16 20
+Arrow               572 446 0   612 345 0   699 355 0
+Villages            6
+Ressource           1
+Owner		    2
+#SECTOR#
+ID                  18
+Center		    571 103
+SityXY		    670 190
+FortXY		    635 161
+DefOwner	    4
+Defence		    0
+Population	    0
+SectorName          Sector18
+Neighbors           4 	 13 16 19 20
+Arrow               589 178 0   606 261 0   677 168 0   665 245 0
+Villages            2
+Ressource           1
+Owner		    4
+#SECTOR#
+ID                  19
+Center		    673 67
+SityXY		    725 215
+FortXY		    767 163
+DefOwner	    4
+Defence		    0
+Population	    0
+SectorName          Sector19
+Neighbors           3 	 18 21 20
+Arrow               671 184 0   786 162 0   749 237 0
+Villages            5
+Ressource           4
+Owner		    4
+#SECTOR#
+ID                  20
+Center		    654 267
+SityXY		    790 325
+FortXY		    745 355
+DefOwner	    4
+Defence		    0
+Population	    0
+SectorName          Sector20
+Neighbors           5 	 18 19 21 17 16
+Arrow               665 250 0   745 234 0   807 263 0   700 352 0   626 325 0
+Villages            6
+Ressource           1
+Owner		    4
+#SECTOR#
+ID                  21
+Center		    809 27
+SityXY		    890 105
+FortXY		    880 195
+DefOwner	    4
+Defence		    3
+Population	    2
+SectorName          Sector21
+Neighbors           2 	 19 20
+Arrow               784 157 0   814 249 0
+Villages            5
+Ressource           2
+Owner		    4
+#SECTOR#
+ID                  22
+Center		    697 679
+SityXY		    858 691
+FortXY		    797 767
+DefOwner	    5
+Defence		    3
+Population	    2
+SectorName          Sector22
+Neighbors           2 	 12 23
+Arrow               478 640 0   862 728 0
+Villages            5
+Ressource           2
+Owner		    5
+#SECTOR#
+ID                  23
+Center		    860 660
+SityXY		    908 725
+FortXY		    933 690
+DefOwner	    5
+Defence		    0
+Population	    0
+SectorName          Sector23
+Neighbors           1 	 22
+Arrow               852 730 0
+Villages            5
+Ressource           1
+Owner		    5

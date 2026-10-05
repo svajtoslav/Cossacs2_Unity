@@ -1,0 +1,18 @@
+<controls>
+	<RenderState>
+		<AlphaBlendEnable>False</AlphaBlendEnable>
+		<AlphaTestEnable>False</AlphaTestEnable>
+		<Lighting>False</Lighting>
+		<SpecularEnable>False</SpecularEnable>
+		<ZEnable>True</ZEnable>
+		<ZWriteEnable>True</ZWriteEnable>
+		<FillMode>Solid</FillMode>
+		<CullMode>None</CullMode>
+		<TextureFactor>0xFFFF00FF</TextureFactor>
+	</RenderState>
+	<TextureStageState Stage="0">
+		<ColorOp>SelectArg1</ColorOp>
+		<ColorArg1>Diffuse</ColorArg1>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+</controls>

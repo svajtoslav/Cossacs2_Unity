@@ -1,0 +1,41 @@
+<RoadBump>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>DestColor</SrcBlend>
+				<DestBlend>SrcColor</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>1</AlphaRef>
+				<DitherEnable>True</DitherEnable>
+				<Lighting>False</Lighting>
+				<SpecularEnable>False</SpecularEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<FillMode>Solid</FillMode>
+				<CullMode>None</CullMode>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg2</ColorOp>
+				<ColorArg1>Diffuse</ColorArg1>
+				<ColorArg2>Texture</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Clamp</AddressV>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<AlphaOp>BlendDiffuseAlpha</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Current</AlphaArg2>
+				<ColorOp>BlendDiffuseAlpha</ColorOp>
+				<ColorArg2>Texture</ColorArg2>
+				<ColorArg1>Current</ColorArg1>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Clamp</AddressV>
+			</TextureStageState>
+</RoadBump>

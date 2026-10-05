@@ -1,0 +1,158 @@
+
+#SELECT_SCENARIO Миссия
+#SingleBattle_Start Начать миссию
+#SingleBattle_Start_Hint Начать прохождение миссии
+#Back_SingleBattle_Hint Вернуться в Главное меню
+#SINGLE_MISSION ОДИНОЧНАЯ МИССИЯ
+#MAP_DESCRIPTION ОПИСАНИЕ КАРТЫ
+#Skirmish_List_Hint Карты Сражений
+#Battles_List_Hint Карты Баталий
+#Tab_Skirmish Сражение
+#Tab_Skirmish_Hint Карты Сражений
+#Tab_Battles Баталии
+#Tab_Battles_Hint Карты Баталий
+#Tab_Load Загрузить
+#Tab_Load_Hint Загрузить игру
+
+#MULTIPLAYER_ROOM_Title КОМНАТА СЕТЕВОЙ ИГРЫ
+#GAME_SETTINGS_Window НАСТОЙКИ КОМНАТЫ
+#MAP_DESCRIPTION_Window ВЫБОР КАРТЫ
+#PLAYERS_CHAT_Window ОКНО СООБЩЕНИЙ
+#Send_ChatMessage_Hint Отослать сообщение
+#Chat_Input_Hint Сообщение
+#Combo_Nation_Select_Hint Выбрать нацию
+#Combo_Color_Select_Hint Выбрать цвет нации
+#Tab_Saved Сохраненная игра
+#Tab_Saved_Hint Выбрать Сохраненную игру для продолжения
+#Tab_Designed Созданные карты
+#Tab_Designed_Hint Выбрать Созданную карту
+#MultiBattle_Start Начать
+#MultiBattle_Start_Hint Начать игру
+#Back_MultiBattle_Hint Назад в меню Сетевой игры
+
+#StdEndGame_VictoryTitle ПОБЕДА
+#StdEndGame_VictoryMessage Победа
+#StdEndGame_VictoryButton OK
+#StdEndGame_DefeatTitle ПОРАЖЕНИЕ
+#StdEndGame_DefeatMessage Поражение
+#StdEndGame_DefeatButton OK
+#EndGame_Button_Hint OK
+
+#MAIN_MENU_Window ГЛАВНОЕ МЕНЮ
+#MainMenu_SinglePlayer_Hint Завоевание Европы и меню Баталий
+#MainMenu_InternetGame_Hint Игра с другими игроками по Интернет
+#MainMenu_Multiplayer_Hint Игра с другими игроками по сети
+#MainMenu_Options_Hint Изменить настройки игры
+#MainMenu_Editor Авторы
+#MainMenu_Editor_Hint Показать авторов проэкта
+#MainMenu_Exit_Hint Выход в Windows
+
+#GameMessage_Close_Hint Закрыть окно
+
+#CUR_PROFILE Текущий Игрок
+
+#ExitFromGame_GMap_Window ВЫХОД В ГЛАВНОЕ МЕНЮ
+#ExitFromGame_GMap_Text Вы желаете выйти в Главное меню?
+#ExitFromGame_GMap_Exit Отступить из сектора
+#ExitFromGame_Skirmish_Window Выйти в Главное меню
+#ExitFromGame_Skirmish_Text Выйти в Главное меню
+#ExitFromGame_Skirmish_Exit Сдаться
+#ExitFromGame_Back Назад в игру
+
+#MM_Single_Tutorial КАМПАНИЯ
+#MM_Single_Tutorial_Hint Прохождение миссий Кампании
+#MM_Single_Window ОДИНОЧНАЯ ИГРА
+#MM_Single_ChangeProfile ДРУГОЙ ИГРОК
+#MM_Single_ChangeProfile_Hint Выбрать другого игрока
+#MM_Single_Campaign ЗАВОЕВАНИЕ ЕВРОПЫ
+#MM_Single_Campaign_Hint Перепиши историю - покори Европу
+#MM_Single_Skirmish СРАЖЕНИЯ И БАТАЛИИ
+#MM_Single_Skirmish_Hint Сражения и Баталии
+#MM_Single_Back ГЛАВНОЕ МЕНЮ
+#MM_Single_Back_Hint Назад в Главное меню
+
+#Help_InGame_Title Помощь
+#Help_InGame_Close Помощь
+
+#Options_Window НАСТРОЙКИ
+#MM_Options_RealisticWater Реалистичная вода
+#MM_Options_EnableMusic Музыка
+#MM_Options_AnimationQuality Качество анимации
+#MM_Options_ShowVideo_Hint Показывать видео
+#MM_Options_ShowVideo Показывать видео
+
+#MainMenu_Options_Title НАСТРОЙКИ
+#MM_Options_VideoResolution_Hint Разрешение экрана
+#MM_Options_SoundVolume_Hint Громкость звука
+#MM_Options_MusicVolume_Hint Громкость музыки
+#MM_Options_GameSpeed_Hint Скорость игры
+#MM_Options_ScrollingSpeed_Hint Скорость прокрутки
+#MM_Options_RealisticWater_Hint Реалистичная вода
+#MM_Options_EnableMusic_Hint Включить/Выключить музыку
+#MM_Options_AnimationQuality_Hint Установить качество анимации
+#MM_Options_Accept Принять
+#MM_Options_Accept_Hint Принять
+#MM_Options_Cancel Отменить
+#MM_Options_Cancel_Hint Отменить
+#MM_Options_ShowHint_Hint Показать подсказки
+
+#Save_InGame_Window Сохранить
+#SaveAccept Сохранить
+#Load_InGame_Window Загрузить
+#LoadAccept Загрузить
+
+#GameStatistic_Ok OK
+#GameStatistic_Window СТАТИСТИКА
+
+#AddProfile_Nation Нация
+#AddProfile_HeroScroll_Hint Прокрутить
+#AddProfile_ProfileName Имя игрока
+#AddProfile_Name_Hint Имя игрока
+#AddProfile_Nation_Hint Выберите нацию
+#AddProfile_Difficulty_Hint Выберите уровень сложности игры
+#AddProfile_HistoricalSettings Выбор командира
+#AddProfile_PlayerSettings Настройки игрока
+#AddProfile_Window НОВЫЙ ИГРОК
+#AddProfile_Title СОЗДАТЬ НОВОГО ИГРОКА
+#AddProfile_Accept Принять
+#AddProfile_Accept_Hint Принять
+#AddProfile_Cancel Отмена
+#AddProfile_Cancel_Hint Отмена
+
+#ChangeProfile_Delete Удалить
+#ChangeProfile_Delete_Hint Удалить игрока
+#ChangeProfile_List_Hint Выбрать игрока
+#ChangeProfile_Nation Нация
+#ChangeProfile_Name Имя
+#ChangeProfile_Empire Империя
+#ChangeProfile_Question Вы хотите удалить выбранного игрока?
+#ChangeProfile_Rank Звание
+#ChangeProfile_Window МЕНЮ ИГРОКА
+#ChangeProfile_Title МЕНЮ ИГРОКА
+#ChangeProfile_Accept_Hint Выбрать этого игрока
+#ChangeProfile_Add Новый игрок
+#ChangeProfile_Add_Hint Создать нового игрока
+#ChangeProfile_Cancel_Hint Назад в меню Одиночной игры
+#ChangeProfile_Delete_Window Удалить игрока
+#ChangeProfile_DeleteAccept Удалить
+#ChangeProfile_DeleteAccept_Hint Удалить выбранного игрока
+#ChangeProfile_DeleteCancel_Hint Отмена
+
+#LAN_RoomsList_Window Игрок:
+#LAN_RoomsList_Title СЕТЕВАЯ ИГРА
+#LAN_RoomsList_List_Hint Выбрать комнату Сетевой игры
+#LAN_RoomsList_Join_Hint Войти 
+#LAN_RoomsList_Create_Hint Создать комнату
+#LAN_RoomsList_Back_Hint Назад в Главное меню
+#LAN_RoomsList_Name Имя игрока
+#LAN_RoomsList_Name_Hint Введите имя игрока
+
+#NationCombo_Random Случайно
+
+#VIC_Mess_Window Сообщение
+
+#F12_Options Настройки
+#F12_BackToGame Назад в игру
+#F12_Load Загрузить
+#F12_Save Сохранить
+#F12_ExitFromGame Назад в Главное меню

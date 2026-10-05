@@ -1,0 +1,12 @@
+<>
+ <Walls>
+  <WallTypeDescription>
+   <Name></Name>
+   <GlobalScale>0.000000</GlobalScale>
+   <Elements></Elements>
+   <Texturing></Texturing>
+   <MinWallLength>350</MinWallLength>
+   <MaxWallLength>500</MaxWallLength>
+  </WallTypeDescription>
+ </Walls>
+</>

@@ -1,0 +1,52 @@
+<smooth>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<SrcBlend>InvSrcAlpha</SrcBlend>
+				<DestBlend>SrcAlpha</DestBlend>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>GreaterEqual</AlphaFunc>
+				<AlphaRef>0x0</AlphaRef>
+				<ColorVertex>False</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<NormalizeNormals>True</NormalizeNormals>
+				<CullMode>CCW</CullMode>
+				<Lighting>True</Lighting>
+				<FillMode>Solid</FillMode>
+				<ShadeMode>Gouraud</ShadeMode>
+				<DitherEnable>False</DitherEnable>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>True</ZWriteEnable>
+				<ZFunc>LessEqual</ZFunc>
+				<FogEnable>False</FogEnable>				
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>BlendTextureAlpha</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>TFactor</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Texture</AlphaArg1>
+				<AlphaArg2>Diffuse</AlphaArg2>
+				<MipFilter>Linear</MipFilter>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<TexCoordIndex>PassThru</TexCoordIndex>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Modulate2x</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Current</ColorArg2>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Current</AlphaArg1>
+				<AlphaArg2>Current</AlphaArg2>
+				<MipFilter>Linear</MipFilter>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+				<TexCoordIndex>CameraSpacePosition</TexCoordIndex>
+				<TextureTransformFlags>Count2</TextureTransformFlags>
+			</TextureStageState>			
+			
+</smooth>

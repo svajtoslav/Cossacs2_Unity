@@ -1,0 +1,17 @@
+<MainMenu>
+ <Main>		  dialogs\v\M_Main.DialogsSystem.xml		  	</Main>
+ <Single>	  dialogs\v\M_Single.DialogsSystem.xml		  	</Single>
+ <Options>	  dialogs\v\M_Options.DialogsSystem.xml		  	</Options>
+ <MultiRoom>	  dialogs\v\M_BattlesMulti.DialogsSystem.xml	  	</MultiRoom>
+ <Multi>	  dialogs\v\M_Multi.DialogsSystem.xml		  	</Multi>
+ <SingleBattles>  dialogs\v\M_Battles.DialogsSystem.xml		  	</SingleBattles>
+ <Message>	  dialogs\v\M_MESSAGE.DIALOGSSYSTEM.XML		  	</Message>
+ <SelProfile>	  dialogs\v\M_PROF_SEL.DIALOGSSYSTEM.XML	  	</SelProfile>
+ <AddProfile>	  dialogs\v\M_PROF_ADD.DIALOGSSYSTEM.XML	  	</AddProfile>
+ <EndGameMessage> dialogs\v\M_EndGame.DialogsSystem.xml		  	</EndGameMessage>
+ <F1game>	  dialogs\v\Ma_F1.DialogsSystem.xml		  	</F1game>
+ <F10game>	  dialogs\v\Ma_F12game.DialogsSystem.xml	  	</F10game>
+ <PostGameStat>	  dialogs\v\M_POSTGAMESTATISTIC.DIALOGSSYSTEM.XML 	</PostGameStat>
+ <EW2CampStat>	  dialogs\Interface\EW2_CampaignStats.DialogsSystem.xml </EW2CampStat>
+ <Tutorial>	  dialogs\v\M_Tutorial.DialogsSystem.xml		</Tutorial>
+</MainMenu>

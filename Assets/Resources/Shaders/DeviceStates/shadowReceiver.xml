@@ -1,0 +1,38 @@
+<shadowReceiver>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<AlphaTestEnable>True</AlphaTestEnable>
+				<AlphaFunc>Less</AlphaFunc>
+				<AlphaRef>0x00000060</AlphaRef>
+				<SrcBlend>Zero</SrcBlend>
+				<DestBlend>SrcColor</DestBlend>
+				<ColorVertex>False</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<NormalizeNormals>False</NormalizeNormals>
+				<CullMode>None</CullMode>
+				<Lighting>False</Lighting>
+				<FillMode>Solid</FillMode>
+				<DitherEnable>False</DitherEnable>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<TextureFactor>0x55888888</TextureFactor>
+				<TextureTransformFlags>Count2</TextureTransformFlags>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<LightEnable>False</LightEnable>
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Tfactor</AlphaArg1>
+				<MipFilter>None</MipFilter>
+				<MinFilter>Linear</MinFilter>
+				<MagFilter>Linear</MagFilter>
+				<AddressU>Clamp</AddressU>
+				<AddressV>Clamp</AddressV>
+				<TexCoordIndex>PassThru</TexCoordIndex>
+			</TextureStageState>
+			<TextureStageState Stage="1">
+				<ColorOp>Disable</ColorOp>
+				<AlphaOp>Disable</AlphaOp>
+			</TextureStageState>
+</shadowReceiver>

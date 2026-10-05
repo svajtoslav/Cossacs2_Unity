@@ -1,0 +1,18 @@
+<navimesh>
+			<RenderState>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<CullMode>None</CullMode>
+				<FillMode>Solid</FillMode>
+				<ZEnable>True</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+				<TextureFactor>0x770000FF</TextureFactor>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>SelectArg1</ColorOp>
+				<ColorArg1>Tfactor</ColorArg1>
+				<AlphaOp>SelectArg1</AlphaOp>
+				<AlphaArg1>Tfactor</AlphaArg1>
+				<MinFilter>Point</MinFilter>
+				<MagFilter>Point</MagFilter>
+			</TextureStageState>
+</navimesh>

@@ -1,0 +1,12 @@
+﻿# C2 DAMBA pair calibration V1
+map=Missions\Skirmish\Skirmish2.m3d
+objectA=W60 W60 model=Models\dam_bottom.c2m
+objectB=W60 W60 model=Models\dam_bottom.c2m
+deltaPixels.x=55.396
+deltaPixels.y=-55.494
+deltaHeightPixels=0
+connectorA.local.x=161
+connectorA.local.y=96
+connectorB.local.x=102
+connectorB.local.y=156
+rule=place B at A + deltaPixels; A.connectorRight should coincide with B.connectorLeft after manual calibration

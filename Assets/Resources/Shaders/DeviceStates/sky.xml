@@ -1,0 +1,30 @@
+<sky>
+	<RenderState>
+		<AlphaBlendEnable>False</AlphaBlendEnable>
+		<SrcBlend>SrcAlpha</SrcBlend>
+		<DestBlend>InvSrcAlpha</DestBlend>
+		<AlphaTestEnable>False</AlphaTestEnable>
+		<ColorVertex>False</ColorVertex>
+		<SpecularEnable>False</SpecularEnable>
+		<ZEnable>True</ZEnable>
+		<ZWriteEnable>False</ZWriteEnable>
+		<Lighting>False</Lighting>
+		<DitherEnable>True</DitherEnable>
+		<FillMode>Solid</FillMode>
+		<CullMode>CCW</CullMode>
+		<TextureFactor>0xFFFFFFFF</TextureFactor>
+	</RenderState>
+	<TextureStageState Stage="0">
+		<ColorOp>Modulate</ColorOp>
+		<ColorArg1>Texture</ColorArg1>
+		<ColorArg2>TFactor</ColorArg2>
+		<MinFilter>Linear</MinFilter>
+		<MagFilter>Linear</MagFilter>
+		<AddressU>Mirror</AddressU>
+		<AddressV>Mirror</AddressV>
+	</TextureStageState>
+	<TextureStageState Stage="1">
+		<ColorOp>Disable</ColorOp>
+		<AlphaOp>Disable</AlphaOp>
+	</TextureStageState>
+</sky>

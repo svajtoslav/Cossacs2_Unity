@@ -1,0 +1,37 @@
+﻿G16 Analysis for: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng.G16
+Magic: GU16
+BlockSize: 513007 FramesPerSeg: 16 NSprites: 15 Size: 138x237 MaxWorkbuf: 512951 NPackSegments: 1
+
+Seg 0: Off=55 Len=512952 Flags=0xC Frames=15
+  OK
+    Frame 0: squares=32/32
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0000.tga
+    Frame 1: squares=25/25
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0001.tga
+    Frame 2: squares=26/26
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0002.tga
+    Frame 3: squares=24/24
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0003.tga
+    Frame 4: squares=22/22
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0004.tga
+    Frame 5: squares=23/23
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0005.tga
+    Frame 6: squares=32/32
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0006.tga
+    Frame 7: squares=32/32
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0007.tga
+    Frame 8: squares=33/33
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0008.tga
+    Frame 9: squares=26/26
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0009.tga
+    Frame 10: squares=20/20
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0010.tga
+    Frame 11: squares=24/24
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0011.tga
+    Frame 12: squares=26/26
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0012.tga
+    Frame 13: squares=23/23
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0013.tga
+    Frame 14: squares=26/26
+    Saved: E:\Казаки II - Битва за Европу патчмод порох\Interf3\Units_eng_frames\frame_0014.tga
+

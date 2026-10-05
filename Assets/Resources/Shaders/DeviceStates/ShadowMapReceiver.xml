@@ -1,0 +1,28 @@
+<shadowMapREceiver>
+			<RenderState>
+				<SrcBlend>SrcColor</SrcBlend>
+				<DestBlend>InvSrcColor</DestBlend>
+				<AlphaBlendEnable>True</AlphaBlendEnable>
+				<AlphaTestEnable>False</AlphaTestEnable>
+				<ColorVertex>False</ColorVertex>
+				<SpecularEnable>False</SpecularEnable>
+				<NormalizeNormals>False</NormalizeNormals>
+				<CullMode>None</CullMode>
+				<Lighting>False</Lighting>
+				<FillMode>Solid</FillMode>
+				<DitherEnable>False</DitherEnable>
+				<ZEnable>False</ZEnable>
+				<ZWriteEnable>False</ZWriteEnable>
+			</RenderState>
+			<TextureStageState Stage="0">
+				<ColorOp>Modulate</ColorOp>
+				<ColorArg1>Texture</ColorArg1>
+				<ColorArg2>Tfactor</ColorArg2>
+				<AlphaOp>Disable</AlphaOp>
+				<MagFilter>Linear</MagFilter>
+				<MinFilter>Linear</MinFilter>
+				<MipFilter>Linear</MipFilter>
+				<AddressU>Wrap</AddressU>
+				<AddressV>Wrap</AddressV>
+			</TextureStageState>
+</shadowMapREceiver>

@@ -1,0 +1,27 @@
+<>
+ <PointOnBigMap>Flag(NE)</PointOnBigMap>
+ <PointOnMiniMap>
+  <Name>miniFlag</Name>
+  <Visible>true</Visible>
+  <Alpha>255</Alpha>
+  <a_sign>-0.255000</a_sign>
+  <AppearTime>1000</AppearTime>
+  <DisapperTime>1000</DisapperTime>
+  <Flick>false</Flick>
+  <RealTime>14022543</RealTime>
+  <fSetVisibleBS>
+   <Visible>true</Visible>
+  </fSetVisibleBS>
+  <FileID>Missions\Mission_Graph\smallMap_Flag</FileID>
+  <SpriteID>0</SpriteID>
+  <Nat>0</Nat>
+  <dx>-5</dx>
+  <dy>-5</dy>
+  <posX>0</posX>
+  <posY>0</posY>
+  <OnCenterSCR>false</OnCenterSCR>
+  <Animate>true</Animate>
+  <SpriteLastID>29</SpriteLastID>
+  <DelayTime>40</DelayTime>
+ </PointOnMiniMap>
+</>

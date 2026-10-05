@@ -1,0 +1,20 @@
+<ClassArray.lvCOperation>
+ <lvCGroupHoldNode>
+  <fShowPresentation>
+   <FileName></FileName>
+  </fShowPresentation>
+  <x0>0</x0>
+  <y0>0</y0>
+  <x1>0</x1>
+  <y1>0</y1>
+  <squardID>00000000</squardID>
+  <timeInProc>00000000</timeInProc>
+  <use_vGroup>true</use_vGroup>
+  <first>true</first>
+  <UseNode>true</UseNode>
+  <parNode>Food1</parNode>
+  <RepeatInTime>false</RepeatInTime>
+  <vGrp>vgFstAtk</vGrp>
+  <RulesFile>mis3.sia</RulesFile>
+ </lvCGroupHoldNode>
+</ClassArray.lvCOperation>
